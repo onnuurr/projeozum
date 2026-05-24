@@ -1,0 +1,11 @@
+{
+    "name": "Atelier",
+    "alias": "atelier",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\Atelier\\Providers\\AtelierServiceProvider"
+    ],
+    "files": []
+}

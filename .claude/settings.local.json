@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:downloads.php.net)",
+      "Bash(php artisan *)",
+      "Bash(cd \"D:\\\\\\\\laragon\\\\\\\\www\\\\\\\\proje\")",
+      "Bash(ls \"D:\\\\\\\\laragon\\\\\\\\www\\\\\\\\proje\\\\\\\\resources\\\\\\\\js\\\\\\\\Components2\\\\\\\\\")",
+      "Bash(find D:\\\\\\\\laragon\\\\\\\\www\\\\\\\\proje\\\\\\\\resources\\\\\\\\js\\\\\\\\Components *)",
+      "Bash(wc *)",
+      "Bash(npx vite *)",
+      "Bash(powershell *)",
+      "Bash(git init *)",
+      "Bash(git add *)"
+    ]
+  }
+}

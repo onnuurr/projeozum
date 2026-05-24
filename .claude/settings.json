@@ -1,0 +1,53 @@
+{
+    "permissions": {
+        "deny": [
+            "Read(.env)",
+            "Read(.env.*)",
+            "Read(./.env)",
+            "Read(./.env.*)",
+            "Read(**/.env)",
+            "Read(**/.env.*)",
+            "Read(//?/**/.env)",
+            "Read(//?/**/.env.*)",
+            "Read(D:\\laragon\\www\\proje\\.env)",
+            "Read(D:\\laragon\\www\\proje\\.env.*)",
+
+            "Read(storage/**)",
+            "Read(./storage/**)",
+            "Read(**/storage/**)",
+            "Read(D:\\laragon\\www\\proje\\storage\\**)",
+
+            "Read(*.key)",
+            "Read(*.pem)",
+            "Read(**/*.key)",
+            "Read(**/*.pem)",
+            "Read(./**/*.key)",
+            "Read(./**/*.pem)",
+
+            "Bash(cat *.env*)",
+            "Bash(cat .env*)",
+            "Bash(grep * .env*)",
+            "Bash(less .env*)",
+            "Bash(more .env*)",
+            "Bash(head .env*)",
+            "Bash(tail .env*)",
+            "Bash(type *.env*)",
+            "Bash(type .env*)",
+            "Bash(Get-Content *.env*)",
+            "Bash(Get-Content .env*)",
+
+            "Bash(cat *storage/*)",
+            "Bash(ls *storage*)",
+            "Bash(dir *storage*)",
+            "Bash(Get-Content *storage*)",
+            "Bash(Get-ChildItem *storage*)",
+
+            "Bash(cat *.key)",
+            "Bash(cat *.pem)",
+            "Bash(type *.key)",
+            "Bash(type *.pem)",
+            "Bash(Get-Content *.key)",
+            "Bash(Get-Content *.pem)"
+        ]
+    }
+}

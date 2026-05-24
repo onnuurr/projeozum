@@ -1,0 +1,3173 @@
+<template>
+	<Head title="Sistem Ayarları · Süper Admin" />
+	<div class="page-sa-settings">
+		<Breadcrumb
+			:items="[
+				{ label: 'Ana Sayfa', to: '/workflow', icon: 'home' },
+				{ label: 'Süper Admin' },
+				{ label: 'Sistem Ayarları' },
+			]"
+		/>
+
+		<div class="page-header">
+			<div>
+				<div class="sa-badge">
+					<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+						<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+					</svg>
+					Süper Admin
+				</div>
+				<h1 class="page-title">Sistem Ayarları</h1>
+				<p class="page-subtitle">
+					Tüm SaaS platformunu etkileyen genel ayarlar. Değişiklikler tüm tenant'lara yansır.
+				</p>
+			</div>
+			<div class="header-actions">
+				<button v-if="form.isDirty" class="btn btn-ghost" @click="resetForm" :disabled="form.processing">
+					Değişiklikleri İptal Et
+				</button>
+				<button
+					class="btn btn-primary btn-with-icon"
+					:class="{ 'btn-loading': form.processing }"
+					:disabled="!form.isDirty || form.processing"
+					@click="save"
+				>
+					<span v-if="form.processing" class="btn-spinner"></span>
+					<svg v-else width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+						<polyline points="20 6 9 17 4 12" />
+					</svg>
+					{{ form.processing ? 'Kaydediliyor…' : 'Kaydet' }}
+				</button>
+			</div>
+		</div>
+
+		<div class="sa-layout">
+			<!-- Sol nav -->
+			<aside class="sa-nav">
+				<button
+					v-for="s in sections"
+					:key="s.key"
+					class="sa-nav-item"
+					:class="{ active: activeSection === s.key }"
+					@click="activeSection = s.key"
+				>
+					<span class="sa-nav-icon" v-html="s.icon"></span>
+					<div class="sa-nav-text">
+						<div class="sa-nav-label">{{ s.label }}</div>
+						<div class="sa-nav-sub">{{ s.sub }}</div>
+					</div>
+					<svg
+						v-if="dirtyKeys.includes(s.key)"
+						class="sa-nav-dirty"
+						width="8"
+						height="8"
+						viewBox="0 0 8 8"
+					>
+						<circle cx="4" cy="4" r="4" fill="#f59e0b" />
+					</svg>
+				</button>
+
+				<div class="sa-nav-footer">
+					<div class="sa-version">
+						<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+							<circle cx="12" cy="12" r="10" />
+							<polyline points="12 6 12 12 16 14" />
+						</svg>
+						Son güncelleme: 13.05.2026
+					</div>
+				</div>
+			</aside>
+
+			<!-- Sağ form -->
+			<main class="sa-content">
+				<!-- 1. GENEL -->
+				<section v-if="activeSection === 'general'" class="sa-section">
+					<header class="sa-section-head">
+						<h2>Genel Ayarlar</h2>
+						<p>Sistem adı, dil, zaman dilimi gibi temel platform ayarları</p>
+					</header>
+
+					<div class="field-row">
+						<div class="field">
+							<label>Sistem Adı</label>
+							<input v-model="form.general.systemName" class="form-input" type="text" />
+							<div class="field-help">Üst menüde, e-postalarda ve faturada görünür</div>
+						</div>
+						<div class="field">
+							<label>Sistem URL</label>
+							<input v-model="form.general.systemUrl" class="form-input" type="url" />
+						</div>
+					</div>
+
+					<div class="field-row">
+						<div class="field">
+							<label>Destek E-posta</label>
+							<input v-model="form.general.supportEmail" class="form-input" type="email" />
+						</div>
+						<div class="field">
+							<label>Logo URL</label>
+							<input v-model="form.general.logoUrl" class="form-input" type="url" placeholder="https://..." />
+						</div>
+					</div>
+
+					<div class="field-row">
+						<div class="field">
+							<label>Varsayılan Dil</label>
+							<CustomSelect v-model="form.general.defaultLanguage" :options="options.languages" :show-label="false" />
+						</div>
+						<div class="field">
+							<label>Zaman Dilimi</label>
+							<CustomSelect v-model="form.general.defaultTimezone" :options="options.timezones" :show-label="false" />
+						</div>
+						<div class="field">
+							<label>Tarih Formatı</label>
+							<CustomSelect v-model="form.general.dateFormat" :options="options.dateFormats" :show-label="false" />
+						</div>
+						<div class="field">
+							<label>Para Birimi</label>
+							<CustomSelect v-model="form.general.defaultCurrency" :options="options.currencies" :show-label="false" />
+						</div>
+					</div>
+
+					<div class="sa-divider"></div>
+
+					<div class="toggle-card">
+						<div class="toggle-info">
+							<div class="toggle-label">Yeni Kayıt Açık</div>
+							<div class="toggle-sub">Kapatırsan yeni firma kaydı yapılamaz, mevcut tenant'lar etkilenmez.</div>
+						</div>
+						<label class="switch">
+							<input type="checkbox" v-model="form.general.allowSignup" />
+							<span class="slider"></span>
+						</label>
+					</div>
+
+					<div class="toggle-card" :class="{ 'toggle-danger': form.general.maintenanceMode }">
+						<div class="toggle-info">
+							<div class="toggle-label">
+								Bakım Modu
+								<span v-if="form.general.maintenanceMode" class="danger-pill">AKTİF</span>
+							</div>
+							<div class="toggle-sub">Açıkken sadece süper admin giriş yapabilir, diğer kullanıcılara bakım sayfası gösterilir.</div>
+						</div>
+						<label class="switch">
+							<input type="checkbox" v-model="form.general.maintenanceMode" />
+							<span class="slider"></span>
+						</label>
+					</div>
+
+					<div v-if="form.general.maintenanceMode" class="field">
+						<label>Bakım Mesajı</label>
+						<textarea v-model="form.general.maintenanceMessage" class="form-textarea" rows="3"></textarea>
+					</div>
+				</section>
+
+				<!-- 2. GÜVENLİK -->
+				<section v-if="activeSection === 'security'" class="sa-section">
+					<header class="sa-section-head">
+						<h2>Güvenlik</h2>
+						<p>Parola politikası, iki faktörlü kimlik, oturum yönetimi</p>
+					</header>
+
+					<h3 class="sa-subhead">Parola Politikası</h3>
+					<div class="field-row">
+						<div class="field">
+							<label>Minimum Uzunluk</label>
+							<input v-model.number="form.security.passwordMinLength" type="number" min="6" max="64" class="form-input" />
+						</div>
+						<div class="field">
+							<label>Geçerlilik Süresi (gün)</label>
+							<input v-model.number="form.security.passwordExpiryDays" type="number" min="0" max="365" class="form-input" />
+							<div class="field-help">0 = süresiz</div>
+						</div>
+					</div>
+
+					<div class="check-group">
+						<label class="check-card">
+							<input type="checkbox" v-model="form.security.passwordRequireUppercase" />
+							<span class="check-text">
+								<strong>Büyük harf zorunlu</strong>
+								<span class="check-sub">En az 1 büyük harf (A-Z)</span>
+							</span>
+						</label>
+						<label class="check-card">
+							<input type="checkbox" v-model="form.security.passwordRequireNumbers" />
+							<span class="check-text">
+								<strong>Rakam zorunlu</strong>
+								<span class="check-sub">En az 1 rakam (0-9)</span>
+							</span>
+						</label>
+						<label class="check-card">
+							<input type="checkbox" v-model="form.security.passwordRequireSpecial" />
+							<span class="check-text">
+								<strong>Özel karakter</strong>
+								<span class="check-sub">En az 1 özel karakter (!@#$ vb.)</span>
+							</span>
+						</label>
+					</div>
+
+					<div class="sa-divider"></div>
+
+					<h3 class="sa-subhead">İki Faktörlü Kimlik (2FA)</h3>
+					<div class="field">
+						<label>Zorunluluk Düzeyi</label>
+						<div class="radio-card-grid">
+							<label
+								v-for="o in options.twoFactorOptions"
+								:key="o.value"
+								class="radio-card"
+								:class="{ active: form.security.twoFactorRequired === o.value }"
+							>
+								<input type="radio" :value="o.value" v-model="form.security.twoFactorRequired" />
+								<div class="rc-content">
+									<div class="rc-label">{{ o.label }}</div>
+									<div class="rc-sub">
+										<template v-if="o.value === 'optional'">Kullanıcılar isteğe bağlı aktive eder.</template>
+										<template v-else-if="o.value === 'admins'">Sadece tenant yöneticileri zorunlu.</template>
+										<template v-else>Tüm kullanıcılar girişte 2FA yapmak zorunda.</template>
+									</div>
+								</div>
+							</label>
+						</div>
+					</div>
+
+					<div class="sa-divider"></div>
+
+					<h3 class="sa-subhead">Oturum & Giriş</h3>
+					<div class="field-row">
+						<div class="field">
+							<label>Oturum Süresi (dakika)</label>
+							<input v-model.number="form.security.sessionTimeoutMinutes" type="number" min="5" class="form-input" />
+						</div>
+						<div class="field">
+							<label>Max Başarısız Giriş</label>
+							<input v-model.number="form.security.maxLoginAttempts" type="number" min="1" max="20" class="form-input" />
+						</div>
+						<div class="field">
+							<label>Kilitlenme Süresi (dakika)</label>
+							<input v-model.number="form.security.lockoutMinutes" type="number" min="1" class="form-input" />
+						</div>
+					</div>
+
+					<div class="field">
+						<label>IP Whitelist (admin paneli)</label>
+						<textarea
+							v-model="form.security.ipWhitelist"
+							class="form-textarea"
+							rows="3"
+							placeholder="Her satıra bir IP veya CIDR. Boş bırakırsan kısıt yok."
+						></textarea>
+						<div class="field-help">Örnek: 192.168.1.0/24 veya 85.105.22.18</div>
+					</div>
+
+					<div class="toggle-card">
+						<div class="toggle-info">
+							<div class="toggle-label">Denetim Logu (Audit Log)</div>
+							<div class="toggle-sub">Tüm kritik işlemleri (kullanıcı oluşturma, ayar değişikliği vb.) kaydet.</div>
+						</div>
+						<label class="switch">
+							<input type="checkbox" v-model="form.security.enableAuditLog" />
+							<span class="slider"></span>
+						</label>
+					</div>
+					<div class="toggle-card">
+						<div class="toggle-info">
+							<div class="toggle-label">reCAPTCHA</div>
+							<div class="toggle-sub">Giriş ve kayıt formlarında bot koruması.</div>
+						</div>
+						<label class="switch">
+							<input type="checkbox" v-model="form.security.enableCaptcha" />
+							<span class="slider"></span>
+						</label>
+					</div>
+				</section>
+
+				<!-- 2.5 ROLLER & İZİNLER -->
+				<section v-if="activeSection === 'roles'" class="sa-section">
+					<header class="sa-section-head">
+						<div class="role-section-head">
+							<div>
+								<h2>Roller & İzinler</h2>
+								<p>Kullanıcı rollerini ve her rolün izin matrisini yönet</p>
+							</div>
+							<div class="role-view-toggle">
+								<button class="rv-btn" :class="{ active: roleView === 'list' }" @click="roleView = 'list'">
+									<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+										<rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
+										<rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
+									</svg>
+									Roller
+								</button>
+								<button class="rv-btn" :class="{ active: roleView === 'matrix' }" @click="roleView = 'matrix'">
+									<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+										<rect x="3" y="3" width="18" height="18" />
+										<line x1="3" y1="9" x2="21" y2="9" /><line x1="3" y1="15" x2="21" y2="15" />
+										<line x1="9" y1="3" x2="9" y2="21" /><line x1="15" y1="3" x2="15" y2="21" />
+									</svg>
+									İzin Matrisi
+								</button>
+								<button class="rv-btn" :class="{ active: roleView === 'permissions' }" @click="roleView = 'permissions'">
+									<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+										<polyline points="9 11 12 14 22 4" />
+										<path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+									</svg>
+									İzinler
+								</button>
+							</div>
+						</div>
+					</header>
+
+					<!-- Liste görünümü -->
+					<div v-if="roleView === 'list'">
+						<div class="role-list-head">
+							<div class="role-search">
+								<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+									<circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
+								</svg>
+								<input v-model="roleSearch" type="text" placeholder="Rol ara..." class="role-search-input" />
+							</div>
+							<button class="btn btn-primary btn-sm btn-with-icon" @click="openAddRole">
+								<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+									<line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+								</svg>
+								Yeni Rol
+							</button>
+						</div>
+
+						<div v-if="filteredRoles.length === 0" class="role-empty">
+							<svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+								<circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
+							</svg>
+							<p>"{{ roleSearch }}" için sonuç yok</p>
+						</div>
+
+						<div v-else class="role-grid">
+							<div v-for="r in filteredRoles" :key="r.key" class="role-card">
+								<div class="role-icon-bg" :style="{ background: r.color }">
+									{{ r.name.charAt(0).toUpperCase() }}
+								</div>
+								<div class="role-card-body">
+									<div class="role-card-title">
+										<h4>{{ r.name }}</h4>
+										<span v-if="r.system" class="system-pill">SİSTEM</span>
+									</div>
+									<p class="role-card-desc">{{ r.desc }}</p>
+									<div class="role-card-meta">
+										<span class="rc-meta-item">
+											<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+												<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" />
+												<path d="M23 21v-2a4 4 0 00-3-3.87" /><path d="M16 3.13a4 4 0 010 7.75" />
+											</svg>
+											{{ r.userCount }} kullanıcı
+										</span>
+										<span class="rc-meta-item">
+											<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+												<polyline points="9 11 12 14 22 4" />
+												<path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+											</svg>
+											{{ getPermLabel(r) }}
+										</span>
+									</div>
+								</div>
+								<div class="role-card-actions">
+									<button class="rc-action" @click="openEditRole(r)" :disabled="r.key === 'superadmin'" :title="r.key === 'superadmin' ? 'Süper Admin rolü düzenlenemez' : 'Düzenle'">
+										<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+											<path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+											<path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+										</svg>
+									</button>
+									<button class="rc-action rc-danger" @click="confirmDeleteRole(r)" :disabled="r.system" :title="r.system ? 'Sistem rolü silinemez' : 'Sil'">
+										<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+											<polyline points="3 6 5 6 21 6" />
+											<path d="M19 6l-2 14a2 2 0 01-2 2H9a2 2 0 01-2-2L5 6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+										</svg>
+									</button>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- İzinler CRUD -->
+					<div v-else-if="roleView === 'permissions'">
+						<div class="role-list-head">
+							<div class="role-search">
+								<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+									<circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
+								</svg>
+								<input v-model="permSearch" type="text" placeholder="İzin ara..." class="role-search-input" />
+							</div>
+							<button class="btn btn-primary btn-sm btn-with-icon" @click="openAddPermission">
+								<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+									<line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+								</svg>
+								Yeni İzin
+							</button>
+						</div>
+
+						<div v-if="flatPermissions.length === 0" class="role-empty">
+							<p>Henüz izin tanımlanmamış. "Yeni İzin" ile başlayın.</p>
+						</div>
+
+						<div v-else class="perm-list">
+							<div v-for="m in filteredPermissionModules" :key="m.key" class="perm-list-module">
+								<div class="perm-list-module-head">
+									<strong>{{ m.name }}</strong>
+									<span class="pmh-count">{{ m.permissions.length }} izin</span>
+								</div>
+								<div class="perm-list-rows">
+									<div v-for="p in m.permissions" :key="p.id" class="perm-list-row">
+										<div class="perm-list-info">
+											<div class="perm-list-name">{{ p.name }}</div>
+											<div class="perm-list-key">{{ p.key }}</div>
+										</div>
+										<div class="perm-list-actions">
+											<button class="rc-action" title="Düzenle" @click="openEditPermission(p)">
+												<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+													<path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+													<path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+												</svg>
+											</button>
+											<button class="rc-action rc-danger" title="Sil" @click="deletePermission(p)">
+												<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+													<polyline points="3 6 5 6 21 6" />
+													<path d="M19 6l-2 14a2 2 0 01-2 2H9a2 2 0 01-2-2L5 6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+												</svg>
+											</button>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- İzin Matrisi -->
+					<div v-else class="matrix-wrap">
+						<div class="matrix-legend">
+							<span class="ml-text">İpucu: Hücreye tıklayarak izni anında değiştirebilirsiniz. Süper Admin tüm izinlere sahiptir, değiştirilemez.</span>
+						</div>
+						<div class="matrix-scroll">
+							<table class="perm-matrix">
+								<thead>
+									<tr>
+										<th class="m-perm-col">İzin</th>
+										<th v-for="r in roles" :key="r.key" class="m-role-col">
+											<div class="m-role-head">
+												<span class="m-role-dot" :style="{ background: r.color }"></span>
+												<span class="m-role-name">{{ r.name }}</span>
+											</div>
+										</th>
+									</tr>
+								</thead>
+								<tbody>
+									<template v-for="m in modules" :key="m.key">
+										<tr class="m-module-row">
+											<td :colspan="roles.length + 1">
+												<span class="m-module-name">{{ m.name }}</span>
+												<span class="m-module-count">{{ m.permissions.length }} izin</span>
+											</td>
+										</tr>
+										<tr v-for="p in m.permissions" :key="p.key" class="m-perm-row">
+											<td class="m-perm-cell">
+												<div class="m-perm-name">{{ p.name }}</div>
+												<div class="m-perm-key">{{ p.key }}</div>
+											</td>
+											<td v-for="r in roles" :key="r.key" class="m-cell" @click="togglePermission(r, p.key)">
+												<label class="m-check" @click.stop>
+													<input
+														type="checkbox"
+														:checked="hasPermission(r, p.key)"
+														:disabled="r.key === 'superadmin'"
+														@change="togglePermission(r, p.key)"
+													/>
+													<span class="m-checkbox">
+														<svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+															<polyline points="20 6 9 17 4 12" />
+														</svg>
+													</span>
+												</label>
+											</td>
+										</tr>
+									</template>
+								</tbody>
+							</table>
+						</div>
+					</div>
+				</section>
+
+				<!-- 3. E-POSTA -->
+				<section v-if="activeSection === 'mail'" class="sa-section">
+					<header class="sa-section-head">
+						<h2>E-posta (SMTP)</h2>
+						<p>Sistem e-postalarının gönderim altyapısı</p>
+					</header>
+
+					<div class="field-row">
+						<div class="field">
+							<label>Sürücü</label>
+							<CustomSelect v-model="form.mail.driver" :options="options.mailDrivers" :show-label="false" />
+						</div>
+						<div class="field">
+							<label>Şifreleme</label>
+							<CustomSelect v-model="form.mail.encryption" :options="options.mailEncryption" :show-label="false" />
+						</div>
+					</div>
+
+					<div class="field-row">
+						<div class="field flex-2">
+							<label>SMTP Host</label>
+							<input v-model="form.mail.host" type="text" class="form-input" />
+						</div>
+						<div class="field">
+							<label>Port</label>
+							<input v-model.number="form.mail.port" type="number" class="form-input" />
+						</div>
+					</div>
+
+					<div class="field-row">
+						<div class="field">
+							<label>Kullanıcı Adı</label>
+							<input v-model="form.mail.username" type="text" class="form-input" />
+						</div>
+						<div class="field">
+							<label>Parola</label>
+							<div class="password-input">
+								<input
+									v-model="form.mail.password"
+									:type="showMailPassword ? 'text' : 'password'"
+									class="form-input"
+									@focus="clearMask('mail', 'password')"
+								/>
+								<button type="button" class="pw-toggle" @click="showMailPassword = !showMailPassword">
+									<svg v-if="showMailPassword" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+										<path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24" />
+										<line x1="1" y1="1" x2="23" y2="23" />
+									</svg>
+									<svg v-else width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+										<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+										<circle cx="12" cy="12" r="3" />
+									</svg>
+								</button>
+							</div>
+						</div>
+					</div>
+
+					<div class="sa-divider"></div>
+
+					<h3 class="sa-subhead">Gönderici Bilgileri</h3>
+					<div class="field-row">
+						<div class="field">
+							<label>Gönderici E-posta</label>
+							<input v-model="form.mail.fromAddress" type="email" class="form-input" />
+						</div>
+						<div class="field">
+							<label>Gönderici Adı</label>
+							<input v-model="form.mail.fromName" type="text" class="form-input" />
+						</div>
+					</div>
+
+					<div class="test-block">
+						<div>
+							<div class="test-status" :class="`test-${form.mail.lastTestResult}`">
+								<svg v-if="form.mail.lastTestResult === 'success'" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+									<polyline points="20 6 9 17 4 12" />
+								</svg>
+								<svg v-else width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+									<circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+								</svg>
+								{{ form.mail.lastTestResult === 'success' ? 'Son test başarılı' : 'Son test başarısız' }}
+							</div>
+							<div class="test-time">{{ form.mail.lastTestedAt }}</div>
+						</div>
+						<button class="btn btn-secondary btn-sm" @click="testMail">Test E-postası Gönder</button>
+					</div>
+				</section>
+
+				<!-- 4. BİLDİRİMLER -->
+				<section v-if="activeSection === 'notifications'" class="sa-section">
+					<header class="sa-section-head">
+						<h2>Bildirimler</h2>
+						<p>Sistem olaylarına bağlı e-posta, Slack ve push bildirimleri</p>
+					</header>
+
+					<h3 class="sa-subhead">E-posta Bildirimleri</h3>
+					<div class="toggle-card">
+						<div class="toggle-info">
+							<div class="toggle-label">Yeni tenant kaydı</div>
+							<div class="toggle-sub">Bir firma sisteme kaydolduğunda admin'lere e-posta gönder.</div>
+						</div>
+						<label class="switch">
+							<input type="checkbox" v-model="form.notifications.emailNewTenant" />
+							<span class="slider"></span>
+						</label>
+					</div>
+					<div class="toggle-card">
+						<div class="toggle-info">
+							<div class="toggle-label">Yeni sipariş</div>
+							<div class="toggle-sub">Her yeni sipariş için müşteriye ve operasyona bilgi.</div>
+						</div>
+						<label class="switch">
+							<input type="checkbox" v-model="form.notifications.emailNewOrder" />
+							<span class="slider"></span>
+						</label>
+					</div>
+					<div class="toggle-card">
+						<div class="toggle-info">
+							<div class="toggle-label">Ödeme başarısızlığı</div>
+							<div class="toggle-sub">Abonelik veya sipariş ödemesi başarısız olduğunda uyarı.</div>
+						</div>
+						<label class="switch">
+							<input type="checkbox" v-model="form.notifications.emailPaymentFailure" />
+							<span class="slider"></span>
+						</label>
+					</div>
+					<div class="toggle-card">
+						<div class="toggle-info">
+							<div class="toggle-label">Sistem hatası</div>
+							<div class="toggle-sub">5xx hatalar ve kritik exception'lar süper admin'e gider.</div>
+						</div>
+						<label class="switch">
+							<input type="checkbox" v-model="form.notifications.emailSystemError" />
+							<span class="slider"></span>
+						</label>
+					</div>
+					<div class="toggle-card">
+						<div class="toggle-info">
+							<div class="toggle-label">Haftalık özet raporu</div>
+							<div class="toggle-sub">Her Pazartesi 09:00'da süper admin'lere haftalık özet.</div>
+						</div>
+						<label class="switch">
+							<input type="checkbox" v-model="form.notifications.emailWeeklyReport" />
+							<span class="slider"></span>
+						</label>
+					</div>
+
+					<div class="sa-divider"></div>
+
+					<h3 class="sa-subhead">Slack Entegrasyonu</h3>
+					<div class="field-row">
+						<div class="field flex-2">
+							<label>Webhook URL</label>
+							<input v-model="form.notifications.slackWebhookUrl" type="url" class="form-input mono-input" placeholder="https://hooks.slack.com/services/..." />
+						</div>
+						<div class="field">
+							<label>Kanal</label>
+							<input v-model="form.notifications.slackChannel" type="text" class="form-input" placeholder="#kanal-adı" />
+						</div>
+					</div>
+
+					<div class="sa-divider"></div>
+
+					<h3 class="sa-subhead">Diğer Kanallar</h3>
+					<div class="toggle-card">
+						<div class="toggle-info">
+							<div class="toggle-label">Push Bildirimleri</div>
+							<div class="toggle-sub">Mobil/web push üzerinden anlık bildirimler.</div>
+						</div>
+						<label class="switch">
+							<input type="checkbox" v-model="form.notifications.enablePushNotifications" />
+							<span class="slider"></span>
+						</label>
+					</div>
+					<div class="toggle-card">
+						<div class="toggle-info">
+							<div class="toggle-label">Uygulama İçi Bildirimler</div>
+							<div class="toggle-sub">Üst menüde çan ikonunda görünen bildirimler.</div>
+						</div>
+						<label class="switch">
+							<input type="checkbox" v-model="form.notifications.enableInAppNotifications" />
+							<span class="slider"></span>
+						</label>
+					</div>
+				</section>
+
+				<!-- 5. ÖDEME -->
+				<section v-if="activeSection === 'billing'" class="sa-section">
+					<header class="sa-section-head">
+						<h2>Ödeme & Faturalama</h2>
+						<p>Abonelik tahsilatı ve fatura ayarları</p>
+					</header>
+
+					<div class="field">
+						<label>Ödeme Sağlayıcısı</label>
+						<CustomSelect v-model="form.billing.paymentProvider" :options="options.paymentProviders" :show-label="false" />
+					</div>
+
+					<template v-if="form.billing.paymentProvider === 'iyzico'">
+						<h3 class="sa-subhead">iyzico API</h3>
+						<div class="field-row">
+							<div class="field">
+								<label>API Key</label>
+								<input v-model="form.billing.iyzicoApiKey" type="text" class="form-input mono-input" @focus="clearMask('billing', 'iyzicoApiKey')" />
+							</div>
+							<div class="field">
+								<label>Secret Key</label>
+								<input v-model="form.billing.iyzicoSecretKey" type="password" class="form-input mono-input" @focus="clearMask('billing', 'iyzicoSecretKey')" />
+							</div>
+						</div>
+					</template>
+
+					<template v-if="form.billing.paymentProvider === 'stripe'">
+						<h3 class="sa-subhead">Stripe API</h3>
+						<div class="field-row">
+							<div class="field">
+								<label>Publishable Key</label>
+								<input v-model="form.billing.stripePublicKey" type="text" class="form-input mono-input" placeholder="pk_live_..." @focus="clearMask('billing', 'stripePublicKey')" />
+							</div>
+							<div class="field">
+								<label>Secret Key</label>
+								<input v-model="form.billing.stripeSecretKey" type="password" class="form-input mono-input" placeholder="sk_live_..." @focus="clearMask('billing', 'stripeSecretKey')" />
+							</div>
+						</div>
+					</template>
+
+					<div class="sa-divider"></div>
+
+					<h3 class="sa-subhead">Fatura</h3>
+					<div class="field-row">
+						<div class="field">
+							<label>Para Birimi</label>
+							<CustomSelect v-model="form.billing.currency" :options="options.currencies" :show-label="false" />
+						</div>
+						<div class="field">
+							<label>KDV Oranı (%)</label>
+							<input v-model.number="form.billing.vatRate" type="number" min="0" max="100" step="0.5" class="form-input" />
+						</div>
+						<div class="field">
+							<label>Deneme Süresi (gün)</label>
+							<input v-model.number="form.billing.trialDays" type="number" min="0" class="form-input" />
+						</div>
+					</div>
+					<div class="field-row">
+						<div class="field">
+							<label>Fatura Numarası Öneki</label>
+							<input v-model="form.billing.invoicePrefix" type="text" class="form-input mono-input" />
+						</div>
+					</div>
+					<div class="field">
+						<label>Fatura Alt Bilgi</label>
+						<textarea v-model="form.billing.invoiceFooter" class="form-textarea" rows="2"></textarea>
+					</div>
+
+					<div class="toggle-card" :class="{ 'toggle-warning': form.billing.sandboxMode }">
+						<div class="toggle-info">
+							<div class="toggle-label">
+								Sandbox Modu
+								<span v-if="form.billing.sandboxMode" class="warning-pill">TEST</span>
+							</div>
+							<div class="toggle-sub">Açıkken gerçek tahsilat yapılmaz, test kartları kabul edilir.</div>
+						</div>
+						<label class="switch">
+							<input type="checkbox" v-model="form.billing.sandboxMode" />
+							<span class="slider"></span>
+						</label>
+					</div>
+				</section>
+
+				<!-- 6. DEPOLAMA -->
+				<section v-if="activeSection === 'storage'" class="sa-section">
+					<header class="sa-section-head">
+						<h2>Depolama & Yedekleme</h2>
+						<p>Dosya depolama altyapısı ve otomatik yedek planı</p>
+					</header>
+
+					<h3 class="sa-subhead">Dosya Depolama</h3>
+					<div class="field">
+						<label>Sürücü</label>
+						<CustomSelect v-model="form.storage.driver" :options="options.storageDrivers" :show-label="false" />
+					</div>
+					<div class="field-row">
+						<div class="field">
+							<label>Bucket</label>
+							<input v-model="form.storage.bucket" type="text" class="form-input mono-input" />
+						</div>
+						<div class="field">
+							<label>Region</label>
+							<input v-model="form.storage.region" type="text" class="form-input mono-input" />
+						</div>
+					</div>
+					<div class="field-row">
+						<div class="field">
+							<label>Access Key</label>
+							<input v-model="form.storage.accessKey" type="text" class="form-input mono-input" @focus="clearMask('storage', 'accessKey')" />
+						</div>
+						<div class="field">
+							<label>Secret Key</label>
+							<input v-model="form.storage.secretKey" type="password" class="form-input mono-input" @focus="clearMask('storage', 'secretKey')" />
+						</div>
+					</div>
+					<div class="field">
+						<label>CDN URL</label>
+						<input v-model="form.storage.cdnUrl" type="url" class="form-input" />
+					</div>
+					<div class="field-row">
+						<div class="field">
+							<label>Max Yükleme Boyutu (MB)</label>
+							<input v-model.number="form.storage.maxUploadMB" type="number" min="1" class="form-input" />
+						</div>
+						<div class="field flex-2">
+							<label>İzin Verilen Uzantılar</label>
+							<input v-model="form.storage.allowedExtensions" type="text" class="form-input mono-input" placeholder="jpg,png,pdf..." />
+						</div>
+					</div>
+
+					<div class="sa-divider"></div>
+
+					<h3 class="sa-subhead">Otomatik Yedekleme</h3>
+					<div class="toggle-card">
+						<div class="toggle-info">
+							<div class="toggle-label">Yedekleme Aktif</div>
+							<div class="toggle-sub">Veritabanı + dosyalar zamanlanmış olarak yedeklenir.</div>
+						</div>
+						<label class="switch">
+							<input type="checkbox" v-model="form.storage.backupEnabled" />
+							<span class="slider"></span>
+						</label>
+					</div>
+
+					<div class="field-row" v-if="form.storage.backupEnabled">
+						<div class="field">
+							<label>Sıklık</label>
+							<CustomSelect v-model="form.storage.backupSchedule" :options="options.backupSchedules" :show-label="false" />
+						</div>
+						<div class="field">
+							<label>Saat (UTC+3)</label>
+							<input v-model="form.storage.backupTime" type="time" class="form-input" />
+						</div>
+						<div class="field">
+							<label>Saklama Süresi (gün)</label>
+							<input v-model.number="form.storage.backupRetentionDays" type="number" min="1" class="form-input" />
+						</div>
+					</div>
+
+					<div class="info-row">
+						<div class="ir-block">
+							<div class="ir-label">Son Yedek</div>
+							<div class="ir-value">{{ form.storage.lastBackupAt }}</div>
+						</div>
+						<div class="ir-block">
+							<div class="ir-label">Boyut</div>
+							<div class="ir-value">{{ form.storage.lastBackupSize }}</div>
+						</div>
+						<button class="btn btn-secondary btn-sm" @click="runBackup">Şimdi Yedekle</button>
+					</div>
+				</section>
+
+				<!-- 8. API -->
+				<section v-if="activeSection === 'api'" class="sa-section">
+					<header class="sa-section-head">
+						<h2>API & Geliştirici</h2>
+						<p>Public API ve webhook ayarları</p>
+					</header>
+
+					<div class="field-row">
+						<div class="field">
+							<label>Rate Limit (istek / dakika)</label>
+							<input v-model.number="form.api.rateLimitPerMinute" type="number" min="1" class="form-input" />
+						</div>
+						<div class="field">
+							<label>API Versiyonu</label>
+							<input v-model="form.api.apiVersion" type="text" class="form-input mono-input" />
+						</div>
+					</div>
+
+					<div class="field">
+						<label>Webhook İmzalama Anahtarı</label>
+						<div class="copy-input">
+							<input v-model="form.api.webhookSecret" type="text" class="form-input mono-input" readonly />
+							<button class="copy-btn" @click="copy(form.api.webhookSecret, 'Webhook Secret')">Kopyala</button>
+							<button class="copy-btn" @click="regenerateWebhookSecret">Yenile</button>
+						</div>
+						<div class="field-help">Gelen webhook isteklerinin imzasını doğrulamak için kullanılır.</div>
+					</div>
+
+					<div class="field">
+						<label>İzinli Origin'ler (CORS)</label>
+						<textarea v-model="form.api.allowedOrigins" class="form-textarea mono-input" rows="3"></textarea>
+						<div class="field-help">Her satıra bir origin. * tüm origin'lere izin verir.</div>
+					</div>
+
+					<div class="sa-divider"></div>
+
+					<div class="toggle-card" :class="{ 'toggle-warning': form.api.sandboxMode }">
+						<div class="toggle-info">
+							<div class="toggle-label">
+								Sandbox API
+								<span v-if="form.api.sandboxMode" class="warning-pill">TEST</span>
+							</div>
+							<div class="toggle-sub">Açıkken API gerçek veriyi değiştirmez, sahte yanıt döner.</div>
+						</div>
+						<label class="switch">
+							<input type="checkbox" v-model="form.api.sandboxMode" />
+							<span class="slider"></span>
+						</label>
+					</div>
+					<div class="toggle-card">
+						<div class="toggle-info">
+							<div class="toggle-label">API Key Zorunlu</div>
+							<div class="toggle-sub">Tüm API çağrıları için geçerli API key gerekir.</div>
+						</div>
+						<label class="switch">
+							<input type="checkbox" v-model="form.api.requireApiKey" />
+							<span class="slider"></span>
+						</label>
+					</div>
+					<div class="toggle-card">
+						<div class="toggle-info">
+							<div class="toggle-label">Swagger Dokümantasyon</div>
+							<div class="toggle-sub">/api/docs adresinde otomatik API dokümantasyonu.</div>
+						</div>
+						<label class="switch">
+							<input type="checkbox" v-model="form.api.enableSwagger" />
+							<span class="slider"></span>
+						</label>
+					</div>
+				</section>
+
+				<!-- 9. PERFORMANS -->
+				<section v-if="activeSection === 'performance'" class="sa-section">
+					<header class="sa-section-head">
+						<h2>Performans & Cache</h2>
+						<p>Önbellek, kuyruk ve log altyapısı</p>
+					</header>
+
+					<div class="field-row">
+						<div class="field">
+							<label>Cache Driver</label>
+							<CustomSelect v-model="form.performance.cacheDriver" :options="options.cacheDrivers" :show-label="false" />
+						</div>
+						<div class="field">
+							<label>Cache TTL (dakika)</label>
+							<input v-model.number="form.performance.cacheTtlMinutes" type="number" min="1" class="form-input" />
+						</div>
+					</div>
+
+					<div class="field-row">
+						<div class="field">
+							<label>Queue Driver</label>
+							<CustomSelect v-model="form.performance.queueDriver" :options="options.queueDrivers" :show-label="false" />
+						</div>
+						<div class="field">
+							<label>Worker Sayısı</label>
+							<input v-model.number="form.performance.queueWorkers" type="number" min="1" max="32" class="form-input" />
+						</div>
+						<div class="field">
+							<label>Session Driver</label>
+							<CustomSelect v-model="form.performance.sessionDriver" :options="options.cacheDrivers" :show-label="false" />
+						</div>
+					</div>
+
+					<div class="sa-divider"></div>
+
+					<h3 class="sa-subhead">Loglama</h3>
+					<div class="field-row">
+						<div class="field">
+							<label>Log Seviyesi</label>
+							<CustomSelect v-model="form.performance.logLevel" :options="options.logLevels" :show-label="false" />
+						</div>
+						<div class="field">
+							<label>Log Saklama (gün)</label>
+							<input v-model.number="form.performance.logRetentionDays" type="number" min="1" class="form-input" />
+						</div>
+					</div>
+
+					<div class="toggle-card" :class="{ 'toggle-warning': form.performance.enableDebugBar }">
+						<div class="toggle-info">
+							<div class="toggle-label">
+								Debug Bar
+								<span v-if="form.performance.enableDebugBar" class="warning-pill">DİKKAT</span>
+							</div>
+							<div class="toggle-sub">Geliştirici araç çubuğu — production'da kapalı olmalı.</div>
+						</div>
+						<label class="switch">
+							<input type="checkbox" v-model="form.performance.enableDebugBar" />
+							<span class="slider"></span>
+						</label>
+					</div>
+					<div class="toggle-card">
+						<div class="toggle-info">
+							<div class="toggle-label">Query Log</div>
+							<div class="toggle-sub">Tüm SQL sorgularını logla. Yüksek I/O — sadece debug için.</div>
+						</div>
+						<label class="switch">
+							<input type="checkbox" v-model="form.performance.enableQueryLog" />
+							<span class="slider"></span>
+						</label>
+					</div>
+
+					<div class="sa-divider"></div>
+
+					<div class="cache-actions">
+						<button class="btn btn-secondary btn-sm" @click="cacheAction('clear')">Cache Temizle</button>
+						<button class="btn btn-secondary btn-sm" @click="cacheAction('config')">Config Cache Yenile</button>
+						<button class="btn btn-secondary btn-sm" @click="cacheAction('route')">Route Cache Yenile</button>
+						<button class="btn btn-secondary btn-sm" @click="cacheAction('view')">View Cache Yenile</button>
+					</div>
+				</section>
+
+				<!-- 10. SİSTEM BİLGİSİ -->
+				<section v-if="activeSection === 'system'" class="sa-section">
+					<header class="sa-section-head">
+						<h2>Sistem Bilgisi</h2>
+						<p>Donanım, yazılım sürümleri ve canlı metrikler (salt okunur)</p>
+					</header>
+
+					<h3 class="sa-subhead">Kullanım Metrikleri</h3>
+					<div class="metric-grid">
+						<div class="metric-card">
+							<div class="metric-head">
+								<span class="metric-label">CPU</span>
+								<strong class="metric-value">%{{ cpuPct }}</strong>
+							</div>
+							<div class="metric-bar">
+								<div class="metric-fill" :class="metricColor(cpuPct)" :style="{ width: cpuPct + '%' }"></div>
+							</div>
+						</div>
+						<div class="metric-card">
+							<div class="metric-head">
+								<span class="metric-label">RAM</span>
+								<strong class="metric-value">{{ ramPct }}%</strong>
+							</div>
+							<div class="metric-bar">
+								<div class="metric-fill" :class="metricColor(ramPct)" :style="{ width: ramPct + '%' }"></div>
+							</div>
+							<div class="metric-sub">{{ liveSystem.memoryUsageMB }} / {{ liveSystem.memoryTotalMB }} MB</div>
+						</div>
+						<div class="metric-card">
+							<div class="metric-head">
+								<span class="metric-label">Disk</span>
+								<strong class="metric-value">{{ diskPct }}%</strong>
+							</div>
+							<div class="metric-bar">
+								<div class="metric-fill" :class="metricColor(diskPct)" :style="{ width: diskPct + '%' }"></div>
+							</div>
+							<div class="metric-sub">{{ liveSystem.diskUsageGB }} / {{ liveSystem.diskTotalGB }} GB</div>
+						</div>
+						<div class="metric-card">
+							<div class="metric-head">
+								<span class="metric-label">Çalışma Süresi</span>
+								<strong class="metric-value">{{ liveSystem.uptime }}</strong>
+							</div>
+							<div class="metric-sub">Son yeniden başlatma: 28.03.2026</div>
+						</div>
+					</div>
+
+					<div class="sa-divider"></div>
+
+					<h3 class="sa-subhead">Yazılım Sürümleri</h3>
+					<div class="versions-grid">
+						<div class="version-row">
+							<span class="vr-label">PHP</span>
+							<span class="vr-value mono">{{ liveSystem.phpVersion }}</span>
+						</div>
+						<div class="version-row">
+							<span class="vr-label">Laravel</span>
+							<span class="vr-value mono">{{ liveSystem.laravelVersion }}</span>
+						</div>
+						<div class="version-row">
+							<span class="vr-label">Inertia.js</span>
+							<span class="vr-value mono">{{ liveSystem.inertiaVersion }}</span>
+						</div>
+						<div class="version-row">
+							<span class="vr-label">Vue.js</span>
+							<span class="vr-value mono">{{ liveSystem.vueVersion }}</span>
+						</div>
+						<div class="version-row">
+							<span class="vr-label">Veritabanı</span>
+							<span class="vr-value mono">{{ liveSystem.mysqlVersion }}</span>
+						</div>
+						<div class="version-row">
+							<span class="vr-label">Redis</span>
+							<span class="vr-value mono">{{ liveSystem.redisVersion }}</span>
+						</div>
+						<div class="version-row">
+							<span class="vr-label">Web Server</span>
+							<span class="vr-value mono">{{ liveSystem.webServer }}</span>
+						</div>
+						<div class="version-row">
+							<span class="vr-label">İşletim Sistemi</span>
+							<span class="vr-value mono">{{ liveSystem.serverOs }}</span>
+						</div>
+					</div>
+
+					<div class="sa-divider"></div>
+
+					<h3 class="sa-subhead">Servisler</h3>
+					<div class="service-grid">
+						<div class="service-card" :class="reverbCardClass">
+							<div class="service-head">
+								<div class="service-icon">
+									<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+										<path d="M5 12.55a11 11 0 0114 0" />
+										<path d="M1.42 9a16 16 0 0121.16 0" />
+										<path d="M8.53 16.11a6 6 0 016.95 0" />
+										<line x1="12" y1="20" x2="12.01" y2="20" />
+									</svg>
+								</div>
+								<div class="service-meta">
+									<div class="service-title">Reverb (WebSocket)</div>
+									<div class="service-sub mono">{{ reverbInfo.host }}:{{ reverbInfo.port }}</div>
+								</div>
+								<span class="service-badge" :class="reverbBadgeClass">
+									<span class="service-dot"></span>
+									{{ reverbInfo.running ? 'Çalışıyor' : 'Durmuş' }}
+								</span>
+							</div>
+							<div class="service-body">
+								<div v-if="reverbInfo.running" class="service-note">
+									Realtime broadcasting aktif. <code class="mono">BROADCAST_CONNECTION=reverb</code>
+								</div>
+								<div v-else class="service-note service-note-warn">
+									Başlatmak için terminalde çalıştır:
+									<code class="mono">php artisan reverb:start</code>
+									<span v-if="reverbInfo.error" class="service-error">· {{ reverbInfo.error }}</span>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div class="sa-divider"></div>
+
+					<h3 class="sa-subhead">Platform Sayaçları</h3>
+					<div class="counter-grid">
+						<div class="counter-card">
+							<div class="counter-value">{{ liveSystem.totalTenants.toLocaleString('tr-TR') }}</div>
+							<div class="counter-label">Toplam Tenant</div>
+						</div>
+						<div class="counter-card">
+							<div class="counter-value">{{ liveSystem.totalUsers.toLocaleString('tr-TR') }}</div>
+							<div class="counter-label">Toplam Kullanıcı</div>
+						</div>
+						<div class="counter-card">
+							<div class="counter-value">{{ liveSystem.totalOrders.toLocaleString('tr-TR') }}</div>
+							<div class="counter-label">Toplam Sipariş</div>
+						</div>
+						<div class="counter-card">
+							<div class="counter-value">{{ liveSystem.queueJobsPending.toLocaleString('tr-TR') }}</div>
+							<div class="counter-label">Kuyrukta Bekleyen</div>
+						</div>
+						<div class="counter-card" :class="{ 'counter-danger': liveSystem.queueJobsFailed > 0 }">
+							<div class="counter-value">{{ liveSystem.queueJobsFailed.toLocaleString('tr-TR') }}</div>
+							<div class="counter-label">Başarısız İş</div>
+						</div>
+					</div>
+				</section>
+			</main>
+		</div>
+
+		<!-- ── Rol Düzenleme / Ekleme Modalı ── -->
+		<AppModal
+			v-model="showRoleModal"
+			:title="editingRole && editingRole.isNew ? 'Yeni Rol Oluştur' : 'Rolü Düzenle'"
+			:subtitle="editingRole && editingRole.isNew ? 'Ad, açıklama ve izinleri belirleyin' : 'Rol detaylarını ve izinleri güncelleyin'"
+			size="lg"
+		>
+			<template #icon>
+				<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+					<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" />
+					<path d="M23 21v-2a4 4 0 00-3-3.87" /><path d="M16 3.13a4 4 0 010 7.75" />
+				</svg>
+			</template>
+
+			<div v-if="editingRole" class="role-modal-body">
+				<div class="field-row">
+					<div class="field">
+						<label>Rol Adı *</label>
+						<input v-model="editingRole.name" type="text" class="form-input" placeholder="Örn. Depo Sorumlusu" maxlength="40" />
+					</div>
+					<div class="field">
+						<label>Sistem Anahtarı *</label>
+						<input v-model="editingRole.key" type="text" class="form-input mono-input" placeholder="warehouse_manager" :disabled="!editingRole.isNew" />
+						<div class="field-help">{{ editingRole.isNew ? 'küçük harf, alt çizgi kullanın' : 'Oluşturulduktan sonra değiştirilemez' }}</div>
+					</div>
+				</div>
+
+				<div class="field">
+					<label>Açıklama</label>
+					<textarea v-model="editingRole.desc" class="form-textarea" rows="2" maxlength="160" placeholder="Bu rol ne yapar?"></textarea>
+				</div>
+
+				<div class="field">
+					<label>Renk</label>
+					<div class="color-picker">
+						<button
+							v-for="c in roleColors"
+							:key="c"
+							type="button"
+							class="color-swatch"
+							:class="{ active: editingRole.color === c }"
+							:style="{ background: c }"
+							@click="editingRole.color = c"
+							:aria-label="c"
+						></button>
+					</div>
+				</div>
+
+				<div class="sa-divider"></div>
+
+				<div class="perm-modal-head">
+					<h3 class="sa-subhead">İzinler</h3>
+					<div class="perm-stats">
+						<strong>{{ editingRole.permissions.length }}</strong> / {{ totalPermissionCount }} seçili
+					</div>
+				</div>
+
+				<div class="perm-modules">
+					<div v-for="m in modules" :key="m.key" class="perm-module">
+						<div class="perm-module-head">
+							<div class="pmh-info">
+								<strong>{{ m.name }}</strong>
+								<span class="pmh-count">{{ countModulePermsInRole(m) }} / {{ m.permissions.length }}</span>
+							</div>
+							<label class="perm-module-toggle">
+								<input
+									type="checkbox"
+									:checked="isModuleFullySelected(m)"
+									@change="toggleAllInModule(m, $event.target.checked)"
+								/>
+								<span>{{ isModuleFullySelected(m) ? 'Tümünü Kaldır' : 'Tümünü Seç' }}</span>
+							</label>
+						</div>
+						<div class="perm-grid">
+							<label v-for="p in m.permissions" :key="p.key" class="perm-check">
+								<input type="checkbox" :value="p.key" v-model="editingRole.permissions" />
+								<div class="perm-check-body">
+									<div class="perm-check-name">{{ p.name }}</div>
+									<div class="perm-check-desc">{{ p.desc }}</div>
+								</div>
+							</label>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<template #footer="{ close }">
+				<button class="btn btn-ghost" :disabled="roleBusy" @click="close">İptal</button>
+				<button class="btn btn-primary" :disabled="!isRoleFormValid || roleBusy" @click="saveRole">
+					{{ roleBusy ? 'Kaydediliyor…' : (editingRole && editingRole.isNew ? 'Rolü Oluştur' : 'Değişiklikleri Kaydet') }}
+				</button>
+			</template>
+		</AppModal>
+
+		<!-- ── İzin Modalı ── -->
+		<AppModal
+			v-model="showPermModal"
+			:title="editingPermission && editingPermission.isNew ? 'Yeni İzin' : 'İzni Düzenle'"
+			subtitle="Sistem adı (key) ve görünen ad belirleyin"
+			size="md"
+		>
+			<template #icon>
+				<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+					<polyline points="9 11 12 14 22 4" />
+					<path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+				</svg>
+			</template>
+
+			<div v-if="editingPermission">
+				<div class="field">
+					<label>Sistem Anahtarı *</label>
+					<input v-model="editingPermission.name" type="text" class="form-input mono-input" placeholder="örn. users.view" />
+					<div class="field-help">Modül için önek + nokta kullanın: <code>users.view</code>, <code>orders.create</code></div>
+				</div>
+				<div class="field">
+					<label>Görünen Ad</label>
+					<input v-model="editingPermission.display_name" type="text" class="form-input" placeholder="Örn. Kullanıcıları Görüntüle" />
+				</div>
+			</div>
+
+			<template #footer="{ close }">
+				<button class="btn btn-ghost" :disabled="permBusy" @click="close">İptal</button>
+				<button class="btn btn-primary" :disabled="!isPermFormValid || permBusy" @click="savePermission">
+					{{ permBusy ? 'Kaydediliyor…' : (editingPermission && editingPermission.isNew ? 'Oluştur' : 'Güncelle') }}
+				</button>
+			</template>
+		</AppModal>
+
+		<!-- ── Rol Silme Onay Modalı ── -->
+		<AppModal
+			v-model="showDeleteModal"
+			:title="deletingRole ? `«${deletingRole.name}» rolünü sil?` : 'Sil'"
+			subtitle="Bu işlem geri alınamaz."
+			variant="danger"
+			size="sm"
+		>
+			<div v-if="deletingRole">
+				<p class="delete-msg">
+					Bu role atanmış <strong>{{ deletingRole.userCount }} kullanıcı</strong> varsayılan
+					<strong>Salt Okunur</strong> rolüne taşınacak.
+				</p>
+				<div class="delete-detail">
+					<div class="dd-row">
+						<span class="dd-label">İzin Sayısı</span>
+						<span class="dd-value">{{ deletingRole.permissions.length }}</span>
+					</div>
+					<div class="dd-row">
+						<span class="dd-label">Etkilenecek Kullanıcı</span>
+						<span class="dd-value">{{ deletingRole.userCount }}</span>
+					</div>
+				</div>
+			</div>
+			<template #footer="{ close }">
+				<button class="btn btn-ghost" :disabled="roleBusy" @click="close">Vazgeç</button>
+				<button class="btn btn-danger" :disabled="roleBusy" @click="deleteRole">
+					{{ roleBusy ? 'Siliniyor…' : 'Evet, Sil' }}
+				</button>
+			</template>
+		</AppModal>
+	</div>
+</template>
+
+<script setup>
+import { ref, computed, reactive, watch, onBeforeUnmount } from 'vue'
+import { Head, useForm, router } from '@inertiajs/vue3'
+import AppLayout from '@/Layouts/AppLayout.vue'
+import Breadcrumb from '@/Components/Breadcrumb.vue'
+import CustomSelect from '@/Components/CustomSelect.vue'
+import AppModal from '@/Components/AppModal.vue'
+
+defineOptions({ layout: AppLayout })
+
+const props = defineProps({
+	settings: { type: Object, required: true },
+	options: { type: Object, required: true },
+})
+
+const sections = [
+	{ key: 'general',        label: 'Genel',                sub: 'Sistem adı, dil, zaman dilimi',  icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>' },
+	{ key: 'security',       label: 'Güvenlik',             sub: 'Parola, 2FA, oturum',           icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>' },
+	{ key: 'roles',          label: 'Roller & İzinler',     sub: 'Roller, izin matrisi',          icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>' },
+	{ key: 'mail',           label: 'E-posta',              sub: 'SMTP ve gönderici',             icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>' },
+	{ key: 'notifications',  label: 'Bildirimler',          sub: 'E-posta, Slack, push',          icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>' },
+	{ key: 'billing',        label: 'Ödeme & Faturalama',   sub: 'iyzico, Stripe, KDV',           icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>' },
+	{ key: 'storage',        label: 'Depolama & Yedek',     sub: 'S3, CDN, backup',               icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6"/></svg>' },
+	{ key: 'api',            label: 'API & Geliştirici',    sub: 'Rate limit, webhook',           icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>' },
+	{ key: 'performance',    label: 'Performans',           sub: 'Cache, queue, log',             icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>' },
+	{ key: 'system',         label: 'Sistem Bilgisi',       sub: 'Sürümler, metrikler',           icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>' },
+]
+
+const activeSection = ref('general')
+const showMailPassword = ref(false)
+
+/* ── Form ── */
+const form = useForm({
+	general: { ...props.settings.general },
+	security: { ...props.settings.security },
+	mail: { ...props.settings.mail },
+	notifications: { ...props.settings.notifications },
+	billing: { ...props.settings.billing },
+	storage: { ...props.settings.storage },
+	api: { ...props.settings.api },
+	performance: { ...props.settings.performance },
+})
+
+/* Dirty section tespiti */
+const dirtyKeys = computed(() => {
+	const dirty = []
+	for (const k of Object.keys(form.data())) {
+		const current = form[k]
+		const original = props.settings[k]
+		if (!original) continue
+		for (const f of Object.keys(original)) {
+			if (current[f] !== original[f]) {
+				dirty.push(k)
+				break
+			}
+		}
+	}
+	return dirty
+})
+
+/* ── KVKK: hassas alan maskesi ──
+ * Backend hassas alanların değerini '••••••••' olarak gönderir; kullanıcı
+ * o alana odaklanır odaklanmaz maskeyi temizleyerek '••••••••yeni' gibi
+ * karma string oluşmasını engelliyoruz. Alan boş bırakılırsa mevcut
+ * şifreli değer backend'te korunur (mask geri gönderilmiş gibi).
+ */
+const SENSITIVE_MASK = '••••••••'
+function clearMask(group, key) {
+	if (form[group]?.[key] === SENSITIVE_MASK) {
+		form[group][key] = ''
+	}
+}
+
+function save() {
+	const dirty = dirtyKeys.value
+	if (dirty.length === 0) return
+
+	form
+		.transform((data) => {
+			const onlyDirty = {}
+			for (const k of dirty) {
+				if (k in data) onlyDirty[k] = data[k]
+			}
+			return onlyDirty
+		})
+		.post('/superadmin/settings', {
+			preserveScroll: true,
+			preserveState: true,
+			onSuccess: () => {
+				form.defaults()
+				showToast?.({ type: 'success', title: 'Kaydedildi', message: 'Sistem ayarları güncellendi.' })
+			},
+			onError: () => {
+				showToast?.({ type: 'error', title: 'Kaydedilemedi', message: 'Lütfen alanları kontrol edin.' })
+			},
+		})
+}
+
+function resetForm() {
+	form.reset()
+}
+
+/* ── Test/aksiyon mock'ları ── */
+import { inject } from 'vue'
+const showToast = inject('showToast')
+
+function testMail() {
+	showToast?.({ type: 'info', title: 'Test E-postası', message: 'SMTP testi başlatıldı, sonuç birkaç saniye içinde…' })
+	setTimeout(() => {
+		showToast?.({ type: 'success', title: 'SMTP Test Başarılı', message: `${form.mail.fromAddress} adresine test mesajı gönderildi.` })
+	}, 1200)
+}
+
+function copy(text, label) {
+	if (navigator.clipboard?.writeText) {
+		navigator.clipboard.writeText(text)
+		showToast?.({ type: 'success', title: 'Kopyalandı', message: `${label} panoya kopyalandı.` })
+	}
+}
+
+function regenerateWebhookSecret() {
+	form.api.webhookSecret = 'whsec_' + Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join('')
+	showToast?.({ type: 'warning', title: 'Yeni Anahtar Üretildi', message: 'Mevcut webhook tüketicilerinin güncellenmesi gerekiyor.' })
+}
+
+function runBackup() {
+	showToast?.({ type: 'info', title: 'Yedekleme Başlatıldı', message: 'Manuel yedek arka planda işleniyor.' })
+}
+
+function cacheAction(type) {
+	const labels = { clear: 'Tüm cache temizlendi', config: 'Config cache yenilendi', route: 'Route cache yenilendi', view: 'View cache yenilendi' }
+	showToast?.({ type: 'success', title: 'Tamamlandı', message: labels[type] })
+}
+
+/* ── Roller & İzinler ── */
+const roleView = ref('list')
+const roleSearch = ref('')
+const showRoleModal = ref(false)
+const showDeleteModal = ref(false)
+const editingRole = ref(null)
+const deletingRole = ref(null)
+
+const roleColors = ['#dc2626', '#ea580c', '#ca8a04', '#16a34a', '#0891b2', '#4a6cf7', '#7c3aed', '#db2777', '#6b7280', '#1a1a2e']
+const roleBusy = ref(false)
+
+const roles = computed(() => props.settings.roles?.list ?? [])
+const modules = computed(() => props.settings.roles?.modules ?? [])
+
+const totalPermissionCount = computed(() =>
+	modules.value.reduce((sum, m) => sum + m.permissions.length, 0)
+)
+
+const filteredRoles = computed(() => {
+	const q = roleSearch.value.trim().toLowerCase()
+	if (!q) return roles.value
+	return roles.value.filter(
+		(r) => r.name.toLowerCase().includes(q) || r.key.toLowerCase().includes(q) || (r.desc || '').toLowerCase().includes(q)
+	)
+})
+
+function getPermLabel(role) {
+	if (role.permissions?.includes('*')) return 'Tüm izinler'
+	const n = role.permissions?.length || 0
+	return `${n} izin`
+}
+
+function hasPermission(role, key) {
+	return role.permissions?.includes('*') || role.permissions?.includes(key)
+}
+
+function reloadRoles(onDone) {
+	router.reload({
+		only: ['settings'],
+		preserveScroll: true,
+		preserveState: true,
+		onFinish: () => onDone?.(),
+	})
+}
+
+async function togglePermission(role, key) {
+	if (role.key === 'superadmin' || roleBusy.value) return
+	const next = hasPermission(role, key)
+		? role.permissions.filter((k) => k !== key)
+		: [...(role.permissions || []), key]
+	roleBusy.value = true
+	try {
+		await window.axios.post(`/superadmin/roles/${role.id}/permissions`, { permissions: next })
+		reloadRoles()
+	} catch (e) {
+		showToast?.({ type: 'error', title: 'İzin Güncellenemedi', message: e?.response?.data?.error || 'Sunucu hatası.' })
+	} finally {
+		roleBusy.value = false
+	}
+}
+
+function countModulePermsInRole(m) {
+	if (!editingRole.value) return 0
+	return m.permissions.filter((p) => editingRole.value.permissions.includes(p.key)).length
+}
+
+function isModuleFullySelected(m) {
+	if (!editingRole.value) return false
+	return m.permissions.every((p) => editingRole.value.permissions.includes(p.key))
+}
+
+function toggleAllInModule(m, checked) {
+	if (!editingRole.value) return
+	const keys = m.permissions.map((p) => p.key)
+	if (checked) {
+		const merged = new Set([...editingRole.value.permissions, ...keys])
+		editingRole.value.permissions = [...merged]
+	} else {
+		editingRole.value.permissions = editingRole.value.permissions.filter((k) => !keys.includes(k))
+	}
+}
+
+function openAddRole() {
+	editingRole.value = reactive({
+		isNew: true,
+		id: null,
+		key: '',
+		name: '',
+		desc: '',
+		color: roleColors[5],
+		userCount: 0,
+		system: false,
+		permissions: [],
+	})
+	showRoleModal.value = true
+}
+
+function openEditRole(role) {
+	editingRole.value = reactive({
+		isNew: false,
+		id: role.id,
+		originalKey: role.key,
+		key: role.key,
+		name: role.name,
+		desc: role.desc,
+		color: role.color,
+		userCount: role.userCount,
+		system: role.system,
+		permissions: [...(role.permissions || [])],
+	})
+	showRoleModal.value = true
+}
+
+const isRoleFormValid = computed(() => {
+	if (!editingRole.value) return false
+	const r = editingRole.value
+	if (!r.name?.trim() || !r.key?.trim()) return false
+	if (!/^[a-z][a-z0-9_]*$/.test(r.key)) return false
+	if (r.isNew && roles.value.some((x) => x.key === r.key)) return false
+	return true
+})
+
+async function syncRolePermissions(roleId, perms) {
+	await window.axios.post(`/superadmin/roles/${roleId}/permissions`, { permissions: perms })
+}
+
+function saveRole() {
+	if (!isRoleFormValid.value || roleBusy.value) return
+	const r = editingRole.value
+	const displayName = r.name.trim()
+	const sysKey = r.key.trim()
+	const perms = [...r.permissions]
+	roleBusy.value = true
+
+	const afterRoleSaved = async (targetId) => {
+		try {
+			if (targetId) await syncRolePermissions(targetId, perms)
+			reloadRoles(() => {
+				roleBusy.value = false
+				showRoleModal.value = false
+				editingRole.value = null
+				showToast?.({
+					type: 'success',
+					title: r.isNew ? 'Rol Oluşturuldu' : 'Rol Güncellendi',
+					message: `«${displayName}» için değişiklikler kaydedildi.`,
+				})
+			})
+		} catch (e) {
+			roleBusy.value = false
+			showToast?.({ type: 'error', title: 'İzinler Kaydedilemedi', message: e?.response?.data?.error || 'Sunucu hatası.' })
+		}
+	}
+
+	if (r.isNew) {
+		router.post('/superadmin/roles', { role: sysKey, display_name: displayName }, {
+			preserveScroll: true,
+			preserveState: true,
+			onSuccess: () => {
+				const created = (props.settings.roles?.list ?? []).find((x) => x.key === sysKey)
+				afterRoleSaved(created?.id)
+			},
+			onError: (errors) => {
+				roleBusy.value = false
+				showToast?.({ type: 'error', title: 'Kayıt Başarısız', message: Object.values(errors)[0] || 'Doğrulama hatası.' })
+			},
+		})
+	} else {
+		router.put(`/superadmin/roles/${r.id}`, { name: sysKey, display_name: displayName }, {
+			preserveScroll: true,
+			preserveState: true,
+			onSuccess: () => afterRoleSaved(r.id),
+			onError: (errors) => {
+				roleBusy.value = false
+				showToast?.({ type: 'error', title: 'Güncelleme Başarısız', message: Object.values(errors)[0] || 'Doğrulama hatası.' })
+			},
+		})
+	}
+}
+
+function confirmDeleteRole(role) {
+	if (role.system) return
+	deletingRole.value = role
+	showDeleteModal.value = true
+}
+
+function deleteRole() {
+	if (!deletingRole.value || roleBusy.value) return
+	const target = deletingRole.value
+	roleBusy.value = true
+	router.delete(`/superadmin/roles/${target.id}`, {
+		preserveScroll: true,
+		preserveState: true,
+		onSuccess: () => {
+			showToast?.({ type: 'warning', title: 'Rol Silindi', message: `«${target.name}» rolü kaldırıldı.` })
+			showDeleteModal.value = false
+			deletingRole.value = null
+		},
+		onError: (errors) => {
+			showToast?.({ type: 'error', title: 'Silme Başarısız', message: Object.values(errors)[0] || 'Sunucu hatası.' })
+		},
+		onFinish: () => {
+			roleBusy.value = false
+		},
+	})
+}
+
+/* ── İzin CRUD ── */
+const permSearch = ref('')
+const showPermModal = ref(false)
+const editingPermission = ref(null)
+const permBusy = ref(false)
+
+const flatPermissions = computed(() =>
+	modules.value.flatMap((m) => m.permissions.map((p) => ({ ...p, moduleKey: m.key, moduleName: m.name })))
+)
+
+const filteredPermissionModules = computed(() => {
+	const q = permSearch.value.trim().toLowerCase()
+	if (!q) return modules.value
+	return modules.value
+		.map((m) => ({
+			...m,
+			permissions: m.permissions.filter((p) => p.key.toLowerCase().includes(q) || p.name.toLowerCase().includes(q)),
+		}))
+		.filter((m) => m.permissions.length > 0)
+})
+
+const isPermFormValid = computed(() => {
+	if (!editingPermission.value) return false
+	const p = editingPermission.value
+	if (!p.name?.trim()) return false
+	if (!/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$/.test(p.name.trim())) return false
+	if (p.isNew && flatPermissions.value.some((x) => x.key === p.name.trim())) return false
+	return true
+})
+
+function openAddPermission() {
+	editingPermission.value = reactive({ isNew: true, id: null, name: '', display_name: '' })
+	showPermModal.value = true
+}
+
+function openEditPermission(p) {
+	editingPermission.value = reactive({
+		isNew: false,
+		id: p.id,
+		name: p.key,
+		display_name: p.name === p.key ? '' : p.name,
+	})
+	showPermModal.value = true
+}
+
+function savePermission() {
+	if (!isPermFormValid.value || permBusy.value) return
+	const p = editingPermission.value
+	const payload = { name: p.name.trim(), display_name: p.display_name?.trim() || null }
+	permBusy.value = true
+	const url = p.isNew ? '/superadmin/permissions' : `/superadmin/permissions/${p.id}`
+	const method = p.isNew ? 'post' : 'put'
+	router[method](url, payload, {
+		preserveScroll: true,
+		preserveState: true,
+		onSuccess: () => {
+			showPermModal.value = false
+			editingPermission.value = null
+			showToast?.({ type: 'success', title: p.isNew ? 'İzin Eklendi' : 'İzin Güncellendi', message: payload.name })
+		},
+		onError: (errors) => {
+			showToast?.({ type: 'error', title: 'Kayıt Başarısız', message: Object.values(errors)[0] || 'Doğrulama hatası.' })
+		},
+		onFinish: () => {
+			permBusy.value = false
+		},
+	})
+}
+
+function deletePermission(p) {
+	if (permBusy.value) return
+	if (!confirm(`«${p.name}» iznini silmek istediğinize emin misiniz?`)) return
+	permBusy.value = true
+	router.delete(`/superadmin/permissions/${p.id}`, {
+		preserveScroll: true,
+		preserveState: true,
+		onSuccess: () => {
+			showToast?.({ type: 'warning', title: 'İzin Silindi', message: p.name })
+		},
+		onError: (errors) => {
+			showToast?.({ type: 'error', title: 'Silme Başarısız', message: Object.values(errors)[0] || 'Sunucu hatası.' })
+		},
+		onFinish: () => {
+			permBusy.value = false
+		},
+	})
+}
+
+/* ── Sistem metrikleri (canlı) ── */
+const liveSystem = ref({ ...props.settings.system })
+const systemFetchedAt = ref(null)
+let systemTimer = null
+const SYSTEM_POLL_MS = 5000
+
+const ramPct = computed(() => {
+	const total = Number(liveSystem.value.memoryTotalMB) || 0
+	const used  = Number(liveSystem.value.memoryUsageMB) || 0
+	if (total <= 0) return 0
+	return Math.round((used / total) * 1000) / 10
+})
+const diskPct = computed(() => {
+	const total = Number(liveSystem.value.diskTotalGB) || 0
+	const used  = Number(liveSystem.value.diskUsageGB) || 0
+	if (total <= 0) return 0
+	return Math.round((used / total) * 1000) / 10
+})
+const cpuPct = computed(() => Number(liveSystem.value.cpuUsagePct) || 0)
+
+const reverbInfo = computed(() => ({
+	running: !!liveSystem.value.reverb?.running,
+	host:    liveSystem.value.reverb?.host ?? '127.0.0.1',
+	port:    liveSystem.value.reverb?.port ?? 8080,
+	error:   liveSystem.value.reverb?.error ?? null,
+}))
+const reverbCardClass  = computed(() => reverbInfo.value.running ? 'service-ok' : 'service-down')
+const reverbBadgeClass = computed(() => reverbInfo.value.running ? 'service-badge-ok' : 'service-badge-down')
+
+function metricColor(pct) {
+	if (pct < 60) return 'mb-good'
+	if (pct < 85) return 'mb-meh'
+	return 'mb-bad'
+}
+
+async function fetchSystemInfo() {
+	try {
+		const { data } = await window.axios.get('/superadmin/system-info')
+		if (data?.system) {
+			liveSystem.value = data.system
+			systemFetchedAt.value = data.fetchedAt
+		}
+	} catch (e) {
+		/* sessiz geç — bir sonraki polling yine dener */
+	}
+}
+
+function startSystemPolling() {
+	if (systemTimer) return
+	fetchSystemInfo()
+	systemTimer = setInterval(fetchSystemInfo, SYSTEM_POLL_MS)
+}
+
+function stopSystemPolling() {
+	if (!systemTimer) return
+	clearInterval(systemTimer)
+	systemTimer = null
+}
+
+watch(activeSection, (s) => {
+	if (s === 'system') startSystemPolling()
+	else stopSystemPolling()
+}, { immediate: true })
+
+onBeforeUnmount(stopSystemPolling)
+</script>
+
+<style scoped>
+.page-header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	margin-bottom: 18px;
+	gap: 16px;
+	flex-wrap: wrap;
+}
+
+.page-title {
+	font-size: 22px;
+	font-weight: 700;
+	color: #1a1a2e;
+	line-height: 1.2;
+	margin-top: 6px;
+}
+
+.page-subtitle {
+	font-size: 13px;
+	color: #888;
+	margin-top: 4px;
+	max-width: 620px;
+}
+
+.sa-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	background: linear-gradient(135deg, #1a1a2e, #4a6cf7);
+	color: #fff;
+	padding: 4px 10px;
+	border-radius: 999px;
+	font-size: 10.5px;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	box-shadow: 0 4px 12px rgba(74, 108, 247, 0.25);
+}
+
+.header-actions {
+	display: flex;
+	gap: 8px;
+	flex-shrink: 0;
+}
+
+/* ── Layout ── */
+.sa-layout {
+	display: grid;
+	grid-template-columns: 260px 1fr;
+	gap: 16px;
+	align-items: flex-start;
+}
+
+@media (max-width: 1000px) { .sa-layout { grid-template-columns: 1fr; } }
+
+/* ── Sol Nav ── */
+.sa-nav {
+	background: #fff;
+	border: 1px solid #ebebf0;
+	border-radius: 14px;
+	padding: 8px;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+	position: sticky;
+	top: 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.sa-nav-item {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 9px 11px;
+	background: none;
+	border: none;
+	border-radius: 9px;
+	cursor: pointer;
+	color: #555;
+	font-family: inherit;
+	text-align: left;
+	transition: background .12s, color .12s;
+	width: 100%;
+}
+.sa-nav-item:hover { background: #fafafe; color: #1a1a2e; }
+.sa-nav-item.active {
+	background: #f5f3ff;
+	color: #1a1a2e;
+}
+.sa-nav-item.active .sa-nav-icon {
+	background: #ede9fe;
+	color: #7c3aed;
+}
+
+.sa-nav-icon {
+	width: 28px; height: 28px;
+	border-radius: 7px;
+	background: #fafafe;
+	color: #888;
+	display: flex; align-items: center; justify-content: center;
+	flex-shrink: 0;
+	transition: background .12s, color .12s;
+}
+.sa-nav-icon :deep(svg) { display: block; }
+
+.sa-nav-text { flex: 1; min-width: 0; }
+.sa-nav-label {
+	font-size: 12.5px;
+	font-weight: 600;
+	color: inherit;
+	line-height: 1.3;
+}
+.sa-nav-sub {
+	font-size: 10.5px;
+	color: #aaa;
+	margin-top: 1px;
+}
+
+.sa-nav-dirty {
+	flex-shrink: 0;
+	margin-left: 4px;
+}
+
+.sa-nav-footer {
+	margin-top: 8px;
+	padding-top: 8px;
+	border-top: 1px solid #f0f0f5;
+}
+
+.sa-version {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	padding: 6px 11px;
+	font-size: 10.5px;
+	color: #aaa;
+}
+
+/* ── Sağ İçerik ── */
+.sa-content { min-width: 0; }
+
+.sa-section {
+	background: #fff;
+	border: 1px solid #ebebf0;
+	border-radius: 14px;
+	padding: 20px 22px 24px;
+	box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.sa-section-head {
+	padding-bottom: 14px;
+	border-bottom: 1px solid #f0f0f5;
+	margin-bottom: 18px;
+}
+.sa-section-head h2 {
+	font-size: 16px;
+	font-weight: 700;
+	color: #1a1a2e;
+	margin: 0;
+}
+.sa-section-head p {
+	font-size: 12.5px;
+	color: #888;
+	margin: 4px 0 0;
+}
+
+.sa-subhead {
+	font-size: 11px;
+	font-weight: 700;
+	color: #888;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	margin: 0 0 10px;
+}
+
+.sa-divider {
+	height: 1px;
+	background: #f0f0f5;
+	margin: 18px 0;
+}
+
+/* ── Form fields ── */
+.field-row {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+	gap: 12px;
+	margin-bottom: 12px;
+}
+
+.field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
+.field:last-child { margin-bottom: 0; }
+
+.field label {
+	font-size: 11.5px;
+	font-weight: 600;
+	color: #888;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.field-help {
+	font-size: 11px;
+	color: #aaa;
+	margin-top: 2px;
+}
+
+.flex-2 { flex: 2; grid-column: span 2; }
+
+.mono-input {
+	font-family: 'SF Mono', Menlo, Consolas, monospace;
+	font-size: 12px !important;
+	letter-spacing: 0.02em;
+}
+
+/* Password input */
+.password-input {
+	position: relative;
+	display: flex;
+	align-items: center;
+}
+.password-input .form-input { padding-right: 36px; width: 100%; }
+.pw-toggle {
+	position: absolute;
+	right: 8px;
+	width: 26px; height: 26px;
+	background: none;
+	border: none;
+	border-radius: 6px;
+	color: #888;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: color .12s, background .12s;
+}
+.pw-toggle:hover { background: #f5f5f8; color: #1a1a2e; }
+
+/* Copy input */
+.copy-input {
+	display: flex;
+	gap: 6px;
+}
+.copy-input .form-input { flex: 1; }
+.copy-btn {
+	height: 36px;
+	padding: 0 12px;
+	background: #fafafe;
+	border: 1.5px solid #e8e8f0;
+	border-radius: 9px;
+	color: #555;
+	font-family: inherit;
+	font-size: 12px;
+	font-weight: 600;
+	cursor: pointer;
+	transition: all .12s;
+}
+.copy-btn:hover { background: #f5f5fb; border-color: #c0c0d8; color: #1a1a2e; }
+
+/* ── Toggle (switch) ── */
+.toggle-card {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	padding: 12px 16px;
+	background: #fafafe;
+	border: 1px solid #f0f0f5;
+	border-radius: 11px;
+	margin-bottom: 8px;
+	transition: background .15s, border-color .15s;
+}
+.toggle-card.toggle-warning {
+	background: #fffbeb;
+	border-color: #fde68a;
+}
+.toggle-card.toggle-danger {
+	background: #fef2f2;
+	border-color: #fecaca;
+}
+
+.toggle-info { flex: 1; min-width: 0; }
+
+.toggle-label {
+	font-size: 13px;
+	font-weight: 700;
+	color: #1a1a2e;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.toggle-sub {
+	font-size: 11.5px;
+	color: #888;
+	margin-top: 3px;
+	line-height: 1.5;
+}
+
+.danger-pill {
+	display: inline-block;
+	padding: 1px 6px;
+	background: #dc2626;
+	color: #fff;
+	font-size: 9px;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	border-radius: 4px;
+}
+
+.warning-pill {
+	display: inline-block;
+	padding: 1px 6px;
+	background: #ca8a04;
+	color: #fff;
+	font-size: 9px;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	border-radius: 4px;
+}
+
+.switch {
+	position: relative;
+	display: inline-block;
+	width: 38px;
+	height: 22px;
+	flex-shrink: 0;
+}
+.switch input {
+	opacity: 0;
+	width: 0;
+	height: 0;
+}
+.slider {
+	position: absolute;
+	cursor: pointer;
+	inset: 0;
+	background: #d8d8e8;
+	border-radius: 999px;
+	transition: background .15s;
+}
+.slider::before {
+	content: '';
+	position: absolute;
+	height: 16px;
+	width: 16px;
+	left: 3px;
+	top: 3px;
+	background: #fff;
+	border-radius: 50%;
+	transition: transform .15s;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+.switch input:checked + .slider {
+	background: #16a34a;
+}
+.switch input:checked + .slider::before {
+	transform: translateX(16px);
+}
+
+/* ── Check group ── */
+.check-group {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+	gap: 8px;
+	margin-bottom: 12px;
+}
+
+.check-card {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	padding: 10px 12px;
+	background: #fafafe;
+	border: 1px solid #f0f0f5;
+	border-radius: 10px;
+	cursor: pointer;
+	transition: all .12s;
+}
+.check-card:hover { border-color: #c0c0d8; }
+.check-card:has(input:checked) {
+	background: #f5f3ff;
+	border-color: #c4b5fd;
+}
+.check-card input {
+	margin-top: 2px;
+	accent-color: #7c3aed;
+	width: 14px;
+	height: 14px;
+}
+.check-text { display: flex; flex-direction: column; gap: 2px; }
+.check-text strong {
+	font-size: 12.5px;
+	color: #1a1a2e;
+	font-weight: 700;
+}
+.check-sub {
+	font-size: 11px;
+	color: #888;
+}
+
+/* ── Radio cards ── */
+.radio-card-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+	gap: 8px;
+}
+
+.radio-card {
+	display: flex;
+	gap: 10px;
+	padding: 12px 14px;
+	background: #fff;
+	border: 1.5px solid #e8e8f0;
+	border-radius: 10px;
+	cursor: pointer;
+	transition: all .15s;
+}
+.radio-card input { position: absolute; opacity: 0; pointer-events: none; }
+.radio-card:hover { border-color: #c0c0d8; }
+.radio-card.active {
+	border-color: #1a1a2e;
+	background: #fafafe;
+	box-shadow: 0 0 0 3px rgba(26, 26, 46, 0.05);
+}
+
+.rc-content { display: flex; flex-direction: column; gap: 2px; }
+.rc-label {
+	font-size: 12.5px;
+	font-weight: 700;
+	color: #1a1a2e;
+}
+.rc-sub {
+	font-size: 11px;
+	color: #888;
+	line-height: 1.5;
+}
+
+/* ── Test block (mail) ── */
+.test-block {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 12px 16px;
+	background: #fafafe;
+	border: 1px solid #f0f0f5;
+	border-radius: 10px;
+	margin-top: 12px;
+}
+
+.test-status {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	font-size: 12.5px;
+	font-weight: 700;
+}
+.test-success { color: #16a34a; }
+.test-failed  { color: #dc2626; }
+
+.test-time {
+	font-size: 11px;
+	color: #888;
+	margin-top: 2px;
+}
+
+/* ── Integration card ── */
+.integration-card {
+	background: #fafafe;
+	border: 1px solid #f0f0f5;
+	border-radius: 12px;
+	padding: 14px 16px;
+	margin-bottom: 10px;
+}
+
+.ic-head {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin-bottom: 12px;
+}
+
+.ic-logo {
+	width: 36px; height: 36px;
+	border-radius: 9px;
+	color: #fff;
+	font-size: 10px;
+	font-weight: 800;
+	letter-spacing: 0.04em;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+}
+
+.ic-info { display: flex; flex-direction: column; gap: 2px; }
+
+.ic-info h4 {
+	font-size: 13.5px;
+	font-weight: 700;
+	color: #1a1a2e;
+	margin: 0;
+}
+
+.ic-status {
+	font-size: 11px;
+	font-weight: 600;
+}
+.status-connected { color: #16a34a; }
+
+/* ── Info row (backup, etc) ── */
+.info-row {
+	display: flex;
+	align-items: center;
+	gap: 20px;
+	padding: 12px 16px;
+	background: #fafafe;
+	border: 1px solid #f0f0f5;
+	border-radius: 10px;
+	margin-top: 12px;
+	flex-wrap: wrap;
+}
+
+.ir-block { display: flex; flex-direction: column; gap: 2px; }
+.ir-label {
+	font-size: 10.5px;
+	font-weight: 700;
+	color: #888;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+.ir-value {
+	font-size: 12.5px;
+	font-weight: 700;
+	color: #1a1a2e;
+}
+
+/* ── Cache actions ── */
+.cache-actions {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+/* ── Metrics ── */
+.metric-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+	gap: 10px;
+}
+
+.metric-card {
+	padding: 12px 14px;
+	background: #fafafe;
+	border: 1px solid #f0f0f5;
+	border-radius: 11px;
+}
+
+.metric-head {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	margin-bottom: 8px;
+}
+
+.metric-label {
+	font-size: 11px;
+	font-weight: 700;
+	color: #888;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.metric-value {
+	font-size: 18px;
+	font-weight: 800;
+	color: #1a1a2e;
+}
+
+.metric-bar {
+	height: 6px;
+	background: #f0f0f5;
+	border-radius: 999px;
+	overflow: hidden;
+	margin-bottom: 6px;
+}
+
+.metric-fill {
+	height: 100%;
+	border-radius: 999px;
+	transition: width .3s ease;
+}
+.mb-good { background: linear-gradient(90deg, #86efac, #16a34a); }
+.mb-meh  { background: linear-gradient(90deg, #fcd34d, #f59e0b); }
+.mb-bad  { background: linear-gradient(90deg, #fca5a5, #dc2626); }
+
+.metric-sub {
+	font-size: 11px;
+	color: #888;
+}
+
+/* ── Versions ── */
+.versions-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+	gap: 6px;
+}
+
+.version-row {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 8px 12px;
+	background: #fafafe;
+	border: 1px solid #f0f0f5;
+	border-radius: 8px;
+}
+
+.vr-label {
+	font-size: 12px;
+	font-weight: 600;
+	color: #555;
+}
+.vr-value {
+	font-size: 11.5px;
+	color: #1a1a2e;
+	font-weight: 700;
+	font-family: 'SF Mono', Menlo, Consolas, monospace;
+}
+
+/* ── Services ── */
+.service-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+	gap: 12px;
+}
+
+.service-card {
+	padding: 14px 16px;
+	background: #fff;
+	border: 1px solid #ebebf0;
+	border-radius: 12px;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+	transition: border-color .15s, background .15s;
+}
+.service-card.service-ok   { border-color: #bbf7d0; background: linear-gradient(135deg, #f0fdf4, #ffffff); }
+.service-card.service-down { border-color: #fecaca; background: linear-gradient(135deg, #fef2f2, #ffffff); }
+
+.service-head {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.service-icon {
+	width: 34px; height: 34px;
+	border-radius: 9px;
+	background: #f5f5fa;
+	color: #4a6cf7;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+}
+.service-ok   .service-icon { background: #dcfce7; color: #16a34a; }
+.service-down .service-icon { background: #fee2e2; color: #dc2626; }
+
+.service-meta { flex: 1; min-width: 0; }
+.service-title { font-size: 13.5px; font-weight: 700; color: #1a1a2e; }
+.service-sub   { font-size: 11.5px; color: #888; margin-top: 2px; }
+
+.service-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 10px;
+	border-radius: 999px;
+	font-size: 11px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	flex-shrink: 0;
+}
+.service-badge-ok   { background: #dcfce7; color: #16a34a; }
+.service-badge-down { background: #fee2e2; color: #dc2626; }
+
+.service-dot {
+	width: 7px; height: 7px;
+	border-radius: 50%;
+	background: currentColor;
+	box-shadow: 0 0 0 0 currentColor;
+}
+.service-badge-ok .service-dot { animation: pulse-dot 1.6s infinite; }
+
+@keyframes pulse-dot {
+	0%   { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.5); }
+	70%  { box-shadow: 0 0 0 6px rgba(22, 163, 74, 0); }
+	100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
+}
+
+.service-body { margin-top: 10px; }
+.service-note {
+	font-size: 12px;
+	color: #555;
+	line-height: 1.55;
+}
+.service-note code {
+	display: inline-block;
+	padding: 2px 7px;
+	background: #f5f5fa;
+	border: 1px solid #e8e8f0;
+	border-radius: 5px;
+	font-size: 11.5px;
+	color: #1a1a2e;
+	margin: 0 2px;
+}
+.service-note-warn { color: #92400e; }
+.service-note-warn code { background: #fef3c7; border-color: #fde68a; color: #78350f; }
+.service-error { color: #dc2626; font-size: 11.5px; margin-left: 4px; }
+
+/* ── Counters ── */
+.counter-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+	gap: 10px;
+}
+
+.counter-card {
+	padding: 14px 16px;
+	background: linear-gradient(135deg, #fafafe, #f5f5fb);
+	border: 1px solid #f0f0f5;
+	border-radius: 12px;
+	text-align: center;
+}
+
+.counter-card.counter-danger {
+	background: linear-gradient(135deg, #fef2f2, #fee2e2);
+	border-color: #fecaca;
+}
+
+.counter-value {
+	font-size: 22px;
+	font-weight: 800;
+	color: #1a1a2e;
+	letter-spacing: -0.01em;
+}
+.counter-danger .counter-value { color: #dc2626; }
+
+.counter-label {
+	font-size: 11.5px;
+	color: #888;
+	font-weight: 600;
+	margin-top: 4px;
+}
+
+/* ──────────────────────────────────────── */
+/* ──     ROLLER & İZİNLER BÖLÜMÜ      ── */
+/* ──────────────────────────────────────── */
+
+.role-section-head {
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	gap: 16px;
+	flex-wrap: wrap;
+}
+
+.role-view-toggle {
+	display: inline-flex;
+	background: #fafafe;
+	border: 1px solid #ebebf0;
+	border-radius: 9px;
+	padding: 3px;
+	gap: 2px;
+}
+.rv-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 6px 11px;
+	background: none;
+	border: none;
+	border-radius: 7px;
+	color: #888;
+	font-family: inherit;
+	font-size: 11.5px;
+	font-weight: 600;
+	cursor: pointer;
+	transition: background .12s, color .12s;
+}
+.rv-btn:hover { color: #1a1a2e; }
+.rv-btn.active {
+	background: #fff;
+	color: #1a1a2e;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+/* — Liste başlığı — */
+.role-list-head {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 12px;
+	margin-bottom: 14px;
+	flex-wrap: wrap;
+}
+
+.role-search {
+	position: relative;
+	display: flex;
+	align-items: center;
+	flex: 1;
+	min-width: 220px;
+	max-width: 380px;
+}
+.role-search svg {
+	position: absolute;
+	left: 11px;
+	color: #aaa;
+	pointer-events: none;
+}
+.role-search-input {
+	width: 100%;
+	height: 34px;
+	padding: 0 12px 0 32px;
+	background: #fafafe;
+	border: 1px solid #ebebf0;
+	border-radius: 9px;
+	color: #1a1a2e;
+	font-family: inherit;
+	font-size: 12.5px;
+	transition: border-color .15s, background .15s;
+}
+.role-search-input:focus {
+	outline: none;
+	border-color: #c4b5fd;
+	background: #fff;
+}
+
+/* — Rol kartları — */
+.role-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+	gap: 10px;
+}
+
+.role-card {
+	display: flex;
+	gap: 12px;
+	padding: 14px;
+	background: #fff;
+	border: 1px solid #ebebf0;
+	border-radius: 12px;
+	transition: border-color .15s, box-shadow .15s, transform .15s;
+}
+.role-card:hover {
+	border-color: #d0d0e0;
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+}
+
+.role-icon-bg {
+	width: 40px;
+	height: 40px;
+	border-radius: 10px;
+	color: #fff;
+	font-size: 16px;
+	font-weight: 800;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+	letter-spacing: -0.02em;
+}
+
+.role-card-body {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.role-card-title {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+.role-card-title h4 {
+	font-size: 13.5px;
+	font-weight: 700;
+	color: #1a1a2e;
+	margin: 0;
+	line-height: 1.3;
+}
+
+.system-pill {
+	display: inline-block;
+	padding: 1px 6px;
+	background: #ede9fe;
+	color: #7c3aed;
+	font-size: 9px;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	border-radius: 4px;
+}
+
+.role-card-desc {
+	font-size: 11.5px;
+	color: #888;
+	line-height: 1.45;
+	margin: 0;
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+.role-card-meta {
+	display: flex;
+	gap: 12px;
+	margin-top: 4px;
+}
+.rc-meta-item {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 11px;
+	color: #777;
+	font-weight: 600;
+}
+.rc-meta-item svg { color: #aaa; }
+
+.role-card-actions {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	flex-shrink: 0;
+}
+.rc-action {
+	width: 28px;
+	height: 28px;
+	background: none;
+	border: 1px solid #ebebf0;
+	border-radius: 7px;
+	color: #777;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: all .12s;
+}
+.rc-action:hover:not(:disabled) {
+	background: #fafafe;
+	border-color: #c0c0d8;
+	color: #1a1a2e;
+}
+.rc-action:disabled {
+	opacity: .35;
+	cursor: not-allowed;
+}
+.rc-action.rc-danger:hover:not(:disabled) {
+	background: #fef2f2;
+	border-color: #fecaca;
+	color: #dc2626;
+}
+
+.role-empty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 40px 20px;
+	color: #aaa;
+	background: #fafafe;
+	border: 1px dashed #e0e0e8;
+	border-radius: 12px;
+}
+.role-empty svg { color: #c0c0d0; margin-bottom: 8px; }
+.role-empty p { margin: 0; font-size: 12.5px; }
+
+/* ── İzin Matrisi ── */
+.matrix-wrap { margin-top: 4px; }
+
+.matrix-legend {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 9px 12px;
+	margin-bottom: 10px;
+	background: #f5f3ff;
+	border: 1px solid #e9d5ff;
+	border-radius: 9px;
+}
+.ml-text {
+	font-size: 11.5px;
+	color: #6d28d9;
+	font-weight: 500;
+}
+
+.matrix-scroll {
+	overflow-x: auto;
+	border: 1px solid #ebebf0;
+	border-radius: 11px;
+	background: #fff;
+}
+
+.perm-matrix {
+	width: 100%;
+	border-collapse: separate;
+	border-spacing: 0;
+	font-size: 12px;
+}
+
+.perm-matrix thead th {
+	position: sticky;
+	top: 0;
+	background: #fafafe;
+	border-bottom: 1px solid #ebebf0;
+	padding: 10px 12px;
+	font-size: 11px;
+	font-weight: 700;
+	text-align: left;
+	color: #888;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	white-space: nowrap;
+}
+.m-perm-col {
+	min-width: 220px;
+	position: sticky;
+	left: 0;
+	z-index: 2;
+}
+.m-role-col {
+	text-align: center !important;
+	min-width: 100px;
+}
+
+.m-role-head {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	font-size: 11px;
+}
+.m-role-dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+.m-role-name {
+	color: #1a1a2e;
+	font-weight: 700;
+	text-transform: none;
+	letter-spacing: 0;
+}
+
+.m-module-row td {
+	background: #f5f3ff;
+	padding: 8px 14px;
+	border-bottom: 1px solid #ede9fe;
+	border-top: 1px solid #ede9fe;
+}
+.m-module-name {
+	font-size: 11px;
+	font-weight: 700;
+	color: #6d28d9;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+}
+.m-module-count {
+	margin-left: 8px;
+	font-size: 10.5px;
+	color: #a78bfa;
+	font-weight: 600;
+}
+
+.m-perm-row td { border-bottom: 1px solid #f5f5fa; }
+.m-perm-row:hover td { background: #fafafe; }
+
+.m-perm-cell {
+	padding: 9px 12px;
+	position: sticky;
+	left: 0;
+	background: #fff;
+	z-index: 1;
+}
+.m-perm-row:hover .m-perm-cell { background: #fafafe; }
+
+.m-perm-name {
+	font-size: 12.5px;
+	font-weight: 600;
+	color: #1a1a2e;
+	line-height: 1.3;
+}
+.m-perm-key {
+	font-size: 10.5px;
+	color: #aaa;
+	font-family: 'SF Mono', Menlo, Consolas, monospace;
+	margin-top: 1px;
+}
+
+.m-cell {
+	text-align: center;
+	padding: 8px;
+	cursor: pointer;
+}
+
+/* Özel checkbox (matris) */
+.m-check {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	position: relative;
+}
+.m-check input {
+	position: absolute;
+	opacity: 0;
+	width: 100%;
+	height: 100%;
+	cursor: pointer;
+}
+.m-check input:disabled { cursor: not-allowed; }
+.m-checkbox {
+	width: 18px;
+	height: 18px;
+	border: 1.5px solid #d8d8e8;
+	border-radius: 5px;
+	background: #fff;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: transparent;
+	transition: all .12s;
+}
+.m-check:hover .m-checkbox { border-color: #7c3aed; }
+.m-check input:checked + .m-checkbox {
+	background: #7c3aed;
+	border-color: #7c3aed;
+	color: #fff;
+}
+.m-check input:disabled + .m-checkbox {
+	background: #ede9fe;
+	border-color: #c4b5fd;
+	color: #fff;
+	opacity: .7;
+}
+
+/* ── Rol Modal ── */
+.role-modal-body { display: flex; flex-direction: column; gap: 12px; }
+
+.color-picker {
+	display: flex;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+.color-swatch {
+	width: 26px;
+	height: 26px;
+	border-radius: 8px;
+	border: 2px solid transparent;
+	cursor: pointer;
+	transition: transform .12s, border-color .12s, box-shadow .12s;
+	padding: 0;
+}
+.color-swatch:hover { transform: scale(1.08); }
+.color-swatch.active {
+	border-color: #1a1a2e;
+	box-shadow: 0 0 0 2px #fff inset;
+}
+
+.perm-modal-head {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	margin-bottom: 8px;
+}
+.perm-stats {
+	font-size: 12px;
+	color: #888;
+}
+.perm-stats strong {
+	color: #1a1a2e;
+	font-weight: 700;
+}
+
+.perm-modules {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	max-height: 380px;
+	overflow-y: auto;
+	padding-right: 4px;
+}
+.perm-modules::-webkit-scrollbar { width: 6px; }
+.perm-modules::-webkit-scrollbar-thumb { background: #d8d8e8; border-radius: 3px; }
+
+.perm-module {
+	background: #fafafe;
+	border: 1px solid #f0f0f5;
+	border-radius: 10px;
+	padding: 10px 12px;
+}
+
+.perm-module-head {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 8px;
+}
+.pmh-info {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+}
+.pmh-info strong {
+	font-size: 12.5px;
+	color: #1a1a2e;
+	font-weight: 700;
+}
+.pmh-count {
+	font-size: 11px;
+	color: #aaa;
+	font-weight: 600;
+}
+
+.perm-module-toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	cursor: pointer;
+	font-size: 11px;
+	font-weight: 600;
+	color: #7c3aed;
+}
+.perm-module-toggle input {
+	width: 13px;
+	height: 13px;
+	accent-color: #7c3aed;
+}
+
+.perm-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+	gap: 6px;
+}
+
+.perm-check {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	padding: 8px 10px;
+	background: #fff;
+	border: 1px solid #f0f0f5;
+	border-radius: 8px;
+	cursor: pointer;
+	transition: border-color .12s, background .12s;
+}
+.perm-check:hover { border-color: #c4b5fd; }
+.perm-check:has(input:checked) {
+	background: #f5f3ff;
+	border-color: #c4b5fd;
+}
+.perm-check input {
+	margin-top: 1px;
+	width: 13px;
+	height: 13px;
+	accent-color: #7c3aed;
+	flex-shrink: 0;
+}
+.perm-check-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.perm-check-name {
+	font-size: 12px;
+	font-weight: 600;
+	color: #1a1a2e;
+	line-height: 1.3;
+}
+.perm-check-desc {
+	font-size: 10.5px;
+	color: #888;
+	line-height: 1.4;
+}
+
+/* ── Silme Modalı ── */
+.delete-msg {
+	font-size: 13px;
+	color: #555;
+	line-height: 1.55;
+	margin: 0 0 12px;
+}
+.delete-msg strong { color: #1a1a2e; font-weight: 700; }
+
+.delete-detail {
+	background: #fef2f2;
+	border: 1px solid #fecaca;
+	border-radius: 9px;
+	padding: 10px 12px;
+}
+.dd-row {
+	display: flex;
+	justify-content: space-between;
+	padding: 4px 0;
+}
+.dd-label { font-size: 12px; color: #991b1b; }
+.dd-value { font-size: 12px; color: #1a1a2e; font-weight: 700; }
+
+/* ── İzinler Listesi (CRUD) ── */
+.perm-list {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+.perm-list-module {
+	background: #fff;
+	border: 1px solid #ebebf0;
+	border-radius: 10px;
+	overflow: hidden;
+}
+.perm-list-module-head {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 10px 14px;
+	background: #fafafe;
+	border-bottom: 1px solid #f0f0f5;
+}
+.perm-list-module-head strong {
+	font-size: 13px;
+	color: #1a1a2e;
+	font-weight: 700;
+}
+.perm-list-rows {
+	display: flex;
+	flex-direction: column;
+}
+.perm-list-row {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 9px 14px;
+	border-bottom: 1px solid #f5f5fa;
+	transition: background .12s;
+}
+.perm-list-row:last-child { border-bottom: none; }
+.perm-list-row:hover { background: #fafafe; }
+.perm-list-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.perm-list-name { font-size: 13px; color: #1a1a2e; font-weight: 600; }
+.perm-list-key { font-size: 11px; color: #888; font-family: 'SF Mono', Monaco, monospace; }
+.perm-list-actions { display: flex; gap: 4px; }
+.field code {
+	font-family: 'SF Mono', Monaco, monospace;
+	font-size: 11.5px;
+	background: #f5f3ff;
+	color: #7c3aed;
+	padding: 1px 5px;
+	border-radius: 4px;
+}
+</style>

@@ -1,0 +1,30 @@
+{
+    "name": "nwidart/atelier",
+    "description": "",
+    "authors": [
+        {
+            "name": "Nicolas Widart",
+            "email": "n.widart@gmail.com"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {
+
+            }
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\Atelier\\": "app/",
+            "Modules\\Atelier\\Database\\Factories\\": "database/factories/",
+            "Modules\\Atelier\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Modules\\Atelier\\Tests\\": "tests/"
+        }
+    }
+}

@@ -1,0 +1,196 @@
+<?php
+
+namespace Modules\Product\Http\Controllers;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Inertia\Inertia;
+use Inertia\Response;
+use Modules\Product\Models\ProductVariant;
+use Modules\Product\Models\Stock;
+use Modules\Product\Models\StockMovement;
+use Modules\Product\Models\Warehouse;
+
+class StockController extends Controller
+{
+    public function index(Request $request): Response
+    {
+        $query = Stock::query()
+            ->with([
+                'variant:id,product_id,size,color_name,color_hex,sku',
+                'variant.product:id,name,slug,sku,category_id,brand_id',
+                'variant.product.category:id,name',
+                'variant.product.brand:id,name',
+                'warehouse:id,name,code',
+            ]);
+
+        if ($warehouseId = $request->integer('warehouse_id')) {
+            $query->where('warehouse_id', $warehouseId);
+        }
+
+        if ($categoryId = $request->integer('category_id')) {
+            $query->whereHas('variant.product', fn ($q) => $q->where('category_id', $categoryId));
+        }
+
+        if ($request->boolean('critical_only')) {
+            $query->belowMin();
+        }
+
+        $stocks = $query
+            ->orderBy('warehouse_id')
+            ->orderBy('product_variant_id')
+            ->get()
+            ->map(fn (Stock $s) => [
+                'id'                 => $s->id,
+                'variant_id'         => $s->product_variant_id,
+                'warehouse_id'       => $s->warehouse_id,
+                'warehouseName'      => $s->warehouse?->name,
+                'warehouseCode'      => $s->warehouse?->code,
+                'productName'        => $s->variant?->product?->name,
+                'productSlug'        => $s->variant?->product?->slug,
+                'category'           => $s->variant?->product?->category?->name,
+                'brand'              => $s->variant?->product?->brand?->name,
+                'size'               => $s->variant?->size,
+                'colorName'          => $s->variant?->color_name,
+                'colorHex'           => $s->variant?->color_hex,
+                'sku'                => $s->variant?->sku,
+                'quantity'           => $s->quantity,
+                'reserved_quantity'  => $s->reserved_quantity,
+                'min_quantity'       => $s->min_quantity,
+                'available_quantity' => $s->available_quantity,
+                'isCritical'         => $s->quantity <= $s->min_quantity,
+            ]);
+
+        return Inertia::render('Product::Stocks', [
+            'stocks'      => $stocks,
+            'warehouses'  => Warehouse::query()
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(['id', 'name', 'code']),
+            'filters'     => [
+                'warehouse_id'  => $request->integer('warehouse_id'),
+                'category_id'   => $request->integer('category_id'),
+                'critical_only' => $request->boolean('critical_only'),
+            ],
+        ]);
+    }
+
+    public function movement(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'product_variant_id' => ['required', 'integer', Rule::exists('product_variants', 'id')],
+            'warehouse_id'       => ['required', 'integer', Rule::exists('warehouses', 'id')],
+            'type'               => ['required', Rule::in([
+                StockMovement::TYPE_IN,
+                StockMovement::TYPE_OUT,
+                StockMovement::TYPE_ADJUSTMENT,
+            ])],
+            'quantity'           => ['required', 'integer', 'not_in:0'],
+            'note'               => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        DB::transaction(function () use ($data, $request) {
+            $stock = Stock::query()
+                ->where('product_variant_id', $data['product_variant_id'])
+                ->where('warehouse_id', $data['warehouse_id'])
+                ->lockForUpdate()
+                ->first();
+
+            if (! $stock) {
+                $stock = Stock::create([
+                    'product_variant_id' => $data['product_variant_id'],
+                    'warehouse_id'       => $data['warehouse_id'],
+                    'quantity'           => 0,
+                ]);
+            }
+
+            $before = $stock->quantity;
+            $signed = match ($data['type']) {
+                StockMovement::TYPE_IN         => abs($data['quantity']),
+                StockMovement::TYPE_OUT        => -abs($data['quantity']),
+                StockMovement::TYPE_ADJUSTMENT => (int) $data['quantity'],
+            };
+
+            $after = $before + $signed;
+            if ($after < 0) {
+                abort(422, 'Stok negatife düşemez.');
+            }
+
+            $stock->update(['quantity' => $after]);
+
+            StockMovement::create([
+                'product_variant_id' => $data['product_variant_id'],
+                'warehouse_id'       => $data['warehouse_id'],
+                'type'               => $data['type'],
+                'quantity'           => $signed,
+                'before_quantity'    => $before,
+                'after_quantity'     => $after,
+                'note'               => $data['note'] ?? null,
+                'user_id'            => $request->user()?->id,
+            ]);
+
+            // variants.stock denormalize toplam (karar #4)
+            $variant = ProductVariant::find($data['product_variant_id']);
+            $variant?->update([
+                'stock' => (int) Stock::where('product_variant_id', $variant->id)->sum('quantity'),
+            ]);
+        });
+
+        return redirect()->route('products.stocks.index')
+            ->with('success', 'Stok hareketi kaydedildi.');
+    }
+
+    public function history(Request $request): Response
+    {
+        $query = StockMovement::query()
+            ->with([
+                'variant:id,product_id,size,color_name,sku',
+                'variant.product:id,name,slug,sku',
+                'warehouse:id,name,code',
+                'user:id,name',
+            ]);
+
+        if ($variantId = $request->integer('variant_id')) {
+            $query->where('product_variant_id', $variantId);
+        }
+        if ($warehouseId = $request->integer('warehouse_id')) {
+            $query->where('warehouse_id', $warehouseId);
+        }
+        if ($type = $request->string('type')->toString()) {
+            $query->where('type', $type);
+        }
+
+        $movements = $query
+            ->orderByDesc('id')
+            ->paginate(50)
+            ->through(fn (StockMovement $m) => [
+                'id'              => $m->id,
+                'type'             => $m->type,
+                'quantity'         => $m->quantity,
+                'before_quantity'  => $m->before_quantity,
+                'after_quantity'   => $m->after_quantity,
+                'note'             => $m->note,
+                'productName'      => $m->variant?->product?->name,
+                'productSlug'      => $m->variant?->product?->slug,
+                'sku'              => $m->variant?->sku,
+                'size'             => $m->variant?->size,
+                'colorName'        => $m->variant?->color_name,
+                'warehouseName'    => $m->warehouse?->name,
+                'warehouseCode'    => $m->warehouse?->code,
+                'userName'         => $m->user?->name,
+                'createdAt'        => optional($m->created_at)->format('Y-m-d H:i'),
+            ]);
+
+        return Inertia::render('Product::StockHistory', [
+            'movements' => $movements,
+            'filters'   => [
+                'variant_id'   => $request->integer('variant_id'),
+                'warehouse_id' => $request->integer('warehouse_id'),
+                'type'         => $request->string('type')->toString(),
+            ],
+        ]);
+    }
+}

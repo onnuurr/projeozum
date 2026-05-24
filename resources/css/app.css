@@ -1,0 +1,388 @@
+/* ============================================================
+   TekstilERP — Global Stiller
+   Sadece ortak/reset + birden çok komponentte kullanılan stiller.
+   Komponent-spesifik stiller ilgili .vue içinde scoped olarak yer alır.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import 'sweetalert2/dist/sweetalert2.min.css';
+
+* {
+	margin: 0;
+	padding: 0;
+	box-sizing: border-box;
+}
+
+html, body {
+	font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+	color: #1a1a2e;
+}
+
+body {
+	background: #d8d8e8;
+	height: 100vh;
+	overflow: hidden;
+}
+
+/* ── Layout grid (Üst seviye yerleşim) ── */
+.layout-root {
+	display: grid;
+	grid-template-columns: 48px 1fr;
+	grid-template-rows: auto 1fr;
+	height: 100vh;
+	padding: 12px;
+	gap: 8px;
+}
+
+/* ── Genel buton temel sınıfı ── */
+.btn {
+	height: 36px;
+	padding: 0 18px;
+	border-radius: 9px;
+	font-family: inherit;
+	font-size: 13px;
+	font-weight: 600;
+	cursor: pointer;
+	border: none;
+	transition: all .15s;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+.btn:disabled { opacity: .4; cursor: not-allowed; pointer-events: none; }
+.btn svg { pointer-events: none; }
+.btn-with-icon { display: inline-flex; align-items: center; gap: 6px; }
+
+/* Renkler */
+.btn-primary { background: #1a1a2e; color: #fff; }
+.btn-primary:hover { background: #2a2a4e; }
+.btn-secondary { background: none; color: #666; border: 1.5px solid #e8e8f0; }
+.btn-secondary:hover { background: #f5f5f8; color: #333; }
+.btn-success { background: #16a34a; color: #fff; }
+.btn-success:hover { background: #15803d; }
+.btn-warning { background: #ca8a04; color: #fff; }
+.btn-warning:hover { background: #a16207; }
+.btn-info { background: #2563eb; color: #fff; }
+.btn-info:hover { background: #1d4ed8; }
+.btn-danger { background: #fee2e2; color: #dc2626; }
+.btn-danger:hover { background: #fecaca; }
+.btn-ghost { background: none; color: #666; border: none; }
+.btn-ghost:hover { background: #f0f0f5; color: #1a1a2e; }
+
+/* Outline */
+.btn-outline-primary { background: none; color: #1a1a2e; border: 1.5px solid #1a1a2e; }
+.btn-outline-primary:hover { background: #1a1a2e; color: #fff; }
+.btn-outline-success { background: none; color: #16a34a; border: 1.5px solid #16a34a; }
+.btn-outline-success:hover { background: #16a34a; color: #fff; }
+.btn-outline-danger { background: none; color: #dc2626; border: 1.5px solid #dc2626; }
+.btn-outline-danger:hover { background: #dc2626; color: #fff; }
+.btn-outline-info { background: none; color: #2563eb; border: 1.5px solid #2563eb; }
+.btn-outline-info:hover { background: #2563eb; color: #fff; }
+
+/* Boyutlar */
+.btn-xs { height: 26px; padding: 0 10px; font-size: 11px; border-radius: 6px; }
+.btn-sm { height: 30px; padding: 0 12px; font-size: 12px; border-radius: 7px; }
+.btn-lg { height: 42px; padding: 0 22px; font-size: 14px; border-radius: 10px; }
+
+/* Ikon-only */
+.btn-icon { width: 36px; height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 9px; }
+.btn-icon.btn-sm { width: 30px; height: 30px; border-radius: 7px; }
+.btn-icon.btn-lg { width: 42px; height: 42px; border-radius: 10px; }
+
+/* Pill */
+.btn-pill { border-radius: 999px; }
+
+/* Loading */
+.btn-loading { opacity: .75; cursor: not-allowed; pointer-events: none; }
+.btn-spinner {
+	width: 13px; height: 13px; border-radius: 50%;
+	border: 2px solid rgba(255, 255, 255, .3);
+	border-top-color: #fff;
+	animation: spin .6s linear infinite;
+	flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Form temel stilleri (birden fazla komponentte) ── */
+.form-label {
+	font-size: 11.5px; font-weight: 600; color: #888;
+	text-transform: uppercase; letter-spacing: .04em;
+}
+.form-input {
+	height: 36px; padding: 0 12px;
+	border: 1.5px solid #e8e8f0; border-radius: 9px;
+	font-family: inherit; font-size: 13px; color: #1a1a2e;
+	background: #fafafe; outline: none;
+	transition: border-color .15s, box-shadow .15s;
+}
+.form-input:focus {
+	border-color: #4a6cf7;
+	box-shadow: 0 0 0 3px rgba(74, 108, 247, 0.1);
+	background: #fff;
+}
+.form-input::placeholder { color: #bbb; }
+.form-textarea {
+	padding: 10px 12px; min-height: 80px; resize: vertical;
+	border: 1.5px solid #e8e8f0; border-radius: 9px;
+	font-family: inherit; font-size: 13px; color: #1a1a2e;
+	background: #fafafe; outline: none; line-height: 1.5;
+	transition: border-color .15s, box-shadow .15s;
+}
+.form-textarea:focus {
+	border-color: #4a6cf7;
+	box-shadow: 0 0 0 3px rgba(74, 108, 247, 0.1);
+	background: #fff;
+}
+.form-textarea::placeholder { color: #bbb; }
+
+/* ── Ortak kart başlıkları (workflow / bottom-card / form-card) ── */
+.wf-action-btn {
+	width: 30px; height: 30px;
+	background: none; border: 1.5px solid #e0e0ea;
+	border-radius: 8px; cursor: pointer;
+	display: flex; align-items: center; justify-content: center;
+	color: #888; font-size: 13px;
+	transition: border-color .15s, color .15s;
+}
+.wf-action-btn:hover { border-color: #aaa; color: #555; }
+
+/* ── Status badge (tablo) ── */
+.status-badge {
+	display: inline-block;
+	padding: 3px 10px;
+	border-radius: 20px;
+	font-size: 10px;
+	font-weight: 700;
+}
+.status-done { background: #dcfce7; color: #16a34a; }
+.status-scheduled { background: #fef9c3; color: #ca8a04; }
+.status-active { background: #fee2e2; color: #dc2626; }
+.status-progress { background: #dbeafe; color: #2563eb; }
+
+/* ============================================================
+   SweetAlert2 — design system override (tek-swal)
+   ============================================================ */
+
+@keyframes swal2-animate-error-icon {
+	0% { transform: rotateX(0); }
+	10% { transform: rotateX(-30deg); }
+	20% { transform: rotateX(30deg); }
+	30% { transform: rotateX(-20deg); }
+	40% { transform: rotateX(20deg); }
+	50% { transform: rotateX(-10deg); }
+	60% { transform: rotateX(10deg); }
+	70% { transform: rotateX(0); }
+	100% { transform: rotateX(0); }
+}
+
+/* Container — drawer/overlay üzerinde kalsın, toast'ın altında */
+.swal2-container {
+	z-index: 99998;
+}
+
+/* Backdrop */
+.swal2-container.swal2-backdrop-show {
+	background: rgba(20, 20, 40, 0.42);
+	backdrop-filter: blur(2px);
+	-webkit-backdrop-filter: blur(2px);
+}
+
+/* Popup gövde */
+.swal2-popup.tek-swal {
+	font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+	background: #fff;
+	border: 1px solid #ebebf0;
+	border-radius: 16px;
+	box-shadow: 0 24px 60px rgba(20, 20, 40, 0.18), 0 1px 4px rgba(0, 0, 0, 0.04);
+	padding: 28px 28px 22px;
+	width: 440px;
+	max-width: calc(100vw - 24px);
+	color: #1a1a2e;
+}
+.swal2-popup.tek-swal.tek-swal-danger {
+	border-top: 3px solid #dc2626;
+}
+.swal2-popup.tek-swal.tek-swal-warning {
+	border-top: 3px solid #ca8a04;
+}
+
+/* Başlık */
+.swal2-popup.tek-swal .tek-swal-title {
+	font-size: 18px;
+	font-weight: 700;
+	color: #1a1a2e;
+	letter-spacing: -0.01em;
+	padding: 14px 0 4px;
+	margin: 0;
+	line-height: 1.3;
+}
+
+/* İçerik metni */
+.swal2-popup.tek-swal .tek-swal-body {
+	font-size: 13.5px;
+	color: #555;
+	line-height: 1.6;
+	margin: 8px 0 4px;
+	padding: 0;
+}
+.swal2-popup.tek-swal .tek-swal-body strong {
+	color: #1a1a2e;
+	font-weight: 700;
+}
+
+/* Close button */
+.swal2-popup.tek-swal .tek-swal-close,
+.swal2-popup.tek-swal .swal2-close {
+	width: 30px;
+	height: 30px;
+	border-radius: 8px;
+	background: #fafafe;
+	color: #888;
+	font-size: 22px;
+	line-height: 1;
+	transition: background .15s, color .15s;
+	box-shadow: none;
+	top: 14px;
+	right: 14px;
+}
+.swal2-popup.tek-swal .tek-swal-close:hover,
+.swal2-popup.tek-swal .swal2-close:hover {
+	background: #f0f0f5;
+	color: #1a1a2e;
+}
+
+/* Icon kutuları — design'a uygun pastel arka plan + koyu sembol.
+   ÖNEMLİ: width/height değiştirilmez — SweetAlert'in çizgi (checkmark, X, ring) konumları
+   80×80px'e göre piksel bazlı absolute positioned'dır, küçültmek bunları kırar. */
+.swal2-popup.tek-swal .swal2-icon {
+	margin: 8px auto 4px;
+	border-width: 3px;
+}
+.swal2-popup.tek-swal .swal2-icon.swal2-warning {
+	border-color: #fde68a;
+	color: #ca8a04;
+	background: #fffbeb;
+	animation: swal2-animate-warning-icon 0.4s ease-out;
+}
+@keyframes swal2-animate-warning-icon {
+	0% { transform: scale(0); opacity: 0; }
+	30% { transform: scale(1.1); opacity: 1; }
+	50% { transform: scale(0.95); }
+	70% { transform: scale(1.02); }
+	100% { transform: scale(1); }
+}
+.swal2-popup.tek-swal .swal2-icon.swal2-error {
+	border-color: #fecaca;
+	color: #dc2626;
+	background: #fef2f2;
+	animation: swal2-animate-error-icon 0.4s ease-out;
+}
+.swal2-popup.tek-swal .swal2-icon.swal2-error .swal2-x-mark-line-left,
+.swal2-popup.tek-swal .swal2-icon.swal2-error .swal2-x-mark-line-right {
+	background-color: #dc2626;
+}
+
+.swal2-popup.tek-swal .swal2-icon.swal2-success {
+	border-color: #bbf7d0;
+	color: #16a34a;
+	background: #f0fdf4;
+}
+.swal2-popup.tek-swal .swal2-icon.swal2-success .swal2-success-ring {
+	border-color: #bbf7d0;
+}
+.swal2-popup.tek-swal .swal2-icon.swal2-success .swal2-success-line-tip,
+.swal2-popup.tek-swal .swal2-icon.swal2-success .swal2-success-line-long {
+	background-color: #16a34a;
+}
+/* Native success ikonunun "kare" maske kırpıcılarını arka plana eşitle */
+.swal2-popup.tek-swal .swal2-icon.swal2-success .swal2-success-circular-line-left,
+.swal2-popup.tek-swal .swal2-icon.swal2-success .swal2-success-circular-line-right,
+.swal2-popup.tek-swal .swal2-icon.swal2-success .swal2-success-fix {
+	background-color: #f0fdf4;
+}
+
+.swal2-popup.tek-swal .swal2-icon.swal2-info {
+	border-color: #bfdbfe;
+	color: #4a6cf7;
+	background: #eff6ff;
+}
+.swal2-popup.tek-swal .swal2-icon.swal2-question {
+	border-color: #c4b5fd;
+	color: #7c3aed;
+	background: #f5f3ff;
+}
+
+
+/* Action butonları — .btn sınıflarını kullanıyor */
+.swal2-popup.tek-swal .tek-swal-actions {
+	display: flex;
+	gap: 8px;
+	margin: 20px 0 0;
+	padding: 16px 0 0;
+	border-top: 1px solid #f0f0f5;
+	justify-content: flex-end;
+	flex-wrap: wrap;
+}
+.swal2-popup.tek-swal .tek-swal-actions .btn {
+	min-width: 96px;
+	justify-content: center;
+}
+
+/* Input (prompt için) */
+.swal2-popup.tek-swal .swal2-input,
+.swal2-popup.tek-swal .swal2-textarea,
+.swal2-popup.tek-swal .swal2-select {
+	font-family: inherit;
+	font-size: 13px;
+	color: #1a1a2e;
+	background: #fafafe;
+	border: 1.5px solid #e8e8f0;
+	border-radius: 9px;
+	height: 36px;
+	padding: 0 12px;
+	box-shadow: none;
+	width: calc(100% - 24px);
+	margin: 10px 12px;
+}
+.swal2-popup.tek-swal .swal2-textarea {
+	height: auto;
+	min-height: 80px;
+	padding: 10px 12px;
+}
+.swal2-popup.tek-swal .swal2-input:focus,
+.swal2-popup.tek-swal .swal2-textarea:focus,
+.swal2-popup.tek-swal .swal2-select:focus {
+	border-color: #4a6cf7;
+	box-shadow: 0 0 0 3px rgba(74, 108, 247, 0.12);
+	outline: none;
+}
+.swal2-popup.tek-swal .swal2-input-label {
+	font-size: 11.5px;
+	font-weight: 600;
+	color: #888;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	margin-top: 8px;
+}
+.swal2-popup.tek-swal .swal2-validation-message {
+	background: #fef2f2;
+	color: #b91c1c;
+	border-radius: 8px;
+	font-size: 12px;
+	margin: 10px 12px 0;
+	padding: 8px 12px;
+}
+
+/* Timer progress bar */
+.swal2-popup.tek-swal .swal2-timer-progress-bar {
+	background: linear-gradient(90deg, #4a6cf7, #7c3aed);
+	height: 3px;
+}
+
+/* Loader */
+.swal2-popup.tek-swal .swal2-loader {
+	border-color: #4a6cf7 transparent #4a6cf7 transparent;
+}
+
+/* Animasyon: SweetAlert2'nin kendi swal2-show / swal2-hide keyframe'leri kullanılır.
+   Bunlar popup + icon (checkmark draw vs.) animasyonlarını koordineli yönetir. */
