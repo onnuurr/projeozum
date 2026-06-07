@@ -1,0 +1,124 @@
+<?php
+
+namespace Modules\Creative\Services;
+
+use Illuminate\Support\Facades\Storage;
+
+/**
+ * product_images.url gibi değerleri Python'un okuyabileceği yerel dosya
+ * yollarına çözer. http/data kaynakları geçici dosyaya yazılır ve render
+ * sonrası cleanup() ile temizlenir.
+ *
+ * Mantık, ProductImageController::destroy'daki `/storage/` ayrıştırmasıyla
+ * uyumludur (public disk yolu).
+ */
+class CanvasAssetResolver
+{
+    /** @var array<int,string> Render sonrası silinecek geçici dosyalar */
+    private array $tempFiles = [];
+
+    /**
+     * Verilen kaynağı yerel mutlak dosya yoluna çözer; çözülemezse null.
+     */
+    public function toLocalPath(string $src): ?string
+    {
+        $src = trim($src);
+        if ($src === '') {
+            return null;
+        }
+
+        // data:image/png;base64,...
+        if (str_starts_with($src, 'data:')) {
+            return $this->writeDataUri($src);
+        }
+
+        // http(s) → indir
+        if (str_starts_with($src, 'http://') || str_starts_with($src, 'https://')) {
+            return $this->downloadToTemp($src);
+        }
+
+        // /storage/... → public disk
+        $publicBase = '/storage/';
+        if (str_starts_with($src, $publicBase)) {
+            $diskPath = substr($src, strlen($publicBase));
+            $full     = Storage::disk('public')->path($diskPath);
+
+            return is_file($full) ? $full : null;
+        }
+
+        // Mutlak dosya yolu
+        if (is_file($src)) {
+            return $src;
+        }
+
+        // Göreli storage yolu (örn. "products/1/foo.jpg")
+        $full = Storage::disk('public')->path(ltrim($src, '/'));
+
+        return is_file($full) ? $full : null;
+    }
+
+    public function cleanup(): void
+    {
+        foreach ($this->tempFiles as $file) {
+            if (is_file($file)) {
+                @unlink($file);
+            }
+        }
+        $this->tempFiles = [];
+    }
+
+    private function writeDataUri(string $src): ?string
+    {
+        $comma = strpos($src, ',');
+        if ($comma === false) {
+            return null;
+        }
+
+        $meta = substr($src, 5, $comma - 5); // "image/png;base64"
+        $data = substr($src, $comma + 1);
+        $bin  = str_contains($meta, 'base64') ? base64_decode($data, true) : urldecode($data);
+
+        if ($bin === false || $bin === '') {
+            return null;
+        }
+
+        $ext  = $this->extensionFromMime($meta);
+        $path = $this->tempPath($ext);
+        file_put_contents($path, $bin);
+        $this->tempFiles[] = $path;
+
+        return $path;
+    }
+
+    private function downloadToTemp(string $url): ?string
+    {
+        $bin = @file_get_contents($url);
+        if ($bin === false || $bin === '') {
+            return null;
+        }
+
+        $ext  = pathinfo(parse_url($url, PHP_URL_PATH) ?? '', PATHINFO_EXTENSION) ?: 'img';
+        $path = $this->tempPath($ext);
+        file_put_contents($path, $bin);
+        $this->tempFiles[] = $path;
+
+        return $path;
+    }
+
+    private function tempPath(string $ext): string
+    {
+        return rtrim(sys_get_temp_dir(), '/\\') . DIRECTORY_SEPARATOR
+            . 'creative_' . bin2hex(random_bytes(8)) . '.' . $ext;
+    }
+
+    private function extensionFromMime(string $meta): string
+    {
+        return match (true) {
+            str_contains($meta, 'png')  => 'png',
+            str_contains($meta, 'jpeg') => 'jpg',
+            str_contains($meta, 'jpg')  => 'jpg',
+            str_contains($meta, 'webp') => 'webp',
+            default                     => 'img',
+        };
+    }
+}

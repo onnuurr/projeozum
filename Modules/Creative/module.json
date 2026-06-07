@@ -1,0 +1,11 @@
+{
+    "name": "Creative",
+    "alias": "creative",
+    "description": "Ürün görsellerinden SVG şablonlarla otomatik sosyal medya / reklam görseli üretimi.",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\Creative\\Providers\\CreativeServiceProvider"
+    ],
+    "files": []
+}
