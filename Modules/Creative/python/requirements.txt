@@ -1,0 +1,7 @@
+# Creative render motoru bağımlılıkları.
+#   python -m pip install -r requirements.txt
+Pillow>=10
+# Not: resvg ayrı bir CLI aracıdır (pip paketi değil). Opsiyoneldir; kurulu
+# değilse render.py salt-Pillow fallback moduna düşer. Kurulum:
+#   winget install resvg   |   scoop install resvg   |   cargo install resvg
+# ve CREATIVE_RESVG_BIN ile yolu verin.
