@@ -2,13 +2,19 @@
 
 namespace Modules\Product\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Prunable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PriceList extends Model
 {
+    use Prunable;
     use SoftDeletes;
+
+    /** Soft-delete kalıntısının silineceği gün eşiği. */
+    public const PRUNE_AFTER_DAYS = 30;
 
     public const TYPE_RETAIL   = 'retail';
     public const TYPE_DEALER   = 'dealer';
@@ -42,5 +48,13 @@ class PriceList extends Model
                 $priceList->variant?->update(['price' => $priceList->price]);
             }
         });
+    }
+
+    /**
+     * Yalnızca eşikten eski soft-delete edilmiş kayıtları kalıcı siler (model:prune).
+     */
+    public function prunable(): Builder
+    {
+        return static::onlyTrashed()->where('deleted_at', '<=', now()->subDays(self::PRUNE_AFTER_DAYS));
     }
 }

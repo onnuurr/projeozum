@@ -3,14 +3,20 @@
 namespace Modules\Product\Models;
 
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Prunable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class StockMovement extends Model
 {
+    use Prunable;
     use SoftDeletes;
+
+    /** Soft-delete kalıntısının silineceği gün eşiği. */
+    public const PRUNE_AFTER_DAYS = 30;
 
     public const TYPE_IN         = 'in';
     public const TYPE_OUT        = 'out';
@@ -57,5 +63,13 @@ class StockMovement extends Model
     public function reference(): MorphTo
     {
         return $this->morphTo();
+    }
+
+    /**
+     * Yalnızca eşikten eski soft-delete edilmiş kayıtları kalıcı siler (model:prune).
+     */
+    public function prunable(): Builder
+    {
+        return static::onlyTrashed()->where('deleted_at', '<=', now()->subDays(self::PRUNE_AFTER_DAYS));
     }
 }
