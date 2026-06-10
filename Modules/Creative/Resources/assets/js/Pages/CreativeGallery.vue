@@ -9,17 +9,53 @@
 			]"
 		/>
 
+		<CreativeNav current="gallery" />
+
 		<div class="page-header">
 			<div>
 				<h1 class="page-title">Creative Galeri</h1>
 				<p class="page-subtitle"><strong>{{ assets.total }}</strong> üretilmiş görsel</p>
 			</div>
-			<Link href="/creative/studio" class="btn btn-primary btn-with-icon">
-				<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-					<path d="M12 5v14M5 12h14" />
-				</svg>
-				Yeni Üretim
-			</Link>
+			<div class="header-btns">
+				<a
+					v-if="stats.approved > 0"
+					href="/creative/export"
+					class="btn btn-ghost btn-with-icon"
+					title="Onaylanmış görselleri ZIP olarak indir"
+				>
+					<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+						<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
+					</svg>
+					ZIP indir ({{ stats.approved }})
+				</a>
+				<Link href="/creative/studio" class="btn btn-primary btn-with-icon">
+					<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+						<path d="M12 5v14M5 12h14" />
+					</svg>
+					Yeni Üretim
+				</Link>
+			</div>
+		</div>
+
+		<!-- Analitik üst barı -->
+		<div v-if="stats.total > 0" class="stats-bar">
+			<div class="stat"><span class="stat-val">{{ stats.total }}</span><span class="stat-lbl">Toplam</span></div>
+			<div class="stat"><span class="stat-val ok">{{ stats.done }}</span><span class="stat-lbl">Hazır</span></div>
+			<div class="stat"><span class="stat-val warn">{{ stats.pending }}</span><span class="stat-lbl">İşlemde</span></div>
+			<div class="stat"><span class="stat-val bad">{{ stats.failed }}</span><span class="stat-lbl">Başarısız</span></div>
+			<div class="stat"><span class="stat-val">{{ stats.approved }}</span><span class="stat-lbl">Onaylı</span></div>
+			<div class="stat" v-if="stats.success_rate !== null"><span class="stat-val">%{{ stats.success_rate }}</span><span class="stat-lbl">Başarı</span></div>
+			<div class="stat" v-if="stats.avg_render_ms !== null"><span class="stat-val">{{ fmtMs(stats.avg_render_ms) }}</span><span class="stat-lbl">Ort. süre</span></div>
+			<div class="stat-templates" v-if="stats.per_template.length">
+				<span class="stat-lbl">Şablon performansı</span>
+				<div class="tpl-bars">
+					<div v-for="t in stats.per_template" :key="t.name" class="tpl-bar" :title="`${t.name}: ${t.done}/${t.total} hazır`">
+						<span class="tpl-bar-name">{{ t.name }}</span>
+						<span class="tpl-bar-track"><span class="tpl-bar-fill" :style="{ width: (t.total ? t.done / t.total * 100 : 0) + '%' }"></span></span>
+						<span class="tpl-bar-num">{{ t.done }}/{{ t.total }}</span>
+					</div>
+				</div>
+			</div>
 		</div>
 
 		<div v-if="assets.data.length === 0" class="card">
@@ -114,12 +150,19 @@ import { ref, reactive, inject } from 'vue'
 import { Head, Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
+import CreativeNav from '../Components/CreativeNav.vue'
 
 defineOptions({ layout: AppLayout })
 
 defineProps({
 	assets: { type: Object, default: () => ({ data: [], links: [], total: 0, last_page: 1 }) },
+	stats: { type: Object, default: () => ({ total: 0, done: 0, failed: 0, pending: 0, approved: 0, success_rate: null, avg_render_ms: null, per_template: [] }) },
 })
+
+function fmtMs(ms) {
+	if (ms == null) return '—'
+	return ms >= 1000 ? (ms / 1000).toFixed(1) + 's' : ms + 'ms'
+}
 
 const showToast = inject('showToast', null)
 const busy = ref(null)
@@ -207,6 +250,23 @@ function goTo(url) {
 .page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; gap: 16px; }
 .page-title { font-size: 22px; font-weight: 700; color: #1a1a2e; line-height: 1.2; }
 .page-subtitle { font-size: 13px; color: #888; margin-top: 4px; }
+.header-btns { display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
+
+/* Analitik üst barı */
+.stats-bar { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; background: #fff; border: 1px solid #ebebf0; border-radius: 14px; padding: 14px 20px; margin-bottom: 18px; box-shadow: 0 1px 4px rgba(0,0,0,.04); }
+.stat { display: flex; flex-direction: column; gap: 2px; }
+.stat-val { font-size: 20px; font-weight: 700; color: #1a1a2e; line-height: 1; }
+.stat-val.ok { color: #15803d; }
+.stat-val.warn { color: #b45309; }
+.stat-val.bad { color: #b91c1c; }
+.stat-lbl { font-size: 11px; color: #999; text-transform: uppercase; letter-spacing: .03em; }
+.stat-templates { margin-left: auto; min-width: 240px; max-width: 360px; }
+.tpl-bars { display: flex; flex-direction: column; gap: 4px; margin-top: 5px; }
+.tpl-bar { display: flex; align-items: center; gap: 8px; font-size: 11px; }
+.tpl-bar-name { width: 90px; color: #555; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tpl-bar-track { flex: 1; height: 6px; background: #f0f0f5; border-radius: 3px; overflow: hidden; }
+.tpl-bar-fill { display: block; height: 100%; background: #7c3aed; border-radius: 3px; }
+.tpl-bar-num { color: #999; font-family: 'SF Mono', Menlo, Consolas, monospace; white-space: nowrap; }
 
 .card { background: #fff; border-radius: 16px; border: 1px solid #ebebf0; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.04); }
 .empty-block { text-align: center; color: #aaa; padding: 48px 0; font-style: italic; font-size: 13px; }

@@ -14,6 +14,14 @@ interface RendererContract
     public function inspect(string $svgPath): array;
 
     /**
+     * Tasarımcıdan gelen slot tanımlarını SVG dosyasına geri yazar.
+     * (Render motoru slotları SVG'den okuduğu için kalıcılık SVG'de olmalıdır.)
+     *
+     * @param  array<int,array<string,mixed>>  $slots
+     */
+    public function applySlots(string $svgPath, array $slots): void;
+
+    /**
      * Şablonu verilen değerler ve yerel görsel yollarıyla render eder.
      *
      * @param  array<string,string>  $values      slot anahtarı => metin (örn. ['product_name' => 'Tişört'])

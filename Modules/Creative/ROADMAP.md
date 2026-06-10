@@ -14,8 +14,10 @@
 - ✅ **Faz 1 — Brand Kit** (tamamlandı, doğrulandı)
 - ✅ **Faz 2 — AI Sahne Pipeline** (tamamlandı, doğrulandı)
 - ✅ **Faz 3 — Caption Servisi** (tamamlandı, doğrulandı)
-- ⬜ **Faz 4 — UI: Brand Kit + Şablon editörü** ← SIRADAKİ
-- ⬜ **Faz 5 — Olgunlaştırma + Dağıtım**
+- ✅ **Faz 4 — UI: Brand Kit + Şablon editörü** (tamamlandı, doğrulandı)
+- ✅ **Faz 5 — Olgunlaştırma + Dağıtım** (çekirdek tamam; A-B varyant + sosyal yayın ertelendi)
+
+> 🎉 5 fazlık BrandCreative roadmap'i tamamlandı. Kalan işler talep-bazlı (aşağıda "ertelendi").
 
 ---
 
@@ -57,32 +59,49 @@ Tek doğruluk kaynağı marka token sistemi. Anahtar dosyalar:
 - UI: `CreativeStudioController::gallery` payload'a caption/hashtags; `updateCaption()` + route
   `creative.assets.caption.update` (PUT). `CreativeGallery.vue` düzenlenebilir textarea + hashtag input + kaydet.
 
-## ⬜ Faz 4 — UI: Brand Kit + Şablon Editörü (SIRADAKİ)
-**Amaç:** Operatörün SVG/JSON elle yazmadan brand kit ve slot yönetmesi.
+## ✅ Faz 4 — UI: Brand Kit + Şablon Editörü (yapıldı)
+Operatörün SVG/JSON elle yazmadan brand kit ve slot yönetmesi.
 
-**Yapılacaklar:**
-1. **Brand Kit CRUD** — yeni `Http/Controllers/BrandKitController.php` + route'lar (`creative.brandkits.*`),
-   `BrandKitEditor.vue` (palette/typography/logo/spacing düzenleme). Kayıtta `BrandTokenService::forget()`.
-2. **Şablon Tasarımcısı** — `TemplateBuilder.vue`: yüklenen SVG üstüne sürükle-bırak slot konumlandırma,
-   metin/görsel slot tipi, `fit` (cover/contain). Mevcut `CreativeTemplateController::update` zaten
-   `slots` JSON güncelliyor — onun üstüne kur. Canlı önizleme: `python/inspect_template.py` + `render.py`.
-3. Studio menüsüne editör sekmeleri.
+**ÖNEMLİ MİMARİ BULGU:** Slotlar SVG'de `data-slot` attribute'larında yaşar; `render.py`/`inspect_template.py`
+slotları **SVG'den** okur (DB `creative_templates.slots` yalnızca inceleme kopyasıdır — tek başına render'ı
+ETKİLEMEZ). Bu yüzden tasarımcı değişiklikleri SVG'ye geri yazılmalıdır.
 
-**Kritik dosyalar:** `Resources/assets/js/Pages/` (yeni Vue), `Http/Controllers/CreativeTemplateController.php`,
-yeni `BrandKitController`.
+- **Slot yazma:** yeni `python/apply_slots.py` — slot listesini SVG XML'ine işler (mevcut `data-slot`
+  elemanlarını günceller, `ref=null` olanları yeni `<text>`/`<rect>` olarak ekler, payload'da olmayanları siler).
+  `RendererContract::applySlots()` + `PythonRenderer::applySlots()` (config `creative.render.scripts.apply`).
+  `CreativeRenderService::applyTemplateSlots()` = applySlots + inspect (DB'yi tazeler).
+- **Brand Kit CRUD:** `Http/Controllers/BrandKitController.php` (index/store/update/destroy + `uploadLogo` JSON),
+  `Http/Requests/StoreBrandKitRequest.php`, route'lar `creative.brandkits.*`. Tekil default senkronu
+  (`syncDefault`), her yazımda `BrandTokenService::forget()`. UI: `Pages/CreativeBrandKits.vue`
+  (palet color-picker + hex, tipografi, spacing, logo path+upload, varsayılan toggle).
+- **Şablon Tasarımcısı:** `Pages/CreativeTemplates.vue` — SVG üstünde sürükle-bırak slot kutuları (move +
+  resize handle), metin/görsel slot ekle-sil, özellik paneli (x/y/w/h, fit, font_size/bold/align/fill).
+  Kaydet → `creative.templates.slots` (PUT) → `applyTemplateSlots`. SVG yükle/yeniden adlandır/aktif/sil.
+  `CreativeTemplateController::index()` (tüm şablonlar + svg_url) + `updateSlots()`.
+- **Navigasyon:** `Components/CreativeNav.vue` sekme çubuğu (Stüdyo/Galeri/Şablonlar/Marka Kiti); 4 sayfaya eklendi.
+- Doğrulandı: apply_slots→inspect zinciri (token fill korunur), brand default senkronu+cache, `npm run build` temiz.
 
-## ⬜ Faz 5 — Olgunlaştırma + Dağıtım
-**Yapılacaklar:**
-1. **Job retry:** `Jobs/GenerateCreativeJob.php` `tries=1` → `tries`+`backoff`; kalıcı (geçersiz şablon)
-   vs geçici (AI/render timeout) hatayı ayır. AI uzun → Horizon/Redis önerilir.
-2. **Analytics:** üretim sayısı/başarı oranı/ortalama süre/şablon performansı; Gallery üst barı.
-3. **Asset versiyonlama** + **template A/B varyant** (talep gelirse). Versiyonlama gelirse AI çıktısı için
-   `meta` yerine ayrı tablo düşün (Faz 2'de bilerek ertelendi).
-4. **Export:** önce ZIP toplu indirme (harici API yok), sonra sosyal yayın (Instagram/Facebook Graph,
-   TikTok) — yalnız `review_status=approved`. Caption Faz 3'ten gelir.
+## ✅ Faz 5 — Olgunlaştırma + Dağıtım (çekirdek yapıldı)
+1. **Job retry (yapıldı):** `Jobs/GenerateCreativeJob.php` → `tries=3` + `backoff()` [10s,30s].
+   Kalıcı vs geçici hata ayrımı: `Services/Exceptions/PermanentRenderException.php` (şablon/ürün yok →
+   retry YOK); geçici hata son denemeye kadar rethrow ile retry. `CreativeRenderService` artık şablon/ürün
+   yoksa `PermanentRenderException` fırlatır. **Not:** AI uzun sürdüğü için prod'da Horizon/Redis önerilir
+   (kod değişikliği değil, altyapı; QUEUE_CONNECTION=redis).
+2. **Analytics (yapıldı):** `CreativeStudioController::stats()` (Postgres `FILTER` + `meta->>'render_ms'`
+   cast) → toplam/hazır/işlemde/başarısız/onaylı, başarı oranı, ort. süre, şablon performansı (top 5).
+   `render_ms` artık `CreativeRenderService::generate` içinde meta'ya yazılır. UI: `CreativeGallery.vue`
+   üst barı + şablon bar grafikleri.
+3. **Asset versiyonlama + A-B varyant: ERTELENDİ** (roadmap'te "talep gelirse"). Gelirse AI çıktısı için
+   `meta` yerine ayrı tablo + CLAUDE.md migration disiplini (gerçek `down()`, ileri tarihli, sonra `schema:audit`).
+4. **Export (ZIP yapıldı):** `CreativeStudioController::export()` → `ZipArchive` ile `review_status=approved`
+   + `status=done` görselleri; caption/hashtag varsa yanına `.txt`. Route `creative.export` (GET), Gallery
+   header'da "ZIP indir (N)" linki (`<a href>`, Inertia değil — dosya indirme). Harici API yok.
+   **Sosyal yayın (Instagram/Facebook Graph, TikTok): ERTELENDİ** — gerçek OAuth/uygulama kimlik bilgisi
+   ve onay süreci gerektirir; ZIP export şimdilik dağıtım yolu.
 
-**CLAUDE.md uyumu:** Yeni tablo eklersen migration disiplini (gerçek `down()`, ileri tarihli),
-sonra `php artisan schema:audit` ile şişme kontrolü.
+**CLAUDE.md uyumu:** Faz 5'te yeni tablo EKLENMEDİ (analytics anlık hesap, `render_ms` mevcut meta JSON'unda,
+export dosya sistemi) → migration/schema:audit gerekmedi. Doğrulandı: analytics SQL Postgres'te çalışır,
+export route + ZIP mantığı, retry/backoff, `npm run build` temiz.
 
 ---
 

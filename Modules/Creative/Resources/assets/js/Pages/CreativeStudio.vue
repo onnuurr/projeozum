@@ -9,6 +9,8 @@
 			]"
 		/>
 
+		<CreativeNav current="studio" />
+
 		<div class="page-header">
 			<div>
 				<h1 class="page-title">Creative Stüdyo</h1>
@@ -123,6 +125,7 @@ import { ref, reactive, computed, inject } from 'vue'
 import { Head, Link, router, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
+import CreativeNav from '../Components/CreativeNav.vue'
 
 defineOptions({ layout: AppLayout })
 

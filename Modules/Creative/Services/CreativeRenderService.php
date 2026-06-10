@@ -8,8 +8,8 @@ use Modules\Creative\Models\CreativeAsset;
 use Modules\Creative\Models\CreativeTemplate;
 use Modules\Creative\Services\Ai\AiSceneService;
 use Modules\Creative\Services\Ai\SceneRequest;
+use Modules\Creative\Services\Exceptions\PermanentRenderException;
 use Modules\Creative\Services\Rendering\RendererContract;
-use RuntimeException;
 
 class CreativeRenderService
 {
@@ -39,18 +39,36 @@ class CreativeRenderService
     }
 
     /**
+     * Tasarımcıdan gelen slotları SVG'ye yazar, ardından şablonu yeniden
+     * inceleyerek DB'deki slot/boyut kopyasını tazeler.
+     *
+     * @param  array<int,array<string,mixed>>  $slots
+     */
+    public function applyTemplateSlots(CreativeTemplate $template, array $slots): CreativeTemplate
+    {
+        $absolute = Storage::disk($this->disk())->path($template->svg_path);
+
+        $this->renderer->applySlots($absolute, $slots);
+
+        return $this->inspectTemplate($template);
+    }
+
+    /**
      * Tek bir creative_assets satırını render eder, diske yazar ve done işaretler.
      * Hata fırlatırsa çağıran (Job) failed olarak işaretlemekle yükümlüdür.
      */
     public function generate(CreativeAsset $asset): CreativeAsset
     {
+        $startedAt = microtime(true);
+
         $asset->loadMissing(['template', 'product.images']);
 
         $template = $asset->template;
         $product  = $asset->product;
 
         if (! $template || ! $product) {
-            throw new RuntimeException('Asset için şablon veya ürün bulunamadı.');
+            // Kalıcı hata: retry anlamsız (asset'in şablonu/ürünü yok).
+            throw new PermanentRenderException('Asset için şablon veya ürün bulunamadı.');
         }
 
         $brand = $this->brandTokens->tokens();
@@ -114,6 +132,7 @@ class CreativeRenderService
                 'ai_scene'   => $aiStored,
                 'caption'    => $caption['caption'] ?? null,
                 'hashtags'   => $caption['hashtags'] ?? [],
+                'render_ms'  => (int) round((microtime(true) - $startedAt) * 1000),
             ]),
         ])->save();
 

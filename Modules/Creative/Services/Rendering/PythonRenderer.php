@@ -25,6 +25,14 @@ class PythonRenderer implements RendererContract
         ];
     }
 
+    public function applySlots(string $svgPath, array $slots): void
+    {
+        $this->run($this->script('apply'), [
+            'svg_path' => $svgPath,
+            'slots'    => array_values($slots),
+        ], asJson: true);
+    }
+
     public function render(CreativeTemplate $template, array $values, array $imagePaths, array $brand = []): string
     {
         // Brand kit fontları (varsa) config fontlarının yerine geçer.

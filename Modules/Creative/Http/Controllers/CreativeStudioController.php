@@ -89,7 +89,105 @@ class CreativeStudioController extends Controller
 
         return Inertia::render('Creative::CreativeGallery', [
             'assets' => $assets,
+            'stats'  => $this->stats(),
         ]);
+    }
+
+    /**
+     * Galeri üst barı için üretim istatistikleri (Postgres FILTER + JSON).
+     *
+     * @return array<string,mixed>
+     */
+    private function stats(): array
+    {
+        $totals = CreativeAsset::query()->selectRaw("
+            count(*) as total,
+            count(*) filter (where status = 'done') as done,
+            count(*) filter (where status = 'failed') as failed,
+            count(*) filter (where status in ('queued','processing')) as pending,
+            count(*) filter (where review_status = 'approved') as approved,
+            avg((meta->>'render_ms')::numeric) filter (where meta->>'render_ms' is not null) as avg_render_ms
+        ")->first();
+
+        $done   = (int) ($totals->done ?? 0);
+        $failed = (int) ($totals->failed ?? 0);
+        $finished = $done + $failed;
+
+        $perTemplate = CreativeAsset::query()
+            ->join('creative_templates', 'creative_templates.id', '=', 'creative_assets.template_id')
+            ->groupBy('creative_templates.id', 'creative_templates.name')
+            ->selectRaw("creative_templates.name, count(*) as total, count(*) filter (where creative_assets.status = 'done') as done")
+            ->orderByDesc('total')
+            ->limit(5)
+            ->get()
+            ->map(fn ($r) => [
+                'name'  => $r->name,
+                'total' => (int) $r->total,
+                'done'  => (int) $r->done,
+            ]);
+
+        return [
+            'total'         => (int) ($totals->total ?? 0),
+            'done'          => $done,
+            'failed'        => $failed,
+            'pending'       => (int) ($totals->pending ?? 0),
+            'approved'      => (int) ($totals->approved ?? 0),
+            'success_rate'  => $finished > 0 ? (int) round($done / $finished * 100) : null,
+            'avg_render_ms' => $totals->avg_render_ms !== null ? (int) round($totals->avg_render_ms) : null,
+            'per_template'  => $perTemplate,
+        ];
+    }
+
+    /**
+     * Onaylanmış (approved + done) görselleri ZIP olarak indirir; caption varsa
+     * her görselin yanına .txt olarak ekler. Harici servis kullanmaz.
+     */
+    public function export()
+    {
+        $assets = CreativeAsset::query()
+            ->with('product:id,name,slug')
+            ->where('review_status', CreativeAsset::REVIEW_APPROVED)
+            ->where('status', CreativeAsset::STATUS_DONE)
+            ->whereNotNull('image_path')
+            ->get();
+
+        if ($assets->isEmpty()) {
+            return back()->with('warning', 'İndirilecek onaylı görsel yok.');
+        }
+
+        $disk = Storage::disk(config('creative.disk', 'public'));
+        $tmp  = tempnam(sys_get_temp_dir(), 'creative-zip-');
+
+        $zip = new \ZipArchive();
+        if ($zip->open($tmp, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+            return back()->with('error', 'ZIP oluşturulamadı.');
+        }
+
+        foreach ($assets as $asset) {
+            if (! $disk->exists($asset->image_path)) {
+                continue;
+            }
+
+            $slug  = $asset->product?->slug ?: 'asset';
+            $base  = sprintf('%s-%d', $slug, $asset->id);
+
+            $zip->addFile($disk->path($asset->image_path), $base . '.png');
+
+            $caption  = $asset->meta['caption'] ?? null;
+            $hashtags = $asset->meta['hashtags'] ?? [];
+            if ($caption || ! empty($hashtags)) {
+                $zip->addFromString(
+                    $base . '.txt',
+                    trim(($caption ?? '') . "\n\n" . implode(' ', (array) $hashtags)),
+                );
+            }
+        }
+
+        $zip->close();
+
+        return response()
+            ->download($tmp, 'creative-export-' . now()->format('Ymd-His') . '.zip')
+            ->deleteFileAfterSend(true);
     }
 
     public function approve(CreativeAsset $asset): RedirectResponse

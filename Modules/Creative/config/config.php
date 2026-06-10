@@ -20,6 +20,7 @@ return [
         'scripts'    => [
             'inspect' => base_path('Modules/Creative/python/inspect_template.py'),
             'render'  => base_path('Modules/Creative/python/render.py'),
+            'apply'   => base_path('Modules/Creative/python/apply_slots.py'),
         ],
     ],
 
