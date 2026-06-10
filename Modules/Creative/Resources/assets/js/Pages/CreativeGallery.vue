@@ -48,6 +48,28 @@
 					<span class="asset-date">{{ a.created_at }}</span>
 				</div>
 
+				<div v-if="a.status === 'done'" class="asset-caption">
+					<textarea
+						class="caption-input"
+						rows="3"
+						placeholder="Caption üretilmedi — elle yazabilirsiniz…"
+						:value="draft(a).caption"
+						@input="onCaptionInput(a, $event.target.value)"
+					></textarea>
+					<input
+						class="hashtag-input"
+						type="text"
+						placeholder="#etiket #etiket2"
+						:value="draft(a).hashtags"
+						@input="onHashtagInput(a, $event.target.value)"
+					/>
+					<button
+						class="act-btn save-caption"
+						:disabled="busy === a.id || !isDirty(a)"
+						@click="saveCaption(a)"
+					>💾 Caption kaydet</button>
+				</div>
+
 				<div class="asset-actions">
 					<template v-if="a.status === 'done'">
 						<button
@@ -88,7 +110,7 @@
 </template>
 
 <script setup>
-import { ref, inject } from 'vue'
+import { ref, reactive, inject } from 'vue'
 import { Head, Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
@@ -101,6 +123,49 @@ defineProps({
 
 const showToast = inject('showToast', null)
 const busy = ref(null)
+
+// Asset id → düzenlenmekte olan caption taslağı (hashtag'ler boşlukla ayrık metin).
+const drafts = reactive({})
+
+function draft(a) {
+	if (!drafts[a.id]) {
+		drafts[a.id] = {
+			caption: a.caption ?? '',
+			hashtags: (a.hashtags ?? []).join(' '),
+		}
+	}
+	return drafts[a.id]
+}
+
+function onCaptionInput(a, value) { draft(a).caption = value }
+function onHashtagInput(a, value) { draft(a).hashtags = value }
+
+function isDirty(a) {
+	const d = draft(a)
+	return d.caption !== (a.caption ?? '') || d.hashtags !== (a.hashtags ?? []).join(' ')
+}
+
+function parseHashtags(text) {
+	return (text.match(/#?[\p{L}\p{N}_]+/gu) ?? [])
+		.map(t => '#' + t.replace(/^#/, ''))
+		.filter(t => t.length > 1)
+}
+
+function saveCaption(a) {
+	if (busy.value) return
+	busy.value = a.id
+	const d = draft(a)
+	router.put(`/creative/assets/${a.id}/caption`, {
+		caption: d.caption || null,
+		hashtags: parseHashtags(d.hashtags),
+	}, {
+		preserveScroll: true,
+		preserveState: false,
+		onSuccess: () => showToast?.({ type: 'success', title: 'Caption kaydedildi', message: a.product?.name ?? '' }),
+		onError: (errs) => showToast?.({ type: 'error', title: 'Kaydedilemedi', message: Object.values(errs)[0] || 'Sunucu hatası.' }),
+		onFinish: () => { busy.value = null },
+	})
+}
 
 const STATUS_LABELS = { queued: 'Kuyrukta', processing: 'İşleniyor', done: 'Hazır', failed: 'Başarısız' }
 const REVIEW_LABELS = { pending: 'Bekliyor', approved: 'Onaylı', rejected: 'Reddedildi' }
@@ -173,6 +238,14 @@ function goTo(url) {
 .asset-template { font-size: 11.5px; color: #888; }
 .asset-error { font-size: 11px; color: #dc2626; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .asset-date { font-size: 11px; color: #aaa; font-family: 'SF Mono', Menlo, Consolas, monospace; }
+
+.asset-caption { padding: 0 13px 10px; display: flex; flex-direction: column; gap: 6px; }
+.caption-input { width: 100%; resize: vertical; border: 1px solid #e8e8f0; border-radius: 8px; padding: 7px 9px; font-size: 12px; font-family: inherit; color: #333; line-height: 1.4; }
+.caption-input:focus { outline: none; border-color: #d8d4f0; background: #faf8ff; }
+.hashtag-input { width: 100%; border: 1px solid #e8e8f0; border-radius: 8px; padding: 6px 9px; font-size: 11.5px; font-family: 'SF Mono', Menlo, Consolas, monospace; color: #7c3aed; }
+.hashtag-input:focus { outline: none; border-color: #d8d4f0; background: #faf8ff; }
+.act-btn.save-caption { background: #ede9fe; color: #6d28d9; }
+.act-btn.save-caption:hover:not(:disabled) { background: #ddd6fe; }
 
 .asset-actions { display: flex; gap: 6px; padding: 0 13px 13px; flex-wrap: wrap; }
 .act-btn { flex: 1; min-width: 70px; border: none; cursor: pointer; font-size: 12px; font-weight: 600; padding: 7px 6px; border-radius: 8px; font-family: inherit; transition: all .15s; }

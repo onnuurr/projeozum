@@ -20,7 +20,8 @@ class GenerateCreativeJob implements ShouldQueue
     use SerializesModels;
 
     public int $tries = 1;
-    public int $timeout = 180;
+    // AI sahne pipeline (Gemini compose + fal poll) uzun sürebilir.
+    public int $timeout = 300;
 
     public function __construct(public int $assetId) {}
 

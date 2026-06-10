@@ -99,6 +99,11 @@
 				<strong>{{ selectedTemplate ? 1 : 0 }}</strong> şablon =
 				<strong>{{ selectedTemplate ? selectedProducts.size : 0 }}</strong> görsel
 			</div>
+			<label class="ai-toggle" :class="{ on: useAi }" title="Ham ürün fotoğrafı yerine AI ile kurgulanmış sahne + giydirme kullan">
+				<input v-model="useAi" type="checkbox" />
+				<span class="ai-dot"></span>
+				<span class="ai-label">✨ AI sahne / giydirme</span>
+			</label>
 			<button
 				class="btn btn-primary btn-with-icon"
 				:disabled="!canGenerate || busy"
@@ -133,6 +138,7 @@ const selectedTemplate = ref(props.templates.length === 1 ? props.templates[0].i
 const selectedProducts = reactive(new Set())
 const search = ref('')
 const busy = ref(false)
+const useAi = ref(false)
 
 const filteredProducts = computed(() => {
 	const q = search.value.trim().toLowerCase()
@@ -166,12 +172,13 @@ function generate() {
 	router.post('/creative/generate', {
 		template_id: selectedTemplate.value,
 		product_ids: Array.from(selectedProducts),
+		use_ai: useAi.value,
 	}, {
 		onSuccess: () => {
 			showToast?.({
 				type: 'success',
 				title: 'Üretim başladı',
-				message: `${selectedProducts.size} görsel kuyruğa alındı.`,
+				message: `${selectedProducts.size} görsel kuyruğa alındı${useAi.value ? ' (AI sahne)' : ''}.`,
 			})
 		},
 		onError: (errs) => {
@@ -231,6 +238,18 @@ function generate() {
 
 /* Aksiyon çubuğu */
 .action-bar { position: sticky; bottom: 0; display: flex; align-items: center; justify-content: space-between; gap: 16px; background: #fff; border: 1px solid #ebebf0; border-radius: 14px; padding: 14px 18px; box-shadow: 0 -2px 12px rgba(0,0,0,.05); }
-.selection-summary { font-size: 13px; color: #666; }
+.selection-summary { font-size: 13px; color: #666; margin-right: auto; }
 .selection-summary strong { color: #1a1a2e; }
+
+/* AI anahtarı */
+.ai-toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; padding: 7px 12px; border: 1px solid #ebebf0; border-radius: 10px; transition: all .15s; }
+.ai-toggle:hover { border-color: #d8d4f0; }
+.ai-toggle.on { border-color: #7c3aed; background: #faf8ff; }
+.ai-toggle input { display: none; }
+.ai-dot { width: 32px; height: 18px; border-radius: 10px; background: #d8d4f0; position: relative; transition: background .15s; flex-shrink: 0; }
+.ai-dot::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: transform .15s; }
+.ai-toggle.on .ai-dot { background: #7c3aed; }
+.ai-toggle.on .ai-dot::after { transform: translateX(14px); }
+.ai-label { font-size: 12px; font-weight: 600; color: #555; white-space: nowrap; }
+.ai-toggle.on .ai-label { color: #7c3aed; }
 </style>

@@ -25,8 +25,15 @@ class PythonRenderer implements RendererContract
         ];
     }
 
-    public function render(CreativeTemplate $template, array $values, array $imagePaths): string
+    public function render(CreativeTemplate $template, array $values, array $imagePaths, array $brand = []): string
     {
+        // Brand kit fontları (varsa) config fontlarının yerine geçer.
+        $brandFonts = is_array($brand['fonts'] ?? null) ? $brand['fonts'] : [];
+        $fonts = [
+            'regular' => $brandFonts['regular'] ?? config('creative.fonts.regular'),
+            'bold'    => $brandFonts['bold'] ?? config('creative.fonts.bold'),
+        ];
+
         $payload = [
             'svg_path'  => $this->resolveSvgPath($template->svg_path),
             'width'     => (int) $template->width,
@@ -34,10 +41,9 @@ class PythonRenderer implements RendererContract
             'slots'     => $template->slots ?? [],
             'values'    => $values,
             'images'    => $imagePaths,
-            'fonts'     => [
-                'regular' => config('creative.fonts.regular'),
-                'bold'    => config('creative.fonts.bold'),
-            ],
+            'fonts'     => $fonts,
+            // Renk token'ları: slot fill'i "token:primary" gibiyse Python paletten çözer.
+            'palette'   => is_array($brand['palette'] ?? null) ? $brand['palette'] : [],
             'resvg_bin' => $this->resvgBin(),
             'mime'      => 'image/png',
         ];

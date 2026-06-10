@@ -80,6 +80,14 @@ def load_font(fonts_cfg, bold, size):
     return font
 
 
+def resolve_color_token(value, palette, default="#000000"):
+    """'token:primary' -> palette['primary']; düz renk kodlarını olduğu gibi döndürür."""
+    if isinstance(value, str) and value.startswith("token:"):
+        name = value[len("token:"):].strip()
+        return palette.get(name, default)
+    return value
+
+
 def _color(value, default=(0, 0, 0, 255)):
     try:
         rgb = ImageColor.getrgb(value)
@@ -135,7 +143,7 @@ def composite_images(canvas, image_slots, images):
         canvas.alpha_composite(tile, (int(round(slot["x"])), int(round(slot["y"]))))
 
 
-def draw_texts(canvas, text_slots, values, fonts_cfg):
+def draw_texts(canvas, text_slots, values, fonts_cfg, palette):
     """Metin slotlarını Pillow ile çizer (fallback modu)."""
     draw = ImageDraw.Draw(canvas)
     anchor_map = {"left": "ls", "center": "ms", "right": "rs"}
@@ -145,20 +153,27 @@ def draw_texts(canvas, text_slots, values, fonts_cfg):
             continue
         font = load_font(fonts_cfg, slot.get("bold", False), slot.get("font_size", 16))
         anchor = anchor_map.get(slot.get("align", "left"), "ls")
+        fill = resolve_color_token(slot.get("fill", "#000000"), palette)
         draw.text(
             (slot["x"], slot["y"]),
             str(text),
             font=font,
-            fill=_color(slot.get("fill", "#000000")),
+            fill=_color(fill),
             anchor=anchor,
         )
 
 
-def render_with_resvg(resvg_bin, root, values, fonts_cfg, width, height):
+def render_with_resvg(resvg_bin, root, values, fonts_cfg, width, height, palette):
     """Metinleri SVG'ye gömüp resvg ile rasterize eder; RGBA Image döndürür."""
     for elem, slot in svg.iter_slots(root):
-        if slot["type"] == "text" and slot["key"] in values:
+        if slot["type"] != "text":
+            continue
+        if slot["key"] in values:
             elem.text = str(values[slot["key"]])
+        # Token renkleri resvg geçersiz görmesin diye gerçek renkle değiştir.
+        fill = slot.get("fill")
+        if isinstance(fill, str) and fill.startswith("token:"):
+            elem.set("fill", resolve_color_token(fill, palette))
 
     svg_bytes = ET.tostring(root, encoding="utf-8")
 
@@ -197,6 +212,7 @@ def main():
     values = payload.get("values") or {}
     images = payload.get("images") or {}
     fonts_cfg = payload.get("fonts") or {}
+    palette = payload.get("palette") or {}
     resvg_bin = (payload.get("resvg_bin") or "").strip()
     mime = payload.get("mime") or "image/png"
 
@@ -218,13 +234,15 @@ def main():
     if resvg_ok:
         # resvg yeniden ayrıştırılmış ağaca metin gömer; bu yüzden taze kök al.
         root2 = svg.load_tree(svg_path)
-        canvas = render_with_resvg(resvg_bin, root2, values, fonts_cfg, width, height)
+        canvas = render_with_resvg(resvg_bin, root2, values, fonts_cfg, width, height, palette)
         composite_images(canvas, image_slots, images)
     else:
-        # Salt-Pillow fallback: beyaz tuval.
-        canvas = Image.new("RGBA", (width, height), (255, 255, 255, 255))
+        # Salt-Pillow fallback: arka plan token'ı varsa onu, yoksa beyaz tuval.
+        bg = _color(resolve_color_token(palette.get("background", "#ffffff"), palette),
+                    default=(255, 255, 255, 255))
+        canvas = Image.new("RGBA", (width, height), bg)
         composite_images(canvas, image_slots, images)
-        draw_texts(canvas, text_slots, values, fonts_cfg)
+        draw_texts(canvas, text_slots, values, fonts_cfg, palette)
 
     buf = io.BytesIO()
     if mime == "image/jpeg":

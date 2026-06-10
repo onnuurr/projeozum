@@ -50,6 +50,7 @@ class CreativeStudioController extends Controller
     {
         $templateId = (int) $request->validated('template_id');
         $productIds = $request->validated('product_ids');
+        $useAi      = (bool) $request->validated('use_ai', false);
 
         foreach ($productIds as $productId) {
             $asset = CreativeAsset::create([
@@ -57,6 +58,7 @@ class CreativeStudioController extends Controller
                 'template_id'   => $templateId,
                 'status'        => CreativeAsset::STATUS_QUEUED,
                 'review_status' => CreativeAsset::REVIEW_PENDING,
+                'meta'          => ['use_ai' => $useAi],
             ]);
 
             GenerateCreativeJob::dispatch($asset->id);
@@ -78,6 +80,8 @@ class CreativeStudioController extends Controller
                 'review_status' => $a->review_status,
                 'error'         => $a->error,
                 'image_url'     => $this->url($a->image_path),
+                'caption'       => $a->meta['caption'] ?? null,
+                'hashtags'      => $a->meta['hashtags'] ?? [],
                 'product'       => $a->product?->only(['id', 'name', 'slug']),
                 'template'      => $a->template?->only(['id', 'name']),
                 'created_at'    => $a->created_at?->toDateTimeString(),
@@ -113,6 +117,24 @@ class CreativeStudioController extends Controller
         GenerateCreativeJob::dispatch($asset->id);
 
         return back()->with('success', 'Görsel yeniden üretim kuyruğuna alındı.');
+    }
+
+    public function updateCaption(CreativeAsset $asset): RedirectResponse
+    {
+        $data = request()->validate([
+            'caption'    => ['nullable', 'string', 'max:2200'],
+            'hashtags'   => ['nullable', 'array', 'max:30'],
+            'hashtags.*' => ['string', 'max:60'],
+        ]);
+
+        $asset->update([
+            'meta' => array_merge($asset->meta ?? [], [
+                'caption'  => $data['caption'] ?? null,
+                'hashtags' => array_values($data['hashtags'] ?? []),
+            ]),
+        ]);
+
+        return back()->with('success', 'Caption güncellendi.');
     }
 
     private function url(?string $path): ?string

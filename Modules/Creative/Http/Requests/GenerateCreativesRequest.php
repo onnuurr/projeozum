@@ -17,6 +17,7 @@ class GenerateCreativesRequest extends FormRequest
             'template_id'   => ['required', 'integer', 'exists:creative_templates,id'],
             'product_ids'   => ['required', 'array', 'min:1'],
             'product_ids.*' => ['integer', 'exists:products,id'],
+            'use_ai'        => ['sometimes', 'boolean'],
         ];
     }
 }

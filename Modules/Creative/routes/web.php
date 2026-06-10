@@ -4,7 +4,8 @@ use Illuminate\Support\Facades\Route;
 use Modules\Creative\Http\Controllers\CreativeStudioController;
 use Modules\Creative\Http\Controllers\CreativeTemplateController;
 
-Route::middleware(['auth:superadmin,web'])->prefix('creative')->name('creative.')->group(function () {
+Route::middleware(['auth', 'verified', 'role:superadmin', 'can:creative.manage'])
+    ->prefix('creative')->name('creative.')->group(function () {
     // ─── Stüdyo & üretim ─────────────────────────────────────────────────
     Route::get('/studio', [CreativeStudioController::class, 'index'])->name('studio');
     Route::post('/generate', [CreativeStudioController::class, 'generate'])->name('generate');
@@ -17,6 +18,8 @@ Route::middleware(['auth:superadmin,web'])->prefix('creative')->name('creative.'
         ->whereNumber('asset')->name('assets.reject');
     Route::post('/assets/{asset}/regenerate', [CreativeStudioController::class, 'regenerate'])
         ->whereNumber('asset')->name('assets.regenerate');
+    Route::put('/assets/{asset}/caption', [CreativeStudioController::class, 'updateCaption'])
+        ->whereNumber('asset')->name('assets.caption.update');
 
     // ─── Şablonlar ───────────────────────────────────────────────────────
     Route::post('/templates', [CreativeTemplateController::class, 'store'])->name('templates.store');
