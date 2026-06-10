@@ -79,14 +79,61 @@
 
 					<!-- Tipografi -->
 					<div class="section">
-						<div class="section-head"><h4>Tipografi</h4></div>
-						<div class="field">
-							<label>Regular font yolu (.ttf)</label>
-							<input v-model="form.typography.regular" type="text" placeholder="Modules/Creative/python/fonts/DejaVuSans.ttf" />
+						<div class="section-head">
+							<h4>Tipografi (Fontlar)</h4>
+							<label class="upload-btn" :class="{ busy: fontUploading }">
+								{{ fontUploading ? '…' : '+ Font / ZIP yükle' }}
+								<input type="file" accept=".ttf,.otf,.woff,.woff2,.zip" multiple hidden @change="uploadFont" />
+							</label>
 						</div>
-						<div class="field">
-							<label>Bold font yolu (.ttf)</label>
-							<input v-model="form.typography.bold" type="text" placeholder="…DejaVuSans-Bold.ttf" />
+						<p class="muted">Tekli font (.ttf/.otf/.woff/.woff2) veya .zip yükleyin; ZIP içindeki fontlar otomatik çıkarılır. Render için en güvenlisi .ttf/.otf.</p>
+
+						<div v-if="form.typography.fonts.length === 0" class="muted" style="margin-top:8px">Henüz font yüklenmedi.</div>
+
+						<div v-for="g in fontGroups" :key="g.family" class="font-group">
+							<!-- Aynı aileden birden çok stil → klasör (tıkla aç/kapat) -->
+							<template v-if="g.items.length > 1">
+								<button type="button" class="font-folder" @click="toggleFamily(g.family)">
+									<svg class="folder-caret" :class="{ open: isFamilyOpen(g.family) }" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M9 6l6 6-6 6" /></svg>
+									<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" /></svg>
+									<span class="ff-name">{{ g.family }}</span>
+									<span class="ff-count">{{ g.items.length }} stil</span>
+								</button>
+								<div v-show="isFamilyOpen(g.family)" class="font-children">
+									<div v-for="it in g.items" :key="it.index" class="token-row">
+										<input v-model="it.font.name" class="token-key" style="width:150px" type="text" placeholder="stil adı" />
+										<input :value="it.font.path" class="token-path" type="text" readonly title="Sistemdeki yol" />
+										<button class="row-del" @click="removeFont(it.index)">✕</button>
+									</div>
+								</div>
+							</template>
+							<!-- Tek dosya → klasörsüz satır -->
+							<div v-else class="token-row">
+								<input v-model="g.items[0].font.name" class="token-key" style="width:150px" type="text" placeholder="font adı" />
+								<input :value="g.items[0].font.path" class="token-path" type="text" readonly title="Sistemdeki yol" />
+								<button class="row-del" @click="removeFont(g.items[0].index)">✕</button>
+							</div>
+						</div>
+
+						<div class="grid2" style="margin-top:12px">
+							<div class="field">
+								<label>Gövde (regular) font</label>
+								<select v-model="form.typography.regular">
+									<option value="">— config varsayılanı —</option>
+									<optgroup v-for="g in fontGroups" :key="g.family" :label="g.family">
+										<option v-for="it in g.items" :key="it.font.path" :value="it.font.path">{{ it.font.name }}</option>
+									</optgroup>
+								</select>
+							</div>
+							<div class="field">
+								<label>Kalın (bold) font</label>
+								<select v-model="form.typography.bold">
+									<option value="">— config varsayılanı —</option>
+									<optgroup v-for="g in fontGroups" :key="g.family" :label="g.family">
+										<option v-for="it in g.items" :key="it.font.path" :value="it.font.path">{{ it.font.name }}</option>
+									</optgroup>
+								</select>
+							</div>
 						</div>
 					</div>
 
@@ -133,7 +180,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, inject } from 'vue'
+import { ref, reactive, computed, inject } from 'vue'
 import { Head, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
@@ -149,6 +196,7 @@ const props = defineProps({
 const showToast = inject('showToast', null)
 const busy = ref(false)
 const uploading = ref(null)
+const fontUploading = ref(false)
 const errors = reactive({})
 
 const PALETTE_KEYS = ['primary', 'secondary', 'accent', 'background', 'text']
@@ -159,7 +207,7 @@ function blankForm() {
 		name: '',
 		is_default: false,
 		palette: PALETTE_KEYS.map(key => ({ key, value: props.defaults?.palette?.[key] || '#000000' })),
-		typography: { regular: '', bold: '' },
+		typography: { regular: '', bold: '', fonts: [] },
 		spacing: Object.entries(props.defaults?.spacing || { sm: 8, md: 16, lg: 32 }).map(([key, value]) => ({ key, value })),
 		logos: [],
 	}
@@ -186,6 +234,61 @@ function swatchList(palette) {
 
 function paletteHint(i) { return PALETTE_KEYS[i] || 'token' }
 
+// Tipografiyi {regular,bold,fonts[]} biçimine getirir; regular/bold yolları
+// kütüphanede yoksa onları da listeye ekler (eski/elle girilmiş yollar için).
+function buildTypography(t) {
+	const fonts = Array.isArray(t?.fonts)
+		? t.fonts.filter(f => f && f.path).map(f => ({ name: f.name || basename(f.path), path: f.path }))
+		: []
+	const regular = t?.regular || ''
+	const bold = t?.bold || ''
+	for (const p of [regular, bold]) {
+		if (p && !fonts.some(f => f.path === p)) fonts.push({ name: basename(p), path: p })
+	}
+	return { regular, bold, fonts }
+}
+
+function basename(p) { return String(p || '').split(/[\\/]/).pop() }
+
+// ── Font ailesine göre gruplama (klasör görünümü) ────────────────────────
+const STYLE_TOKENS = new Set([
+	'thin', 'extralight', 'ultralight', 'light', 'regular', 'normal', 'book', 'text',
+	'medium', 'semibold', 'demibold', 'demi', 'semi', 'bold', 'extrabold', 'ultrabold',
+	'black', 'heavy', 'italic', 'oblique', 'condensed', 'expanded', 'extended',
+	'narrow', 'wide', 'roman', 'variablefont', 'variable', 'font', 'vf',
+	'wght', 'wdth', 'opsz', 'slnt', 'ital', // variable font eksenleri
+])
+
+// Dosya adından stil/ağırlık eklerini atıp aile adını çıkarır.
+// CamelCase ("RobotoBoldItalic") ve ayraçlı ("Roboto-Bold_Italic") adları normalize eder.
+function familyOf(name) {
+	let base = String(name || '').replace(/\.(ttf|otf|woff2?|zip)$/i, '')
+	base = base.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[\s_\-.]+/g, ' ')
+	const tokens = base.split(' ').filter(Boolean)
+	const kept = tokens.filter(t => {
+		const low = t.toLowerCase()
+		if (STYLE_TOKENS.has(low)) return false
+		if (/^\d{2,3}$/.test(low)) return false // 100–900 ağırlık değerleri
+		return true
+	})
+	return kept.join(' ').trim() || base.trim()
+}
+
+// Yüklenen fontları aileye göre grupla (orijinal index'i koru → düzenle/sil).
+const fontGroups = computed(() => {
+	const map = new Map()
+	form.typography.fonts.forEach((font, index) => {
+		const fam = familyOf(font.name || basename(font.path)) || 'Diğer'
+		if (!map.has(fam)) map.set(fam, [])
+		map.get(fam).push({ font, index })
+	})
+	return Array.from(map, ([family, items]) => ({ family, items }))
+})
+
+const expandedFamilies = reactive(new Set())
+function toggleFamily(f) { expandedFamilies.has(f) ? expandedFamilies.delete(f) : expandedFamilies.add(f) }
+function isFamilyOpen(f) { return expandedFamilies.has(f) }
+
 function newKit() {
 	Object.assign(form, blankForm())
 	clearErrors()
@@ -198,7 +301,7 @@ function editKit(k) {
 		name: k.name,
 		is_default: !!k.is_default,
 		palette: objToRows(k.palette),
-		typography: { regular: k.typography?.regular || '', bold: k.typography?.bold || '' },
+		typography: buildTypography(k.typography),
 		spacing: objToRows(k.spacing),
 		logos: objToRows(k.logos),
 	})
@@ -211,9 +314,11 @@ function addRow(field) {
 function clearErrors() { Object.keys(errors).forEach(k => delete errors[k]) }
 
 function payload() {
-	const typography = {}
-	if (form.typography.regular?.trim()) typography.regular = form.typography.regular.trim()
-	if (form.typography.bold?.trim()) typography.bold = form.typography.bold.trim()
+	const typography = {
+		fonts: form.typography.fonts.filter(f => f.path).map(f => ({ name: f.name || basename(f.path), path: f.path })),
+	}
+	if (form.typography.regular) typography.regular = form.typography.regular
+	if (form.typography.bold) typography.bold = form.typography.bold
 
 	return {
 		name: form.name,
@@ -223,6 +328,38 @@ function payload() {
 		spacing: rowsToObj(form.spacing),
 		logos: rowsToObj(form.logos),
 	}
+}
+
+async function uploadFont(e) {
+	const files = Array.from(e.target.files || [])
+	if (!files.length) return
+	fontUploading.value = true
+	try {
+		let added = 0
+		for (const file of files) {
+			const fd = new FormData()
+			fd.append('font', file)
+			const { data } = await window.axios.post('/creative/brandkits/font', fd)
+			for (const f of (data.fonts || [])) {
+				if (!form.typography.fonts.some(x => x.path === f.path)) {
+					form.typography.fonts.push({ name: f.name || basename(f.path), path: f.path })
+					added++
+				}
+			}
+		}
+		showToast?.({ type: 'success', title: 'Font eklendi', message: added + ' font yüklendi' })
+	} catch (err) {
+		showToast?.({ type: 'error', title: 'Font yüklenemedi', message: err?.response?.data?.message || 'Hata' })
+	} finally {
+		fontUploading.value = false
+		e.target.value = ''
+	}
+}
+
+function removeFont(i) {
+	const removed = form.typography.fonts.splice(i, 1)[0]
+	if (removed && form.typography.regular === removed.path) form.typography.regular = ''
+	if (removed && form.typography.bold === removed.path) form.typography.bold = ''
 }
 
 async function uploadLogo(e, i) {
@@ -296,8 +433,9 @@ function remove() {
 
 .field { margin-bottom: 14px; }
 .field label { display: block; font-size: 12px; font-weight: 600; color: #666; margin-bottom: 5px; }
-.field input { width: 100%; border: 1px solid #e8e8f0; border-radius: 8px; padding: 8px 10px; font-size: 13px; font-family: inherit; color: #1a1a2e; }
-.field input:focus { outline: none; border-color: #d8d4f0; background: #faf8ff; }
+.field input, .field select { width: 100%; border: 1px solid #e8e8f0; border-radius: 8px; padding: 8px 10px; font-size: 13px; font-family: inherit; color: #1a1a2e; background: #fff; }
+.field input:focus, .field select:focus { outline: none; border-color: #d8d4f0; background: #faf8ff; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .err { color: #dc2626; font-size: 11.5px; margin-top: 4px; display: block; }
 
 .default-toggle { display: flex; align-items: center; gap: 9px; cursor: pointer; user-select: none; padding: 9px 12px; border: 1px solid #ebebf0; border-radius: 10px; font-size: 12.5px; color: #555; margin-bottom: 18px; }
@@ -326,6 +464,16 @@ function remove() {
 .row-del:hover { background: #fee2e2; color: #dc2626; }
 .upload-btn { font-size: 11.5px; font-weight: 600; color: #6d28d9; background: #ede9fe; padding: 7px 11px; border-radius: 7px; cursor: pointer; flex-shrink: 0; }
 .upload-btn.busy { opacity: .6; }
+
+/* Font ailesi klasörleri */
+.font-group { margin-bottom: 6px; }
+.font-folder { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: #f7f6fb; border: 1px solid #ece9f6; border-radius: 8px; padding: 8px 11px; cursor: pointer; font-family: inherit; color: #4a4458; transition: background .15s; }
+.font-folder:hover { background: #f1eefa; }
+.folder-caret { color: #9b8ec7; transition: transform .15s; flex-shrink: 0; }
+.folder-caret.open { transform: rotate(90deg); }
+.ff-name { font-size: 13px; font-weight: 600; color: #1a1a2e; }
+.ff-count { margin-left: auto; font-size: 11px; font-weight: 600; color: #8a7fb0; background: #ede9fe; padding: 2px 8px; border-radius: 10px; }
+.font-children { padding: 8px 0 4px 22px; border-left: 2px solid #ece9f6; margin: 4px 0 4px 16px; display: flex; flex-direction: column; gap: 6px; }
 
 .editor-actions { display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #f0f0f5; padding-top: 16px; margin-top: 18px; }
 </style>

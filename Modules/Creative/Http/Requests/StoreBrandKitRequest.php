@@ -21,9 +21,13 @@ class StoreBrandKitRequest extends FormRequest
             'palette'       => ['nullable', 'array'],
             'palette.*'     => ['nullable', 'string', 'max:32'],
 
-            // Tipografi: {"regular":"...ttf","bold":"...ttf"}
-            'typography'    => ['nullable', 'array'],
-            'typography.*'  => ['nullable', 'string', 'max:1024'],
+            // Tipografi: {"regular":"path","bold":"path","fonts":[{"name","path"}]}
+            'typography'              => ['nullable', 'array'],
+            'typography.regular'      => ['nullable', 'string', 'max:1024'],
+            'typography.bold'         => ['nullable', 'string', 'max:1024'],
+            'typography.fonts'        => ['nullable', 'array'],
+            'typography.fonts.*.name' => ['nullable', 'string', 'max:191'],
+            'typography.fonts.*.path' => ['required_with:typography.fonts.*', 'string', 'max:1024'],
 
             // Boşluk token'ları: {"sm":8,"md":16,...}
             'spacing'       => ['nullable', 'array'],

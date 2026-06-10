@@ -73,7 +73,11 @@ ETKİLEMEZ). Bu yüzden tasarımcı değişiklikleri SVG'ye geri yazılmalıdır
 - **Brand Kit CRUD:** `Http/Controllers/BrandKitController.php` (index/store/update/destroy + `uploadLogo` JSON),
   `Http/Requests/StoreBrandKitRequest.php`, route'lar `creative.brandkits.*`. Tekil default senkronu
   (`syncDefault`), her yazımda `BrandTokenService::forget()`. UI: `Pages/CreativeBrandKits.vue`
-  (palet color-picker + hex, tipografi, spacing, logo path+upload, varsayılan toggle).
+  (palet color-picker + hex, spacing, logo path+upload, varsayılan toggle).
+  **Tipografi yüklemeli (güncelleme):** `uploadFont` route `creative.brandkits.font` — tekli font
+  (.ttf/.otf/.woff/.woff2) **veya** .zip (`extractFontsFromZip` içindeki fontları `brand_kits/fonts/`'a açar).
+  Birden fazla font (kütüphane `typography.fonts:[{name,path}]`); regular/bold kütüphaneden `<select>` ile
+  seçilir. Yüklenen göreli yol `BrandTokenService::resolvePath` ile mutlak yola çözülüp render'a verilir.
 - **Şablon Tasarımcısı:** `Pages/CreativeTemplates.vue` — SVG üstünde sürükle-bırak slot kutuları (move +
   resize handle), metin/görsel slot ekle-sil, özellik paneli (x/y/w/h, fit, font_size/bold/align/fill).
   Kaydet → `creative.templates.slots` (PUT) → `applyTemplateSlots`. SVG yükle/yeniden adlandır/aktif/sil.

@@ -37,6 +37,7 @@ Route::middleware(['auth', 'verified', 'role:superadmin', 'can:creative.manage']
     Route::get('/brandkits', [BrandKitController::class, 'index'])->name('brandkits.index');
     Route::post('/brandkits', [BrandKitController::class, 'store'])->name('brandkits.store');
     Route::post('/brandkits/logo', [BrandKitController::class, 'uploadLogo'])->name('brandkits.logo');
+    Route::post('/brandkits/font', [BrandKitController::class, 'uploadFont'])->name('brandkits.font');
     Route::put('/brandkits/{brandKit}', [BrandKitController::class, 'update'])
         ->whereNumber('brandKit')->name('brandkits.update');
     Route::delete('/brandkits/{brandKit}', [BrandKitController::class, 'destroy'])
