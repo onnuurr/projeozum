@@ -16,6 +16,7 @@
 
 		<MenuTree
 			:nodes="tree"
+			:disabled="saving"
 			@changed="dirty = true"
 			@edit="openEdit"
 			@add-child="openCreate"

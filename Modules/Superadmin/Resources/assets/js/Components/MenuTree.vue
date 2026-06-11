@@ -2,6 +2,7 @@
 	<draggable
 		:list="nodes"
 		:group="{ name: 'menus' }"
+		:disabled="disabled"
 		item-key="id"
 		handle=".mt-handle"
 		class="mt-list"
@@ -21,6 +22,7 @@
 				</div>
 				<MenuTree
 					:nodes="element.children"
+					:disabled="disabled"
 					class="mt-children"
 					@changed="$emit('changed')"
 					@edit="$emit('edit', $event)"
@@ -37,6 +39,7 @@ import draggable from 'vuedraggable'
 
 defineProps({
 	nodes: { type: Array, required: true },
+	disabled: { type: Boolean, default: false },
 })
 
 defineEmits(['changed', 'edit', 'add-child', 'remove'])
