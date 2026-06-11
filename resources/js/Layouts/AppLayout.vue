@@ -56,113 +56,51 @@ import SearchModal from '@/Components/SearchModal.vue'
 import CartDrawer from '@/Components/CartDrawer.vue'
 import ToastContainer from '@/Components/ToastContainer.vue'
 import Swal from 'sweetalert2'
+import { renderMenuIcon } from '@/menuIcons.js'
 
 const page = usePage()
 
-// Aktif menü item'ı, Inertia'nın yüklediği page component'ına göre belirlenir.
-const componentToNavKey = {
-	Workflow: 'İş Emirleri',
-	Users: 'İlişkiler',
-	Suppliers: 'İlişkiler',
-	Products: 'Katalog',
-	ProductDetail: 'Katalog',
-	Categories: 'Katalog',
-	Brands: 'Katalog',
-	Warehouses: 'Stok',
-	Stocks: 'Stok',
-	StockHistory: 'Stok',
-	Orders: 'Siparişler',
-	TenantDashboard: 'Pano',
-	MarginCalculator: 'Pano',
-	TenantSettings: null, // ana menüde aktif değil, dropdown üzerinden açılır
-	'SuperAdmin/Settings': null, // ana menüde aktif değil, dropdown üzerinden açılır
-	'Atelier/Index': 'Atölye',
-	'Atelier/Studio': 'Atölye',
-	'Tenant::Tenants': 'İlişkiler',
-	'Tenant::TenantTypes': 'İlişkiler',
-	'Tenant::TenantAccess': 'İlişkiler',
-	'Tenant::TenantMarketplace': 'İlişkiler',
-	'Tenant::ProductTenantAccess': 'Katalog',
-	Profile: 'Profilim',
-	Tenant: 'Firma Profili',
-}
-
 const STAFF_ROLES = ['designer', 'reviewer', 'superadmin']
 
-const activeNavKey = computed(() => componentToNavKey[page.component] || null)
+/* ── DB menüsü (Inertia paylaşımı) ── */
+const menuTree = computed(() => page.props.menu ?? [])
 
-/* ── Üst menü ── */
-const baseNavItems = [
-	{ name: 'Pano', to: '/tenant/dashboard', children: [
-		{ label: 'Satış & Pazaryeri', to: '/tenant/dashboard' },
-		{ label: 'Kar Marjı Hesaplayıcı', to: '/tenant/margin-calculator' },
-		{ label: 'Stok Analizi' },
-	] },
-	{ name: 'İlişkiler', to: '/tenants', children: [
-		{ label: 'Tenant\'lar', to: '/tenants' },
-		{ label: 'Tenant Tipleri', to: '/tenants/types' },
-		{ label: 'Müşteriler' },
-		{ label: 'Tedarikçiler', to: '/suppliers' },
-		{ label: 'Kullanıcılar', to: '/users' },
-		{ label: 'Partnerler' },
-	] },
-	{ name: 'Katalog', to: '/products', children: [
-		{ label: 'Tüm Ürünler', to: '/products' },
-		{ label: 'Kategoriler', to: '/products/categories' },
-		{ label: 'Markalar', to: '/products/brands' },
-		{ label: 'Koleksiyonlar' },
-	] },
-	{ name: 'Siparişler', to: '/orders', children: [
-		{ label: 'Sipariş Listesi', to: '/orders' },
-		{ label: 'Yeni Sipariş' },
-		{ label: 'Teklifler' },
-		{ label: 'İadeler' },
-	] },
-	{ name: 'Stok', to: '/products/stocks', children: [
-		{ label: 'Stok Durumu', to: '/products/stocks' },
-		{ label: 'Stok Hareketleri', to: '/products/stocks/history' },
-		{ label: 'Depolar', to: '/products/warehouses' },
-		{ label: 'Sayım' },
-	] },
-	{ name: 'Takvim', children: [
-		{ label: 'Üretim Takvimi' },
-		{ label: 'Toplantılar' },
-		{ label: 'Tatil Günleri' },
-	] },
-	{ name: 'Atölye', to: '/atelier', staffOnly: true, children: [
-		{ label: 'Tüm Modeller', to: '/atelier' },
-		{ label: 'Taslaklar', to: '/atelier?status=draft' },
-		{ label: 'İnceleme Bekleyenler', to: '/atelier?status=in_review' },
-		{ label: 'Onaylanmış', to: '/atelier?status=approved' },
-	] },
-	{ name: 'İş Emirleri', to: '/workflow', children: [
-		{ label: 'Yeni İş Emri', to: '/workflow' },
-		{ label: 'Aktif Emirler', to: '/workflow' },
-		{ label: 'Tamamlanan' },
-		{ label: 'Geciken' },
-	] },
-	{ name: 'Raporlar', children: [
-		{ label: 'Üretim Raporu' },
-		{ label: 'Stok Raporu' },
-		{ label: 'Satış Raporu' },
-		{ label: 'Maliyet Analizi' },
-	] },
-	{ name: 'Sevkiyat', children: [
-		{ label: 'Sevkiyat Listesi' },
-		{ label: 'Yeni Sevkiyat' },
-		{ label: 'Kargo Takibi' },
-		{ label: 'Adresler' },
-	] },
-]
+// Bir düğüm ya da en yakın torununun gerçek link'i (kök tıklanınca nereye gitsin).
+function firstLink(node) {
+	if (node.to) return node.to
+	for (const child of node.children || []) {
+		const link = firstLink(child)
+		if (link) return link
+	}
+	return null
+}
 
-const navItems = computed(() =>
-	baseNavItems
-		.filter((item) => !item.staffOnly || STAFF_ROLES.includes(currentUser.value.role))
-		.map((item) => ({
-			...item,
-			active: item.name === activeNavKey.value,
-		}))
-)
+// Aktif kök: page.url'i ağaçta en uzun prefix ile eşleştir, kök ataya yürü.
+const activeRoot = computed(() => {
+	const url = page.url
+	let best = { root: null, len: -1 }
+	const walk = (node, root) => {
+		const r = root || node
+		if (node.to && url.startsWith(node.to) && node.to.length > best.len) {
+			best = { root: r, len: node.to.length }
+		}
+		;(node.children || []).forEach((c) => walk(c, r))
+	}
+	menuTree.value.forEach((n) => walk(n, null))
+	return best.root || menuTree.value[0] || null
+})
+
+/* ── Üst menü (header) = aktif kökün child'ları ── */
+const navItems = computed(() => {
+	const root = activeRoot.value
+	if (!root) return []
+	return (root.children || []).map((child) => ({
+		name: child.label,
+		to: child.to || undefined,
+		active: !!(child.to && page.url.startsWith(child.to)),
+		children: (child.children || []).map((g) => ({ label: g.label, to: g.to || undefined })),
+	}))
+})
 
 /* ── Kullanıcı ── */
 // Inertia'nın paylaştığı auth.user'dan oku — HandleInertiaRequests şu an
@@ -189,6 +127,7 @@ const userMenu = computed(() => {
 		{ divider: true },
 		{ label: 'Üretim Atölyesi', icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>', to: '/atelier', visible: STAFF_ROLES.includes(role) },
 		{ label: 'Süper Admin Paneli', icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>', to: '/superadmin/settings', visible: role === 'superadmin' },
+		{ label: 'Menü Yönetimi', icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>', to: '/superadmin/menus', visible: role === 'superadmin' },
 		{ label: 'Ayarlar', icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>', to: '/tenant/settings' },
 		{ label: 'Bildirimler', icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>' },
 		{ divider: true },
@@ -254,31 +193,14 @@ function handleUserAction(item) {
 /* ── Sidebar ── */
 const SVG = (path, opts = '') => `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" ${opts}>${path}</svg>`
 
-const sidebarTopAll = [
-	{ label: 'Geri', icon: SVG('<path d="M15 18l-6-6 6-6"/>', 'stroke-width="2.5"'), active: true },
-	{ label: 'Paylaş', icon: SVG('<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98"/>') },
-	{ label: 'Yükle', icon: SVG('<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>') },
-	{ label: 'Favori', icon: SVG('<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>') },
-	{ label: 'Yeni', icon: SVG('<path d="M12 5v14M5 12h14"/>', 'stroke-width="2.5"') },
-	{
-		label: 'Üretim Atölyesi',
-		icon: SVG('<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/>'),
-		to: '/atelier',
-		staffOnly: true,
-	},
-	{ label: 'Mobil', icon: SVG('<rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>') },
-	{ label: 'Belgeler', icon: SVG('<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>') },
-	{ label: 'Takvim', icon: SVG('<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>') },
-	{ label: 'Sevkiyat', icon: SVG('<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>') },
-]
-
+/* ── Sidebar = kök menüler ── */
 const sidebarTop = computed(() =>
-	sidebarTopAll
-		.filter((b) => !b.staffOnly || STAFF_ROLES.includes(currentUser.value.role))
-		.map((b) => ({
-			...b,
-			active: b.active || (b.to && page.url.startsWith(b.to)),
-		}))
+	menuTree.value.map((node) => ({
+		label: node.label,
+		icon: renderMenuIcon(node.icon),
+		to: firstLink(node) || undefined,
+		active: node.id === activeRoot.value?.id,
+	}))
 )
 
 const sidebarBottom = ref([
