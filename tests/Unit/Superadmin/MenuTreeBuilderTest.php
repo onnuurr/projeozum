@@ -24,6 +24,7 @@ class MenuTreeBuilderTest extends TestCase
         $this->assertCount(1, $tree);
         $this->assertSame('Katalog', $tree[0]['label']);
         $this->assertSame('package', $tree[0]['icon']);
+        $this->assertCount(2, $tree[0]['children']);
         // sort_order'a göre: Kategoriler (0) önce, Ürünler (1) sonra
         $this->assertSame('Kategoriler', $tree[0]['children'][0]['label']);
         $this->assertSame('Ürünler', $tree[0]['children'][1]['label']);
