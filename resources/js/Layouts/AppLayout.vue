@@ -75,13 +75,23 @@ function firstLink(node) {
 	return null
 }
 
+// URL eşleşmesi: tam eşitlik ya da segment sınırında prefix ('/' öncesi).
+// Sorgu içeren hedefler (örn. /atelier?status=draft) yalnızca tam eşleşir.
+function urlMatches(to) {
+	if (!to) return false
+	if (page.url === to) return true
+	if (to.includes('?')) return false
+	const path = page.url.split('?')[0]
+	return path === to || path.startsWith(to + '/')
+}
+
 // Aktif kök: page.url'i ağaçta en uzun prefix ile eşleştir, kök ataya yürü.
 const activeRoot = computed(() => {
 	const url = page.url
 	let best = { root: null, len: -1 }
 	const walk = (node, root) => {
 		const r = root || node
-		if (node.to && url.startsWith(node.to) && node.to.length > best.len) {
+		if (node.to && urlMatches(node.to) && node.to.length > best.len) {
 			best = { root: r, len: node.to.length }
 		}
 		;(node.children || []).forEach((c) => walk(c, r))
@@ -97,7 +107,7 @@ const navItems = computed(() => {
 	return (root.children || []).map((child) => ({
 		name: child.label,
 		to: child.to || undefined,
-		active: !!(child.to && page.url.startsWith(child.to)),
+		active: urlMatches(child.to),
 		children: (child.children || []).map((g) => ({ label: g.label, to: g.to || undefined })),
 	}))
 })
@@ -194,6 +204,7 @@ function handleUserAction(item) {
 const SVG = (path, opts = '') => `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" ${opts}>${path}</svg>`
 
 /* ── Sidebar = kök menüler ── */
+// Görünürlük (izin/rol) sunucuda MenuTreeBuilder ile filtrelenir; burada client-side gate yok.
 const sidebarTop = computed(() =>
 	menuTree.value.map((node) => ({
 		label: node.label,
