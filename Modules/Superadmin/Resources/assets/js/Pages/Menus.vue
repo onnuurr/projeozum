@@ -76,7 +76,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import AppModal from '@/Components/AppModal.vue'
@@ -109,6 +109,12 @@ function toTree(flat) {
 const tree = ref(toTree(props.menus))
 const dirty = ref(false)
 const saving = ref(false)
+
+// Sunucudan menus prop'u yenilenince (create/edit/delete sonrası reload) ağacı tazele.
+watch(() => props.menus, (val) => {
+	tree.value = toTree(val)
+	dirty.value = false
+})
 
 function resetTree() {
 	tree.value = toTree(props.menus)
