@@ -36,6 +36,20 @@ class MenuManagementTest extends TestCase
             );
     }
 
+    public function test_menus_index_page_renders(): void
+    {
+        // GET /superadmin/menus, Route::resource('superadmin') altındaki
+        // superadmin/{superadmin} (show) tarafından gölgelenmemeli; gerçekte
+        // MenuController@index → Superadmin::Menus sayfasını render etmeli.
+        // component() ikinci argümanı false: Inertia test view-finder modül (::)
+        // JS sayfa yollarıyla yapılandırılmadığından disk-varlık kontrolü atlanır;
+        // asıl doğrulama yanıtın geçerli Inertia + doğru bileşen adı olmasıdır.
+        $this->actingAs($this->superadmin)
+            ->get('/superadmin/menus')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->component('Superadmin::Menus', false));
+    }
+
     public function test_superadmin_can_create_menu(): void
     {
         $this->actingAs($this->superadmin)
