@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 use Modules\Product\Models\CartItem;
+use Modules\Superadmin\Services\MenuTreeBuilder;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -42,6 +43,7 @@ class HandleInertiaRequests extends Middleware
                 'name' => config('app.name'),
             ],
             'cart' => fn () => $this->cartPayload($user?->id),
+            'menu' => fn () => MenuTreeBuilder::forUser($user),
         ];
     }
 
