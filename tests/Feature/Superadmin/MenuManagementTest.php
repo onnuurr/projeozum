@@ -35,4 +35,91 @@ class MenuManagementTest extends TestCase
                 ->where('menu.0.to', '/tenant/dashboard')
             );
     }
+
+    public function test_superadmin_can_create_menu(): void
+    {
+        $this->actingAs($this->superadmin)
+            ->post('/superadmin/menus', [
+                'label'      => 'Katalog',
+                'icon'       => 'package',
+                'url'        => '/products',
+                'sort_order' => 0,
+                'is_active'  => true,
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('superadmin_menus', ['label' => 'Katalog', 'icon' => 'package']);
+    }
+
+    public function test_superadmin_can_update_menu(): void
+    {
+        $menu = Menu::create(['label' => 'Eski', 'sort_order' => 0]);
+
+        $this->actingAs($this->superadmin)
+            ->put("/superadmin/menus/{$menu->id}", [
+                'label'     => 'Yeni',
+                'is_active' => true,
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('superadmin_menus', ['id' => $menu->id, 'label' => 'Yeni']);
+    }
+
+    public function test_deleting_menu_cascades_to_children(): void
+    {
+        $root  = Menu::create(['label' => 'Kök', 'sort_order' => 0]);
+        $child = Menu::create(['parent_id' => $root->id, 'label' => 'Çocuk', 'sort_order' => 0]);
+
+        $this->actingAs($this->superadmin)
+            ->delete("/superadmin/menus/{$root->id}")
+            ->assertRedirect();
+
+        $this->assertDatabaseMissing('superadmin_menus', ['id' => $root->id]);
+        $this->assertDatabaseMissing('superadmin_menus', ['id' => $child->id]);
+    }
+
+    public function test_reorder_updates_sort_and_parent(): void
+    {
+        $a = Menu::create(['label' => 'A', 'sort_order' => 0]);
+        $b = Menu::create(['label' => 'B', 'sort_order' => 1]);
+
+        $this->actingAs($this->superadmin)
+            ->post('/superadmin/menus/reorder', [
+                'items' => [
+                    ['id' => $a->id, 'parent_id' => null, 'sort_order' => 1],
+                    ['id' => $b->id, 'parent_id' => $a->id, 'sort_order' => 0],
+                ],
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('superadmin_menus', ['id' => $a->id, 'sort_order' => 1, 'parent_id' => null]);
+        $this->assertDatabaseHas('superadmin_menus', ['id' => $b->id, 'sort_order' => 0, 'parent_id' => $a->id]);
+    }
+
+    public function test_reorder_rejects_cycle(): void
+    {
+        $parent = Menu::create(['label' => 'Parent', 'sort_order' => 0]);
+        $child  = Menu::create(['parent_id' => $parent->id, 'label' => 'Child', 'sort_order' => 0]);
+
+        // parent'ı kendi çocuğunun altına taşımak döngü yaratır → reddedilmeli
+        $this->actingAs($this->superadmin)
+            ->post('/superadmin/menus/reorder', [
+                'items' => [
+                    ['id' => $parent->id, 'parent_id' => $child->id, 'sort_order' => 0],
+                ],
+            ])
+            ->assertSessionHasErrors('items');
+
+        // Değişmemiş olmalı
+        $this->assertDatabaseHas('superadmin_menus', ['id' => $parent->id, 'parent_id' => null]);
+    }
+
+    public function test_non_superadmin_cannot_manage_menus(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->post('/superadmin/menus', ['label' => 'X', 'is_active' => true])
+            ->assertForbidden();
+    }
 }

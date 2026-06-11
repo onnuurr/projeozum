@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\Superadmin\Http\Controllers\MenuController;
 use Modules\Superadmin\Http\Controllers\PermissionController;
 use Modules\Superadmin\Http\Controllers\RoleController;
 use Modules\Superadmin\Http\Controllers\SettingsController;
@@ -28,4 +29,11 @@ Route::middleware(['auth', 'verified', 'role:superadmin'])->group(function () {
     Route::post('superadmin/permissions', [PermissionController::class, 'store'])->name('permissions.store');
     Route::put('superadmin/permissions/{permission}', [PermissionController::class, 'update'])->name('permissions.update');
     Route::delete('superadmin/permissions/{permission}', [PermissionController::class, 'destroy'])->name('permissions.destroy');
+
+    // Menüler
+    Route::get('superadmin/menus', [MenuController::class, 'index'])->name('superadmin.menus');
+    Route::post('superadmin/menus/reorder', [MenuController::class, 'reorder'])->name('superadmin.menus.reorder');
+    Route::post('superadmin/menus', [MenuController::class, 'store'])->name('superadmin.menus.store');
+    Route::put('superadmin/menus/{menu}', [MenuController::class, 'update'])->name('superadmin.menus.update');
+    Route::delete('superadmin/menus/{menu}', [MenuController::class, 'destroy'])->name('superadmin.menus.destroy');
 });
