@@ -52,6 +52,57 @@ class ProductMarketplaceListingController extends Controller
         ]);
     }
 
+    public function upsert(Request $request, Product $product, string $marketplace): JsonResponse
+    {
+        $mp = Marketplace::where('key', $marketplace)->firstOrFail();
+
+        $data = $request->validate([
+            'product_status'      => ['required', 'in:active,passive'],
+            'store_name'          => ['nullable', 'string', 'max:191'],
+            'model_code'          => ['nullable', 'string', 'max:64'],
+            'category_path'       => ['nullable', 'string', 'max:191'],
+            'title'               => ['nullable', 'string', 'max:191'],
+            'price'               => ['nullable', 'numeric', 'min:0'],
+            'currency'            => ['nullable', 'string', 'max:8'],
+            'variant_extra_price' => ['nullable', 'numeric', 'min:0'],
+            'delivery_template'   => ['nullable', 'string', 'max:191'],
+            'shipping_time'       => ['nullable', 'integer', 'min:0'],
+            'variants'                          => ['nullable', 'array'],
+            'variants.*.product_variant_id'     => ['required', 'integer'],
+            'variants.*.marketplace_variant'    => ['nullable', 'string', 'max:191'],
+            'variants.*.stock_code'             => ['nullable', 'string', 'max:64'],
+            'variants.*.barcode'                => ['nullable', 'string', 'max:64'],
+        ]);
+
+        $existing = ProductMarketplaceListing::query()
+            ->where('product_id', $product->id)
+            ->where('marketplace_id', $mp->id)
+            ->first();
+
+        $approval = $existing?->approval_status ?? 'not_sent';
+        if ($approval === 'not_sent') {
+            $approval = 'pending';
+        }
+
+        $listing = ProductMarketplaceListing::updateOrCreate(
+            ['product_id' => $product->id, 'marketplace_id' => $mp->id],
+            array_merge($data, [
+                'is_sent'         => true,
+                'sent_at'         => now(),
+                'approval_status' => $approval,
+                'variants'        => $data['variants'] ?? [],
+            ]),
+        );
+
+        return response()->json([
+            'ok' => true,
+            'listing' => [
+                'price'  => (float) $listing->price,
+                'isSent' => (bool) $listing->is_sent,
+            ],
+        ]);
+    }
+
     private function shapeListing(?ProductMarketplaceListing $listing, Product $product, array $productVariants): array
     {
         $storedVariants = collect($listing?->variants ?? []);
