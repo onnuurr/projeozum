@@ -6,11 +6,13 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Product\Models\Brand;
 use Modules\Product\Models\Category;
+use Modules\Product\Models\Marketplace;
 use Modules\Product\Models\PriceList;
 use Modules\Product\Models\Product;
 use Modules\Product\Models\ProductFavorite;
@@ -30,8 +32,12 @@ class ProductController extends Controller
             ->accessibleToTenant($tenantId)
             ->with([
                 'category:id,name,slug',
+                'category.marketplaceMappings:id,category_id,marketplace_id',
+                'category.marketplaceMappings.marketplace:id,key,name,color,logo_text',
                 'brand:id,slug,name',
                 'variants',
+                'images' => fn ($q) => $q->orderByDesc('is_cover')->orderBy('sort_order'),
+                'listings.marketplace:id,key',
             ])
             ->withSum('variants as variants_total_stock', 'stock')
             ->orderByDesc('is_new')
@@ -78,6 +84,12 @@ class ProductController extends Controller
                     'name'              => $p->name,
                     'slug'              => $p->slug,
                     'sku'               => $p->sku,
+                    'image'             => optional($p->images->first())->url,
+                    'images'            => $p->images->map(fn ($img) => [
+                        'id'       => $img->id,
+                        'url'      => $img->url,
+                        'is_cover' => (bool) $img->is_cover,
+                    ])->values()->all(),
                     'category_id'       => $p->category_id,
                     'brand_id'          => $p->brand_id,
                     'brand'             => $p->brand?->slug,
@@ -87,6 +99,23 @@ class ProductController extends Controller
                     'gender'            => $p->gender,
                     'price'             => $displayPrice,
                     'oldPrice'          => $p->old_price !== null ? (float) $p->old_price : null,
+                    'marketPrice'       => $p->market_price !== null ? (float) $p->market_price : null,
+                    'purchasePrice'     => $p->purchase_price !== null ? (float) $p->purchase_price : null,
+                    'barcode'           => $p->barcode,
+                    'desi'              => $p->desi !== null ? (float) $p->desi : null,
+                    'marketplaces'      => optional($p->category)->marketplaceMappings
+                        ?->map(fn ($m) => [
+                            'key'      => $m->marketplace?->key,
+                            'name'     => $m->marketplace?->name,
+                            'color'    => $m->marketplace?->color,
+                            'logoText' => $m->marketplace?->logo_text,
+                        ])->filter(fn ($x) => $x['key'])->values()->all() ?? [],
+                    'listings'          => $p->listings->mapWithKeys(fn ($l) => [
+                        $l->marketplace->key => [
+                            'price'  => $l->price !== null ? (float) $l->price : null,
+                            'isSent' => (bool) $l->is_sent,
+                        ],
+                    ])->all(),
                     'stock'             => (int) ($p->variants_total_stock ?? 0),
                     'rating'            => (float) $p->rating,
                     'reviewCount'       => $p->review_count,
@@ -101,40 +130,63 @@ class ProductController extends Controller
                 ];
             });
 
-        $categories = Category::query()
-            ->where('status', 'active')
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->get(['id', 'slug', 'name', 'icon'])
-            ->map(fn (Category $c) => [
-                'id'    => $c->id,
-                'slug'  => $c->slug,
-                'label' => $c->name,
-                'name'  => $c->name,
-                'icon'  => $c->icon ?? '📦',
-            ]);
-
-        $brands = Brand::query()
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->get(['id', 'slug', 'name'])
-            ->map(fn (Brand $b) => [
-                'id'    => $b->id,
-                'slug'  => $b->slug,
-                'label' => $b->name,
-                'name'  => $b->name,
-            ]);
+        [$categories, $brands] = $this->formReferenceData();
 
         $favoriteIds = ProductFavorite::query()
             ->where('user_id', $request->user()->id)
             ->pluck('product_id')
             ->all();
 
+        // Tüm pazaryeri listesi (test/fallback: eşleşmesi olmayan üründe de ikon göstermek için).
+        $marketplaces = Marketplace::query()
+            ->orderBy('sort_order')
+            ->get(['key', 'name', 'color', 'logo_text'])
+            ->map(fn (Marketplace $m) => [
+                'key'      => $m->key,
+                'name'     => $m->name,
+                'color'    => $m->color,
+                'logoText' => $m->logo_text,
+            ]);
+
         return Inertia::render('Product::Products', [
-            'products'    => $products,
-            'categories'  => $categories,
-            'brands'      => $brands,
-            'favoriteIds' => $favoriteIds,
+            'products'     => $products,
+            'categories'   => $categories,
+            'brands'       => $brands,
+            'favoriteIds'  => $favoriteIds,
+            'marketplaces' => $marketplaces,
+        ]);
+    }
+
+    /**
+     * Yeni ürün ekleme formu (tam sayfa). Drawer yerine ayrı Inertia sayfası.
+     */
+    public function create(): Response
+    {
+        [$categories, $brands] = $this->formReferenceData();
+
+        return Inertia::render('Product::ProductForm', [
+            'product'    => null,
+            'categories' => $categories,
+            'brands'     => $brands,
+        ]);
+    }
+
+    /**
+     * Ürün düzenleme formu (tam sayfa).
+     */
+    public function edit(Product $product): Response
+    {
+        $product->load([
+            'variants' => fn ($q) => $q->orderBy('sort_order'),
+            'images'   => fn ($q) => $q->orderByDesc('is_cover')->orderBy('sort_order'),
+        ]);
+
+        [$categories, $brands] = $this->formReferenceData();
+
+        return Inertia::render('Product::ProductForm', [
+            'product'    => $this->shapeProductForForm($product),
+            'categories' => $categories,
+            'brands'     => $brands,
         ]);
     }
 
@@ -142,24 +194,15 @@ class ProductController extends Controller
     {
         $data = $this->validateProduct($request);
 
-        DB::transaction(function () use ($data) {
-            $product = Product::create([
-                'category_id'       => $data['category_id'],
-                'brand_id'          => $data['brand_id'] ?? null,
-                'name'              => $data['name'],
-                'sku'               => $data['sku'],
-                'gender'            => $data['gender'],
-                'price'             => $this->minPrice($data['variants']),
-                'old_price'         => $this->minOldPrice($data['variants']),
-                'is_new'            => $data['is_new'] ?? false,
-                'free_shipping'     => $data['free_shipping'] ?? false,
-                'care_instructions' => $data['care_instructions'] ?? null,
-                'material'          => $data['material'] ?? null,
-                'origin_country'    => $data['origin_country'] ?? 'TR',
-            ]);
+        $product = DB::transaction(function () use ($data) {
+            $product = Product::create($this->productAttributes($data));
 
             $this->syncVariants($product, $data['variants']);
+
+            return $product;
         });
+
+        $this->storeUploadedImages($product, $request);
 
         return redirect()->route('products.index')
             ->with('success', 'Ürün eklendi.');
@@ -170,23 +213,12 @@ class ProductController extends Controller
         $data = $this->validateProduct($request, $product->id);
 
         DB::transaction(function () use ($product, $data) {
-            $product->update([
-                'category_id'       => $data['category_id'],
-                'brand_id'          => $data['brand_id'] ?? null,
-                'name'              => $data['name'],
-                'sku'               => $data['sku'],
-                'gender'            => $data['gender'],
-                'price'             => $this->minPrice($data['variants']),
-                'old_price'         => $this->minOldPrice($data['variants']),
-                'is_new'            => $data['is_new'] ?? false,
-                'free_shipping'     => $data['free_shipping'] ?? false,
-                'care_instructions' => $data['care_instructions'] ?? null,
-                'material'          => $data['material'] ?? null,
-                'origin_country'    => $data['origin_country'] ?? 'TR',
-            ]);
+            $product->update($this->productAttributes($data));
 
             $this->syncVariants($product, $data['variants']);
         });
+
+        $this->storeUploadedImages($product, $request);
 
         return redirect()->route('products.index')
             ->with('success', 'Ürün güncellendi.');
@@ -198,6 +230,28 @@ class ProductController extends Controller
 
         return redirect()->route('products.index')
             ->with('success', 'Ürün silindi.');
+    }
+
+    /**
+     * Birden çok ürünü topluca siler (tek tek model olayları tetiklensin diye döngüyle).
+     */
+    public function bulkDestroy(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'ids'   => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer', 'exists:products,id'],
+        ]);
+
+        $count = 0;
+        DB::transaction(function () use ($data, &$count) {
+            foreach (Product::whereIn('id', $data['ids'])->get() as $product) {
+                $product->delete();
+                $count++;
+            }
+        });
+
+        return redirect()->route('products.index')
+            ->with('success', "{$count} ürün silindi.");
     }
 
     public function show(Request $request, Product $product): Response
@@ -241,7 +295,7 @@ class ProductController extends Controller
 
         $similar = Product::query()
             ->accessibleToTenant($tenantId)
-            ->with(['brand:id,slug,name', 'category:id,name,slug', 'variants'])
+            ->with(['brand:id,slug,name', 'category:id,name,slug', 'variants', 'images' => fn ($q) => $q->orderByDesc('is_cover')->orderBy('sort_order')])
             ->withSum('variants as variants_total_stock', 'stock')
             ->where('category_id', $product->category_id)
             ->where('id', '!=', $product->id)
@@ -290,6 +344,9 @@ class ProductController extends Controller
                 'name'         => $product->name,
                 'slug'         => $product->slug,
                 'sku'          => $product->sku,
+                'images'       => $product->images()
+                    ->orderByDesc('is_cover')->orderBy('sort_order')
+                    ->pluck('url')->filter()->values()->all(),
                 'brand'        => $product->brand?->name ?? '',
                 'brandSlug'    => $product->brand?->slug,
                 'category'     => $product->category?->name ?? '',
@@ -338,6 +395,7 @@ class ProductController extends Controller
             'name'         => $p->name,
             'slug'         => $p->slug,
             'sku'          => $p->sku,
+            'image'        => $p->relationLoaded('images') ? optional($p->images->first())->url : null,
             'brand'        => $p->brand?->name,
             'brandSlug'    => $p->brand?->slug,
             'category'     => $p->category?->name,
@@ -395,6 +453,92 @@ class ProductController extends Controller
         return [$customPriceByProduct, $priceListByVariant];
     }
 
+    /**
+     * Form sayfaları (create/edit) ve katalog için ortak kategori + marka listesi.
+     *
+     * @return array{0: \Illuminate\Support\Collection, 1: \Illuminate\Support\Collection}
+     */
+    private function formReferenceData(): array
+    {
+        $categories = Category::query()
+            ->where('status', 'active')
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get(['id', 'slug', 'name', 'icon'])
+            ->map(fn (Category $c) => [
+                'id'    => $c->id,
+                'slug'  => $c->slug,
+                'label' => $c->name,
+                'name'  => $c->name,
+                'icon'  => $c->icon ?? '📦',
+            ]);
+
+        $brands = Brand::query()
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get(['id', 'slug', 'name'])
+            ->map(fn (Brand $b) => [
+                'id'    => $b->id,
+                'slug'  => $b->slug,
+                'label' => $b->name,
+                'name'  => $b->name,
+            ]);
+
+        return [$categories, $brands];
+    }
+
+    /**
+     * Düzenleme formunun beklediği şekle ürünü dönüştürür (varyant + görsel dahil).
+     */
+    private function shapeProductForForm(Product $product): array
+    {
+        return [
+            'id'               => $product->id,
+            'name'             => $product->name,
+            'slug'             => $product->slug,
+            'sku'              => $product->sku,
+            'category_id'      => $product->category_id,
+            'brand_id'         => $product->brand_id,
+            'gender'           => $product->gender,
+            'marketPrice'      => $product->market_price !== null ? (float) $product->market_price : null,
+            'purchasePrice'    => $product->purchase_price !== null ? (float) $product->purchase_price : null,
+            'isNew'            => (bool) $product->is_new,
+            'freeShipping'     => (bool) $product->free_shipping,
+            'careInstructions' => $product->care_instructions,
+            'material'         => $product->material,
+            'originCountry'    => $product->origin_country,
+            // SEO
+            'metaTitle'        => $product->meta_title,
+            'metaDescription'  => $product->meta_description,
+            'metaKeywords'     => $product->meta_keywords,
+            // Kargo
+            'weight'           => $product->weight !== null ? (float) $product->weight : null,
+            'desi'             => $product->desi !== null ? (float) $product->desi : null,
+            'shippingTime'     => $product->shipping_time,
+            'shippingFee'      => $product->shipping_fee !== null ? (float) $product->shipping_fee : null,
+            // Diğer
+            'barcode'          => $product->barcode,
+            'isDomestic'       => (bool) $product->is_domestic,
+            'manufacturerCode' => $product->manufacturer_code,
+            'gtipCode'         => $product->gtip_code,
+            'images'           => $product->images->map(fn ($img) => [
+                'id'       => $img->id,
+                'url'      => $img->url,
+                'is_cover' => (bool) $img->is_cover,
+            ])->values()->all(),
+            'variants'         => $product->variants->map(fn ($v) => [
+                'id'         => $v->id,
+                'size'       => $v->size,
+                'color_name' => $v->color_name,
+                'color_hex'  => $v->color_hex,
+                'sku'        => $v->sku,
+                'price'      => (float) $v->price,
+                'old_price'  => $v->old_price !== null ? (float) $v->old_price : null,
+                'stock'      => (int) $v->stock,
+            ])->values()->all(),
+        ];
+    }
+
     private function minPrice(array $variants): float
     {
         $prices = array_column($variants, 'price');
@@ -425,6 +569,71 @@ class ProductController extends Controller
         }
     }
 
+    /**
+     * Form ile yüklenen görselleri ürüne kaydeder. Üründe kapak yoksa ilk
+     * yüklenen kapak olur. (Multipart: images[] dosyaları.)
+     */
+    private function storeUploadedImages(Product $product, Request $request): void
+    {
+        if (! $request->hasFile('images')) {
+            return;
+        }
+
+        $hasCover = $product->images()->where('is_cover', true)->exists();
+        $sort     = (int) $product->images()->max('sort_order');
+
+        foreach ($request->file('images') as $file) {
+            $path = $file->store('products/' . $product->id, 'public');
+
+            $product->images()->create([
+                'url'        => Storage::disk('public')->url($path),
+                'sort_order' => ++$sort,
+                'is_cover'   => ! $hasCover,
+            ]);
+
+            $hasCover = true;
+        }
+    }
+
+    /**
+     * Doğrulanmış form verisinden products tablosu attribute dizisini üretir.
+     * Fiyat varyantlardan türetilir; slug boşsa model otomatik üretir.
+     */
+    private function productAttributes(array $data): array
+    {
+        return [
+            'category_id'       => $data['category_id'],
+            'brand_id'          => $data['brand_id'] ?? null,
+            'name'              => $data['name'],
+            'slug'              => $data['slug'] ?? null,
+            'sku'               => $data['sku'],
+            'gender'            => $data['gender'],
+            'price'             => $this->minPrice($data['variants']),
+            'old_price'         => $this->minOldPrice($data['variants']),
+            'market_price'      => $data['market_price'] ?? null,
+            'purchase_price'    => $data['purchase_price'] ?? null,
+            'is_new'            => $data['is_new'] ?? false,
+            'free_shipping'     => $data['free_shipping'] ?? false,
+            'care_instructions' => $data['care_instructions'] ?? null,
+            'material'          => $data['material'] ?? null,
+            'origin_country'    => $data['origin_country'] ?? 'TR',
+            // SEO
+            'meta_title'        => $data['meta_title'] ?? null,
+            'meta_description'  => $data['meta_description'] ?? null,
+            'meta_keywords'     => $data['meta_keywords'] ?? null,
+            // Kargo
+            'weight'            => $data['weight'] ?? null,
+            'desi'              => $data['desi'] ?? null,
+            'shipping_time'     => $data['shipping_time'] ?? null,
+            'shipping_fee'      => $data['shipping_fee'] ?? null,
+            // Diğer
+            'barcode'           => $data['barcode'] ?? null,
+            'is_domestic'       => $data['is_domestic'] ?? false,
+            'manufacturer_code' => $data['manufacturer_code'] ?? null,
+            'gtip_code'         => $data['gtip_code'] ?? null,
+        ];
+    }
+
     private function validateProduct(Request $request, ?int $ignoreId = null): array
     {
         return $request->validate([
@@ -435,14 +644,42 @@ class ProductController extends Controller
                 'max:64',
                 Rule::unique('products', 'sku')->ignore($ignoreId),
             ],
+            'slug'              => [
+                'nullable',
+                'string',
+                'max:191',
+                Rule::unique('products', 'slug')->ignore($ignoreId),
+            ],
             'category_id'       => ['required', 'integer', Rule::exists('product_categories', 'id')],
             'brand_id'          => ['nullable', 'integer', Rule::exists('brands', 'id')],
             'gender'            => ['required', Rule::in(['Erkek', 'Kadın', 'Unisex'])],
+            'market_price'      => ['nullable', 'numeric', 'min:0'],
+            'purchase_price'    => ['nullable', 'numeric', 'min:0'],
             'is_new'            => ['nullable', 'boolean'],
             'free_shipping'     => ['nullable', 'boolean'],
             'care_instructions' => ['nullable', 'string', 'max:2000'],
             'material'          => ['nullable', 'string', 'max:191'],
             'origin_country'    => ['nullable', 'string', 'size:2'],
+
+            // SEO
+            'meta_title'        => ['nullable', 'string', 'max:191'],
+            'meta_description'  => ['nullable', 'string', 'max:500'],
+            'meta_keywords'     => ['nullable', 'string', 'max:255'],
+
+            // Kargo
+            'weight'            => ['nullable', 'numeric', 'min:0'],
+            'desi'              => ['nullable', 'numeric', 'min:0'],
+            'shipping_time'     => ['nullable', 'string', 'max:50'],
+            'shipping_fee'      => ['nullable', 'numeric', 'min:0'],
+
+            // Diğer
+            'barcode'           => ['nullable', 'string', 'max:64'],
+            'is_domestic'       => ['nullable', 'boolean'],
+            'manufacturer_code' => ['nullable', 'string', 'max:64'],
+            'gtip_code'         => ['nullable', 'string', 'max:32'],
+
+            'images'            => ['nullable', 'array', 'max:10'],
+            'images.*'          => ['file', 'mimes:jpeg,jpg,png,webp,gif', 'max:5120'], // her görsel 5MB (webp dahil)
 
             'variants'                  => ['required', 'array', 'min:1'],
             'variants.*.size'           => ['nullable', 'string', 'max:16'],
