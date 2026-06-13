@@ -86,7 +86,7 @@
 										</tr>
 									</thead>
 									<tbody>
-										<tr v-for="(row, i) in form.variants" :key="row.product_variant_id">
+										<tr v-for="row in form.variants" :key="row.product_variant_id">
 											<td>{{ variantLabel(row.product_variant_id) }}</td>
 											<td><input v-model="row.marketplace_variant" class="form-input" type="text" /></td>
 											<td><input v-model="row.stock_code" class="form-input" type="text" /></td>
