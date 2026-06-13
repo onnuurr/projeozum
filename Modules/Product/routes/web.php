@@ -16,36 +16,68 @@ use Modules\Product\Http\Controllers\WarehouseController;
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/products', [ProductController::class, 'index'])->name('products.index');
 
-    Route::post('/products/{product}/favorite', [FavoriteController::class, 'toggle'])
+    // NOT: Product::getRouteKeyName() = 'slug'. Bu yüzden numeric id ile çağrılan
+    // route'lar binding'i açıkça `{product:id}` ile id'ye sabitlemeli; aksi halde
+    // slug üzerinden aranır ve 404 döner.
+    Route::post('/products/{product:id}/favorite', [FavoriteController::class, 'toggle'])
         ->whereNumber('product')
         ->name('products.favorite.toggle');
+
+    // Tam sayfa ürün formları (eski drawer yerine). Slug catch-all'dan önce
+    // tanımlanmalı; aksi halde `/products/create` slug olarak yorumlanır.
+    Route::get('/products/create', [ProductController::class, 'create'])
+        ->middleware('can:product.add')
+        ->name('products.create');
+    Route::get('/products/{product:id}/edit', [ProductController::class, 'edit'])
+        ->whereNumber('product')
+        ->middleware('can:product.add')
+        ->name('products.edit');
 
     Route::post('/products', [ProductController::class, 'store'])
         ->middleware('can:product.add')
         ->name('products.store');
-    Route::put('/products/{product}', [ProductController::class, 'update'])
+    Route::put('/products/{product:id}', [ProductController::class, 'update'])
         ->middleware('can:product.add')
         ->whereNumber('product')
         ->name('products.update');
-    Route::delete('/products/{product}', [ProductController::class, 'destroy'])
+    Route::delete('/products/{product:id}', [ProductController::class, 'destroy'])
         ->middleware('can:product.delete')
         ->whereNumber('product')
         ->name('products.destroy');
+    Route::post('/products/bulk-destroy', [ProductController::class, 'bulkDestroy'])
+        ->middleware('can:product.delete')
+        ->name('products.bulk-destroy');
 
     Route::prefix('products/categories')->name('products.categories.')->group(function () {
         Route::get('/', [CategoryController::class, 'index'])->name('index');
-        Route::post('/', [CategoryController::class, 'store'])->name('store');
-        Route::put('/{category}', [CategoryController::class, 'update'])->name('update');
-        Route::delete('/{category}', [CategoryController::class, 'destroy'])->name('destroy');
+        Route::post('/', [CategoryController::class, 'store'])
+            ->middleware('can:category.manage')->name('store');
+        Route::put('/{category}', [CategoryController::class, 'update'])
+            ->middleware('can:category.manage')->name('update');
+        Route::delete('/{category}', [CategoryController::class, 'destroy'])
+            ->middleware('can:category.manage')->name('destroy');
+        Route::post('/bulk-destroy', [CategoryController::class, 'bulkDestroy'])
+            ->middleware('can:category.manage')->name('bulk-destroy');
 
         Route::post('/{category}/marketplaces/{marketplace}', [CategoryController::class, 'storeMapping'])
-            ->name('marketplaces.store');
+            ->middleware('can:category.manage')->name('marketplaces.store');
         Route::delete('/{category}/marketplaces/{marketplace}', [CategoryController::class, 'destroyMapping'])
-            ->name('marketplaces.destroy');
+            ->middleware('can:category.manage')->name('marketplaces.destroy');
     });
 
     Route::post('/products/marketplaces/{marketplace}/connect', [CategoryController::class, 'connectMarketplace'])
-        ->name('products.marketplaces.connect');
+        ->middleware('can:category.manage')->name('products.marketplaces.connect');
+
+    // ─── Ürün-Pazaryeri Listeleme ────────────────────────────────────────
+    Route::get('/products/{product:id}/marketplaces/{marketplace}/listing',
+        [\Modules\Product\Http\Controllers\ProductMarketplaceListingController::class, 'show'])
+        ->whereNumber('product')
+        ->name('products.listings.show');
+    Route::put('/products/{product:id}/marketplaces/{marketplace}/listing',
+        [\Modules\Product\Http\Controllers\ProductMarketplaceListingController::class, 'upsert'])
+        ->whereNumber('product')
+        ->middleware('can:product.add')
+        ->name('products.listings.upsert');
 
     // ─── Markalar ────────────────────────────────────────────────────────
     Route::prefix('products/brands')->name('products.brands.')->group(function () {
@@ -80,7 +112,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     // ─── Ürün Görselleri ─────────────────────────────────────────────────
-    Route::prefix('products/{product}/images')->name('products.images.')
+    Route::prefix('products/{product:id}/images')->name('products.images.')
         ->whereNumber('product')->middleware('can:product.add')
         ->group(function () {
             Route::post('/', [ProductImageController::class, 'store'])->name('store');
