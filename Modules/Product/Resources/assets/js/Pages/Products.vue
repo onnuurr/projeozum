@@ -9,8 +9,108 @@
 			]"
 		/>
 
-		<!-- Üst başlık + araç çubuğu -->
-		<div class="page-header">
+		<!-- Üst bar: Filtreler toggle + hızlı arama + Yeni Ürün -->
+		<div class="toolbar">
+			<button class="filter-toggle" :class="{ open: filtersOpen }" @click="filtersOpen = !filtersOpen">
+				<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+					<line x1="4" y1="6" x2="20" y2="6" /><line x1="7" y1="12" x2="17" y2="12" /><line x1="10" y1="18" x2="14" y2="18" />
+				</svg>
+				<span>Filtreler</span>
+				<span v-if="activeFilterCount > 0" class="filter-badge">{{ activeFilterCount }}</span>
+				<svg class="toggle-chevron" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+					<polyline points="6 9 12 15 18 9" />
+				</svg>
+			</button>
+
+			<div class="search-box">
+				<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+					<circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
+				</svg>
+				<input v-model="searchQuery" type="text" placeholder="Hızlı ara.." />
+			</div>
+
+			<button v-if="canAdd" class="btn btn-primary btn-with-icon toolbar-add" @click="openNewProduct">
+				<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+					<path d="M12 5v14M5 12h14" />
+				</svg>
+				Yeni Ürün
+			</button>
+		</div>
+
+		<!-- Açılır filtre paneli -->
+		<div v-show="filtersOpen" class="filter-panel">
+			<div class="filter-grid">
+				<!-- Arama Terimi + alan seçici -->
+				<div class="filter-field">
+					<label class="filter-label">Arama Terimi</label>
+					<div class="search-with-select">
+						<input v-model="searchQuery" type="text" class="filter-input" placeholder="Ara..." />
+						<div class="search-select">
+							<CustomSelect v-model="searchField" :options="searchFieldOptions" :show-label="false" />
+						</div>
+					</div>
+				</div>
+
+				<!-- Sıralama + yön -->
+				<div class="filter-field">
+					<label class="filter-label">Sıralama</label>
+					<div class="sort-row">
+						<CustomSelect v-model="sortField" :options="sortFieldOptions" :show-label="false" />
+						<CustomSelect v-model="sortDir" :options="sortDirOptions" :show-label="false" />
+					</div>
+				</div>
+
+				<!-- Kategori -->
+				<div class="filter-field">
+					<label class="filter-label">Kategori</label>
+					<CustomSelect v-model="selectedCategory" :options="categoryOptions" :show-label="false" placeholder="Kategori Seçilmedi" />
+				</div>
+
+				<!-- Marka -->
+				<div class="filter-field">
+					<label class="filter-label">Marka</label>
+					<CustomSelect v-model="selectedBrand" :options="brandOptions" :show-label="false" placeholder="Marka Seçilmedi" />
+				</div>
+
+				<!-- Stok Miktarı -->
+				<div class="filter-field">
+					<label class="filter-label">Stok Miktarı</label>
+					<div class="range-row">
+						<input v-model.number="stockMin" type="number" min="0" class="filter-input" placeholder="0" />
+						<span class="range-sep">ile</span>
+						<input v-model.number="stockMax" type="number" min="0" class="filter-input" placeholder="0" />
+					</div>
+				</div>
+
+				<!-- Satış Fiyatı -->
+				<div class="filter-field">
+					<label class="filter-label">Satış Fiyatı</label>
+					<div class="range-row">
+						<input v-model.number="priceMin" type="number" min="0" class="filter-input" placeholder="0.00" />
+						<span class="range-sep">ile</span>
+						<input v-model.number="priceMax" type="number" min="0" class="filter-input" placeholder="0.00" />
+					</div>
+				</div>
+
+				<!-- Desi -->
+				<div class="filter-field">
+					<label class="filter-label">Desi</label>
+					<div class="range-row">
+						<input v-model.number="desiMin" type="number" min="0" class="filter-input" placeholder="0.00" />
+						<span class="range-sep">ile</span>
+						<input v-model.number="desiMax" type="number" min="0" class="filter-input" placeholder="0.00" />
+					</div>
+				</div>
+			</div>
+
+			<div class="filter-actions">
+				<button class="btn btn-primary btn-sm" @click="filtersOpen = true">Filtrele</button>
+				<button class="clear-link" @click="clearFilters">Temizle</button>
+			</div>
+		</div>
+
+		<!-- Başlık -->
+		<div class="list-head">
 			<div>
 				<h1 class="page-title">Ürün Kataloğu</h1>
 				<p class="page-subtitle">
@@ -18,381 +118,174 @@
 					<span v-if="activeFilterCount > 0" class="filter-chip">{{ activeFilterCount }} filtre aktif</span>
 				</p>
 			</div>
+		</div>
 
-			<div class="header-tools">
-				<button v-if="canAdd" class="btn btn-primary btn-with-icon" @click="openNewProduct">
-					<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-						<path d="M12 5v14M5 12h14" />
-					</svg>
-					Yeni Ürün
-				</button>
-
-				<div class="search-box">
-					<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-						<circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
-					</svg>
-					<input v-model="searchQuery" type="text" placeholder="Ürün ara..." />
-				</div>
-
-				<div class="sort-wrap">
-					<CustomSelect
-						v-model="sortBy"
-						:options="sortOptions"
-						:show-label="false"
-						style="width: 180px"
-					/>
-				</div>
-
-				<div class="view-toggle" role="tablist" aria-label="Görünüm">
-					<button
-						class="view-btn"
-						:class="{ active: viewMode === 'grid' }"
-						@click="viewMode = 'grid'"
-						aria-label="Izgara görünüm"
-					>
-						<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-							<rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
-							<rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
-						</svg>
-					</button>
-					<button
-						class="view-btn"
-						:class="{ active: viewMode === 'list' }"
-						@click="viewMode = 'list'"
-						aria-label="Liste görünümü"
-					>
-						<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-							<line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" />
-							<line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
-						</svg>
-					</button>
-				</div>
+		<!-- Toplu seçim çubuğu -->
+		<div v-if="canDelete && selectedCount" class="bulk-bar">
+			<span class="bulk-info"><strong>{{ selectedCount }}</strong> ürün seçili</span>
+			<div class="bulk-actions">
+				<button class="btn btn-ghost btn-sm" @click="clearSelection">Temizle</button>
+				<button class="btn btn-danger btn-sm" :disabled="bulkBusy" @click="bulkDelete">🗑️ Seçilenleri Sil ({{ selectedCount }})</button>
 			</div>
 		</div>
 
-		<div class="products-layout">
-			<!-- Filtre sidebar -->
-			<aside class="filters-sidebar">
-				<div class="filters-head">
-					<h3>Filtreler</h3>
-					<button v-if="activeFilterCount > 0" class="clear-btn" @click="clearFilters">Temizle</button>
-				</div>
-
-				<!-- Kategori -->
-				<details class="filter-group" open>
-					<summary>
-						<span>Kategori</span>
-						<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-							<polyline points="6 9 12 15 18 9" />
-						</svg>
-					</summary>
-					<div class="filter-body">
-						<label
-							v-for="cat in categories"
-							:key="cat.slug"
-							class="check-row"
-						>
-							<input
-								type="checkbox"
-								:value="cat.slug"
-								v-model="selectedCategories"
-							/>
-							<span class="check-text">
-								<span class="check-icon">{{ cat.icon }}</span>
-								{{ cat.label }}
-							</span>
-							<span class="check-count">{{ countByCategory(cat.slug) }}</span>
-						</label>
-					</div>
-				</details>
-
-				<!-- Marka -->
-				<details class="filter-group" open>
-					<summary>
-						<span>Marka</span>
-						<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-							<polyline points="6 9 12 15 18 9" />
-						</svg>
-					</summary>
-					<div class="filter-body">
-						<label
-							v-for="brand in brands"
-							:key="brand.slug"
-							class="check-row"
-						>
-							<input
-								type="checkbox"
-								:value="brand.slug"
-								v-model="selectedBrands"
-							/>
-							<span class="check-text">{{ brand.label }}</span>
-							<span class="check-count">{{ countByBrand(brand.slug) }}</span>
-						</label>
-					</div>
-				</details>
-
-				<!-- Cinsiyet -->
-				<details class="filter-group" open>
-					<summary>
-						<span>Cinsiyet</span>
-						<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-							<polyline points="6 9 12 15 18 9" />
-						</svg>
-					</summary>
-					<div class="filter-body chips-body">
-						<button
-							v-for="g in genderOptions"
-							:key="g"
-							class="chip"
-							:class="{ active: selectedGenders.includes(g) }"
-							@click="toggleGender(g)"
-						>{{ g }}</button>
-					</div>
-				</details>
-
-				<!-- Beden -->
-				<details class="filter-group">
-					<summary>
-						<span>Beden</span>
-						<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-							<polyline points="6 9 12 15 18 9" />
-						</svg>
-					</summary>
-					<div class="filter-body chips-body chips-grid">
-						<button
-							v-for="size in sizeOptions"
-							:key="size"
-							class="chip chip-size"
-							:class="{ active: selectedSizes.includes(size) }"
-							@click="toggleSize(size)"
-						>{{ size }}</button>
-					</div>
-				</details>
-
-				<!-- Fiyat -->
-				<details class="filter-group" open>
-					<summary>
-						<span>Fiyat Aralığı</span>
-						<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-							<polyline points="6 9 12 15 18 9" />
-						</svg>
-					</summary>
-					<div class="filter-body">
-						<div class="price-inputs">
-							<div class="price-field">
-								<span class="price-prefix">₺</span>
-								<input
-									v-model.number="priceMin"
-									type="number"
-									:min="0"
-									:placeholder="String(priceBoundary.min)"
-								/>
-							</div>
-							<span class="price-sep">—</span>
-							<div class="price-field">
-								<span class="price-prefix">₺</span>
-								<input
-									v-model.number="priceMax"
-									type="number"
-									:min="0"
-									:placeholder="String(priceBoundary.max)"
-								/>
-							</div>
-						</div>
-						<div class="price-presets">
-							<button
-								v-for="p in pricePresets"
-								:key="p.label"
-								class="price-preset"
-								@click="applyPricePreset(p)"
-							>{{ p.label }}</button>
-						</div>
-					</div>
-				</details>
-
-				<!-- Durum -->
-				<details class="filter-group" open>
-					<summary>
-						<span>Durum</span>
-						<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-							<polyline points="6 9 12 15 18 9" />
-						</svg>
-					</summary>
-					<div class="filter-body">
-						<label class="toggle-row">
-							<input type="checkbox" v-model="inStockOnly" />
-							<span class="toggle-text">Sadece stokta olanlar</span>
-						</label>
-						<label class="toggle-row">
-							<input type="checkbox" v-model="onSaleOnly" />
-							<span class="toggle-text">Sadece indirimdekiler</span>
-						</label>
-						<label class="toggle-row">
-							<input type="checkbox" v-model="newOnly" />
-							<span class="toggle-text">Sadece yeni gelenler</span>
-						</label>
-						<label class="toggle-row">
-							<input type="checkbox" v-model="freeShippingOnly" />
-							<span class="toggle-text">Ücretsiz kargolu</span>
-						</label>
-					</div>
-				</details>
-			</aside>
-
-			<!-- Ürün ana alan -->
-			<main class="products-main">
-				<!-- Aktif filtre çipleri -->
-				<div v-if="activeFilterCount > 0" class="active-chips">
-					<span
-						v-for="(label, idx) in activeFilterLabels"
-						:key="idx"
-						class="active-chip"
-						@click="removeActiveFilter(idx)"
-					>
-						{{ label }}
-						<svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-							<path d="M18 6L6 18M6 6l12 12" />
-						</svg>
-					</span>
-					<button class="clear-link" @click="clearFilters">Hepsini temizle</button>
-				</div>
-
-				<!-- Grid -->
-				<div v-if="paginated.length === 0" class="empty-state">
-					<svg width="42" height="42" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-						<circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
-					</svg>
-					<h3>Eşleşen ürün bulunamadı</h3>
-					<p>Filtreleri gevşeterek tekrar deneyebilirsiniz.</p>
-					<button class="btn btn-secondary btn-sm" @click="clearFilters">Filtreleri Temizle</button>
-				</div>
-
-				<div v-else-if="viewMode === 'grid'" class="products-grid">
-					<ProductCard
-						v-for="p in paginated"
-						:key="p.id"
-						:product="p"
-						:is-favorite="favorites.has(p.id)"
-						:can-edit="canAdd"
-						:can-delete="canDelete"
-						:can-manage-access="canManageAccess"
-						@toggle-favorite="toggleFavorite"
-						@add-to-cart="addToCart"
-						@edit="editProduct"
-						@delete="confirmDeleteProduct"
-						@tenant-access="openTenantAccess"
-					/>
-				</div>
-
-				<div v-else class="products-list">
-					<Link
-						v-for="p in paginated"
-						:key="p.id"
-						:href="`/products/${p.slug ?? p.id}`"
-						class="list-row"
-						:class="{ 'out-of-stock': p.stock === 0 }"
-					>
-						<div class="list-image">
-							<img :src="`https://picsum.photos/seed/tek-p${p.id}/300/375`" :alt="p.name" loading="lazy" />
-							<span v-if="discountFor(p) > 0" class="list-badge">%{{ discountFor(p) }}</span>
-						</div>
-						<div class="list-body">
-							<div class="list-brand">{{ p.brand }}</div>
-							<h3 class="list-name">{{ p.name }}</h3>
-							<div class="list-meta">
-								<span class="meta-item">{{ p.category }}</span>
-								<span class="meta-sep">·</span>
-								<span class="meta-item">{{ p.gender }}</span>
-								<span class="meta-sep">·</span>
-								<span class="meta-item mono">{{ p.sku }}</span>
-							</div>
-							<div class="list-rating">
-								<svg
-									v-for="n in 5"
-									:key="n"
-									width="11"
-									height="11"
-									:fill="n <= Math.round(p.rating) ? '#f59e0b' : 'none'"
-									:stroke="n <= Math.round(p.rating) ? '#f59e0b' : '#dcdce6'"
-									stroke-width="1.8"
-									viewBox="0 0 24 24"
-								>
-									<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-								</svg>
-								<span class="list-review">{{ p.rating.toFixed(1) }} ({{ p.reviewCount }})</span>
-							</div>
-						</div>
-						<div class="list-action" @click.stop.prevent>
-							<div class="list-price">
-								<span v-if="p.oldPrice" class="list-old-price">{{ formatPrice(p.oldPrice) }}</span>
-								<span class="list-new-price" :class="{ 'has-discount': p.oldPrice }">{{ formatPrice(p.price) }}</span>
-							</div>
-							<div v-if="p.stock === 0" class="list-stock-out">Tükendi</div>
-							<div v-else-if="p.stock < 20" class="list-stock-low">Son {{ p.stock }} adet</div>
-							<div v-else class="list-stock-ok">Stokta</div>
-							<div class="list-buttons">
-								<button
-									class="icon-btn"
-									:class="{ active: favorites.has(p.id) }"
-									@click="toggleFavorite(p)"
-									aria-label="Favori"
-								>
-									<svg width="14" height="14" :fill="favorites.has(p.id) ? '#ef4444' : 'none'" :stroke="favorites.has(p.id) ? '#ef4444' : 'currentColor'" stroke-width="2" viewBox="0 0 24 24">
-										<path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
-									</svg>
-								</button>
-								<button class="btn btn-primary btn-sm btn-with-icon" :disabled="p.stock === 0" @click="addToCart(p)">
-									<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-										<circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" />
-										<path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6" />
-									</svg>
-									{{ p.stock === 0 ? 'Tükendi' : 'Sepete Ekle' }}
-								</button>
-							</div>
-						</div>
-					</Link>
-				</div>
-
-				<!-- Sayfalama -->
-				<div v-if="totalPages > 1" class="pagination">
-					<div class="pagination-info">
-						Sayfa <span>{{ currentPage }}</span> / <span>{{ totalPages }}</span>
-					</div>
-					<div class="pagination-controls">
-						<button class="pagination-btn" :disabled="currentPage === 1" @click="currentPage--">‹</button>
-						<button
-							v-for="page in visiblePages"
-							:key="page"
-							class="pagination-btn"
-							:class="{ active: currentPage === page }"
-							@click="currentPage = page"
-						>{{ page }}</button>
-						<button class="pagination-btn" :disabled="currentPage === totalPages" @click="currentPage++">›</button>
-					</div>
-				</div>
-			</main>
+		<!-- Boş durum -->
+		<div v-if="paginated.length === 0" class="empty-state">
+			<svg width="42" height="42" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+				<circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
+			</svg>
+			<h3>Eşleşen ürün bulunamadı</h3>
+			<p>Filtreleri gevşeterek tekrar deneyebilirsiniz.</p>
+			<button class="btn btn-secondary btn-sm" @click="clearFilters">Filtreleri Temizle</button>
 		</div>
 
-		<ProductFormDrawer
-			v-model="formDrawerOpen"
-			:product="editingProduct"
-			:categories="props.categories"
-			:brands="props.brands"
-			:busy="formBusy"
-			:errors="formErrors"
-			@submit="handleFormSubmit"
+		<!-- Tablo -->
+		<div v-else class="table-wrap">
+			<table class="product-table">
+				<thead>
+					<tr>
+						<th v-if="canDelete" class="col-check">
+							<label class="cb">
+								<input type="checkbox" :checked="allVisibleSelected" @change="toggleSelectAllVisible" />
+							</label>
+						</th>
+						<th class="col-id">ID</th>
+						<th class="col-img">Görsel</th>
+						<th class="col-name">Ürün Adı</th>
+						<th class="col-price">Site Fiyatı</th>
+						<th class="col-mp">Pazaryeri</th>
+						<th class="col-stock">Stok</th>
+						<th class="col-actions">İşlemler</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr
+						v-for="p in paginated"
+						:key="p.id"
+						:class="{ 'row-selected': isSelected(p.id), 'row-out': p.stock === 0 }"
+					>
+						<td v-if="canDelete" class="col-check">
+							<label class="cb">
+								<input type="checkbox" :checked="isSelected(p.id)" @change="toggleRow(p.id)" />
+							</label>
+						</td>
+						<td class="col-id mono">#{{ p.id }}</td>
+						<td class="col-img">
+							<div class="thumb">
+								<img :src="p.image || '/images/product-placeholder.svg'" :alt="p.name" loading="lazy" />
+							</div>
+						</td>
+						<td class="col-name">
+							<div class="name-cell">
+								<span class="name-text">{{ p.name }}</span>
+								<span class="name-line">Kategori: <b>{{ p.category || '—' }}</b></span>
+								<span class="name-line">Kodu: <b>{{ p.sku || '—' }}</b></span>
+								<span class="name-line">Barkod: <b>{{ p.barcode || '—' }}</b></span>
+							</div>
+						</td>
+						<td class="col-price">
+							<div class="price-cell">
+								<svg
+									class="status-dot"
+									:class="{ ok: p.stock > 0, off: p.stock === 0 }"
+									width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+								>
+									<circle cx="12" cy="12" r="10" /><path d="M8 12l2.5 2.5L16 9" />
+								</svg>
+								<span class="price-val">{{ formatPrice(p.price) }}</span>
+								<span v-if="p.marketPrice != null" class="price-pa">P: {{ formatPrice(p.marketPrice) }}</span>
+								<span v-if="p.purchasePrice != null" class="price-pa">A: {{ formatPrice(p.purchasePrice) }}</span>
+							</div>
+						</td>
+						<td class="col-mp">
+							<div v-if="marketplacesFor(p).length" class="mp-list">
+								<button
+									v-for="mp in marketplacesFor(p)"
+									:key="mp.key"
+									type="button"
+									class="mp-item"
+									:class="{ sent: listingSummary(p, mp)?.isSent }"
+									:title="mp.name"
+									@click="openListing(p, mp)"
+								>
+									<img
+										v-if="!logoFailed[mp.key]"
+										class="mp-logo-img"
+										:src="`/images/marketplaces/${mp.key}.svg`"
+										:alt="mp.name"
+										@error="onLogoError(mp.key)"
+									/>
+									<span v-else class="mp-badge" :style="{ background: mp.color || '#888' }">{{ mp.logoText }}</span>
+									<span class="mp-price">{{ mpPrice(p, mp) }}</span>
+								</button>
+							</div>
+							<span v-else class="mp-empty">—</span>
+						</td>
+						<td class="col-stock">
+							<span v-if="p.stock === 0" class="stock-pill stock-out">Tükendi</span>
+							<span v-else-if="p.stock < 20" class="stock-pill stock-low">{{ p.stock }}</span>
+							<span v-else class="stock-pill stock-ok">{{ p.stock }}</span>
+						</td>
+						<td class="col-actions">
+							<div class="action-btns">
+								<Link :href="`/products/${p.slug ?? p.id}`" class="icon-btn" title="Önizleme">
+									<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+										<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
+									</svg>
+								</Link>
+								<button v-if="canAdd" class="icon-btn" title="Düzenle" @click="editProduct(p)">
+									<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+										<path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+										<path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+									</svg>
+								</button>
+								<button v-if="canDelete" class="icon-btn icon-danger" title="Sil" @click="confirmDeleteProduct(p)">
+									<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+										<polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+									</svg>
+								</button>
+							</div>
+						</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+
+		<!-- Sayfalama -->
+		<div v-if="totalPages > 1" class="pagination">
+			<div class="pagination-info">
+				Sayfa <span>{{ currentPage }}</span> / <span>{{ totalPages }}</span>
+			</div>
+			<div class="pagination-controls">
+				<button class="pagination-btn" :disabled="currentPage === 1" @click="currentPage--">‹</button>
+				<button
+					v-for="page in visiblePages"
+					:key="page"
+					class="pagination-btn"
+					:class="{ active: currentPage === page }"
+					@click="currentPage = page"
+				>{{ page }}</button>
+				<button class="pagination-btn" :disabled="currentPage === totalPages" @click="currentPage++">›</button>
+			</div>
+		</div>
+
+		<MarketplaceListingDrawer
+			:open="listingOpen"
+			:product-id="activeProduct?.id"
+			:marketplace="activeMarketplace"
+			@close="listingOpen = false"
+			@saved="onListingSaved"
 		/>
 	</div>
 </template>
 
 <script setup>
-import { ref, computed, watch, inject } from 'vue'
+import { ref, computed, watch, inject, reactive } from 'vue'
 import { Head, Link, router, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import CustomSelect from '@/Components/CustomSelect.vue'
-import ProductCard from '@/Components/ProductCard.vue'
-import ProductFormDrawer from '@/Components/ProductFormDrawer.vue'
+import MarketplaceListingDrawer from '../Components/MarketplaceListingDrawer.vue'
 
 defineOptions({ layout: AppLayout })
 
@@ -401,106 +294,118 @@ const props = defineProps({
 	categories: { type: Array, default: () => [] },
 	brands: { type: Array, default: () => [] },
 	favoriteIds: { type: Array, default: () => [] },
+	marketplaces: { type: Array, default: () => [] },
 })
 
 const showToast = inject('showToast')
-const cart = inject('cart')
 const $swal = inject('$swal')
 
 const page = usePage()
 const can = (perm) => (page.props.auth?.permissions ?? []).includes(perm)
-const canAdd          = computed(() => can('product.add'))
-const canDelete       = computed(() => can('product.delete'))
-const canManageAccess = computed(() => can('tenant-access.manage'))
-
-function openTenantAccess(product) {
-	router.visit(`/products/${product.id}/tenants`)
-}
+const canAdd    = computed(() => can('product.add'))
+const canDelete = computed(() => can('product.delete'))
 
 /* ── Sözlükler ── */
-const sortOptions = [
-	{ value: 'bestseller', label: 'En Çok Satan' },
-	{ value: 'new',        label: 'Yeni Gelenler' },
-	{ value: 'priceAsc',   label: 'Fiyat: Düşükten Yükseğe' },
-	{ value: 'priceDesc',  label: 'Fiyat: Yüksekten Düşüğe' },
-	{ value: 'rating',     label: 'En Çok Beğenilen' },
+const searchFieldOptions = [
+	{ value: 'name', label: 'Ürün Adı' },
+	{ value: 'sku',  label: 'Ürün No (SKU)' },
+	{ value: 'id',   label: 'Ürün ID' },
 ]
 
-const genderOptions = ['Erkek', 'Kadın', 'Unisex']
-const sizeOptions = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '28', '30', '32', '34', '36', '38']
-
-const pricePresets = [
-	{ label: '0 — 300',     min: 0,    max: 300 },
-	{ label: '300 — 600',   min: 300,  max: 600 },
-	{ label: '600 — 1000',  min: 600,  max: 1000 },
-	{ label: '1000+',       min: 1000, max: null },
+const sortFieldOptions = [
+	{ value: 'default', label: 'Varsayılan' },
+	{ value: 'name',    label: 'Ürün Adı' },
+	{ value: 'price',   label: 'Satış Fiyatı' },
+	{ value: 'stock',   label: 'Stok' },
+	{ value: 'new',     label: 'Eklenme' },
 ]
+
+const sortDirOptions = [
+	{ value: 'desc', label: 'Azalan (Z → A)' },
+	{ value: 'asc',  label: 'Artan (A → Z)' },
+]
+
+const categoryOptions = computed(() => [
+	{ value: '', label: 'Kategori Seçilmedi' },
+	...props.categories.map((c) => ({ value: c.slug, label: c.label })),
+])
+
+const brandOptions = computed(() => [
+	{ value: '', label: 'Marka Seçilmedi' },
+	...props.brands.map((b) => ({ value: b.slug, label: b.label })),
+])
 
 /* ── Filtre state ── */
+const filtersOpen = ref(true)
 const searchQuery = ref('')
-const selectedCategories = ref([])
-const selectedBrands = ref([])
-const selectedGenders = ref([])
-const selectedSizes = ref([])
+const searchField = ref('name')
+const selectedCategory = ref('')
+const selectedBrand = ref('')
+const stockMin = ref(null)
+const stockMax = ref(null)
 const priceMin = ref(null)
 const priceMax = ref(null)
-const inStockOnly = ref(false)
-const onSaleOnly = ref(false)
-const newOnly = ref(false)
-const freeShippingOnly = ref(false)
-const sortBy = ref('bestseller')
-const viewMode = ref('grid')
+const desiMin = ref(null)
+const desiMax = ref(null)
+const sortField = ref('default')
+const sortDir = ref('desc')
 const currentPage = ref(1)
-const itemsPerPage = 12
-
-const favorites = ref(new Set(props.favoriteIds))
-
-watch(
-	() => props.favoriteIds,
-	(ids) => { favorites.value = new Set(ids) },
-)
+const itemsPerPage = 15
 
 /* ── Yardımcılar ── */
-const priceBoundary = computed(() => {
-	const prices = props.products.map((p) => p.price)
-	return {
-		min: Math.floor(Math.min(...prices, 0)),
-		max: Math.ceil(Math.max(...prices, 0)),
-	}
-})
-
-function countByCategory(slug) {
-	return props.products.filter((p) => p.categorySlug === slug).length
-}
-
-function countByBrand(slug) {
-	return props.products.filter((p) => p.brand === slug).length
-}
-
-function toggleGender(g) {
-	const idx = selectedGenders.value.indexOf(g)
-	if (idx >= 0) selectedGenders.value.splice(idx, 1)
-	else selectedGenders.value.push(g)
-}
-
-function toggleSize(size) {
-	const idx = selectedSizes.value.indexOf(size)
-	if (idx >= 0) selectedSizes.value.splice(idx, 1)
-	else selectedSizes.value.push(size)
-}
-
-function applyPricePreset(preset) {
-	priceMin.value = preset.min
-	priceMax.value = preset.max
-}
-
-function discountFor(p) {
-	if (!p.oldPrice || p.oldPrice <= p.price) return 0
-	return Math.round(((p.oldPrice - p.price) / p.oldPrice) * 100)
-}
-
 function formatPrice(value) {
-	return '₺' + value.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+	return '₺' + Number(value ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+/* ── Pazaryeri rozetleri ──
+ * Ürünün kategorisine eşlenmiş pazaryerleri varsa onları kullan; yoksa
+ * (yapım aşaması) test amaçlı tüm pazaryerlerini göster. */
+function marketplacesFor(p) {
+	return (p.marketplaces && p.marketplaces.length) ? p.marketplaces : props.marketplaces
+}
+
+/* ── Pazaryeri listeleme drawer ── */
+const listingOpen = ref(false)
+const activeProduct = ref(null)
+const activeMarketplace = ref(null)
+const listingOverlay = reactive({}) // `${productId}:${key}` -> { price, isSent }
+
+function listingSummary(p, mp) {
+	return listingOverlay[`${p.id}:${mp.key}`] ?? p.listings?.[mp.key] ?? null
+}
+function mpPrice(p, mp) {
+	const s = listingSummary(p, mp)
+	return s && s.price != null ? formatPrice(s.price) : platformPrice(p, mp)
+}
+function openListing(p, mp) {
+	activeProduct.value = p
+	activeMarketplace.value = mp
+	listingOpen.value = true
+}
+function onListingSaved(payload) {
+	if (!activeProduct.value) return
+	listingOverlay[`${activeProduct.value.id}:${payload.marketplaceKey}`] = {
+		price: payload.price,
+		isSent: payload.isSent,
+	}
+}
+
+// Logo görseli yüklenemezse renkli text rozet'e düş.
+const logoFailed = ref({})
+function onLogoError(key) { logoFailed.value[key] = true }
+
+// Platforma özel fiyat henüz yok; test için site fiyatından deterministik
+// bir placeholder üret (her pazaryeri için sabit çarpan).
+const MP_PRICE_FACTOR = {
+	trendyol: 1.00,
+	hepsiburada: 1.05,
+	amazon: 1.08,
+	n11: 1.03,
+	gittigidiyor: 1.02,
+}
+function platformPrice(p, mp) {
+	const factor = MP_PRICE_FACTOR[mp.key] ?? 1
+	return formatPrice((p.price ?? 0) * factor)
 }
 
 /* ── Filtre işlemi ── */
@@ -508,27 +413,32 @@ const filtered = computed(() => {
 	const q = searchQuery.value.trim().toLowerCase()
 
 	let list = props.products.filter((p) => {
-		if (q && !p.name.toLowerCase().includes(q) && !p.brand.toLowerCase().includes(q) && !p.sku.toLowerCase().includes(q)) return false
-		if (selectedCategories.value.length && !selectedCategories.value.includes(p.categorySlug)) return false
-		if (selectedBrands.value.length && !selectedBrands.value.includes(p.brand)) return false
-		if (selectedGenders.value.length && !selectedGenders.value.includes(p.gender)) return false
-		if (selectedSizes.value.length && !p.sizes.some((s) => selectedSizes.value.includes(s))) return false
+		if (q) {
+			let hay
+			if (searchField.value === 'sku') hay = (p.sku || '').toLowerCase()
+			else if (searchField.value === 'id') hay = String(p.id)
+			else hay = (p.name || '').toLowerCase()
+			if (!hay.includes(q)) return false
+		}
+		if (selectedCategory.value && p.categorySlug !== selectedCategory.value) return false
+		if (selectedBrand.value && p.brand !== selectedBrand.value) return false
+		if (stockMin.value != null && p.stock < stockMin.value) return false
+		if (stockMax.value != null && p.stock > stockMax.value) return false
 		if (priceMin.value != null && p.price < priceMin.value) return false
 		if (priceMax.value != null && p.price > priceMax.value) return false
-		if (inStockOnly.value && p.stock === 0) return false
-		if (onSaleOnly.value && !p.oldPrice) return false
-		if (newOnly.value && !p.isNew) return false
-		if (freeShippingOnly.value && !p.freeShipping) return false
+		if (desiMin.value != null && (p.desi ?? 0) < desiMin.value) return false
+		if (desiMax.value != null && (p.desi ?? 0) > desiMax.value) return false
 		return true
 	})
 
-	switch (sortBy.value) {
-		case 'priceAsc':  list = [...list].sort((a, b) => a.price - b.price); break
-		case 'priceDesc': list = [...list].sort((a, b) => b.price - a.price); break
-		case 'rating':    list = [...list].sort((a, b) => b.rating - a.rating); break
-		case 'new':       list = [...list].sort((a, b) => (b.isNew ? 1 : 0) - (a.isNew ? 1 : 0) || b.id - a.id); break
-		case 'bestseller':
-		default:          list = [...list].sort((a, b) => (b.reviewCount * b.rating) - (a.reviewCount * a.rating))
+	const dir = sortDir.value === 'asc' ? 1 : -1
+	switch (sortField.value) {
+		case 'name':  list = [...list].sort((a, b) => dir * a.name.localeCompare(b.name, 'tr')); break
+		case 'price': list = [...list].sort((a, b) => dir * (a.price - b.price)); break
+		case 'stock': list = [...list].sort((a, b) => dir * (a.stock - b.stock)); break
+		case 'new':   list = [...list].sort((a, b) => dir * ((a.isNew ? 1 : 0) - (b.isNew ? 1 : 0) || a.id - b.id)); break
+		case 'default':
+		default:      list = [...list].sort((a, b) => dir * (a.id - b.id))
 	}
 
 	return list
@@ -552,159 +462,42 @@ const visiblePages = computed(() => {
 
 // Filtre değişince sayfa 1'e dön
 watch(
-	[searchQuery, selectedCategories, selectedBrands, selectedGenders, selectedSizes, priceMin, priceMax, inStockOnly, onSaleOnly, newOnly, freeShippingOnly, sortBy],
+	[searchQuery, searchField, selectedCategory, selectedBrand, stockMin, stockMax, priceMin, priceMax, desiMin, desiMax, sortField, sortDir],
 	() => { currentPage.value = 1 },
-	{ deep: true },
 )
 
-/* ── Aktif filtre çipleri ── */
+/* ── Aktif filtre sayısı ── */
 const activeFilterCount = computed(() => {
 	let n = 0
-	n += selectedCategories.value.length
-	n += selectedBrands.value.length
-	n += selectedGenders.value.length
-	n += selectedSizes.value.length
+	if (searchQuery.value.trim()) n++
+	if (selectedCategory.value) n++
+	if (selectedBrand.value) n++
+	if (stockMin.value != null || stockMax.value != null) n++
 	if (priceMin.value != null || priceMax.value != null) n++
-	if (inStockOnly.value) n++
-	if (onSaleOnly.value) n++
-	if (newOnly.value) n++
-	if (freeShippingOnly.value) n++
+	if (desiMin.value != null || desiMax.value != null) n++
 	return n
 })
 
-const activeFilterLabels = computed(() => {
-	const out = []
-	const catMap = Object.fromEntries(props.categories.map((c) => [c.slug, c.label]))
-	selectedCategories.value.forEach((slug) => out.push({ kind: 'cat', value: slug, label: catMap[slug] || slug }))
-	selectedBrands.value.forEach((b) => out.push({ kind: 'brand', value: b, label: b }))
-	selectedGenders.value.forEach((g) => out.push({ kind: 'gender', value: g, label: g }))
-	selectedSizes.value.forEach((s) => out.push({ kind: 'size', value: s, label: 'Beden ' + s }))
-	if (priceMin.value != null || priceMax.value != null) {
-		const min = priceMin.value ?? 0
-		const max = priceMax.value ?? '∞'
-		out.push({ kind: 'price', label: `₺${min} — ₺${max}` })
-	}
-	if (inStockOnly.value)     out.push({ kind: 'inStock', label: 'Stokta' })
-	if (onSaleOnly.value)      out.push({ kind: 'onSale', label: 'İndirimli' })
-	if (newOnly.value)         out.push({ kind: 'new', label: 'Yeni' })
-	if (freeShippingOnly.value) out.push({ kind: 'shipping', label: 'Ücretsiz Kargo' })
-	return out.map((x) => x.label)
-})
-
-function removeActiveFilter(idx) {
-	// Sırayı eşitlemek için aynı mantıkla bul
-	let i = 0
-	for (const slug of [...selectedCategories.value]) {
-		if (i === idx) { selectedCategories.value = selectedCategories.value.filter((x) => x !== slug); return }
-		i++
-	}
-	for (const b of [...selectedBrands.value]) {
-		if (i === idx) { selectedBrands.value = selectedBrands.value.filter((x) => x !== b); return }
-		i++
-	}
-	for (const g of [...selectedGenders.value]) {
-		if (i === idx) { selectedGenders.value = selectedGenders.value.filter((x) => x !== g); return }
-		i++
-	}
-	for (const s of [...selectedSizes.value]) {
-		if (i === idx) { selectedSizes.value = selectedSizes.value.filter((x) => x !== s); return }
-		i++
-	}
-	if (priceMin.value != null || priceMax.value != null) {
-		if (i === idx) { priceMin.value = null; priceMax.value = null; return }
-		i++
-	}
-	if (inStockOnly.value)      { if (i === idx) { inStockOnly.value = false; return } i++ }
-	if (onSaleOnly.value)       { if (i === idx) { onSaleOnly.value = false; return } i++ }
-	if (newOnly.value)          { if (i === idx) { newOnly.value = false; return } i++ }
-	if (freeShippingOnly.value) { if (i === idx) { freeShippingOnly.value = false; return } i++ }
-}
-
 function clearFilters() {
-	selectedCategories.value = []
-	selectedBrands.value = []
-	selectedGenders.value = []
-	selectedSizes.value = []
+	searchQuery.value = ''
+	searchField.value = 'name'
+	selectedCategory.value = ''
+	selectedBrand.value = ''
+	stockMin.value = null
+	stockMax.value = null
 	priceMin.value = null
 	priceMax.value = null
-	inStockOnly.value = false
-	onSaleOnly.value = false
-	newOnly.value = false
-	freeShippingOnly.value = false
-	searchQuery.value = ''
+	desiMin.value = null
+	desiMax.value = null
 }
 
-/* ── Favori / Sepet ── */
-function toggleFavorite(product) {
-	const willAdd = !favorites.value.has(product.id)
-
-	// Optimistic
-	const next = new Set(favorites.value)
-	if (willAdd) next.add(product.id)
-	else next.delete(product.id)
-	favorites.value = next
-
-	showToast?.({
-		type:    willAdd ? 'success' : 'info',
-		title:   willAdd ? 'Favorilere eklendi' : 'Favoriden çıkarıldı',
-		message: product.name,
-	})
-
-	router.post(`/products/${product.id}/favorite`, {}, {
-		preserveScroll: true,
-		preserveState: true,
-		only: ['favoriteIds'],
-		onError: () => {
-			// Hata: optimistic değişikliği geri al
-			const revert = new Set(favorites.value)
-			if (willAdd) revert.delete(product.id)
-			else revert.add(product.id)
-			favorites.value = revert
-			showToast?.({
-				type: 'error',
-				title: 'Favori işlemi başarısız',
-				message: product.name,
-			})
-		},
-	})
-}
-
-function addToCart(product) {
-	if (product.stock === 0) return
-	// Hızlı ekleme: ilk renk + boyut seçilmemiş. Kullanıcı drawer'da varyantı görür,
-	// gerekirse detay sayfasından yeniden eklemeye yönlendirilebilir.
-	cart?.add({
-		product,
-		color: product.colors?.[0] ?? null,
-		size: null,
-	})
-}
-
-/* ── Ürün formu (drawer) ── */
-const formDrawerOpen = ref(false)
-const editingProduct = ref(null)
-const formBusy = ref(false)
-const formErrors = ref({})
-
-watch(formDrawerOpen, (open) => {
-	if (!open) {
-		setTimeout(() => {
-			editingProduct.value = null
-			formErrors.value = {}
-		}, 250)
-	}
-})
-
+/* ── Ürün formu (tam sayfa) ── */
 function openNewProduct() {
-	editingProduct.value = null
-	formErrors.value = {}
-	formDrawerOpen.value = true
+	router.visit('/products/create')
 }
 
 function editProduct(product) {
-	editingProduct.value = { ...product }
-	formErrors.value = {}
-	formDrawerOpen.value = true
+	router.visit(`/products/${product.id}/edit`)
 }
 
 async function confirmDeleteProduct(product) {
@@ -728,81 +521,94 @@ async function confirmDeleteProduct(product) {
 	})
 }
 
-function handleFormSubmit({ mode, id, payload }) {
-	if (formBusy.value) return
-	formBusy.value = true
-	formErrors.value = {}
+/* ── Toplu seçim ── */
+const selected = ref(new Set())
+const bulkBusy = ref(false)
+const selectedCount = computed(() => selected.value.size)
 
-	const opts = {
+function isSelected(id) { return selected.value.has(id) }
+function toggleRow(id) {
+	const next = new Set(selected.value)
+	next.has(id) ? next.delete(id) : next.add(id)
+	selected.value = next
+}
+const allVisibleSelected = computed(() =>
+	paginated.value.length > 0 && paginated.value.every((p) => selected.value.has(p.id)),
+)
+function toggleSelectAllVisible() {
+	const ids = paginated.value.map((p) => p.id)
+	const next = new Set(selected.value)
+	if (allVisibleSelected.value) ids.forEach((id) => next.delete(id))
+	else ids.forEach((id) => next.add(id))
+	selected.value = next
+}
+function clearSelection() { selected.value = new Set() }
+
+async function bulkDelete() {
+	const ids = [...selected.value]
+	if (!ids.length) return
+	const ok = await $swal.dangerConfirm({
+		title: 'Ürünleri Sil',
+		html: `<strong>${ids.length}</strong> ürün ve bunlara bağlı varyantlar kalıcı olarak silinecek.`,
+		confirmText: 'Sil',
+		cancelText: 'Vazgeç',
+	})
+	if (!ok) return
+
+	bulkBusy.value = true
+	router.post('/products/bulk-destroy', { ids }, {
 		preserveScroll: true,
-		preserveState: true,
+		preserveState: false,
 		onSuccess: () => {
-			formDrawerOpen.value = false
-			showToast?.({
-				type: 'success',
-				title: mode === 'edit' ? 'Ürün Güncellendi' : 'Ürün Eklendi',
-				message: payload.name,
-			})
+			showToast?.({ type: 'warning', title: 'Ürünler Silindi', message: `${ids.length} ürün kaldırıldı.` })
+			clearSelection()
 		},
 		onError: (errs) => {
-			formErrors.value = errs
-			const first = Object.values(errs)[0]
-			showToast?.({ type: 'error', title: 'Kayıt Başarısız', message: first || 'Doğrulama hatası.' })
+			showToast?.({ type: 'error', title: 'Silme Başarısız', message: Object.values(errs)[0] || 'Sunucu hatası.' })
 		},
-		onFinish: () => { formBusy.value = false },
-	}
-
-	if (mode === 'edit') {
-		router.put(`/products/${id}`, payload, opts)
-	} else {
-		router.post('/products', payload, opts)
-	}
+		onFinish: () => { bulkBusy.value = false },
+	})
 }
+
 </script>
 
 <style scoped>
-.page-header {
+.page-products { display: flex; flex-direction: column; }
+
+/* ── Üst araç çubuğu ── */
+.toolbar {
 	display: flex;
-	align-items: flex-start;
-	justify-content: space-between;
-	margin-bottom: 20px;
-	gap: 16px;
+	align-items: center;
+	gap: 10px;
+	margin-bottom: 12px;
 	flex-wrap: wrap;
 }
 
-.page-title {
-	font-size: 22px;
-	font-weight: 700;
-	color: #1a1a2e;
-	line-height: 1.2;
-}
-
-.page-subtitle {
-	font-size: 13px;
-	color: #888;
-	margin-top: 4px;
-	display: flex;
-	align-items: center;
-	gap: 8px;
-}
-.page-subtitle strong { color: #1a1a2e; font-weight: 700; }
-
-.filter-chip {
+.filter-toggle {
 	display: inline-flex;
 	align-items: center;
-	padding: 2px 8px;
-	background: #ede9fe;
-	color: #7c3aed;
-	border-radius: 999px;
-	font-size: 11px;
-	font-weight: 600;
-}
-
-.header-tools {
-	display: flex;
-	align-items: center;
 	gap: 8px;
-	flex-shrink: 0;
+	background: #fff;
+	border: 1px solid #e8e8f0;
+	border-radius: 9px;
+	padding: 8px 14px;
+	font-family: inherit;
+	font-size: 13px;
+	font-weight: 600;
+	color: #1a1a2e;
+	cursor: pointer;
+	transition: border-color .15s, background .15s;
+}
+.filter-toggle:hover { border-color: #ccc; }
+.filter-toggle.open { border-color: rgb(var(--color-primary)); }
+.filter-toggle svg { color: #888; }
+.filter-toggle .toggle-chevron { transition: transform .2s; }
+.filter-toggle.open .toggle-chevron { transform: rotate(180deg); }
+.filter-badge {
+	display: inline-flex; align-items: center; justify-content: center;
+	min-width: 18px; height: 18px; padding: 0 5px;
+	background: rgb(var(--color-primary)); color: #fff;
+	font-size: 11px; font-weight: 700; border-radius: 999px;
 }
 
 .search-box {
@@ -812,8 +618,9 @@ function handleFormSubmit({ mode, id, payload }) {
 	background: #fff;
 	border: 1px solid #e8e8f0;
 	border-radius: 9px;
-	padding: 6px 12px;
-	min-width: 260px;
+	padding: 8px 12px;
+	flex: 1;
+	min-width: 240px;
 }
 .search-box svg { color: #aaa; flex-shrink: 0; }
 .search-box input {
@@ -823,401 +630,206 @@ function handleFormSubmit({ mode, id, payload }) {
 }
 .search-box input::placeholder { color: #bbb; }
 
-.view-toggle {
-	display: flex;
-	background: #fff;
-	border: 1px solid #e8e8f0;
-	border-radius: 9px;
-	overflow: hidden;
-	flex-shrink: 0;
-}
+.toolbar-add { flex-shrink: 0; }
 
-.view-btn {
-	width: 34px;
-	height: 34px;
-	background: none;
-	border: none;
-	cursor: pointer;
-	color: #888;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	transition: background .12s, color .12s;
-}
-.view-btn:hover { background: #f5f5f8; color: #555; }
-.view-btn.active { background: #1a1a2e; color: #fff; }
-
-/* ── Layout ── */
-.products-layout {
-	display: grid;
-	grid-template-columns: 260px 1fr;
-	gap: 20px;
-	align-items: flex-start;
-}
-
-@media (max-width: 1100px) {
-	.products-layout { grid-template-columns: 220px 1fr; }
-}
-
-@media (max-width: 900px) {
-	.products-layout { grid-template-columns: 1fr; }
-}
-
-/* ── Filter Sidebar ── */
-.filters-sidebar {
+/* ── Filtre paneli ── */
+.filter-panel {
 	background: #fff;
 	border: 1px solid #ebebf0;
 	border-radius: 14px;
-	padding: 14px 16px;
-	position: sticky;
-	top: 12px;
-	max-height: calc(100vh - 120px);
-	overflow-y: auto;
+	padding: 18px 20px;
+	margin-bottom: 16px;
 	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
-.filters-sidebar::-webkit-scrollbar { width: 4px; }
-.filters-sidebar::-webkit-scrollbar-thumb { background: #ddd; border-radius: 4px; }
 
-.filters-head {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	padding-bottom: 10px;
-	border-bottom: 1px solid #f0f0f5;
-	margin-bottom: 8px;
-}
-.filters-head h3 {
-	font-size: 14px;
-	font-weight: 700;
-	color: #1a1a2e;
-}
-.clear-btn {
-	background: none;
-	border: none;
-	color: #4a6cf7;
-	font-size: 11.5px;
-	font-weight: 600;
-	cursor: pointer;
-	padding: 2px 6px;
-	border-radius: 6px;
-}
-.clear-btn:hover { background: #eef0ff; }
-
-/* Filter group (collapsible) */
-.filter-group {
-	border-bottom: 1px solid #f0f0f5;
-	padding: 4px 0;
-}
-.filter-group:last-child { border-bottom: none; }
-
-.filter-group summary {
-	list-style: none;
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	padding: 10px 2px;
-	cursor: pointer;
-	font-size: 12.5px;
-	font-weight: 700;
-	color: #1a1a2e;
-	user-select: none;
-}
-.filter-group summary::-webkit-details-marker { display: none; }
-.filter-group summary svg {
-	color: #aaa;
-	transition: transform .2s;
-}
-.filter-group[open] summary svg { transform: rotate(180deg); }
-
-.filter-body {
-	display: flex;
-	flex-direction: column;
-	gap: 2px;
-	padding-bottom: 8px;
-}
-
-.check-row {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	padding: 6px 4px;
-	border-radius: 7px;
-	cursor: pointer;
-	transition: background .12s;
-}
-.check-row:hover { background: #fafafe; }
-.check-row input[type="checkbox"] {
-	width: 14px; height: 14px;
-	accent-color: #4a6cf7;
-	cursor: pointer;
-	flex-shrink: 0;
-}
-.check-text {
-	font-size: 12.5px;
-	color: #444;
-	flex: 1;
-	display: inline-flex;
-	align-items: center;
-	gap: 6px;
-}
-.check-icon { font-size: 13px; }
-.check-count {
-	font-size: 10.5px;
-	color: #aaa;
-	background: #f5f5f8;
-	padding: 1px 6px;
-	border-radius: 999px;
-	font-weight: 600;
-}
-
-.toggle-row {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	padding: 7px 4px;
-	border-radius: 7px;
-	cursor: pointer;
-	transition: background .12s;
-}
-.toggle-row:hover { background: #fafafe; }
-.toggle-row input { accent-color: #4a6cf7; width: 14px; height: 14px; cursor: pointer; }
-.toggle-text { font-size: 12.5px; color: #444; }
-
-/* Chips */
-.chips-body {
-	flex-direction: row;
-	flex-wrap: wrap;
-	gap: 5px;
-	padding: 4px 2px 8px;
-}
-
-.chip {
-	background: #fff;
-	border: 1.5px solid #e8e8f0;
-	color: #444;
-	font-family: inherit;
-	font-size: 11.5px;
-	font-weight: 600;
-	padding: 5px 11px;
-	border-radius: 999px;
-	cursor: pointer;
-	transition: all .12s;
-}
-.chip:hover { border-color: #c0c0d8; }
-.chip.active {
-	background: #1a1a2e;
-	color: #fff;
-	border-color: #1a1a2e;
-}
-
-.chips-grid {
+.filter-grid {
 	display: grid;
 	grid-template-columns: repeat(4, 1fr);
-	gap: 5px;
-}
-.chip-size {
-	padding: 6px 0;
-	text-align: center;
-	font-size: 11px;
+	gap: 14px 18px;
 }
 
-/* Price */
-.price-inputs {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	margin: 6px 0 10px;
-}
+@media (max-width: 1100px) { .filter-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 620px)  { .filter-grid { grid-template-columns: 1fr; } }
 
-.price-field {
-	flex: 1;
-	display: flex;
-	align-items: center;
-	background: #fafafe;
+.filter-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.filter-label { font-size: 12.5px; font-weight: 600; color: #555; }
+
+.filter-input {
+	height: 36px;
 	border: 1.5px solid #e8e8f0;
-	border-radius: 8px;
-	padding: 0 8px;
-	height: 32px;
-}
-.price-field:focus-within {
-	border-color: #4a6cf7;
-	background: #fff;
-}
-.price-prefix { color: #aaa; font-size: 12px; margin-right: 3px; }
-.price-field input {
-	border: none; background: none; outline: none;
-	font-family: inherit; font-size: 12.5px;
-	width: 100%;
-	color: #1a1a2e;
-}
-
-.price-sep { color: #aaa; font-size: 13px; }
-
-.price-presets {
-	display: grid;
-	grid-template-columns: repeat(2, 1fr);
-	gap: 4px;
-}
-.price-preset {
-	background: #fafafe;
-	border: 1px solid #ebebf0;
-	color: #555;
-	font-family: inherit;
-	font-size: 11px;
-	font-weight: 600;
-	padding: 5px 6px;
-	border-radius: 6px;
-	cursor: pointer;
-	transition: all .12s;
-}
-.price-preset:hover { border-color: #c0c0d8; color: #1a1a2e; }
-
-/* ── Aktif çipler ── */
-.active-chips {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 6px;
-	margin-bottom: 14px;
-	align-items: center;
-}
-.active-chip {
-	display: inline-flex;
-	align-items: center;
-	gap: 5px;
-	padding: 5px 10px;
-	background: #ede9fe;
-	color: #7c3aed;
-	border-radius: 999px;
-	font-size: 11.5px;
-	font-weight: 600;
-	cursor: pointer;
-	transition: background .12s;
-}
-.active-chip:hover { background: #ddd6fe; }
-.active-chip svg { opacity: .7; }
-
-.clear-link {
-	background: none;
-	border: none;
-	color: #888;
-	font-family: inherit;
-	font-size: 11.5px;
-	cursor: pointer;
-	text-decoration: underline;
-	padding: 2px 4px;
-}
-.clear-link:hover { color: #4a6cf7; }
-
-/* ── Grid ── */
-.products-grid {
-	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-	gap: 16px;
-}
-
-/* ── Liste görünümü ── */
-.products-list {
-	display: flex;
-	flex-direction: column;
-	gap: 12px;
-}
-
-.list-row {
-	display: grid;
-	grid-template-columns: 120px 1fr 220px;
-	gap: 16px;
-	background: #fff;
-	border: 1px solid #ebebf0;
-	border-radius: 12px;
-	padding: 14px;
-	transition: box-shadow .15s, border-color .15s;
-	text-decoration: none;
-	color: inherit;
-	cursor: pointer;
-}
-.list-row:hover {
-	border-color: #d8d8e8;
-	box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
-}
-.list-row.out-of-stock { opacity: .75; }
-
-.list-image {
-	position: relative;
-	width: 120px;
-	height: 150px;
 	border-radius: 9px;
-	overflow: hidden;
-	background: #f5f5fa;
-	flex-shrink: 0;
+	background: #fafafe;
+	padding: 0 12px;
+	font-family: inherit;
+	font-size: 13px;
+	color: #1a1a2e;
+	outline: none;
+	width: 100%;
+	transition: border-color .15s, box-shadow .15s, background .15s;
 }
-.list-image img {
-	width: 100%; height: 100%;
-	object-fit: cover;
-}
-.list-badge {
-	position: absolute;
-	top: 6px; left: 6px;
-	background: #dc2626;
-	color: #fff;
-	font-size: 10px;
-	font-weight: 700;
-	padding: 2px 6px;
-	border-radius: 4px;
+.filter-input:focus {
+	border-color: rgb(var(--color-primary));
+	box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.1);
+	background: #fff;
 }
 
-.list-body { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
-.list-brand {
-	font-size: 10.5px;
-	font-weight: 700;
-	color: #888;
-	text-transform: uppercase;
-	letter-spacing: 0.08em;
-}
-.list-name {
-	font-size: 14px;
-	font-weight: 600;
-	color: #1a1a2e;
-	margin: 0;
-	line-height: 1.4;
-}
-.list-meta {
+.search-with-select { display: grid; grid-template-columns: 1fr 130px; gap: 6px; }
+.sort-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+
+.range-row { display: flex; align-items: center; gap: 8px; }
+.range-row .filter-input { flex: 1; min-width: 0; }
+.range-sep { font-size: 12px; color: #aaa; flex-shrink: 0; }
+
+.filter-actions {
 	display: flex;
 	align-items: center;
-	gap: 6px;
-	font-size: 11.5px;
-	color: #888;
-	margin-top: 2px;
+	gap: 14px;
+	margin-top: 16px;
+	padding-top: 14px;
+	border-top: 1px solid #f0f0f5;
 }
-.list-meta .mono { font-family: 'SF Mono', Consolas, monospace; }
-.meta-sep { opacity: .5; }
-.list-rating { display: flex; align-items: center; gap: 4px; margin-top: 4px; }
-.list-review { font-size: 11px; color: #888; margin-left: 3px; }
+.clear-link {
+	background: none; border: none;
+	color: #888; font-family: inherit; font-size: 12.5px;
+	cursor: pointer; padding: 4px 6px; border-radius: 6px;
+}
+.clear-link:hover { color: rgb(var(--color-primary)); background: rgb(var(--color-primary-soft)); }
 
-.list-action {
+/* ── Başlık ── */
+.list-head { margin-bottom: 12px; }
+.page-title { font-size: 22px; font-weight: 700; color: #1a1a2e; line-height: 1.2; }
+.page-subtitle {
+	font-size: 13px; color: #888; margin-top: 4px;
+	display: flex; align-items: center; gap: 8px;
+}
+.page-subtitle strong { color: #1a1a2e; font-weight: 700; }
+.filter-chip {
+	display: inline-flex; align-items: center;
+	padding: 2px 8px;
+	background: rgb(var(--color-primary-soft));
+	color: rgb(var(--color-primary));
+	border-radius: 999px; font-size: 11px; font-weight: 600;
+}
+
+/* ── Toplu seçim çubuğu ── */
+.bulk-bar {
 	display: flex;
-	flex-direction: column;
-	align-items: flex-end;
-	gap: 6px;
-	justify-content: space-between;
+	align-items: center;
+	gap: 14px;
+	background: #faf5ff;
+	border: 1px solid #ece5fb;
+	border-radius: 10px;
+	padding: 9px 14px;
+	margin-bottom: 14px;
+}
+.bulk-info { font-size: 12.5px; color: rgb(var(--color-primary-hover)); }
+.bulk-info strong { font-weight: 800; }
+.bulk-actions { display: flex; gap: 8px; margin-left: auto; }
+.btn-danger { background: #dc2626; color: #fff; border: none; }
+.btn-danger:hover:not(:disabled) { background: #b91c1c; }
+.btn-danger:disabled { opacity: .55; cursor: not-allowed; }
+
+/* ── Tablo ── */
+.table-wrap {
+	background: #fff;
+	border: 1px solid #ebebf0;
+	border-radius: 14px;
+	overflow: hidden;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
-.list-price { display: flex; align-items: baseline; gap: 6px; }
-.list-old-price {
-	font-size: 12px; color: #aaa;
-	text-decoration: line-through;
+.product-table { width: 100%; border-collapse: collapse; }
+
+.product-table thead th.col-price { text-align: center; }
+.product-table thead th {
+	text-align: left;
+	font-size: 11.5px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: #888;
+	background: #fafafc;
+	padding: 12px 14px;
+	border-bottom: 1px solid #ebebf0;
+	white-space: nowrap;
 }
-.list-new-price {
-	font-size: 17px;
-	font-weight: 800;
+
+.product-table tbody td {
+	padding: 11px 14px;
+	border-bottom: 1px solid #f2f2f6;
+	font-size: 13px;
 	color: #1a1a2e;
+	vertical-align: middle;
 }
-.list-new-price.has-discount { color: #dc2626; }
+.product-table tbody tr:last-child td { border-bottom: none; }
+.product-table tbody tr { transition: background .12s; }
+.product-table tbody tr:hover { background: #fafafe; }
+.product-table tbody tr.row-selected { background: rgb(var(--color-primary-soft)); }
+.product-table tbody tr.row-out { opacity: .7; }
 
-.list-stock-out { font-size: 11px; color: #dc2626; font-weight: 600; }
-.list-stock-low { font-size: 11px; color: #ca8a04; font-weight: 600; }
-.list-stock-ok  { font-size: 11px; color: #16a34a; font-weight: 600; }
+.col-check { width: 44px; }
+.col-id { width: 64px; }
+.col-img { width: 60px; }
+.col-name { width: 180px; }
+.col-price { width: 120px; }
+.col-mp { width: 360px; }
+.col-stock { width: 80px; }
+.col-actions { width: 120px; }
 
-.list-buttons { display: flex; gap: 6px; align-items: center; }
+.mono { font-family: 'SF Mono', Consolas, monospace; color: #888; font-size: 12px; }
+
+.cb { display: inline-flex; cursor: pointer; }
+.cb input { width: 16px; height: 16px; accent-color: rgb(var(--color-primary)); cursor: pointer; }
+
+.thumb {
+	width: 44px; height: 44px;
+	border-radius: 8px; overflow: hidden;
+	background: #f5f5fa; flex-shrink: 0;
+}
+.thumb img { width: 100%; height: 100%; object-fit: cover; }
+
+.name-cell { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.name-text { font-weight: 700; color: #1a1a2e; font-size: 13.5px; }
+.name-line { font-size: 11.5px; color: #888; }
+.name-line b { color: #555; font-weight: 600; }
+
+.col-price { white-space: nowrap; text-align: center; }
+.price-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.status-dot { margin-bottom: 2px; }
+.status-dot.ok { color: #16a34a; }
+.status-dot.off { color: #cbd5e1; }
+.price-val { font-weight: 800; color: #1a1a2e; font-size: 13.5px; }
+.price-pa { font-size: 11px; color: #888; }
+
+.mp-list {
+	display: flex; flex-wrap: nowrap; gap: 8px;
+	overflow-x: auto; padding-bottom: 2px;
+}
+.mp-list::-webkit-scrollbar { height: 4px; }
+.mp-list::-webkit-scrollbar-thumb { background: #ddd; border-radius: 4px; }
+.mp-item { display: flex; flex-direction: column; align-items: center; gap: 3px; flex: 0 0 auto; background: none; border: none; cursor: pointer; padding: 2px; opacity: .55; transition: opacity .12s; }
+.mp-item:hover { opacity: 1; }
+.mp-item.sent { opacity: 1; }
+.mp-badge {
+	display: inline-flex; align-items: center; justify-content: center;
+	width: 26px; height: 26px;
+	color: #fff; font-size: 10px; font-weight: 800;
+	border-radius: 7px; letter-spacing: 0.02em;
+}
+.mp-logo-img { width: 26px; height: 26px; display: block; border-radius: 7px; }
+.mp-price { font-size: 11px; font-weight: 600; color: #555; white-space: nowrap; }
+.mp-empty { color: #ccc; }
+
+.stock-pill {
+	display: inline-flex; align-items: center;
+	padding: 3px 9px; border-radius: 999px;
+	font-size: 12px; font-weight: 700;
+}
+.stock-ok  { background: #ecfdf3; color: #16a34a; }
+.stock-low { background: #fef9c3; color: #ca8a04; }
+.stock-out { background: #fef2f2; color: #dc2626; }
+
+.action-btns { display: flex; gap: 6px; align-items: center; }
 .icon-btn {
 	width: 30px; height: 30px;
 	border-radius: 8px;
@@ -1227,69 +839,46 @@ function handleFormSubmit({ mode, id, payload }) {
 	cursor: pointer;
 	display: flex; align-items: center; justify-content: center;
 	transition: all .15s;
+	text-decoration: none;
 }
-.icon-btn:hover { background: #fef2f2; border-color: #fecaca; color: #ef4444; }
-.icon-btn.active { color: #ef4444; border-color: #fecaca; background: #fef2f2; }
+.icon-btn:hover { background: #f5f5f8; border-color: #d8d8e8; color: #1a1a2e; }
+.icon-btn.icon-danger:hover { background: #fef2f2; border-color: #fecaca; color: #ef4444; }
 
 /* ── Boş durum ── */
 .empty-state {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	justify-content: center;
-	gap: 8px;
+	display: flex; flex-direction: column;
+	align-items: center; justify-content: center; gap: 8px;
 	padding: 60px 20px;
 	background: #fff;
 	border: 1px dashed #d8d8e8;
 	border-radius: 14px;
-	color: #888;
-	text-align: center;
+	color: #888; text-align: center;
 }
 .empty-state svg { color: #c0c0d8; margin-bottom: 4px; }
-.empty-state h3 {
-	font-size: 15px;
-	font-weight: 700;
-	color: #1a1a2e;
-	margin: 0;
-}
+.empty-state h3 { font-size: 15px; font-weight: 700; color: #1a1a2e; margin: 0; }
 .empty-state p { font-size: 12.5px; color: #888; margin: 0 0 8px 0; }
 
 /* ── Sayfalama ── */
 .pagination {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	padding: 18px 4px 4px;
-	margin-top: 12px;
-	border-top: 1px solid #f0f0f5;
+	display: flex; align-items: center; justify-content: space-between;
+	padding: 18px 4px 4px; margin-top: 12px;
 }
-
 .pagination-info { font-size: 13px; color: #888; }
 .pagination-info span { color: #1a1a2e; font-weight: 600; }
-
 .pagination-controls { display: flex; align-items: center; gap: 4px; }
-
 .pagination-btn {
-	min-width: 32px; height: 32px;
-	padding: 0 8px;
-	border: 1px solid #e8e8f0;
-	border-radius: 6px;
+	min-width: 32px; height: 32px; padding: 0 8px;
+	border: 1px solid #e8e8f0; border-radius: 6px;
 	background: #fff; color: #666;
-	font-size: 13px; font-weight: 500;
-	cursor: pointer;
+	font-size: 13px; font-weight: 500; cursor: pointer;
 	display: flex; align-items: center; justify-content: center;
 	transition: all .15s;
 }
 .pagination-btn:hover:not(:disabled) { border-color: #ccc; color: #333; background: #f9f9fb; }
-.pagination-btn.active {
-	background: #1a1a2e; color: #fff;
-	border-color: #1a1a2e;
-}
+.pagination-btn.active { background: #1a1a2e; color: #fff; border-color: #1a1a2e; }
 .pagination-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 @media (max-width: 760px) {
-	.search-box { min-width: 180px; }
-	.list-row { grid-template-columns: 100px 1fr; }
-	.list-action { grid-column: 1 / -1; flex-direction: row; align-items: center; }
+	.col-mp, .col-id { display: none; }
 }
 </style>
