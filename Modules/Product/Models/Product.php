@@ -8,10 +8,13 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
 class Product extends Model
 {
+    use SoftDeletes;
+
     protected $table = 'products';
 
     protected $fillable = [
@@ -23,6 +26,8 @@ class Product extends Model
         'gender',
         'price',
         'old_price',
+        'market_price',
+        'purchase_price',
         'rating',
         'review_count',
         'is_new',
@@ -30,15 +35,35 @@ class Product extends Model
         'care_instructions',
         'material',
         'origin_country',
+        // SEO
+        'meta_title',
+        'meta_description',
+        'meta_keywords',
+        // Kargo
+        'weight',
+        'desi',
+        'shipping_time',
+        'shipping_fee',
+        // Diğer
+        'barcode',
+        'is_domestic',
+        'manufacturer_code',
+        'gtip_code',
     ];
 
     protected $casts = [
-        'price'         => 'decimal:2',
-        'old_price'     => 'decimal:2',
-        'rating'        => 'decimal:2',
+        'price'          => 'decimal:2',
+        'old_price'      => 'decimal:2',
+        'market_price'   => 'decimal:2',
+        'purchase_price' => 'decimal:2',
+        'rating'         => 'decimal:2',
         'review_count'  => 'integer',
         'is_new'        => 'boolean',
         'free_shipping' => 'boolean',
+        'weight'        => 'decimal:3',
+        'desi'          => 'decimal:2',
+        'shipping_fee'  => 'decimal:2',
+        'is_domestic'   => 'boolean',
     ];
 
     public function category(): BelongsTo
@@ -59,6 +84,11 @@ class Product extends Model
     public function images(): HasMany
     {
         return $this->hasMany(ProductImage::class)->orderBy('sort_order');
+    }
+
+    public function listings(): HasMany
+    {
+        return $this->hasMany(ProductMarketplaceListing::class);
     }
 
     public function favorites(): HasMany
@@ -132,8 +162,15 @@ class Product extends Model
     protected static function booted(): void
     {
         static::saving(function (Product $product): void {
-            $dirtyName = $product->isDirty('name');
-            $needsSlug = empty($product->slug) || $dirtyName;
+            // Slug elle girildiyse (değişmişse) onu koru; sadece normalize + benzersizleştir.
+            if ($product->isDirty('slug') && ! empty($product->slug)) {
+                $product->slug = static::generateUniqueSlug($product->slug, $product->id);
+
+                return;
+            }
+
+            // Aksi halde: slug boşsa ya da ad değiştiyse addan otomatik üret.
+            $needsSlug = empty($product->slug) || $product->isDirty('name');
             if ($needsSlug) {
                 $product->slug = static::generateUniqueSlug($product->name, $product->id);
             }
