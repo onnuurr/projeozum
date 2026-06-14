@@ -11,6 +11,9 @@ class AtelierDatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // $this->call([]);
+        $this->call([
+            \Modules\Atelier\database\seeders\AtelierPermissionSeeder::class,
+            \Modules\Atelier\database\seeders\OperationSeeder::class,
+        ]);
     }
 }
