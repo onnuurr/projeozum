@@ -66,9 +66,15 @@ class ProductionOrderServiceTest extends TestCase
         $s['kumas']->update(['current_stock' => 50]);
         $order = $this->draftOrder($s, 100); // 100m gerek, 50m var
 
-        $this->expectExceptionMessage('Yetersiz hammadde');
+        try {
+            app(ProductionOrderService::class)->plan($order);
+            $this->fail('Yetersiz hammadde istisnasi beklenmisti.');
+        } catch (\InvalidArgumentException $e) {
+            $this->assertStringContainsString('Yetersiz hammadde', $e->getMessage());
+        }
 
-        app(ProductionOrderService::class)->plan($order);
+        $this->assertSame('50.000', $s['kumas']->fresh()->current_stock);
+        $this->assertDatabaseMissing('material_movements', ['production_order_id' => $order->id]);
     }
 
     public function test_complete_rolls_up_cost_and_receives_stock(): void

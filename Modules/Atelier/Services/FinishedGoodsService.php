@@ -33,19 +33,16 @@ class FinishedGoodsService
 
     private function addStock(ProductionOrder $order, ProductionOrderItem $item, int $qty): void
     {
+        Stock::firstOrCreate(
+            ['product_variant_id' => $item->product_variant_id, 'warehouse_id' => $order->warehouse_id],
+            ['quantity' => 0],
+        );
+
         $stock = Stock::query()
             ->where('product_variant_id', $item->product_variant_id)
             ->where('warehouse_id', $order->warehouse_id)
             ->lockForUpdate()
-            ->first();
-
-        if (! $stock) {
-            $stock = Stock::create([
-                'product_variant_id' => $item->product_variant_id,
-                'warehouse_id'       => $order->warehouse_id,
-                'quantity'           => 0,
-            ]);
-        }
+            ->firstOrFail();
 
         $before = (int) $stock->quantity;
         $after = $before + $qty;

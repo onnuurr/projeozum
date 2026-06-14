@@ -55,7 +55,7 @@ class ProductionOrderService
 
             $order->update([
                 'status'        => ProductionOrder::STATUS_PLANNED,
-                'material_cost' => $materialCost,
+                'material_cost' => round($materialCost, 2),
             ]);
 
             return $order;
@@ -79,19 +79,21 @@ class ProductionOrderService
             $producedQty = (int) $order->items->sum('produced_qty');
 
             $totalCost = (float) $order->material_cost + $fasonCost + $laborCost;
-            $unitCost = $producedQty > 0 ? $totalCost / $producedQty : 0;
+            $unitCost = $producedQty > 0 ? round($totalCost / $producedQty, 2) : 0;
 
             $order->update([
                 'fason_cost'   => $fasonCost,
                 'labor_cost'   => $laborCost,
                 'produced_qty' => $producedQty,
-                'total_cost'   => $totalCost,
-                'unit_cost'    => round($unitCost, 2),
             ]);
 
             $this->finishedGoods->receiveIntoStock($order);
 
-            $order->update(['status' => ProductionOrder::STATUS_COMPLETED]);
+            $order->update([
+                'total_cost' => $totalCost,
+                'unit_cost'  => $unitCost,
+                'status'     => ProductionOrder::STATUS_COMPLETED,
+            ]);
 
             return $order;
         });
