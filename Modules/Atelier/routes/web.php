@@ -1,13 +1,12 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use Modules\Atelier\Http\Controllers\AtelierController;
 
 Route::middleware(['auth', 'verified', 'role:superadmin', 'can:atelier.manage'])
     ->prefix('atelier')
     ->name('atelier.')
     ->group(function () {
-        Route::get('/', [AtelierController::class, 'index'])->name('dashboard');
+        Route::get('/', [\Modules\Atelier\Http\Controllers\DashboardController::class, 'index'])->name('dashboard');
 
         // Hammaddeler
         Route::get('materials', [\Modules\Atelier\Http\Controllers\MaterialController::class, 'index'])->name('materials.index');
