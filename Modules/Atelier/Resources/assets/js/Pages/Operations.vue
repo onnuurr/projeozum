@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useForm, router } from '@inertiajs/vue3'
+import AtelierNav from '../Components/AtelierNav.vue'
 
 const props = defineProps({ operations: Array })
 const form = useForm({ id: null, code: '', name: '', default_location: 'in_house', default_unit_cost: 0, sort_order: 0 })
@@ -19,7 +20,9 @@ function remove(o) { if (confirm('Operasyon silinsin mi?')) router.delete(`/atel
 </script>
 
 <template>
-  <div class="p-6 space-y-6">
+  <div>
+    <AtelierNav />
+    <div class="p-6 space-y-6">
     <h1 class="text-xl font-semibold">Operasyonlar</h1>
     <form @submit.prevent="submit" class="grid grid-cols-6 gap-2 items-end bg-white p-4 rounded shadow-sm">
       <label class="flex flex-col text-sm">Kod<input v-model="form.code" class="border rounded px-2 py-1" /></label>
@@ -47,5 +50,6 @@ function remove(o) { if (confirm('Operasyon silinsin mi?')) router.delete(`/atel
         </tr>
       </tbody>
     </table>
+  </div>
   </div>
 </template>

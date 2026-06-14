@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useForm, router } from '@inertiajs/vue3'
+import AtelierNav from '../Components/AtelierNav.vue'
 
 const props = defineProps({ suppliers: Array })
 const form = useForm({ id: null, name: '', contact_name: '', phone: '', email: '', address: '', tax_no: '', notes: '', is_active: true })
@@ -18,7 +19,9 @@ function remove(s) { if (confirm('Fasoncu silinsin mi?')) router.delete(`/atelie
 </script>
 
 <template>
-  <div class="p-6 space-y-6">
+  <div>
+    <AtelierNav />
+    <div class="p-6 space-y-6">
     <h1 class="text-xl font-semibold">Fasoncular</h1>
     <form @submit.prevent="submit" class="grid grid-cols-4 gap-2 items-end bg-white p-4 rounded shadow-sm">
       <label class="flex flex-col text-sm">Ad<input v-model="form.name" class="border rounded px-2 py-1" /></label>
@@ -41,5 +44,6 @@ function remove(s) { if (confirm('Fasoncu silinsin mi?')) router.delete(`/atelie
         </tr>
       </tbody>
     </table>
+  </div>
   </div>
 </template>

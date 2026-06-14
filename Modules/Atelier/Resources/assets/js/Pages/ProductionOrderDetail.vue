@@ -1,6 +1,7 @@
 <script setup>
 import { reactive } from 'vue'
 import { router } from '@inertiajs/vue3'
+import AtelierNav from '../Components/AtelierNav.vue'
 
 const props = defineProps({ order: Object, fasonSuppliers: Array })
 
@@ -29,7 +30,9 @@ function cancel() { if (confirm('İptal edilsin mi?')) router.post(`/atelier/pro
 </script>
 
 <template>
-  <div class="p-6 space-y-6">
+  <div>
+    <AtelierNav />
+    <div class="p-6 space-y-6">
     <div class="flex justify-between items-center">
       <div>
         <h1 class="text-xl font-semibold">{{ order.code }} — {{ order.productName }}</h1>
@@ -79,5 +82,6 @@ function cancel() { if (confirm('İptal edilsin mi?')) router.post(`/atelier/pro
         <button @click="saveStep(s.id)" class="px-3 py-1 rounded border">Kaydet</button>
       </div>
     </div>
+  </div>
   </div>
 </template>

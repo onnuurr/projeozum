@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue'
 import { router, useForm } from '@inertiajs/vue3'
+import AtelierNav from '../Components/AtelierNav.vue'
 
 const props = defineProps({ materials: Array })
 
@@ -35,7 +36,9 @@ function submitMove() {
 </script>
 
 <template>
-  <div class="p-6 space-y-6">
+  <div>
+    <AtelierNav />
+    <div class="p-6 space-y-6">
     <h1 class="text-xl font-semibold">Hammaddeler</h1>
 
     <form @submit.prevent="submit" class="grid grid-cols-6 gap-2 items-end bg-white p-4 rounded shadow-sm">
@@ -100,5 +103,6 @@ function submitMove() {
         </div>
       </form>
     </div>
+  </div>
   </div>
 </template>

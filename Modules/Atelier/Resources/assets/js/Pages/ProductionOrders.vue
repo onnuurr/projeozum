@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { useForm, router } from '@inertiajs/vue3'
 import axios from 'axios'
+import AtelierNav from '../Components/AtelierNav.vue'
 
 const props = defineProps({ orders: Array, products: Array, warehouses: Array, operations: Array })
 
@@ -50,7 +51,9 @@ function submit() {
 </script>
 
 <template>
-  <div class="p-6 space-y-6">
+  <div>
+    <AtelierNav />
+    <div class="p-6 space-y-6">
     <div class="flex justify-between items-center">
       <h1 class="text-xl font-semibold">İş Emirleri</h1>
       <button @click="showWizard = true" class="bg-indigo-600 text-white px-4 py-1.5 rounded">+ Yeni İş Emri</button>
@@ -129,5 +132,6 @@ function submit() {
         </div>
       </form>
     </div>
+  </div>
   </div>
 </template>

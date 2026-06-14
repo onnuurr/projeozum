@@ -1,5 +1,6 @@
 <script setup>
 import { useForm, router } from '@inertiajs/vue3'
+import AtelierNav from '../Components/AtelierNav.vue'
 
 const props = defineProps({ boms: Array, products: Array, materials: Array })
 
@@ -14,7 +15,9 @@ function remove(b) { if (confirm('Reçete silinsin mi?')) router.delete(`/atelie
 </script>
 
 <template>
-  <div class="p-6 space-y-6">
+  <div>
+    <AtelierNav />
+    <div class="p-6 space-y-6">
     <h1 class="text-xl font-semibold">Reçeteler (BOM)</h1>
 
     <form @submit.prevent="submit" class="bg-white p-4 rounded shadow-sm space-y-3">
@@ -55,5 +58,6 @@ function remove(b) { if (confirm('Reçete silinsin mi?')) router.delete(`/atelie
         <li v-for="(l, i) in b.lines" :key="i">{{ l.materialName }}: {{ l.quantityPerUnit }} {{ l.unit }} (fire %{{ l.wastePct }})</li>
       </ul>
     </div>
+  </div>
   </div>
 </template>
