@@ -4,53 +4,8 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "274ade55dd83eae1b6eccad54fc97724",
+    "content-hash": "8370e8f75e889d681558c7b6fbeb2fec",
     "packages": [
-        {
-            "name": "adamasantares/dxf",
-            "version": "0.1.36",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/KOYU-Tech/DXF-Creator-for-PHP.git",
-                "reference": "adfed606c76a3aaa6875f3b75b5c12c2d9636961"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/KOYU-Tech/DXF-Creator-for-PHP/zipball/adfed606c76a3aaa6875f3b75b5c12c2d9636961",
-                "reference": "adfed606c76a3aaa6875f3b75b5c12c2d9636961",
-                "shasum": ""
-            },
-            "require": {
-                "php": ">=5.4.0"
-            },
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "adamasantares\\dxf\\": ""
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Konstantin Kutsevalov",
-                    "email": "konstantin@kutsevalov.name"
-                }
-            ],
-            "description": "A simple DXF creator for PHP",
-            "homepage": "https://github.com/active-programming/DXF-Creator-for-PHP#readme",
-            "keywords": [
-                "dxf",
-                "php"
-            ],
-            "support": {
-                "issues": "https://github.com/KOYU-Tech/DXF-Creator-for-PHP/issues",
-                "source": "https://github.com/KOYU-Tech/DXF-Creator-for-PHP/tree/0.1.36"
-            },
-            "time": "2019-04-15T08:23:22+00:00"
-        },
         {
             "name": "brick/math",
             "version": "0.14.8",
