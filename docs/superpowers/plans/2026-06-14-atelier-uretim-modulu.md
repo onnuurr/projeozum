@@ -3704,8 +3704,10 @@ Sonuca göre: Creative sidebar'da yok (sayfa-içi nav), Atelier de aynı deseni 
 
 - [ ] **Step 4: Final commit (varsa değişiklik)**
 
+> **DİKKAT:** Çalışma alanında Atelier dışı 138 commit'lenmemiş dosya var. ASLA `git add -A`/`git commit -am` kullanma — yalnızca bu görevde dokunulan Atelier dosyalarını hedefli ekle.
+
 ```bash
-git add -A
+git add Modules/Atelier/ tests/Feature/Atelier/
 git commit -m "chore(atelier): RBAC + navigasyon dogrulamasi"
 ```
 
