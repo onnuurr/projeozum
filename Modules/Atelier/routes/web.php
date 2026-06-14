@@ -20,4 +20,16 @@ Route::middleware(['auth', 'verified', 'role:superadmin', 'can:atelier.manage'])
         Route::get('boms', [\Modules\Atelier\Http\Controllers\BomController::class, 'index'])->name('boms.index');
         Route::post('boms', [\Modules\Atelier\Http\Controllers\BomController::class, 'store'])->name('boms.store');
         Route::delete('boms/{bom}', [\Modules\Atelier\Http\Controllers\BomController::class, 'destroy'])->name('boms.destroy');
+
+        // Operasyonlar
+        Route::get('operations', [\Modules\Atelier\Http\Controllers\OperationController::class, 'index'])->name('operations.index');
+        Route::post('operations', [\Modules\Atelier\Http\Controllers\OperationController::class, 'store'])->name('operations.store');
+        Route::put('operations/{operation}', [\Modules\Atelier\Http\Controllers\OperationController::class, 'update'])->name('operations.update');
+        Route::delete('operations/{operation}', [\Modules\Atelier\Http\Controllers\OperationController::class, 'destroy'])->name('operations.destroy');
+
+        // Fasoncular
+        Route::get('fason-suppliers', [\Modules\Atelier\Http\Controllers\FasonSupplierController::class, 'index'])->name('fason-suppliers.index');
+        Route::post('fason-suppliers', [\Modules\Atelier\Http\Controllers\FasonSupplierController::class, 'store'])->name('fason-suppliers.store');
+        Route::put('fason-suppliers/{fasonSupplier}', [\Modules\Atelier\Http\Controllers\FasonSupplierController::class, 'update'])->name('fason-suppliers.update');
+        Route::delete('fason-suppliers/{fasonSupplier}', [\Modules\Atelier\Http\Controllers\FasonSupplierController::class, 'destroy'])->name('fason-suppliers.destroy');
     });
