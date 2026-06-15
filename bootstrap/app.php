@@ -24,5 +24,15 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // Doğrulama / auth / 404 hatalarını ayrı DB kaydı oluşturmadan sadece default kanala bırak
+        $exceptions->dontReport([
+            \Illuminate\Validation\ValidationException::class,
+            \Illuminate\Auth\AuthenticationException::class,
+            \Symfony\Component\HttpKernel\Exception\NotFoundHttpException::class,
+        ]);
+
+        // Kalan tüm Throwable'ları ErrorLog'a ve errors kanalına yaz
+        $exceptions->report(function (\Throwable $e): void {
+            app(\App\Logging\ErrorLogger::class)->capture($e);
+        });
     })->create();

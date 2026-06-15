@@ -127,6 +127,15 @@ return [
             'path' => storage_path('logs/laravel.log'),
         ],
 
+        'errors' => [
+            'driver'               => 'daily',
+            'path'                 => storage_path('logs/errors.log'),
+            'level'                => 'debug',
+            'days'                 => (int) env('LOG_ERRORS_DAYS', 30),
+            'tap'                  => [\App\Logging\Formatters\ReadableErrorTap::class],
+            'replace_placeholders' => true,
+        ],
+
     ],
 
 ];
