@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\Superadmin\Http\Controllers\LogAccessController;
 use Modules\Superadmin\Http\Controllers\MenuController;
 use Modules\Superadmin\Http\Controllers\PermissionController;
 use Modules\Superadmin\Http\Controllers\RoleController;
@@ -38,4 +39,8 @@ Route::middleware(['auth', 'verified', 'role:superadmin'])->group(function () {
     Route::post('superadmin/permissions', [PermissionController::class, 'store'])->name('permissions.store');
     Route::put('superadmin/permissions/{permission}', [PermissionController::class, 'update'])->name('permissions.update');
     Route::delete('superadmin/permissions/{permission}', [PermissionController::class, 'destroy'])->name('permissions.destroy');
+
+    // Log erişim kapısı (unlock)
+    Route::get('superadmin/logs/unlock', [LogAccessController::class, 'showUnlock'])->name('superadmin.logs.unlock');
+    Route::post('superadmin/logs/unlock', [LogAccessController::class, 'unlock'])->name('superadmin.logs.unlock.post');
 });

@@ -280,6 +280,41 @@
 							<span class="slider"></span>
 						</label>
 					</div>
+
+					<div class="sa-divider"></div>
+
+					<h3 class="sa-subhead">Log Erişim Şifresi</h3>
+					<div class="field">
+						<label class="form-label">Log erişim şifresi (belirle / değiştir)</label>
+						<div class="password-input">
+							<input
+								v-model="form.security.logAccessPassword"
+								:type="showLogAccessPassword ? 'text' : 'password'"
+								class="form-input"
+								placeholder="Boş bırakırsan mevcut şifre korunur"
+								autocomplete="new-password"
+							/>
+							<button type="button" class="pw-toggle" @click="showLogAccessPassword = !showLogAccessPassword">
+								<svg v-if="showLogAccessPassword" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+									<path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24" />
+									<line x1="1" y1="1" x2="23" y2="23" />
+								</svg>
+								<svg v-else width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+									<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+									<circle cx="12" cy="12" r="3" />
+								</svg>
+							</button>
+						</div>
+						<div v-if="props.settings.security.logAccessPasswordSet" class="field-help" style="color: var(--c-success, #16a34a);">
+							<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="vertical-align: -1px;">
+								<polyline points="20 6 9 17 4 12" />
+							</svg>
+							Log erişim şifresi belirlenmiş. Değiştirmek için yeni şifreyi girin.
+						</div>
+						<div v-else class="field-help">
+							Henüz şifre belirlenmemiş. Log görüntüleyiciye erişim için buradan bir şifre belirleyin.
+						</div>
+					</div>
 				</section>
 
 				<!-- 2.5 ROLLER & İZİNLER -->
@@ -1346,11 +1381,12 @@ const sections = [
 
 const activeSection = ref('general')
 const showMailPassword = ref(false)
+const showLogAccessPassword = ref(false)
 
 /* ── Form ── */
 const form = useForm({
 	general: { ...props.settings.general },
-	security: { ...props.settings.security },
+	security: { ...props.settings.security, logAccessPassword: '' },
 	mail: { ...props.settings.mail },
 	notifications: { ...props.settings.notifications },
 	billing: { ...props.settings.billing },

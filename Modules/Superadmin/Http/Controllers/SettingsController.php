@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Superadmin\Models\Setting;
@@ -81,6 +82,21 @@ class SettingsController extends Controller
                 if ($val === self::MASK && Setting::isSensitive($group, $key)) {
                     unset($values[$key]);
                 }
+            }
+
+            // Security grubu: log erişim şifresini bcrypt hash olarak sakla.
+            // Frontend'den gelen "logAccessPassword" (plaintext) → hash → "logAccessPasswordHash".
+            // Boş veya mask gelirse mevcut hash korunur.
+            if ($group === 'security') {
+                $plainPassword = $values['logAccessPassword'] ?? null;
+                unset($values['logAccessPassword']); // plaintext asla DB'ye gitmesin
+                // Hash'i de UI'a gönderilmiş hâliyle geri almayız; varsa koru, yoksa sil.
+                unset($values['logAccessPasswordHash']);
+
+                if (is_string($plainPassword) && $plainPassword !== '' && $plainPassword !== self::MASK) {
+                    $values['logAccessPasswordHash'] = Hash::make($plainPassword);
+                }
+                // Boş / mask → hash değişmez; mevcut DB kaydı üzerine yazılmaz.
             }
 
             // Mail grubu DB yerine .env'e yazılır.
@@ -215,6 +231,13 @@ class SettingsController extends Controller
 
             $payload[$group] = $this->maskSensitive($group, $values);
         }
+
+        // Security: log erişim hash'ini frontend'e asla göndermiyoruz.
+        // Bunun yerine, şifrenin belirlenip belirlenmediğini boolean olarak iletiriz.
+        $securityStored = $stored['security'] ?? [];
+        $hashValue      = $securityStored['logAccessPasswordHash'] ?? null;
+        unset($payload['security']['logAccessPasswordHash']);
+        $payload['security']['logAccessPasswordSet'] = filled($hashValue);
 
         $payload['roles']  = $this->buildRolesPayload();
         $payload['system'] = $this->buildSystemPayload();
