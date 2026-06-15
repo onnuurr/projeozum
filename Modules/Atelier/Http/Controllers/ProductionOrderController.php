@@ -181,6 +181,16 @@ class ProductionOrderController extends Controller
     {
         abort_unless($step->production_order_id === $productionOrder->id, 404);
 
+        abort_unless(
+            in_array($productionOrder->status, [
+                ProductionOrder::STATUS_DRAFT,
+                ProductionOrder::STATUS_PLANNED,
+                ProductionOrder::STATUS_IN_PROGRESS,
+            ], true),
+            422,
+            'Tamamlanmış veya iptal edilmiş iş emri düzenlenemez.'
+        );
+
         $data = $request->validate([
             'status'            => ['required', Rule::in(['pending', 'in_progress', 'done'])],
             'input_qty'         => ['nullable', 'integer', 'min:0'],
@@ -217,6 +227,16 @@ class ProductionOrderController extends Controller
     /** Varyant üretilen/fire miktarı güncelle. */
     public function updateItem(Request $request, ProductionOrder $productionOrder): RedirectResponse
     {
+        abort_unless(
+            in_array($productionOrder->status, [
+                ProductionOrder::STATUS_DRAFT,
+                ProductionOrder::STATUS_PLANNED,
+                ProductionOrder::STATUS_IN_PROGRESS,
+            ], true),
+            422,
+            'Tamamlanmış veya iptal edilmiş iş emri düzenlenemez.'
+        );
+
         $data = $request->validate([
             'items'                 => ['required', 'array', 'min:1'],
             'items.*.id'            => ['required', 'integer'],
@@ -236,6 +256,10 @@ class ProductionOrderController extends Controller
 
     public function cancel(ProductionOrder $productionOrder): RedirectResponse
     {
+        if ($productionOrder->status === ProductionOrder::STATUS_COMPLETED) {
+            return back()->withErrors(['cancel' => 'Tamamlanmış iş emri iptal edilemez.']);
+        }
+
         $productionOrder->update(['status' => ProductionOrder::STATUS_CANCELLED]);
 
         return back()->with('success', 'İş emri iptal edildi.');
