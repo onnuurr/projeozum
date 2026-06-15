@@ -3,6 +3,8 @@
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
+use App\Models\ActivityLog;
+use App\Models\ErrorLog;
 use Modules\Atelier\Models\MaterialMovement;
 use Modules\Product\Models\PriceList;
 use Modules\Product\Models\ProductImage;
@@ -28,6 +30,8 @@ Artisan::command('inspire', function () {
 // Modeller modüllerde olduğundan FQCN'ler açıkça verilir (otomatik keşif app/Models'a bakar).
 Schedule::command('model:prune', [
     '--model' => [
+        ActivityLog::class,
+        ErrorLog::class,
         ProductImage::class,
         Stock::class,
         StockMovement::class,
