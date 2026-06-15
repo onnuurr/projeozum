@@ -3,6 +3,7 @@
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
+use Modules\Atelier\Models\MaterialMovement;
 use Modules\Product\Models\PriceList;
 use Modules\Product\Models\ProductImage;
 use Modules\Product\Models\Stock;
@@ -31,6 +32,7 @@ Schedule::command('model:prune', [
         Stock::class,
         StockMovement::class,
         PriceList::class,
+        MaterialMovement::class,
     ],
 ])->daily()->onOneServer()->runInBackground();
 
