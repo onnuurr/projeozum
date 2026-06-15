@@ -57,6 +57,7 @@ import CartDrawer from '@/Components/CartDrawer.vue'
 import ToastContainer from '@/Components/ToastContainer.vue'
 import Swal from 'sweetalert2'
 import { renderMenuIcon } from '@/menuIcons.js'
+import { useToast } from '@/composables/useToast.js'
 
 const page = usePage()
 
@@ -249,20 +250,8 @@ const searchQuick = ref([
 	{ icon: '📊', text: 'Üretim Raporu', sub: 'Raporlar' },
 ])
 
-/* ── Toast ── */
-const toasts = ref([])
-let toastId = 0
-
-function showToast({ type = 'info', title, message = '', duration = 4000 }) {
-	const id = ++toastId
-	toasts.value.push({ id, type, title, message, duration })
-	setTimeout(() => dismissToast(id), duration)
-}
-
-function dismissToast(id) {
-	const idx = toasts.value.findIndex((t) => t.id === id)
-	if (idx >= 0) toasts.value.splice(idx, 1)
-}
+/* ── Toast (shared composable — singleton across all components) ── */
+const { toasts, showToast, dismissToast } = useToast()
 
 provide('showToast', showToast)
 
@@ -305,21 +294,20 @@ const $swal = {
 
 provide('$swal', $swal)
 
-/* ── Flash izleyici: backend'in flash'a koyduğu toast + notification'ı uygular ── */
-// Backend genelde back()->with('flash', [...]) döner. İçinde:
-//   - flash.toast        → anında toast bildirimi (designer'a "Kaydedildi" gibi)
-//   - flash.notification → topnav notification panel'ine eklenir (rol filtreli)
-//   - flash.type/title/message → eski şema; toast olarak yorumlanır
+/* ── Flash izleyici: backend HandleInertiaRequests'in paylaştığı flash prop'unu uygular ── */
+// flash.toast → { type, title, message } — HandleInertiaRequests her iki schema'yı bu şekle normalize eder.
+// flash.notification → topnav bildirim paneline eklenir (rol filtreli).
 watch(
 	() => page.props.flash,
 	(flash) => {
 		if (!flash) return
-		const toast = flash.toast || (flash.type && flash.title ? flash : null)
-		if (toast) {
+		const toast = flash.toast
+		if (toast && toast.type) {
 			showToast({
 				type: toast.type || 'info',
 				title: toast.title || '',
 				message: toast.message || '',
+				duration: toast.duration,
 			})
 		}
 		const notif = flash.notification

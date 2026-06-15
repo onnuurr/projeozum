@@ -42,9 +42,41 @@ class HandleInertiaRequests extends Middleware
             'app' => [
                 'name' => config('app.name'),
             ],
-            'cart' => fn () => $this->cartPayload($user?->id),
-            'menu' => fn () => MenuTreeBuilder::forUser($user),
+            'cart'  => fn () => $this->cartPayload($user?->id),
+            'menu'  => fn () => MenuTreeBuilder::forUser($user),
+            'flash' => fn () => [
+                'toast' => $this->resolveToast($request),
+            ],
         ];
+    }
+
+    /**
+     * Normalize backend flash into a single toast shape or null.
+     * Supports Schema A: ->with('success'|'error'|'warning'|'info', 'text')
+     * and Schema B: ->with('flash', ['toast' => ['type', 'title', 'message']]).
+     */
+    private function resolveToast(Request $request): ?array
+    {
+        // Schema B: structured flash.toast
+        $flashBag = $request->session()->get('flash');
+        if (is_array($flashBag) && isset($flashBag['toast']) && is_array($flashBag['toast'])) {
+            $t = $flashBag['toast'];
+            return [
+                'type'    => $t['type']    ?? 'info',
+                'title'   => $t['title']   ?? null,
+                'message' => $t['message'] ?? '',
+            ];
+        }
+
+        // Schema A: simple string keys
+        foreach (['success', 'error', 'warning', 'info'] as $type) {
+            $msg = $request->session()->get($type);
+            if (is_string($msg) && $msg !== '') {
+                return ['type' => $type, 'title' => null, 'message' => $msg];
+            }
+        }
+
+        return null;
     }
 
     /**

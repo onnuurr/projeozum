@@ -12,6 +12,7 @@ use Illuminate\Auth\Events\Lockout;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
 use Illuminate\Auth\Events\PasswordReset;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Vite;
@@ -33,6 +34,12 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Vite::prefetch(concurrency: 3);
+
+        // ->toast('success', 'Kaydedildi.') kısayolu — Schema B'yi doğrudan oluşturur.
+        RedirectResponse::macro('toast', function (string $type, string $message, ?string $title = null) {
+            /** @var RedirectResponse $this */
+            return $this->with('flash', ['toast' => ['type' => $type, 'title' => $title, 'message' => $message]]);
+        });
 
         // Superadmin tüm yetenekleri otomatik geçer (eksik/yeni permission'larda kilitlenmeyi önler).
         // `null` döndürmek diğer kullanıcılar için normal yetki kontrolünü sürdürür.
