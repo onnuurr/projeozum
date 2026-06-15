@@ -149,13 +149,15 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, inject } from 'vue'
 import { Head, router, useForm } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import AtelierNav from '../Components/AtelierNav.vue'
 
 defineOptions({ layout: AppLayout })
+
+const $swal = inject('$swal')
 
 const props = defineProps({ materials: Array })
 
@@ -178,8 +180,9 @@ function submit() {
     form.post('/atelier/materials', { onSuccess: reset })
   }
 }
-function remove(m) {
-  if (confirm(`${m.name} silinsin mi?`)) router.delete(`/atelier/materials/${m.id}`)
+async function remove(m) {
+  const ok = await $swal.dangerConfirm({ title: 'Silinsin mi?', html: `<b>${m.name}</b> malzemesi kalıcı olarak silinecek.` })
+  if (ok) router.delete(`/atelier/materials/${m.id}`)
 }
 
 const move = useForm({ material_id: null, type: 'in', quantity: 0, reason: 'purchase', note: '' })

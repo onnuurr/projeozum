@@ -169,6 +169,7 @@ const props = defineProps({
 })
 
 const showToast = inject('showToast', null)
+const $swal = inject('$swal')
 const uploading = ref(false)
 const saving = ref(false)
 const selectedId = ref(null)
@@ -321,9 +322,10 @@ function uploadTemplate(e) {
 	})
 }
 
-function removeTemplate() {
+async function removeTemplate() {
 	if (!current.value) return
-	if (!confirm(`"${current.value.name}" şablonunu silmek istediğinize emin misiniz?`)) return
+	const ok = await $swal.dangerConfirm({ title: 'Şablon silinsin mi?', html: `<b>${current.value.name}</b> kalıcı olarak silinecek.` })
+	if (!ok) return
 	router.delete(`/creative/templates/${current.value.id}`, {
 		preserveScroll: true,
 		preserveState: false,
@@ -350,8 +352,8 @@ watch(() => props.templates, () => {
 .tpl-layout { display: grid; grid-template-columns: 240px 1fr; gap: 18px; align-items: start; }
 .tpl-list { display: flex; flex-direction: column; gap: 8px; }
 .tpl-list-item { position: relative; display: flex; gap: 10px; text-align: left; background: #fff; border: 2px solid #ebebf0; border-radius: 12px; padding: 9px; cursor: pointer; font-family: inherit; transition: border-color .15s; }
-.tpl-list-item:hover { border-color: #d8d4f0; }
-.tpl-list-item.active { border-color: #7c3aed; box-shadow: 0 0 0 3px rgba(124,58,237,.1); }
+.tpl-list-item:hover { border-color: rgb(var(--color-primary) / .35); }
+.tpl-list-item.active { border-color: rgb(var(--color-primary)); box-shadow: 0 0 0 3px rgb(var(--color-primary) / .1); }
 .tpl-list-item.inactive { opacity: .6; }
 .tpl-thumb { width: 46px; height: 46px; border-radius: 8px; background: #f5f5f8; flex-shrink: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; }
 .tpl-thumb img { width: 100%; height: 100%; object-fit: cover; }
@@ -365,16 +367,16 @@ watch(() => props.templates, () => {
 .card-header { padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid #f0f0f5; }
 .name-input { font-size: 15px; font-weight: 700; color: #1a1a2e; border: 1px solid transparent; border-radius: 7px; padding: 4px 8px; font-family: inherit; flex: 1; }
 .name-input:hover { border-color: #ebebf0; }
-.name-input:focus { outline: none; border-color: #d8d4f0; background: #faf8ff; }
+.name-input:focus { outline: none; border-color: rgb(var(--color-primary) / .35); background: rgb(var(--color-primary-soft)); }
 .header-actions { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
 .active-toggle { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #888; cursor: pointer; }
-.active-toggle.on { color: #6d28d9; }
+.active-toggle.on { color: rgb(var(--color-primary-hover)); }
 .active-toggle input { display: none; }
-.at-dot { width: 28px; height: 16px; border-radius: 9px; background: #d8d4f0; position: relative; transition: background .15s; }
+.at-dot { width: 28px; height: 16px; border-radius: 9px; background: rgb(var(--color-primary) / .35); position: relative; transition: background .15s; }
 .at-dot::after { content: ''; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; transition: transform .15s; }
-.active-toggle.on .at-dot { background: #7c3aed; }
+.active-toggle.on .at-dot { background: rgb(var(--color-primary)); }
 .active-toggle.on .at-dot::after { transform: translateX(12px); }
-.link-btn { background: none; border: none; color: #7c3aed; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.link-btn { background: none; border: none; color: rgb(var(--color-primary)); font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
 .link-btn.danger { color: #dc2626; }
 
 .designer-body { display: grid; grid-template-columns: 1fr 240px; gap: 18px; padding: 18px; }
@@ -383,13 +385,13 @@ watch(() => props.templates, () => {
 .stage-wrap { min-width: 0; }
 .stage { position: relative; background: #f5f5f8 repeating-conic-gradient(#eee 0% 25%, #f8f8fb 0% 50%) 0 / 20px 20px; border: 1px solid #e8e8f0; border-radius: 10px; overflow: hidden; touch-action: none; user-select: none; }
 .stage-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
-.slot-box { position: absolute; border: 2px solid rgba(124,58,237,.7); background: rgba(124,58,237,.08); cursor: move; box-sizing: border-box; }
+.slot-box { position: absolute; border: 2px solid rgb(var(--color-primary) / .7); background: rgb(var(--color-primary) / .08); cursor: move; box-sizing: border-box; }
 .slot-box.text { border-style: dashed; border-color: rgba(37,99,235,.8); background: rgba(37,99,235,.1); display: flex; align-items: center; }
 .slot-box.point { padding: 0 4px; }
-.slot-box.selected { border-color: #7c3aed; background: rgba(124,58,237,.18); box-shadow: 0 0 0 2px rgba(124,58,237,.25); z-index: 2; }
-.slot-tag { position: absolute; top: -16px; left: -2px; font-size: 10px; font-weight: 700; color: #fff; background: #7c3aed; padding: 1px 5px; border-radius: 4px 4px 4px 0; white-space: nowrap; }
+.slot-box.selected { border-color: rgb(var(--color-primary)); background: rgb(var(--color-primary) / .18); box-shadow: 0 0 0 2px rgb(var(--color-primary) / .25); z-index: 2; }
+.slot-tag { position: absolute; top: -16px; left: -2px; font-size: 10px; font-weight: 700; color: #fff; background: rgb(var(--color-primary)); padding: 1px 5px; border-radius: 4px 4px 4px 0; white-space: nowrap; }
 .slot-box.text .slot-tag { position: static; background: #2563eb; border-radius: 4px; }
-.resize-handle { position: absolute; right: -5px; bottom: -5px; width: 12px; height: 12px; background: #7c3aed; border: 2px solid #fff; border-radius: 50%; cursor: nwse-resize; }
+.resize-handle { position: absolute; right: -5px; bottom: -5px; width: 12px; height: 12px; background: rgb(var(--color-primary)); border: 2px solid #fff; border-radius: 50%; cursor: nwse-resize; }
 
 .stage-tools { display: flex; align-items: center; gap: 14px; margin-top: 10px; }
 .dirty-flag { font-size: 11.5px; color: #d97706; font-weight: 600; margin-left: auto; }
@@ -401,7 +403,7 @@ watch(() => props.templates, () => {
 .field { margin-bottom: 11px; }
 .field label { display: block; font-size: 11.5px; font-weight: 600; color: #666; margin-bottom: 4px; }
 .field input, .field select { width: 100%; border: 1px solid #e8e8f0; border-radius: 7px; padding: 7px 9px; font-size: 12.5px; font-family: inherit; color: #1a1a2e; background: #fff; }
-.field input:focus, .field select:focus { outline: none; border-color: #d8d4f0; background: #faf8ff; }
+.field input:focus, .field select:focus { outline: none; border-color: rgb(var(--color-primary) / .35); background: rgb(var(--color-primary-soft)); }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .bold-toggle { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: #555; cursor: pointer; }
 .row-del { width: 26px; height: 26px; border: none; background: #f5f5f8; color: #999; border-radius: 6px; cursor: pointer; }

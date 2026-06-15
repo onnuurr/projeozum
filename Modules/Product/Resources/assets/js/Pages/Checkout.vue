@@ -390,7 +390,7 @@
 					<!-- Havale -->
 					<div v-else-if="paymentMethod === 'bank'" class="pay-body bank-body">
 						<div class="bank-info">
-							<svg width="18" height="18" fill="none" stroke="#4a6cf7" stroke-width="2" viewBox="0 0 24 24">
+							<svg width="18" height="18" fill="none" stroke="rgb(var(--color-primary))" stroke-width="2" viewBox="0 0 24 24">
 								<circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" />
 							</svg>
 							<div>
@@ -972,6 +972,7 @@ const props = defineProps({
 
 const cart = inject('cart')
 const showToast = inject('showToast')
+const $swal = inject('$swal')
 
 /* ── Sepet (cart reactive ref) ── */
 const cartItems = computed(() => cart?.items?.value ?? [])
@@ -1320,9 +1321,10 @@ function saveAddress(close) {
 	}
 }
 
-function deleteAddress(addr) {
+async function deleteAddress(addr) {
 	if (addressList.value.length <= 1) return
-	if (!confirm(`"${addr.label}" adresini silmek istediğinize emin misiniz?`)) return
+	const ok = await $swal.dangerConfirm({ title: 'Adres silinsin mi?', html: `<b>${addr.label}</b> adresi kalıcı olarak silinecek.` })
+	if (!ok) return
 
 	router.delete(`/checkout/addresses/${addr.id}`, {
 		preserveScroll: true,
@@ -1480,8 +1482,8 @@ function trackOrder() {
 .addr-label {
 	display: inline-block;
 	padding: 2px 8px;
-	background: #ede9fe;
-	color: #7c3aed;
+	background: rgb(var(--color-primary-soft));
+	color: rgb(var(--color-primary));
 	border-radius: 6px;
 	font-size: 10.5px;
 	font-weight: 700;
@@ -1635,7 +1637,7 @@ function trackOrder() {
 	cursor: pointer;
 	padding: 4px 0;
 }
-.check-line input { accent-color: #4a6cf7; width: 14px; height: 14px; cursor: pointer; }
+.check-line input { accent-color: rgb(var(--color-primary)); width: 14px; height: 14px; cursor: pointer; }
 
 .company-fields {
 	display: grid;
@@ -1766,8 +1768,8 @@ function trackOrder() {
 }
 .saved-card:hover { transform: translateY(-2px); }
 .saved-card.active {
-	box-shadow: 0 0 0 3px rgba(74, 108, 247, 0.4);
-	border-color: #4a6cf7;
+	box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.4);
+	border-color: rgb(var(--color-primary));
 }
 
 .sc-brand {
@@ -1780,7 +1782,7 @@ function trackOrder() {
 	background: rgba(255, 255, 255, 0.18);
 	margin-bottom: 14px;
 }
-.sc-visa { background: rgba(74, 108, 247, 0.35); }
+.sc-visa { background: rgb(var(--color-primary) / 0.35); }
 .sc-mastercard { background: rgba(245, 158, 11, 0.35); }
 
 .sc-num { font-size: 13px; font-weight: 700; letter-spacing: 0.06em; font-family: 'SF Mono', Menlo, Consolas, monospace; }
@@ -1821,7 +1823,7 @@ function trackOrder() {
 
 .card-visual {
 	aspect-ratio: 16/10;
-	background: linear-gradient(135deg, #1a1a2e 0%, #2a2a4e 50%, #4a6cf7 100%);
+	background: linear-gradient(135deg, #1a1a2e 0%, #2a2a4e 50%, rgb(var(--color-primary)) 100%);
 	border-radius: 14px;
 	padding: 18px;
 	color: #fff;
@@ -1957,7 +1959,7 @@ function trackOrder() {
 	display: flex;
 	gap: 10px;
 	padding: 12px 14px;
-	background: #f8f8ff;
+	background: rgb(var(--color-primary-soft));
 	border: 1px solid #e0e0ff;
 	border-radius: 10px;
 	font-size: 12.5px;
@@ -2005,7 +2007,7 @@ function trackOrder() {
 .iban-copy {
 	background: none;
 	border: none;
-	color: #4a6cf7;
+	color: rgb(var(--color-primary));
 	font-family: inherit;
 	font-size: 11.5px;
 	font-weight: 600;
@@ -2014,7 +2016,7 @@ function trackOrder() {
 	border-radius: 6px;
 	transition: background .12s;
 }
-.iban-copy:hover { background: #eef0ff; }
+.iban-copy:hover { background: rgb(var(--color-primary-soft)); }
 
 .mono { font-family: 'SF Mono', Menlo, Consolas, monospace; }
 
@@ -2031,11 +2033,11 @@ function trackOrder() {
 }
 .terms-check input {
 	margin-top: 2px;
-	accent-color: #4a6cf7;
+	accent-color: rgb(var(--color-primary));
 	width: 14px; height: 14px;
 }
 
-.text-link { color: #4a6cf7; text-decoration: none; }
+.text-link { color: rgb(var(--color-primary)); text-decoration: none; }
 .text-link:hover { text-decoration: underline; }
 
 /* ── Sağ özet ── */
@@ -2441,7 +2443,7 @@ function trackOrder() {
 	color: #1a1a2e;
 	margin: 0 0 8px;
 	padding-left: 10px;
-	border-left: 3px solid #7c3aed;
+	border-left: 3px solid rgb(var(--color-primary));
 }
 
 .legal-section p {
@@ -2511,7 +2513,7 @@ function trackOrder() {
 .party-label {
 	font-size: 10.5px;
 	font-weight: 700;
-	color: #7c3aed;
+	color: rgb(var(--color-primary));
 	text-transform: uppercase;
 	letter-spacing: 0.06em;
 	margin-bottom: 6px;
@@ -2632,10 +2634,10 @@ function trackOrder() {
 	margin-top: 18px;
 	padding: 12px 14px;
 	background: #f8f7ff;
-	border-left: 3px solid #7c3aed;
+	border-left: 3px solid rgb(var(--color-primary));
 	border-radius: 8px;
 	font-size: 12px;
-	color: #5b21b6;
+	color: rgb(var(--color-primary-hover));
 	line-height: 1.6;
 }
 .legal-footnote strong { color: #1a1a2e; }

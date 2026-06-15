@@ -109,12 +109,15 @@
 </template>
 
 <script setup>
+import { inject } from 'vue'
 import { Head, useForm, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import AtelierNav from '../Components/AtelierNav.vue'
 
 defineOptions({ layout: AppLayout })
+
+const $swal = inject('$swal')
 
 const props = defineProps({ boms: Array, products: Array, materials: Array })
 
@@ -125,7 +128,10 @@ function removeLine(i) { form.lines.splice(i, 1) }
 function submit() {
   form.post('/atelier/boms', { onSuccess: () => { form.reset(); form.lines = [{ material_id: '', quantity_per_unit: 1, waste_pct: 0 }] } })
 }
-function remove(b) { if (confirm('Reçete silinsin mi?')) router.delete(`/atelier/boms/${b.id}`) }
+async function remove(b) {
+  const ok = await $swal.dangerConfirm({ title: 'Reçete silinsin mi?', html: 'Bu reçete kalıcı olarak silinecek.' })
+  if (ok) router.delete(`/atelier/boms/${b.id}`)
+}
 </script>
 
 <style scoped>

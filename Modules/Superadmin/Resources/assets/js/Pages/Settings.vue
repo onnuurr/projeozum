@@ -1421,6 +1421,7 @@ function resetForm() {
 /* ── Test/aksiyon mock'ları ── */
 import { inject } from 'vue'
 const showToast = inject('showToast')
+const $swal = inject('$swal')
 
 function testMail() {
 	showToast?.({ type: 'info', title: 'Test E-postası', message: 'SMTP testi başlatıldı, sonuç birkaç saniye içinde…' })
@@ -1725,9 +1726,10 @@ function savePermission() {
 	})
 }
 
-function deletePermission(p) {
+async function deletePermission(p) {
 	if (permBusy.value) return
-	if (!confirm(`«${p.name}» iznini silmek istediğinize emin misiniz?`)) return
+	const ok = await $swal.dangerConfirm({ title: 'İzin silinsin mi?', html: `<b>${p.name}</b> izni kalıcı olarak silinecek.` })
+	if (!ok) return
 	permBusy.value = true
 	router.delete(`/superadmin/permissions/${p.id}`, {
 		preserveScroll: true,
@@ -1840,7 +1842,7 @@ onBeforeUnmount(stopSystemPolling)
 	display: inline-flex;
 	align-items: center;
 	gap: 4px;
-	background: linear-gradient(135deg, #1a1a2e, #4a6cf7);
+	background: linear-gradient(135deg, #1a1a2e, rgb(var(--color-primary)));
 	color: #fff;
 	padding: 4px 10px;
 	border-radius: 999px;
@@ -1848,7 +1850,7 @@ onBeforeUnmount(stopSystemPolling)
 	font-weight: 700;
 	letter-spacing: 0.06em;
 	text-transform: uppercase;
-	box-shadow: 0 4px 12px rgba(74, 108, 247, 0.25);
+	box-shadow: 0 4px 12px rgb(var(--color-primary) / 0.25);
 }
 
 .header-actions {
@@ -1898,12 +1900,12 @@ onBeforeUnmount(stopSystemPolling)
 }
 .sa-nav-item:hover { background: #fafafe; color: #1a1a2e; }
 .sa-nav-item.active {
-	background: #f5f3ff;
+	background: rgb(var(--color-primary-soft));
 	color: #1a1a2e;
 }
 .sa-nav-item.active .sa-nav-icon {
-	background: #ede9fe;
-	color: #7c3aed;
+	background: rgb(var(--color-primary-soft));
+	color: rgb(var(--color-primary));
 }
 
 .sa-nav-icon {
@@ -2191,12 +2193,12 @@ onBeforeUnmount(stopSystemPolling)
 }
 .check-card:hover { border-color: #c0c0d8; }
 .check-card:has(input:checked) {
-	background: #f5f3ff;
+	background: rgb(var(--color-primary-soft));
 	border-color: #c4b5fd;
 }
 .check-card input {
 	margin-top: 2px;
-	accent-color: #7c3aed;
+	accent-color: rgb(var(--color-primary));
 	width: 14px;
 	height: 14px;
 }
@@ -2468,7 +2470,7 @@ onBeforeUnmount(stopSystemPolling)
 	width: 34px; height: 34px;
 	border-radius: 9px;
 	background: #f5f5fa;
-	color: #4a6cf7;
+	color: rgb(var(--color-primary));
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -2710,8 +2712,8 @@ onBeforeUnmount(stopSystemPolling)
 .system-pill {
 	display: inline-block;
 	padding: 1px 6px;
-	background: #ede9fe;
-	color: #7c3aed;
+	background: rgb(var(--color-primary-soft));
+	color: rgb(var(--color-primary));
 	font-size: 9px;
 	font-weight: 700;
 	letter-spacing: 0.06em;
@@ -2801,13 +2803,13 @@ onBeforeUnmount(stopSystemPolling)
 	gap: 6px;
 	padding: 9px 12px;
 	margin-bottom: 10px;
-	background: #f5f3ff;
+	background: rgb(var(--color-primary-soft));
 	border: 1px solid #e9d5ff;
 	border-radius: 9px;
 }
 .ml-text {
 	font-size: 11.5px;
-	color: #6d28d9;
+	color: rgb(var(--color-primary-hover));
 	font-weight: 500;
 }
 
@@ -2870,22 +2872,22 @@ onBeforeUnmount(stopSystemPolling)
 }
 
 .m-module-row td {
-	background: #f5f3ff;
+	background: rgb(var(--color-primary-soft));
 	padding: 8px 14px;
-	border-bottom: 1px solid #ede9fe;
-	border-top: 1px solid #ede9fe;
+	border-bottom: 1px solid rgb(var(--color-primary-soft));
+	border-top: 1px solid rgb(var(--color-primary-soft));
 }
 .m-module-name {
 	font-size: 11px;
 	font-weight: 700;
-	color: #6d28d9;
+	color: rgb(var(--color-primary-hover));
 	text-transform: uppercase;
 	letter-spacing: 0.06em;
 }
 .m-module-count {
 	margin-left: 8px;
 	font-size: 10.5px;
-	color: #a78bfa;
+	color: rgb(var(--color-primary) / .5);
 	font-weight: 600;
 }
 
@@ -2948,14 +2950,14 @@ onBeforeUnmount(stopSystemPolling)
 	color: transparent;
 	transition: all .12s;
 }
-.m-check:hover .m-checkbox { border-color: #7c3aed; }
+.m-check:hover .m-checkbox { border-color: rgb(var(--color-primary)); }
 .m-check input:checked + .m-checkbox {
-	background: #7c3aed;
-	border-color: #7c3aed;
+	background: rgb(var(--color-primary));
+	border-color: rgb(var(--color-primary));
 	color: #fff;
 }
 .m-check input:disabled + .m-checkbox {
-	background: #ede9fe;
+	background: rgb(var(--color-primary-soft));
 	border-color: #c4b5fd;
 	color: #fff;
 	opacity: .7;
@@ -3046,12 +3048,12 @@ onBeforeUnmount(stopSystemPolling)
 	cursor: pointer;
 	font-size: 11px;
 	font-weight: 600;
-	color: #7c3aed;
+	color: rgb(var(--color-primary));
 }
 .perm-module-toggle input {
 	width: 13px;
 	height: 13px;
-	accent-color: #7c3aed;
+	accent-color: rgb(var(--color-primary));
 }
 
 .perm-grid {
@@ -3073,14 +3075,14 @@ onBeforeUnmount(stopSystemPolling)
 }
 .perm-check:hover { border-color: #c4b5fd; }
 .perm-check:has(input:checked) {
-	background: #f5f3ff;
+	background: rgb(var(--color-primary-soft));
 	border-color: #c4b5fd;
 }
 .perm-check input {
 	margin-top: 1px;
 	width: 13px;
 	height: 13px;
-	accent-color: #7c3aed;
+	accent-color: rgb(var(--color-primary));
 	flex-shrink: 0;
 }
 .perm-check-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
@@ -3165,8 +3167,8 @@ onBeforeUnmount(stopSystemPolling)
 .field code {
 	font-family: 'SF Mono', Monaco, monospace;
 	font-size: 11.5px;
-	background: #f5f3ff;
-	color: #7c3aed;
+	background: rgb(var(--color-primary-soft));
+	color: rgb(var(--color-primary));
 	padding: 1px 5px;
 	border-radius: 4px;
 }

@@ -139,13 +139,15 @@
 </template>
 
 <script setup>
-import { reactive } from 'vue'
+import { reactive, inject } from 'vue'
 import { Head, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import AtelierNav from '../Components/AtelierNav.vue'
 
 defineOptions({ layout: AppLayout })
+
+const $swal = inject('$swal')
 
 const props = defineProps({ order: Object, fasonSuppliers: Array })
 
@@ -170,7 +172,10 @@ function saveItems() {
 }
 function plan() { router.post(`/atelier/production-orders/${props.order.id}/plan`, {}, { preserveScroll: true }) }
 function complete() { router.post(`/atelier/production-orders/${props.order.id}/complete`, {}, { preserveScroll: true }) }
-function cancel() { if (confirm('İptal edilsin mi?')) router.post(`/atelier/production-orders/${props.order.id}/cancel`, {}, { preserveScroll: true }) }
+async function cancel() {
+  const ok = await $swal.dangerConfirm({ title: 'İş emri iptal edilsin mi?', html: 'Bu işlem geri alınamaz.', confirmText: 'İptal Et' })
+  if (ok) router.post(`/atelier/production-orders/${props.order.id}/cancel`, {}, { preserveScroll: true })
+}
 </script>
 
 <style scoped>

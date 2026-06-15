@@ -194,6 +194,7 @@ const props = defineProps({
 })
 
 const showToast = inject('showToast', null)
+const $swal = inject('$swal')
 const busy = ref(false)
 const uploading = ref(null)
 const fontUploading = ref(false)
@@ -395,9 +396,10 @@ function save() {
 	else router.post('/creative/brandkits', payload(), opts)
 }
 
-function remove() {
+async function remove() {
 	if (!form.id || busy.value) return
-	if (!confirm('Bu marka kitini silmek istediğinize emin misiniz?')) return
+	const ok = await $swal.dangerConfirm({ title: 'Marka kiti silinsin mi?', html: `<b>${form.name}</b> kalıcı olarak silinecek.` })
+	if (!ok) return
 	busy.value = true
 	router.delete(`/creative/brandkits/${form.id}`, {
 		preserveScroll: true,
@@ -417,13 +419,13 @@ function remove() {
 
 .bk-list { display: flex; flex-direction: column; gap: 8px; }
 .bk-list-item { text-align: left; background: #fff; border: 2px solid #ebebf0; border-radius: 12px; padding: 11px 13px; cursor: pointer; font-family: inherit; transition: border-color .15s; }
-.bk-list-item:hover { border-color: #d8d4f0; }
-.bk-list-item.active { border-color: #7c3aed; box-shadow: 0 0 0 3px rgba(124,58,237,.1); }
+.bk-list-item:hover { border-color: rgb(var(--color-primary) / .35); }
+.bk-list-item.active { border-color: rgb(var(--color-primary)); box-shadow: 0 0 0 3px rgb(var(--color-primary) / .1); }
 .bk-swatches { display: flex; gap: 3px; margin-bottom: 8px; }
 .bk-swatch { width: 100%; height: 18px; border-radius: 4px; border: 1px solid rgba(0,0,0,.06); }
 .bk-list-meta { display: flex; align-items: center; gap: 8px; }
 .bk-list-name { font-size: 13px; font-weight: 600; color: #1a1a2e; }
-.bk-default-chip { font-size: 10px; font-weight: 700; background: #ede9fe; color: #6d28d9; padding: 2px 7px; border-radius: 5px; }
+.bk-default-chip { font-size: 10px; font-weight: 700; background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary-hover)); padding: 2px 7px; border-radius: 5px; }
 
 .card { background: #fff; border-radius: 16px; border: 1px solid #ebebf0; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.04); }
 .card-header { padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #f0f0f5; }
@@ -434,22 +436,22 @@ function remove() {
 .field { margin-bottom: 14px; }
 .field label { display: block; font-size: 12px; font-weight: 600; color: #666; margin-bottom: 5px; }
 .field input, .field select { width: 100%; border: 1px solid #e8e8f0; border-radius: 8px; padding: 8px 10px; font-size: 13px; font-family: inherit; color: #1a1a2e; background: #fff; }
-.field input:focus, .field select:focus { outline: none; border-color: #d8d4f0; background: #faf8ff; }
+.field input:focus, .field select:focus { outline: none; border-color: rgb(var(--color-primary) / .35); background: rgb(var(--color-primary-soft)); }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .err { color: #dc2626; font-size: 11.5px; margin-top: 4px; display: block; }
 
 .default-toggle { display: flex; align-items: center; gap: 9px; cursor: pointer; user-select: none; padding: 9px 12px; border: 1px solid #ebebf0; border-radius: 10px; font-size: 12.5px; color: #555; margin-bottom: 18px; }
-.default-toggle.on { border-color: #7c3aed; background: #faf8ff; color: #6d28d9; }
+.default-toggle.on { border-color: rgb(var(--color-primary)); background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary-hover)); }
 .default-toggle input { display: none; }
-.dt-dot { width: 32px; height: 18px; border-radius: 10px; background: #d8d4f0; position: relative; flex-shrink: 0; transition: background .15s; }
+.dt-dot { width: 32px; height: 18px; border-radius: 10px; background: rgb(var(--color-primary) / .35); position: relative; flex-shrink: 0; transition: background .15s; }
 .dt-dot::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: transform .15s; }
-.default-toggle.on .dt-dot { background: #7c3aed; }
+.default-toggle.on .dt-dot { background: rgb(var(--color-primary)); }
 .default-toggle.on .dt-dot::after { transform: translateX(14px); }
 
 .section { border-top: 1px solid #f0f0f5; padding-top: 16px; margin-top: 16px; }
 .section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .section-head h4 { font-size: 13px; font-weight: 700; color: #1a1a2e; }
-.link-btn { background: none; border: none; color: #7c3aed; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.link-btn { background: none; border: none; color: rgb(var(--color-primary)); font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
 .link-btn.danger { color: #dc2626; }
 .muted { font-size: 12px; color: #aaa; font-style: italic; }
 
@@ -459,10 +461,10 @@ function remove() {
 .token-hex { width: 100px; flex-shrink: 0; border: 1px solid #e8e8f0; border-radius: 7px; padding: 7px 9px; font-size: 12.5px; font-family: 'SF Mono', Menlo, Consolas, monospace; }
 .token-num { width: 90px; border: 1px solid #e8e8f0; border-radius: 7px; padding: 7px 9px; font-size: 12.5px; font-family: inherit; }
 .token-path { flex: 1; border: 1px solid #e8e8f0; border-radius: 7px; padding: 7px 9px; font-size: 12px; font-family: 'SF Mono', Menlo, Consolas, monospace; }
-.token-key:focus, .token-hex:focus, .token-num:focus, .token-path:focus { outline: none; border-color: #d8d4f0; background: #faf8ff; }
+.token-key:focus, .token-hex:focus, .token-num:focus, .token-path:focus { outline: none; border-color: rgb(var(--color-primary) / .35); background: rgb(var(--color-primary-soft)); }
 .row-del { width: 28px; height: 28px; border: none; background: #f5f5f8; color: #999; border-radius: 7px; cursor: pointer; font-size: 12px; flex-shrink: 0; }
 .row-del:hover { background: #fee2e2; color: #dc2626; }
-.upload-btn { font-size: 11.5px; font-weight: 600; color: #6d28d9; background: #ede9fe; padding: 7px 11px; border-radius: 7px; cursor: pointer; flex-shrink: 0; }
+.upload-btn { font-size: 11.5px; font-weight: 600; color: rgb(var(--color-primary-hover)); background: rgb(var(--color-primary-soft)); padding: 7px 11px; border-radius: 7px; cursor: pointer; flex-shrink: 0; }
 .upload-btn.busy { opacity: .6; }
 
 /* Font ailesi klasörleri */
@@ -472,7 +474,7 @@ function remove() {
 .folder-caret { color: #9b8ec7; transition: transform .15s; flex-shrink: 0; }
 .folder-caret.open { transform: rotate(90deg); }
 .ff-name { font-size: 13px; font-weight: 600; color: #1a1a2e; }
-.ff-count { margin-left: auto; font-size: 11px; font-weight: 600; color: #8a7fb0; background: #ede9fe; padding: 2px 8px; border-radius: 10px; }
+.ff-count { margin-left: auto; font-size: 11px; font-weight: 600; color: #8a7fb0; background: rgb(var(--color-primary-soft)); padding: 2px 8px; border-radius: 10px; }
 .font-children { padding: 8px 0 4px 22px; border-left: 2px solid #ece9f6; margin: 4px 0 4px 16px; display: flex; flex-direction: column; gap: 6px; }
 
 .editor-actions { display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #f0f0f5; padding-top: 16px; margin-top: 18px; }

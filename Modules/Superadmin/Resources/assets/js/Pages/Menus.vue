@@ -14,14 +14,21 @@
 			</div>
 		</header>
 
-		<MenuTree
-			:nodes="tree"
-			:disabled="saving"
-			@changed="dirty = true"
-			@edit="openEdit"
-			@add-child="openCreate"
-			@remove="removeMenu"
-		/>
+		<div class="mp-body">
+			<MenuTree
+				:nodes="tree"
+				:parent-id="null"
+				:disabled="saving"
+				class="mp-tree"
+				@changed="dirty = true"
+				@add-route="onAddRoute"
+				@edit="openEdit"
+				@add-child="openCreate"
+				@remove="removeMenu"
+			/>
+
+			<RouteCatalog :routes="routes" class="mp-catalog" />
+		</div>
 
 		<AppModal
 			v-model="modalOpen"
@@ -77,18 +84,22 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, inject } from 'vue'
 import { router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import AppModal from '@/Components/AppModal.vue'
 import { menuIconKeys, renderMenuIcon } from '@/menuIcons.js'
 import MenuTree from '../Components/MenuTree.vue'
+import RouteCatalog from '../Components/RouteCatalog.vue'
 
 defineOptions({ layout: AppLayout })
+
+const $swal = inject('$swal')
 
 const props = defineProps({
 	menus: { type: Array, required: true },
 	permissions: { type: Array, required: true },
+	routes: { type: Array, default: () => [] },
 })
 
 const iconKeys = menuIconKeys
@@ -104,7 +115,11 @@ function toTree(flat) {
 			roots.push(node)
 		}
 	}
-	return roots
+	// Açılışta tüm alt menülü düğümler kapalı gelsin.
+		for (const node of byId.values()) {
+			if (node.children.length) node.__collapsed = true
+		}
+		return roots
 }
 
 const tree = ref(toTree(props.menus))
@@ -188,8 +203,27 @@ function submitForm() {
 	}
 }
 
-function removeMenu(menu) {
-	if (!window.confirm(`"${menu.label}" ve tüm alt menüleri silinecek. Emin misiniz?`)) return
+// Sağ panelden ağaca bırakılan route'tan anında menü öğesi oluştur.
+function onAddRoute({ route: item, parentId, index }) {
+	saving.value = true
+	router.post(route('superadmin.menus.store'), {
+		label: item.label,
+		route_name: item.name,
+		url: '',
+		permission: null,
+		is_active: true,
+		parent_id: parentId,
+		sort_order: index,
+	}, {
+		preserveScroll: true,
+		onSuccess: () => router.reload({ only: ['menus', 'routes'] }),
+		onFinish: () => { saving.value = false },
+	})
+}
+
+async function removeMenu(menu) {
+	const ok = await $swal.dangerConfirm({ title: 'Menü silinsin mi?', html: `<b>${menu.label}</b> ve tüm alt menüleri kalıcı olarak silinecek.` })
+	if (!ok) return
 	router.delete(route('superadmin.menus.destroy', menu.id), {
 		preserveScroll: true,
 		onSuccess: () => router.reload({ only: ['menus'] }),
@@ -198,7 +232,12 @@ function removeMenu(menu) {
 </script>
 
 <style scoped>
-.menus-page { max-width: 860px; }
+.menus-page { max-width: 100%; }
+.mp-body { display: grid; grid-template-columns: 1fr 360px; gap: 24px; align-items: start; }
+.mp-tree { min-width: 0; }
+@media (max-width: 900px) {
+	.mp-body { grid-template-columns: 1fr; }
+}
 .mp-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 18px; gap: 16px; }
 .mp-header h1 { font-size: 20px; font-weight: 700; color: #1a1a2e; }
 .mp-header p { font-size: 13px; color: #888; margin-top: 4px; }
@@ -213,5 +252,5 @@ function removeMenu(menu) {
 .mp-check { flex-direction: row !important; align-items: center; gap: 8px; }
 .mp-icon-picker { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; }
 .mp-icon { width: 100%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border: 1px solid #e8e8f0; border-radius: 8px; background: #fff; color: #666; cursor: pointer; }
-.mp-icon.active { border-color: #4a6cf7; color: #4a6cf7; background: #eef0ff; }
+.mp-icon.active { border-color: rgb(var(--color-primary)); color: rgb(var(--color-primary)); background: rgb(var(--color-primary-soft)); }
 </style>

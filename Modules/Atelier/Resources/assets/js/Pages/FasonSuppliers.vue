@@ -119,13 +119,15 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, inject } from 'vue'
 import { Head, useForm, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import AtelierNav from '../Components/AtelierNav.vue'
 
 defineOptions({ layout: AppLayout })
+
+const $swal = inject('$swal')
 
 const props = defineProps({ suppliers: Array })
 const form = useForm({ id: null, name: '', contact_name: '', phone: '', email: '', address: '', tax_no: '', notes: '', is_active: true })
@@ -139,7 +141,10 @@ function reset() { editing.value = false; form.reset(); form.id = null }
 function submit() {
   editing.value ? form.put(`/atelier/fason-suppliers/${form.id}`, { onSuccess: reset }) : form.post('/atelier/fason-suppliers', { onSuccess: reset })
 }
-function remove(s) { if (confirm('Fasoncu silinsin mi?')) router.delete(`/atelier/fason-suppliers/${s.id}`) }
+async function remove(s) {
+  const ok = await $swal.dangerConfirm({ title: 'Fasoncu silinsin mi?', html: `<b>${s.name}</b> fason tedarikçisi kalıcı olarak silinecek.` })
+  if (ok) router.delete(`/atelier/fason-suppliers/${s.id}`)
+}
 </script>
 
 <style scoped>

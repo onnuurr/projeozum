@@ -105,13 +105,15 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, inject } from 'vue'
 import { Head, useForm, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import AtelierNav from '../Components/AtelierNav.vue'
 
 defineOptions({ layout: AppLayout })
+
+const $swal = inject('$swal')
 
 const props = defineProps({ operations: Array })
 const form = useForm({ id: null, code: '', name: '', default_location: 'in_house', default_unit_cost: 0, sort_order: 0 })
@@ -126,7 +128,10 @@ function reset() { editing.value = false; form.reset(); form.id = null }
 function submit() {
   editing.value ? form.put(`/atelier/operations/${form.id}`, { onSuccess: reset }) : form.post('/atelier/operations', { onSuccess: reset })
 }
-function remove(o) { if (confirm('Operasyon silinsin mi?')) router.delete(`/atelier/operations/${o.id}`) }
+async function remove(o) {
+  const ok = await $swal.dangerConfirm({ title: 'Operasyon silinsin mi?', html: 'Bu operasyon kalıcı olarak silinecek.' })
+  if (ok) router.delete(`/atelier/operations/${o.id}`)
+}
 </script>
 
 <style scoped>
