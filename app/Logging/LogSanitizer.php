@@ -23,16 +23,16 @@ class LogSanitizer
      * Anahtarın kendisi bu sözcüklerden birini içeriyorsa DENY (tamamen sil).
      * Büyük/küçük harf duyarsız substring eşleşmesi.
      */
-    private const DENY_SUBSTRINGS = ['password', 'token', 'secret'];
+    private const DENY_SUBSTRINGS = ['password', 'token', 'secret', 'cvv', 'card_number'];
 
     /**
      * Tam anahtar adı eşleşmesiyle DENY edilecekler (küçük harfe normalize edilerek karşılaştırılır).
      */
     private const DENY_EXACT = [
         'api_key', 'apikey',
-        'cvv', 'cvc',
-        'card_number', 'cardnumber',
-        'pin',
+        'cvc',
+        'cardnumber',
+        'pin', 'pin_code', 'user_pin',
     ];
 
     /**
