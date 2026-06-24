@@ -4,6 +4,12 @@ namespace Modules\Atelier\Providers;
 
 use Nwidart\Modules\Support\ModuleServiceProvider;
 use Illuminate\Console\Scheduling\Schedule;
+use Modules\Atelier\Services\Concept\Contracts\ConceptImageGeneratorContract;
+use Modules\Atelier\Services\Concept\Drivers\GeminiConceptGenerator;
+use Modules\Atelier\Services\Concept\Drivers\MockConceptGenerator;
+use Modules\Atelier\Services\Conversion\Contracts\PdfDxfConverterContract;
+use Modules\Atelier\Services\Conversion\Drivers\HttpPdfDxfConverter;
+use Modules\Atelier\Services\Conversion\Drivers\MockPdfDxfConverter;
 
 class AtelierServiceProvider extends ModuleServiceProvider
 {
@@ -33,6 +39,28 @@ class AtelierServiceProvider extends ModuleServiceProvider
         EventServiceProvider::class,
         RouteServiceProvider::class,
     ];
+
+    public function register(): void
+    {
+        parent::register();
+
+        // Konsept görsel sürücüsü: gemini (anahtar varsa), aksi halde mock.
+        // Model-agnostik soyutlama — sağlayıcı config ile değişir (yol haritası §3).
+        $this->app->bind(ConceptImageGeneratorContract::class, function ($app) {
+            $useGemini = config('atelier.concept.driver') === 'gemini'
+                && config('creative.ai.gemini.api_key');
+
+            return $app->make($useGemini ? GeminiConceptGenerator::class : MockConceptGenerator::class);
+        });
+
+        // PDF→DXF dönüştürücü: http (servis URL'i varsa), aksi halde mock.
+        $this->app->bind(PdfDxfConverterContract::class, function ($app) {
+            $useHttp = config('atelier.conversion.driver') === 'http'
+                && config('atelier.conversion.service_url');
+
+            return $app->make($useHttp ? HttpPdfDxfConverter::class : MockPdfDxfConverter::class);
+        });
+    }
 
     /**
      * Define module schedules.

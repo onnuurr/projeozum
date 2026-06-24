@@ -12,7 +12,6 @@ use Modules\Product\Models\Category;
 use Modules\Product\Models\Product;
 use Modules\Product\Models\Warehouse;
 use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class ProductionOrderControllerTest extends TestCase
@@ -24,11 +23,9 @@ class ProductionOrderControllerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $perm = Permission::firstOrCreate(['name' => 'atelier.manage', 'guard_name' => 'web']);
-        $role = Role::firstOrCreate(['name' => 'superadmin', 'guard_name' => 'web']);
-        $role->givePermissionTo($perm);
+        Permission::firstOrCreate(['name' => 'atelier.production.manage', 'guard_name' => 'web']);
         $this->admin = User::factory()->create();
-        $this->admin->assignRole($role);
+        $this->admin->givePermissionTo('atelier.production.manage');
     }
 
     private function scenario(): array

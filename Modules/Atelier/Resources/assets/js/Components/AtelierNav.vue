@@ -28,6 +28,30 @@ const tabs = [
 		icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>',
 	},
 	{
+		key: 'conversions',
+		label: 'Sayısallaştırma',
+		href: '/atelier/conversions',
+		icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15l3 3 3-3"/></svg>',
+	},
+	{
+		key: 'patterns',
+		label: 'Kalıp Kütüphanesi',
+		href: '/atelier/patterns',
+		icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>',
+	},
+	{
+		key: 'concepts',
+		label: 'Konsept Stüdyosu',
+		href: '/atelier/concepts',
+		icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 3l1.5 3.5L10 8 6.5 9.5 5 13 3.5 9.5 0 8l3.5-1.5z" transform="translate(2 1)"/><path d="M18 11l1 2.5 2.5 1-2.5 1L18 18l-1-2.5-2.5-1 2.5-1z"/><path d="M13 3l.8 2 2 .8-2 .8L13 8.6l-.8-2-2-.8 2-.8z"/></svg>',
+	},
+	{
+		key: 'assignments',
+		label: 'Atölye İşleri',
+		href: '/atelier/assignments',
+		icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 11l3 3 5-5"/><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 4V2M16 4V2"/></svg>',
+	},
+	{
 		key: 'orders',
 		label: 'İş Emirleri',
 		href: '/atelier/production-orders',

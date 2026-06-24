@@ -5,7 +5,6 @@ namespace Tests\Feature\Atelier;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class OperationFasonControllerTest extends TestCase
@@ -17,11 +16,10 @@ class OperationFasonControllerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $perm = Permission::firstOrCreate(['name' => 'atelier.manage', 'guard_name' => 'web']);
-        $role = Role::firstOrCreate(['name' => 'superadmin', 'guard_name' => 'web']);
-        $role->givePermissionTo($perm);
+        Permission::firstOrCreate(['name' => 'atelier.operation.manage', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'atelier.fason.manage', 'guard_name' => 'web']);
         $this->admin = User::factory()->create();
-        $this->admin->assignRole($role);
+        $this->admin->givePermissionTo('atelier.operation.manage', 'atelier.fason.manage');
     }
 
     public function test_create_operation(): void

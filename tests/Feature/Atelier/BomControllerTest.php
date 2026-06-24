@@ -8,7 +8,6 @@ use Modules\Atelier\Models\Material;
 use Modules\Product\Models\Category;
 use Modules\Product\Models\Product;
 use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class BomControllerTest extends TestCase
@@ -20,11 +19,9 @@ class BomControllerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $perm = Permission::firstOrCreate(['name' => 'atelier.manage', 'guard_name' => 'web']);
-        $role = Role::firstOrCreate(['name' => 'superadmin', 'guard_name' => 'web']);
-        $role->givePermissionTo($perm);
+        Permission::firstOrCreate(['name' => 'atelier.bom.manage', 'guard_name' => 'web']);
         $this->admin = User::factory()->create();
-        $this->admin->assignRole($role);
+        $this->admin->givePermissionTo('atelier.bom.manage');
     }
 
     public function test_save_creates_bom_with_lines(): void

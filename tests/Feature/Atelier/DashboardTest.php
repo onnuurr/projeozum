@@ -12,11 +12,21 @@ class DashboardTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_dashboard_renders_for_admin(): void
+    public function test_dashboard_renders_with_view_permission(): void
     {
-        $perm = Permission::firstOrCreate(['name' => 'atelier.manage', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'atelier.view', 'guard_name' => 'web']);
+        $user = User::factory()->create();
+        $user->givePermissionTo('atelier.view');
+
+        $this->actingAs($user)
+            ->get('/atelier')
+            ->assertOk();
+    }
+
+    public function test_dashboard_renders_for_superadmin_via_bypass(): void
+    {
+        // Superadmin, açık izin olmadan Gate::before ile geçer.
         $role = Role::firstOrCreate(['name' => 'superadmin', 'guard_name' => 'web']);
-        $role->givePermissionTo($perm);
         $admin = User::factory()->create();
         $admin->assignRole($role);
 

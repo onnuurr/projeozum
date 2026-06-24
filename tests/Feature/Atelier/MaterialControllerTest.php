@@ -6,7 +6,6 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Modules\Atelier\Models\Material;
 use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class MaterialControllerTest extends TestCase
@@ -18,11 +17,11 @@ class MaterialControllerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $perm = Permission::firstOrCreate(['name' => 'atelier.manage', 'guard_name' => 'web']);
-        $role = Role::firstOrCreate(['name' => 'superadmin', 'guard_name' => 'web']);
-        $role->givePermissionTo($perm);
+        // Granüler izin doğrudan (superadmin değil) — yeni can:atelier.material.manage kapısını sınar.
+        Permission::firstOrCreate(['name' => 'atelier.view', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'atelier.material.manage', 'guard_name' => 'web']);
         $this->admin = User::factory()->create();
-        $this->admin->assignRole($role);
+        $this->admin->givePermissionTo('atelier.view', 'atelier.material.manage');
     }
 
     public function test_store_creates_material(): void
@@ -61,6 +60,23 @@ class MaterialControllerTest extends TestCase
         $this->actingAs($plain)
             ->post('/atelier/materials', [
                 'code' => 'X', 'name' => 'X', 'type' => 'kumas', 'unit' => 'adet', 'unit_cost' => 1,
+            ])
+            ->assertForbidden();
+    }
+
+    public function test_view_permission_allows_read_but_not_write(): void
+    {
+        Permission::firstOrCreate(['name' => 'atelier.view', 'guard_name' => 'web']);
+        $viewer = User::factory()->create();
+        $viewer->givePermissionTo('atelier.view');
+
+        // atelier.view ile listeyi görebilir
+        $this->actingAs($viewer)->get('/atelier/materials')->assertOk();
+
+        // ama atelier.material.manage olmadan yazamaz
+        $this->actingAs($viewer)
+            ->post('/atelier/materials', [
+                'code' => 'Y', 'name' => 'Y', 'type' => 'kumas', 'unit' => 'adet', 'unit_cost' => 1,
             ])
             ->assertForbidden();
     }

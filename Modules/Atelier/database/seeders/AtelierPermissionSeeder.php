@@ -11,7 +11,17 @@ class AtelierPermissionSeeder extends Seeder
     public function run(): void
     {
         $permissions = [
-            'atelier.manage' => 'Atelier Yönet',
+            'atelier.view'              => 'Atelier Görüntüle',
+            'atelier.material.manage'   => 'Atelier Hammadde Yönet',
+            'atelier.bom.manage'        => 'Atelier Reçete (BOM) Yönet',
+            'atelier.operation.manage'  => 'Atelier Operasyon Yönet',
+            'atelier.fason.manage'      => 'Atelier Fasoncu Yönet',
+            'atelier.production.manage' => 'Atelier Üretim Emri Yönet',
+            'atelier.pattern.view'      => 'Atelier Kalıp Kütüphanesi Görüntüle',
+            'atelier.pattern.manage'    => 'Atelier Kalıp Yönet',
+            'atelier.conversion.manage' => 'Atelier PDF→DXF Dönüştürme Yönet',
+            'atelier.design.manage'     => 'Atelier AI Konsept Yönet',
+            'atelier.assignment.manage' => 'Atelier Atölye Atama Yönet',
         ];
 
         $created = [];
