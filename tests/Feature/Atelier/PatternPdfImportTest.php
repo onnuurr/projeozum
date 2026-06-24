@@ -55,6 +55,9 @@ class PatternPdfImportTest extends TestCase
             dxf: "0\nSECTION\n2\nENTITIES\n0\nENDSEC\n0\nEOF\n",
             metadata: [
                 'product_type' => 'tulum', 'size_range' => '116-122-128-134',
+                'profile' => 'nipnaps',
+                'size_layers' => ['BEDEN_YESIL', 'BEDEN_CYAN'],
+                'measurements' => ['labels' => ['OW', 'TW'], 'sizes' => ['56', '176'], 'matrix' => ['OW' => [22.5, 46.0]]],
                 'scale_verified' => true, 'scale_deviation_mm' => 0.3,
                 'parts' => [['part_name' => 'Ön', 'quantity' => 1], ['part_name' => 'Kol', 'quantity' => 2]],
             ],
@@ -69,6 +72,10 @@ class PatternPdfImportTest extends TestCase
         $this->assertNotNull($pattern->dxf_path);
         Storage::disk('public')->assertExists($pattern->dxf_path);
         $this->assertCount(2, $pattern->parts);
+        // Zengin çıkarım alanları taslak akışında da saklanır (approve() ile paralel).
+        $this->assertSame('nipnaps', $pattern->vendor);
+        $this->assertSame(['BEDEN_YESIL', 'BEDEN_CYAN'], $pattern->size_layers);
+        $this->assertEquals([22.5, 46.0], $pattern->measurements['matrix']['OW']);
     }
 
     public function test_no_dxf_result_marks_failed_not_done(): void
