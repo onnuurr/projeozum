@@ -115,3 +115,30 @@ def test_nipnaps_measurements_best_effort():
     m = NipnapsProfile().parse_measurements(doc)
     # Best-effort: ya yapılandırılmış matris ya None; None değilse etiketler dolu.
     assert m is None or set(m["labels"]) >= {"OW", "TW", "HW"}
+
+
+from profiles import detect_profile, REGISTRY
+
+
+def test_registry_has_both_profiles():
+    names = {p.name for p in REGISTRY}
+    assert {"ruslan", "nipnaps"} <= names
+
+
+def test_detect_picks_nipnaps_for_latzee():
+    doc = fitz.open(LATZEE)
+    profile, score, candidates = detect_profile(doc)
+    assert profile is not None and profile.name == "nipnaps"
+    assert score >= 0.5
+
+
+def test_detect_picks_ruslan_for_synthetic():
+    profile, score, candidates = detect_profile(_ruslan_doc())
+    assert profile is not None and profile.name == "ruslan"
+
+
+def test_detect_returns_none_for_blank():
+    doc = fitz.open()
+    doc.new_page(width=612, height=792)  # boş, çizimsiz
+    profile, score, candidates = detect_profile(doc)
+    assert profile is None
