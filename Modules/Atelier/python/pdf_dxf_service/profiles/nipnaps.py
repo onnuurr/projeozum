@@ -44,7 +44,6 @@ PART_LEXICON = {
     "beleg": "Pervaz",
     "bund": "Bel",
 }
-MEASURE_LABELS = ("OW", "TW", "HW", "SL", "KH", "SW")
 
 
 class NipnapsProfile(ExtractionProfile):
@@ -118,30 +117,81 @@ class NipnapsProfile(ExtractionProfile):
         return [{"part_name": n, "quantity": q} for n, q in found.items()]
 
     def parse_measurements(self, doc):
-        """Best-effort: Maßtabelle satırlarını word y-bandıyla kur. Belirsizse None."""
+        """Maßtabelle'yi beden-kolonu x-çapalarıyla kur (Sprungwerte ayıklanır).
+
+        Sayfada beden başlık satırı (≥15 adet 2-3 haneli beden) bulunur; başlığın
+        x-merkezleri kolon çapasıdır. Her ölçü etiketi (OW/TW/HW/SL/KH) için başlık
+        ALTINDAKİ ilk veri satırı (legend değil) seçilir; her çapaya en yakın sayı
+        o bedenin ölçüsüdür — atlama değerleri (Sprungwerte) çapa-dışı x'te kalıp
+        elenir. Tablo konumsal/karışıksa None döner (operatör doğrular).
+        """
+        def cx(w):
+            return (w[0] + w[2]) / 2
+
+        num_re = re.compile(r"\d+[.,]?\d*")
+        size_re = re.compile(r"\d{2,3}")
+        tol = 9.0
+
         for i in range(min(doc.page_count, 8)):
-            page = doc[i]
-            words = page.get_text("words")  # (x0,y0,x1,y1,word,...)
-            label_y = {}
-            for x0, y0, x1, y1, w, *_ in words:
-                if w in MEASURE_LABELS and x0 < 80 and w not in label_y:
-                    label_y[w] = y0
-            if len({"OW", "TW", "HW"} & set(label_y)) < 3:
+            words = doc[i].get_text("words")  # (x0,y0,x1,y1,word,...)
+            if not words:
                 continue
-            matrix = {}
-            for label, y in label_y.items():
-                nums = []
-                for x0, y0, x1, y1, w, *_ in sorted(words, key=lambda r: r[0]):
-                    if abs(y0 - y) < 4 and re.fullmatch(r"\d+[.,]?\d*", w):
-                        nums.append(float(w.replace(",", ".")))
-                if len(nums) >= 5:           # legend satırı sayı içermez → elenir
-                    matrix[label] = nums
+
+            # y-bandlarına grupla; başlık = en çok 2-3 haneli beden taşıyan band (≥15).
+            bands: dict = {}
+            for w in words:
+                bands.setdefault(round(w[1]), []).append(w)
+
+            def size_words(ws):
+                return sorted((w for w in ws if size_re.fullmatch(w[4])), key=cx)
+
+            hdr_y = max(
+                bands,
+                key=lambda y: len(size_words(bands[y])) if len(size_words(bands[y])) >= 15 else 0,
+            )
+            header = size_words(bands[hdr_y])
+            if len(header) < 15:
+                continue
+            sizes = [w[4] for w in header]
+            anchors = [cx(w) for w in header]
+
+            # Etiketin başlık ALTINDAKİ ilk (en küçük y) veri satırı = ana tablo.
+            def data_row_y(label):
+                cands = [
+                    w[1]
+                    for w in words
+                    if w[4] == label and w[0] < 90 and w[1] > hdr_y
+                    and sum(1 for ww in words if abs(ww[1] - w[1]) < 4 and num_re.fullmatch(ww[4])) >= 15
+                ]
+                return min(cands) if cands else None
+
+            matrix: dict = {}
+            for label in ("OW", "TW", "HW", "SL", "KH"):
+                y = data_row_y(label)
+                if y is None:
+                    continue
+                # Satır sayıları (etiket-indeksini dışla: ilk çapanın solunda kalır).
+                row = [
+                    w for w in words
+                    if abs(w[1] - y) < 4 and num_re.fullmatch(w[4]) and cx(w) > anchors[0] - 12
+                ]
+                if not row:
+                    continue
+                vals = []
+                for a in anchors:
+                    best = min(row, key=lambda w: abs(cx(w) - a))
+                    vals.append(float(best[4].replace(",", ".")) if abs(cx(best) - a) <= tol else None)
+                # Kolonların çoğu hizalanmalı; aksi halde bu satır güvenilmez.
+                if sum(v is not None for v in vals) >= 0.8 * len(anchors):
+                    matrix[label] = vals
+
             if len({"OW", "TW", "HW"} & set(matrix)) >= 3:
                 return {
                     "labels": list(matrix.keys()),
+                    "sizes": sizes,
                     "matrix": matrix,
                     "unit": "cm",
-                    "note": "Modellmasse ohne Nahtzugabe; best-effort, operatör doğrular",
+                    "note": "Modellmasse ohne Nahtzugabe; beden-kolonu hizalı, operatör doğrular",
                 }
         return None
 

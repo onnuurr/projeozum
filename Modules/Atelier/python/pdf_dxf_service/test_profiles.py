@@ -117,6 +117,27 @@ def test_nipnaps_measurements_best_effort():
     assert m is None or set(m["labels"]) >= {"OW", "TW", "HW"}
 
 
+def test_nipnaps_measurements_real_latzee_matrix():
+    """Gerçek LATZEE Maßtabelle'si beden-kolonu hizalı, Sprungwerte ayıklanmış çıkar."""
+    doc = fitz.open(LATZEE)
+    m = NipnapsProfile().parse_measurements(doc)
+    assert m is not None, "Maßtabelle parse edilemedi (None döndü)"
+    assert set(m["labels"]) >= {"OW", "TW", "HW", "SL", "KH"}
+    # 21 KIKO bedeni: 56..176
+    assert len(m["sizes"]) == 21
+    assert m["sizes"][0] == "56" and m["sizes"][-1] == "176"
+    # OW (Oberweite): beden 56 -> 22.5, beden 176 -> 46.0 (atlama değerleri elenmiş)
+    ow = m["matrix"]["OW"]
+    assert len(ow) == 21
+    assert ow[0] == 22.5 and ow[-1] == 46.0
+    assert None not in ow
+    # KH (Körperhöhe) satırı bedenlerin kendisidir
+    kh = m["matrix"]["KH"]
+    assert kh[0] == 56.0 and kh[-1] == 176.0
+    # SL (Seitenlänge) tablo 1'den (tablo 2 değil): 56 -> 27.5
+    assert m["matrix"]["SL"][0] == 27.5
+
+
 from profiles import detect_profile, REGISTRY
 
 
