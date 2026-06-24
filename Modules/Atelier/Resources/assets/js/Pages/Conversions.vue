@@ -73,30 +73,30 @@
 					<li v-for="(e, i) in j.errors" :key="i">{{ e }}</li>
 				</ul>
 				<!-- Çıkarım özeti -->
-				<div v-if="j.error_report?.metadata" class="jc-extraction">
+				<div v-if="j.metadata" class="jc-extraction">
 					<div class="jcx-row">
 						<span class="jcx-lbl">Profil:</span>
-						{{ j.error_report.metadata.profile ?? '—' }}
-						<span class="jcx-sub">({{ j.error_report.metadata.assembly }})</span>
+						{{ j.metadata.profile ?? '—' }}
+						<span class="jcx-sub">({{ j.metadata.assembly }})</span>
 					</div>
-					<div v-if="j.error_report.metadata.size_layers?.length" class="jcx-row">
+					<div v-if="j.metadata.size_layers?.length" class="jcx-row">
 						<span class="jcx-lbl">Beden katmanları:</span>
-						{{ j.error_report.metadata.size_layers.join(', ') }}
+						{{ j.metadata.size_layers.join(', ') }}
 					</div>
-					<div v-if="j.error_report.metadata.parts?.length" class="jcx-row">
+					<div v-if="j.metadata.parts?.length" class="jcx-row">
 						<span class="jcx-lbl">Parçalar:</span>
-						<span v-for="p in j.error_report.metadata.parts" :key="p.part_name" class="mtag">
+						<span v-for="p in j.metadata.parts" :key="p.part_name" class="mtag">
 							{{ p.quantity }}× {{ p.part_name }}
 						</span>
 					</div>
 					<div class="jcx-row">
 						<span class="jcx-lbl">Ölçü tablosu:</span>
-						<span :class="j.error_report.metadata.measurements ? 'mtag ok' : 'mtag warn'">
-							{{ j.error_report.metadata.measurements ? 'okundu' : 'operatör doğrulamalı' }}
+						<span :class="j.metadata.measurements ? 'mtag ok' : 'mtag warn'">
+							{{ j.metadata.measurements ? 'okundu' : 'operatör doğrulamalı' }}
 						</span>
 					</div>
-					<ul v-if="j.error_report.errors?.length" class="jc-errors">
-						<li v-for="(e, i) in j.error_report.errors" :key="i">{{ e }}</li>
+					<ul v-if="j.errors?.length" class="jc-errors">
+						<li v-for="(e, i) in j.errors" :key="i">{{ e }}</li>
 					</ul>
 				</div>
 				<div class="jc-foot">
@@ -140,6 +140,26 @@
 							<div class="rb-partchips">
 								<span v-for="(p, i) in review.metadata.parts" :key="i" class="part-chip">{{ p.part_name }}<em v-if="p.quantity > 1"> ×{{ p.quantity }}</em></span>
 							</div>
+						</div>
+						<div v-if="review.metadata?.measurements?.labels?.length" class="rb-measure">
+							<span class="rb-lbl">Ölçü tablosu (Maßtabelle, {{ review.metadata.measurements.unit || 'cm' }})</span>
+							<div class="rb-measure-scroll">
+								<table class="measure-tbl">
+									<thead>
+										<tr>
+											<th class="mt-corner">Beden</th>
+											<th v-for="(s, i) in review.metadata.measurements.sizes" :key="i">{{ s }}</th>
+										</tr>
+									</thead>
+									<tbody>
+										<tr v-for="lbl in review.metadata.measurements.labels" :key="lbl">
+											<th>{{ lbl }}</th>
+											<td v-for="(v, i) in review.metadata.measurements.matrix[lbl]" :key="i">{{ v ?? '—' }}</td>
+										</tr>
+									</tbody>
+								</table>
+							</div>
+							<p v-if="review.metadata.measurements.note" class="rb-measure-note">{{ review.metadata.measurements.note }}</p>
 						</div>
 						<ul v-if="review.errors?.length" class="rb-errors">
 							<li v-for="(e, i) in review.errors" :key="i">{{ e }}</li>
@@ -307,6 +327,14 @@ function retry(j) { router.post(`/atelier/conversions/${j.id}/retry`, {}, { pres
 .rb-partchips { display: flex; flex-wrap: wrap; gap: 5px; }
 .part-chip { font-size: 11px; background: #f4f4f8; color: #555; padding: 3px 8px; border-radius: 5px; }
 .part-chip em { font-style: normal; color: #999; }
+.rb-measure-scroll { overflow-x: auto; border: 1px solid #eee; border-radius: 8px; }
+.measure-tbl { border-collapse: collapse; font-size: 11px; white-space: nowrap; }
+.measure-tbl th, .measure-tbl td { border: 1px solid #eee; padding: 3px 7px; text-align: center; }
+.measure-tbl thead th { background: #f7f7fb; color: #444; font-weight: 700; position: sticky; top: 0; }
+.measure-tbl tbody th { background: #fafafa; color: #2563eb; font-weight: 700; text-align: left; position: sticky; left: 0; }
+.measure-tbl .mt-corner { position: sticky; left: 0; z-index: 1; }
+.measure-tbl td { color: #555; }
+.rb-measure-note { font-size: 10.5px; color: #999; margin: 5px 0 0; }
 .rb-errors { list-style: none; display: flex; flex-direction: column; gap: 3px; }
 .rb-errors li { font-size: 12px; color: #b45309; background: #fffbeb; padding: 4px 8px; border-radius: 6px; }
 .rb-files { display: flex; gap: 8px; }
