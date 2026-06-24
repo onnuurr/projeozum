@@ -139,6 +139,8 @@ def _assemble_grid(tiles):
     """(r,c) etiketli karoları tek koordinata birleştir. → (lines, meta, errors)."""
     errors = []
     coords = [(lbl, w, h, segs) for lbl, w, h, segs in tiles if lbl]
+    if not coords:
+        return [], {"grid": {"rows": 0, "cols": 0}, "tiles": 0, "scale_verified": False, "scale_deviation_mm": None, "_grid_full": False}, ["Izgara etiketi hiçbir karoda bulunamadı."]
     rows = max((lbl[0] for lbl, *_ in coords), default=0)
     cols = max((lbl[1] for lbl, *_ in coords), default=0)
     sizes = [(w, h) for _, w, h, _ in coords]
@@ -169,6 +171,8 @@ def _assemble_contact_sheet(tiles):
 
     Her karo kenar-eşleştirme etiketleriyle birlikte DXF'e konur; kalıpçı CAD'de
     etiketleri eşleyerek birleştirir. → (lines, texts, meta, errors)."""
+    if not tiles:
+        return [], [], {"tiles": 0, "scale_verified": False, "scale_deviation_mm": None, "_grid_full": True}, ["Kalıp karosu yok."]
     lines, texts = [], []
     tile_labels = []
     w0, h0 = tiles[0][1], tiles[0][2]
