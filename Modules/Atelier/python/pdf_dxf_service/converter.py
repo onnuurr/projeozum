@@ -28,6 +28,7 @@ ROLE_LAYER = {
     "sari":    ("BEDEN_SARI", 2),
     "kirmizi": ("BEDEN_KIRMIZI", 1),
     "mavi":    ("BEDEN_MAVI", 5),
+    "grain":   ("GRAINLINE", 8),
 }
 LABEL_LAYER = "MONTAJ_ETIKET"
 CONTACT_COLS = 4          # kontak-sayfasında karo başına sütun
@@ -92,6 +93,28 @@ def _build_dxf(lines, texts) -> str:
     buf = io.StringIO()
     doc.write(buf)
     return buf.getvalue()
+
+
+def build_dxf_from_polylines(polylines) -> str:
+    """mm cinsinden poligonları (izleme çıktısı) DXF'e çevirir. role bilinmiyorsa KALIP."""
+    lines = []
+    for pl in polylines:
+        role = pl.get("role", "cut")
+        pts = pl.get("points", [])
+        closed = pl.get("closed", True)
+        if len(pts) < 2:
+            continue
+        seq = list(pts)
+        if closed and len(pts) >= 3:
+            seq = seq + [pts[0]]
+        for i in range(len(seq) - 1):
+            x1, y1 = seq[i]
+            x2, y2 = seq[i + 1]
+            lines.append((role, round(float(x1), 3), round(float(y1), 3),
+                          round(float(x2), 3), round(float(y2), 3)))
+    if not lines:
+        raise ValueError("Geçerli poligon yok (kenar üreten en az 2 nokta gerekli).")
+    return _build_dxf(lines, [])
 
 
 def _stem(filename: str) -> str:

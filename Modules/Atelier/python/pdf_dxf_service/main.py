@@ -16,10 +16,11 @@ from __future__ import annotations
 
 import base64
 
-from fastapi import FastAPI, File, UploadFile
-from fastapi.responses import JSONResponse
+import fitz  # PyMuPDF
+from fastapi import FastAPI, File, Form, UploadFile
+from fastapi.responses import JSONResponse, Response
 
-from converter import convert_pdf, probe_pdf
+from converter import build_dxf_from_polylines, convert_pdf, probe_pdf
 
 app = FastAPI(title="Atelier PDF→DXF", version="0.1.0")
 
@@ -62,3 +63,16 @@ async def convert(file: UploadFile = File(...)) -> JSONResponse:
         "metadata": result.metadata,
         "errors": result.errors,
     })
+
+
+@app.post("/build-dxf")
+async def build_dxf(payload: dict) -> JSONResponse:
+    """İnsan-destekli izleme: mm cinsinden poligonlar → DXF."""
+    polylines = payload.get("polylines", [])
+    if not isinstance(polylines, list) or not polylines:
+        return JSONResponse({"errors": ["polylines boş."]}, status_code=422)
+    try:
+        dxf = build_dxf_from_polylines(polylines)
+    except ValueError as exc:
+        return JSONResponse({"errors": [str(exc)]}, status_code=422)
+    return JSONResponse({"dxf": dxf})
