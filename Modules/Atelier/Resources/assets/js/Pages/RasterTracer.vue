@@ -1,65 +1,70 @@
 <template>
-  <div>
+  <div class="raster-tracer">
     <Head :title="`Sayısallaştır — ${pattern.name}`" />
+    <Breadcrumb
+      :items="[
+        { label: 'Ana Sayfa', to: '/workflow', icon: 'home' },
+        { label: 'Üretim Atölyesi', to: '/atelier' },
+        { label: 'Kalıplar', to: '/atelier/patterns' },
+        { label: 'Sayısallaştır' },
+      ]"
+    />
     <AtelierNav />
-    <div class="p-4 space-y-3">
-      <div class="flex items-center gap-3 flex-wrap">
-        <h1 class="text-lg font-semibold">Sayısallaştır: {{ pattern.name }}</h1>
-        <span class="text-sm text-gray-500">Sayfa {{ page + 1 }} / {{ pageCount || '?' }}</span>
-        <button class="px-2 py-1 border rounded" :disabled="page === 0" @click="changePage(page - 1)">◀ Önceki</button>
-        <button class="px-2 py-1 border rounded" :disabled="pageCount && page >= pageCount - 1" @click="changePage(page + 1)">Sonraki ▶</button>
-        <label class="text-sm">DPI
-          <select v-model.number="dpi" @change="loadImage" class="border rounded px-1">
-            <option :value="150">150</option><option :value="200">200</option><option :value="300">300</option>
-          </select>
-        </label>
-      </div>
 
-      <div class="flex gap-2 items-center text-sm flex-wrap">
-        <span class="font-medium">Araç:</span>
-        <button class="px-2 py-1 border rounded" :class="{ 'bg-blue-600 text-white': tool === 'calibrate' }" @click="tool = 'calibrate'">📏 Kalibrasyon</button>
-        <button class="px-2 py-1 border rounded" :class="{ 'bg-blue-600 text-white': tool === 'trace' }" @click="tool = 'trace'">✏️ İzle</button>
-        <span v-if="pxPerMm" class="text-green-700">Ölçek: {{ pxPerMm.toFixed(3) }} px/mm</span>
-        <span v-else class="text-red-600">Ölçek henüz ayarlanmadı (kalibrasyon aracıyla bilinen bir mesafeyi çizin)</span>
-      </div>
+    <div class="rt-head">
+      <h1 class="rt-title">Sayısallaştır: {{ pattern.name }}</h1>
+      <span class="rt-page">Sayfa {{ page + 1 }} / {{ pageCount || '?' }}</span>
+      <button class="btn btn-sm btn-secondary" :disabled="page === 0" @click="changePage(page - 1)">◀ Önceki</button>
+      <button class="btn btn-sm btn-secondary" :disabled="pageCount && page >= pageCount - 1" @click="changePage(page + 1)">Sonraki ▶</button>
+      <label class="rt-dpi">DPI
+        <select v-model.number="dpi" class="form-input rt-select" @change="loadImage">
+          <option :value="150">150</option><option :value="200">200</option><option :value="300">300</option>
+        </select>
+      </label>
+    </div>
 
-      <div class="border rounded overflow-auto bg-gray-100" style="max-height:70vh">
-        <svg v-if="imgUrl" :width="imgW" :height="imgH" @click="onSvgClick" style="display:block">
-          <image :href="imgUrl" :width="imgW" :height="imgH" />
-          <!-- kalibrasyon çizgisi -->
-          <line v-if="calib.a && calib.b" :x1="calib.a.x" :y1="calib.a.y" :x2="calib.b.x" :y2="calib.b.y"
-                stroke="red" stroke-width="2" />
-          <!-- aktif izleme -->
-          <polyline v-if="current.points.length" :points="ptsStr(current.points)"
-                    fill="none" stroke="#2563eb" stroke-width="2" />
-          <circle v-for="(p, i) in current.points" :key="i" :cx="p.x" :cy="p.y" r="3" fill="#2563eb" />
-          <!-- kaydedilmiş parçalar -->
-          <polygon v-for="(pc, i) in pieces" :key="'pc' + i" :points="pieceStr(pc)"
-                   fill="rgba(16,185,129,0.15)" stroke="#059669" stroke-width="2" />
-        </svg>
-        <div v-else class="p-8 text-center text-gray-500">Sayfa yükleniyor…</div>
-      </div>
+    <div class="rt-tools">
+      <span class="rt-tools-label">Araç:</span>
+      <button class="btn btn-sm" :class="tool === 'calibrate' ? 'btn-primary' : 'btn-secondary'" @click="tool = 'calibrate'">📏 Kalibrasyon</button>
+      <button class="btn btn-sm" :class="tool === 'trace' ? 'btn-primary' : 'btn-secondary'" @click="tool = 'trace'">✏️ İzle</button>
+      <span v-if="pxPerMm" class="rt-scale ok">Ölçek: {{ pxPerMm.toFixed(3) }} px/mm</span>
+      <span v-else class="rt-scale warn">Ölçek ayarlanmadı — kalibrasyon aracıyla bilinen bir mesafeyi çizin</span>
+    </div>
 
-      <!-- aktif parça paneli -->
-      <div v-if="tool === 'trace'" class="flex gap-2 items-end flex-wrap border-t pt-2">
-        <label class="text-sm">Parça adı<input v-model="current.name" class="border rounded px-2 py-1 block" /></label>
-        <label class="text-sm">Adet<input v-model.number="current.quantity" type="number" min="1" class="border rounded px-2 py-1 block w-20" /></label>
-        <label class="text-sm">Beden<input v-model="current.size" class="border rounded px-2 py-1 block w-28" /></label>
-        <button class="px-2 py-1 border rounded" @click="closeCurrentPiece" :disabled="current.points.length < 3">✓ Parçayı bitir</button>
-        <button class="px-2 py-1 border rounded" @click="current.points = []" :disabled="!current.points.length">Temizle</button>
-      </div>
+    <div class="rt-canvas">
+      <svg v-if="imgUrl" :width="imgW" :height="imgH" @click="onSvgClick">
+        <image :href="imgUrl" :width="imgW" :height="imgH" />
+        <line v-if="calib.a && calib.b" :x1="calib.a.x" :y1="calib.a.y" :x2="calib.b.x" :y2="calib.b.y"
+              stroke="#dc2626" stroke-width="2" />
+        <polyline v-if="current.points.length" :points="ptsStr(current.points)"
+                  fill="none" stroke="#2563eb" stroke-width="2" />
+        <circle v-for="(p, i) in current.points" :key="i" :cx="p.x" :cy="p.y" r="3" fill="#2563eb" />
+        <polygon v-for="(pc, i) in pieces" :key="'pc' + i" :points="pieceStr(pc)"
+                 fill="rgba(16,185,129,0.15)" stroke="#059669" stroke-width="2" />
+      </svg>
+      <div v-else class="rt-loading">Sayfa yükleniyor…</div>
+    </div>
 
-      <ul class="text-sm list-disc pl-5">
-        <li v-for="(pc, i) in pieces" :key="'l' + i">{{ pc.name }} ({{ pc.quantity }}x{{ pc.size ? ', ' + pc.size : '' }})
-          <button class="text-red-600 ml-2" @click="pieces.splice(i, 1)">sil</button></li>
-      </ul>
+    <div v-if="tool === 'trace'" class="rt-panel">
+      <label class="rt-field"><span class="form-label">Parça adı</span><input v-model="current.name" class="form-input" /></label>
+      <label class="rt-field"><span class="form-label">Adet</span><input v-model.number="current.quantity" type="number" min="1" class="form-input rt-narrow" /></label>
+      <label class="rt-field"><span class="form-label">Beden</span><input v-model="current.size" class="form-input rt-mid" /></label>
+      <button class="btn btn-sm btn-success" :disabled="current.points.length < 3" @click="closeCurrentPiece">✓ Parçayı bitir</button>
+      <button class="btn btn-sm btn-secondary" :disabled="!current.points.length" @click="current.points = []">Temizle</button>
+    </div>
 
-      <div class="flex gap-2 items-end border-t pt-2 flex-wrap">
-        <label class="text-sm">Kalıp adı<input v-model="meta.name" class="border rounded px-2 py-1 block" /></label>
-        <label class="text-sm">Ürün tipi<input v-model="meta.product_type" class="border rounded px-2 py-1 block" /></label>
-        <label class="text-sm">Beden aralığı<input v-model="meta.size_range" class="border rounded px-2 py-1 block" /></label>
-        <button class="px-3 py-1 rounded bg-green-600 text-white disabled:opacity-50" :disabled="!canSave" @click="save">💾 Kaydet (DXF)</button>
-      </div>
+    <ul v-if="pieces.length" class="rt-pieces">
+      <li v-for="(pc, i) in pieces" :key="'l' + i">
+        <span>{{ pc.name }} (×{{ pc.quantity }}{{ pc.size ? ', ' + pc.size : '' }})</span>
+        <button class="btn btn-xs btn-outline-danger" @click="pieces.splice(i, 1)">sil</button>
+      </li>
+    </ul>
+
+    <div class="rt-panel rt-save">
+      <label class="rt-field"><span class="form-label">Kalıp adı</span><input v-model="meta.name" class="form-input" /></label>
+      <label class="rt-field"><span class="form-label">Ürün tipi</span><input v-model="meta.product_type" class="form-input" /></label>
+      <label class="rt-field"><span class="form-label">Beden aralığı</span><input v-model="meta.size_range" class="form-input" /></label>
+      <button class="btn btn-success" :disabled="!canSave" @click="save">💾 Kaydet (DXF)</button>
     </div>
   </div>
 </template>
@@ -68,6 +73,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { Head, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import Breadcrumb from '@/Components/Breadcrumb.vue'
 import AtelierNav from '../Components/AtelierNav.vue'
 
 defineOptions({ layout: AppLayout })
@@ -154,3 +160,50 @@ function save() {
 
 onMounted(loadImage)
 </script>
+
+<style scoped>
+.raster-tracer { padding: 0 4px 24px; }
+
+.rt-head {
+	display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+	margin: 14px 0 10px;
+}
+.rt-title { font-size: 17px; font-weight: 700; color: rgb(var(--color-ink, 26 26 46)); }
+.rt-page { font-size: 12px; color: #888; }
+.rt-dpi { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #666; }
+.rt-select { height: 30px; width: auto; padding: 0 8px; }
+
+.rt-tools {
+	display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+	margin-bottom: 10px; font-size: 13px;
+}
+.rt-tools-label { font-weight: 600; color: #555; }
+.rt-scale { font-size: 12px; font-weight: 600; }
+.rt-scale.ok { color: #16a34a; }
+.rt-scale.warn { color: #dc2626; }
+
+.rt-canvas {
+	border: 1.5px solid #e8e8f0; border-radius: 10px;
+	overflow: auto; max-height: 70vh; background: #f4f4f8;
+}
+.rt-canvas svg { display: block; cursor: crosshair; }
+.rt-loading { padding: 40px; text-align: center; color: #999; }
+
+.rt-panel {
+	display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap;
+	border-top: 1px solid #ececf2; padding-top: 12px; margin-top: 12px;
+}
+.rt-field { display: flex; flex-direction: column; gap: 4px; }
+.rt-narrow { width: 80px; }
+.rt-mid { width: 120px; }
+.rt-save { align-items: flex-end; }
+
+.rt-pieces {
+	list-style: none; margin: 10px 0 0; padding: 0;
+	display: flex; flex-direction: column; gap: 6px;
+}
+.rt-pieces li {
+	display: flex; align-items: center; gap: 10px;
+	font-size: 13px; color: #333;
+}
+</style>
