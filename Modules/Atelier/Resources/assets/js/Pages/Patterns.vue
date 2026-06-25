@@ -64,6 +64,9 @@
 					<span v-else-if="p.extractionStatus === 'failed'" class="extract-badge failed" :title="p.extractionError">
 						çıkarım başarısız
 					</span>
+					<span v-else-if="p.extractionStatus === 'needs_tracing'" class="extract-badge tracing" title="Taranmış/raster — elle sayısallaştırılmalı">
+						sayısallaştırma bekliyor
+					</span>
 				</div>
 				<div class="pc-body">
 					<div class="pc-title-row">
@@ -95,6 +98,7 @@
 						</div>
 						<div v-if="canManage" class="pc-actions">
 							<button v-if="p.extractionStatus === 'failed'" class="table-action-btn" @click="retryExtraction(p)" title="Çıkarımı yeniden dene">↻</button>
+							<button v-if="p.extractionStatus === 'needs_tracing'" class="table-action-btn" @click="openTracer(p)" title="Sayısallaştır (elle izle)">🖊️</button>
 							<button class="table-action-btn" @click="openEdit(p)" title="Düzenle">✏️</button>
 							<button class="table-action-btn danger" @click="remove(p)" title="Sil">🗑️</button>
 						</div>
@@ -335,6 +339,10 @@ function retryExtraction(p) {
 	router.post(`/atelier/patterns/${p.id}/retry-extraction`, {}, { preserveScroll: true })
 }
 
+function openTracer(p) {
+	router.get(`/atelier/patterns/${p.id}/tracer`)
+}
+
 /* Çıkarım devam ederken listeyi hafifçe taze tut.
    İşçi/servis çalışmıyorsa taslak kalıcı 'processing' kalır → sonsuz dönmesin
    diye en çok MAX_POLLS deneme (≈80sn) sonra durur (yeni içe aktarım sıfırlar). */
@@ -538,6 +546,7 @@ textarea.form-input { resize: vertical; }
 .extract-badge { position: absolute; bottom: 8px; left: 8px; display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 700; padding: 3px 9px; border-radius: 6px; }
 .extract-badge.processing { background: rgba(37,99,235,.92); color: #fff; }
 .extract-badge.failed { background: rgba(220,38,38,.92); color: #fff; cursor: help; }
+.extract-badge.tracing { background: rgba(245,158,11,.95); color: #fff; cursor: help; }
 .ex-spinner { width: 9px; height: 9px; border: 2px solid rgba(255,255,255,.45); border-top-color: #fff; border-radius: 50%; animation: ex-spin .7s linear infinite; }
 @keyframes ex-spin { to { transform: rotate(360deg); } }
 
