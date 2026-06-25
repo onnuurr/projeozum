@@ -55,6 +55,19 @@ class MockPdfDxfConverter implements PdfDxfConverterContract
         return null;
     }
 
+    public function renderPage(string $pdfAbsolutePath, int $page, int $dpi = 200): string
+    {
+        // 1x1 PNG (servissiz dev/test backdrop'u).
+        return base64_decode(
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQDJ/pPGAAAAAElFTkSuQmCC'
+        );
+    }
+
+    public function buildDxf(array $polylines): string
+    {
+        return $this->minimalDxf();
+    }
+
     /** Geçerli, boş bir DXF iskeleti (yalnız mock için). */
     private function minimalDxf(): string
     {

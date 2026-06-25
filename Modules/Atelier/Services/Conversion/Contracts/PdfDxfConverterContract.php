@@ -27,4 +27,14 @@ interface PdfDxfConverterContract
      * @return array{kind:string,pages?:int,vector_pages?:int,image_pages?:int,has_grid?:bool}|null
      */
     public function probe(string $pdfAbsolutePath): ?array;
+
+    /** PDF sayfasını PNG'ye render eder (tuval backdrop). PNG bytes döner. */
+    public function renderPage(string $pdfAbsolutePath, int $page, int $dpi = 200): string;
+
+    /**
+     * mm cinsinden poligonları (insan-destekli izleme) DXF'e çevirir.
+     *
+     * @param  array<int,array{role:string,points:array<int,array{0:float,1:float}>,closed:bool}>  $polylines
+     */
+    public function buildDxf(array $polylines): string;
 }

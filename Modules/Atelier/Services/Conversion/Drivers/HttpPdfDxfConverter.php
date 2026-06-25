@@ -59,4 +59,37 @@ class HttpPdfDxfConverter implements PdfDxfConverterContract
 
         return is_array($json) && isset($json['kind']) ? $json : null;
     }
+
+    public function renderPage(string $pdfAbsolutePath, int $page, int $dpi = 200): string
+    {
+        if (! is_file($pdfAbsolutePath)) {
+            throw new RuntimeException("Render edilecek PDF bulunamadı: {$pdfAbsolutePath}");
+        }
+        $base = rtrim((string) config('atelier.conversion.service_url'), '/');
+        $response = Http::timeout((int) config('atelier.conversion.timeout', 300))
+            ->attach('file', (string) file_get_contents($pdfAbsolutePath), basename($pdfAbsolutePath))
+            ->post("{$base}/render", ['page' => $page, 'dpi' => $dpi]);
+
+        if ($response->failed()) {
+            throw new RuntimeException("Render servisi başarısız (HTTP {$response->status()}).");
+        }
+
+        return $response->body();
+    }
+
+    public function buildDxf(array $polylines): string
+    {
+        $base = rtrim((string) config('atelier.conversion.service_url'), '/');
+        $response = Http::timeout((int) config('atelier.conversion.timeout', 300))
+            ->asJson()->post("{$base}/build-dxf", ['polylines' => $polylines]);
+
+        if ($response->failed()) {
+            throw new RuntimeException(sprintf(
+                'DXF üretimi başarısız (HTTP %d): %s',
+                $response->status(), substr($response->body(), 0, 300),
+            ));
+        }
+
+        return (string) ($response->json('dxf') ?? '');
+    }
 }
