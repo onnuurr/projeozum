@@ -21,3 +21,30 @@ def test_build_dxf_rejects_degenerate():
         "polylines": [{"role": "cut", "points": [[0, 0]], "closed": True}]
     })
     assert resp.status_code == 422
+
+
+import fitz
+
+
+def _sample_pdf_bytes(pages=2):
+    doc = fitz.open()
+    for _ in range(pages):
+        doc.new_page(width=595, height=842)  # A4 pt
+    return doc.tobytes()
+
+
+def test_render_returns_png_with_page_count():
+    pdf = _sample_pdf_bytes(pages=3)
+    resp = client.post("/render", files={"file": ("p.pdf", pdf, "application/pdf")},
+                       data={"page": 0, "dpi": 150})
+    assert resp.status_code == 200
+    assert resp.headers["content-type"] == "image/png"
+    assert resp.headers["x-page-count"] == "3"
+    assert resp.content[:8] == b"\x89PNG\r\n\x1a\n"
+
+
+def test_render_out_of_range_page():
+    pdf = _sample_pdf_bytes(pages=1)
+    resp = client.post("/render", files={"file": ("p.pdf", pdf, "application/pdf")},
+                       data={"page": 5})
+    assert resp.status_code == 422

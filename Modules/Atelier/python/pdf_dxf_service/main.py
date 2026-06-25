@@ -65,6 +65,29 @@ async def convert(file: UploadFile = File(...)) -> JSONResponse:
     })
 
 
+@app.post("/render")
+async def render(file: UploadFile = File(...),
+                 page: int = Form(0), dpi: int = Form(200)) -> Response:
+    """PDF sayfasını PNG'ye render eder (tuval backdrop). Header'da sayfa sayısı/boyut."""
+    data = await file.read()
+    if not data:
+        return JSONResponse({"errors": ["Boş dosya."]}, status_code=422)
+    doc = fitz.open(stream=data, filetype="pdf")
+    if page < 0 or page >= doc.page_count:
+        return JSONResponse(
+            {"errors": [f"Sayfa yok: {page} (toplam {doc.page_count})."]},
+            status_code=422,
+        )
+    dpi = max(72, min(300, dpi))
+    pix = doc[page].get_pixmap(dpi=dpi)
+    png = pix.tobytes("png")
+    return Response(content=png, media_type="image/png", headers={
+        "X-Page-Count": str(doc.page_count),
+        "X-Width": str(pix.width),
+        "X-Height": str(pix.height),
+    })
+
+
 @app.post("/build-dxf")
 async def build_dxf(payload: dict) -> JSONResponse:
     """İnsan-destekli izleme: mm cinsinden poligonlar → DXF."""
