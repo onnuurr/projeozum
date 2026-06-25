@@ -3,3 +3,9 @@ uvicorn[standard]>=0.29
 PyMuPDF>=1.24
 ezdxf>=1.2
 python-multipart>=0.0.9
+# Raster otomatik vektörleştirme (raster_vectorize.py)
+numpy>=1.26
+scikit-image>=0.22
+shapely>=2.0
+sknw>=0.15
+opencv-python-headless>=4.9

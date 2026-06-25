@@ -1,0 +1,62 @@
+import math
+
+import numpy as np
+
+from raster_vectorize import detect_scheme, mask_to_polylines, vectorize_image
+
+
+def _white(h, w):
+    return np.full((h, w, 3), 255, np.uint8)
+
+
+def _length(poly):
+    return sum(math.dist(poly[i], poly[i + 1]) for i in range(len(poly) - 1))
+
+
+def test_detect_scheme_color():
+    img = _white(50, 50)
+    img[10:40, 20:23] = (200, 20, 20)  # kırmızı dikey çizgi
+    assert detect_scheme(img) == "color"
+
+
+def test_detect_scheme_mono():
+    img = _white(50, 50)
+    img[10:40, 20:23] = (20, 20, 20)  # siyah çizgi
+    assert detect_scheme(img) == "mono"
+
+
+def test_detect_scheme_empty():
+    assert detect_scheme(_white(30, 30)) == "empty"
+
+
+def test_mask_to_polylines_line():
+    mask = np.zeros((50, 80), bool)
+    mask[24:27, 10:70] = True  # kalın yatay çizgi (60px)
+    pls = mask_to_polylines(mask, dpi=300, simplify_mm=0.2)
+    assert len(pls) >= 1
+    longest = max(pls, key=_length)
+    # ~60px * 25.4/300 mm ≈ 5.0mm; en az 40px karşılığı bekle
+    assert _length(longest) > 40 * 25.4 / 300
+
+
+def test_vectorize_image_two_colors_two_layers():
+    img = _white(90, 90)
+    img[10:80, 18:21] = (200, 20, 20)    # kırmızı → kirmizi
+    img[10:80, 68:71] = (20, 180, 180)   # cyan → cyan
+    polys, meta = vectorize_image(img, dpi=300)
+    assert meta["scheme"] == "color"
+    assert "kirmizi" in polys and "cyan" in polys
+
+
+def test_vectorize_image_mono_single_layer():
+    img = _white(80, 80)
+    img[10:70, 38:41] = (20, 20, 20)
+    polys, meta = vectorize_image(img, dpi=300)
+    assert meta["scheme"] == "mono"
+    assert set(polys.keys()) == {"ortak"}
+
+
+def test_vectorize_image_empty():
+    polys, meta = vectorize_image(_white(40, 40), dpi=300)
+    assert meta["scheme"] == "empty"
+    assert polys == {}
