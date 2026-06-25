@@ -117,6 +117,98 @@ def build_dxf_from_polylines(polylines) -> str:
     return _build_dxf(lines, [])
 
 
+def _color_role(rgb) -> str:
+    """Vektör path rengi (0..1 RGB) → ROLE_LAYER rolü. Akromatik→ortak, renkli→hue."""
+    if not rgb:
+        return "ortak"
+    try:
+        r, g, b = float(rgb[0]), float(rgb[1]), float(rgb[2])
+    except (TypeError, ValueError, IndexError):
+        return "ortak"
+    mx, mn = max(r, g, b), min(r, g, b)
+    c = mx - mn
+    if c <= 0.18:
+        return "ortak"
+    if mx == r:
+        h = ((g - b) / c) % 6
+    elif mx == g:
+        h = ((b - r) / c) + 2
+    else:
+        h = ((r - g) / c) + 4
+    h = (h * 60.0) % 360.0
+    refs = [(0.0, "kirmizi"), (60.0, "sari"), (120.0, "yesil"),
+            (180.0, "cyan"), (240.0, "mavi"), (300.0, "mor")]
+    return min(refs, key=lambda hr: min(abs(h - hr[0]), 360.0 - abs(h - hr[0])))[1]
+
+
+def _item_points(it):
+    """get_drawings item → ([(x,y)... pt, sayfa-yerel y-aşağı], closed)."""
+    k = it[0]
+    if k == "l":
+        p1, p2 = it[1], it[2]
+        return [(p1.x, p1.y), (p2.x, p2.y)], False
+    if k == "c":
+        p1, c1, c2, p2 = it[1], it[2], it[3], it[4]
+        pts = []
+        for t in (0.0, 0.25, 0.5, 0.75, 1.0):
+            mt = 1.0 - t
+            x = mt**3 * p1.x + 3*mt*mt*t * c1.x + 3*mt*t*t * c2.x + t**3 * p2.x
+            y = mt**3 * p1.y + 3*mt*mt*t * c1.y + 3*mt*t*t * c2.y + t**3 * p2.y
+            pts.append((x, y))
+        return pts, False
+    if k == "re":
+        r = it[1]
+        return [(r.x0, r.y0), (r.x1, r.y0), (r.x1, r.y1), (r.x0, r.y1)], True
+    return [], False
+
+
+def vectorize_vector_generic(doc, filename: str = "") -> ConvertOutput:
+    """Profilsiz vektör PDF → tüm path'leri renk→rol katmanlı DXF'e döker (Burda vb.).
+
+    Profil-güdümlü hat satıcıyı tanıyamadığında devreye girer. Karo birleştirme/parça
+    ayrımı YOK; koordinatlar gerçek (mm) olduğundan ölçek doğrulanmış sayılır. Sayfalar
+    yan yana (x-offset) dizilir — operatör CAD'de düzenler.
+    """
+    polylines = []
+    x_off = 0.0
+    gap_mm = 20.0
+    for i in range(doc.page_count):
+        page = doc[i]
+        h_mm = page.rect.height * PT_TO_MM
+        for path in page.get_drawings():
+            role = _color_role(path.get("color"))
+            for it in path.get("items", []):
+                pts, closed = _item_points(it)
+                if len(pts) < 2:
+                    continue
+                poly = [(round(x * PT_TO_MM + x_off, 3), round(h_mm - y * PT_TO_MM, 3))
+                        for x, y in pts]
+                polylines.append({"role": role, "points": poly, "closed": closed})
+        x_off += page.rect.width * PT_TO_MM + gap_mm
+
+    name = _stem(filename)
+    if not polylines:
+        return ConvertOutput("red", 0.0, None, {"name": name, "source": "vector_generic"},
+                             ["Vektör çizgi bulunamadı."])
+
+    dxf = build_dxf_from_polylines(polylines)
+    roles = sorted({p["role"] for p in polylines})
+    size_layers = sorted({ROLE_LAYER[r][0] for r in roles
+                          if ROLE_LAYER.get(r, ("KALIP",))[0].startswith("BEDEN_")})
+    meta = {
+        "name": name,
+        "source": "vector_generic",
+        "size_layers": size_layers,
+        "segment_count": len(polylines),
+        "scale_verified": True,
+        "scale_deviation_mm": None,
+    }
+    return ConvertOutput(
+        "yellow", 50.0, dxf, meta,
+        ["Genel vektör çıkarımı (satıcı profili yok) — parça/beden ayrımı operatöre kalır."],
+    )
+
+
 def _stem(filename: str) -> str:
     base = (filename or "kalip").rsplit("/", 1)[-1].rsplit("\\", 1)[-1]
     return base.rsplit(".", 1)[0] or "kalip"
@@ -238,6 +330,9 @@ def convert_pdf(data: bytes, filename: str = "") -> ConvertOutput:
 
     profile, score, candidates = detect_profile(doc)
     if profile is None:
+        # Profil yok ama vektör çizim varsa → genel vektör çıkarımı (Burda vb. profilsiz).
+        if has_vectors:
+            return vectorize_vector_generic(doc, filename)
         return ConvertOutput("red", round(score * 100, 1), None,
                              {"name": _stem(filename), "profile_candidates": candidates},
                              ["Tanınan satıcı profili yok (vektör değil ya da yeni şema)."])
@@ -307,12 +402,17 @@ def probe_pdf(data: bytes, filename: str = "") -> dict:
 
     profile, score, candidates = detect_profile(doc)
     img_pages = sum(1 for i in range(n) if doc[i].get_images())
+    has_vectors = any(len(doc[i].get_drawings()) > 0 for i in range(n))
     if profile is not None:
         tiles = _collect_tiles(doc, profile)
         if tiles:
             return {"kind": "vector_tiled", "pages": n, "profile": profile.name,
                     "score": score, "tiles": len(tiles)}
         return {"kind": "vector", "pages": n, "profile": profile.name, "score": score}
+    # Profil yok ama vektör çizim var → 'vector' (genel çıkarımla işlenir; 'empty' diye atlanmaz).
+    if has_vectors:
+        return {"kind": "vector", "pages": n, "profile": None, "unprofiled": True,
+                "profile_candidates": candidates}
     if img_pages > 0:
         return {"kind": "raster", "pages": n, "image_pages": img_pages,
                 "profile_candidates": candidates}

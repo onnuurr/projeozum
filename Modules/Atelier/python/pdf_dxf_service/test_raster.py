@@ -88,3 +88,34 @@ def test_convert_pdf_routes_raster_to_vectorizer():
     assert out.dxf is not None
     assert "BEDEN_" in out.dxf  # renk→beden katmanı
     assert out.metadata.get("scale_verified") is False
+
+
+def _vector_pdf_no_profile():
+    """Profilsiz vektör PDF: siyah çizgiler, gömülü resim yok (ör. Burda)."""
+    import fitz
+
+    doc = fitz.open()
+    page = doc.new_page(width=300, height=300)
+    shape = page.new_shape()
+    shape.draw_line((50, 50), (250, 50))
+    shape.draw_line((250, 50), (250, 250))
+    shape.finish(color=(0, 0, 0), width=0.6)
+    shape.commit()
+    return doc.tobytes()
+
+
+def test_probe_unprofiled_vector_is_vector_not_empty():
+    from converter import probe_pdf
+
+    assert probe_pdf(_vector_pdf_no_profile())["kind"] == "vector"
+
+
+def test_convert_pdf_generic_vector_fallback():
+    from converter import convert_pdf
+
+    out = convert_pdf(_vector_pdf_no_profile(), "bryuki.pdf")
+    assert out.classification == "yellow"
+    assert out.dxf is not None
+    assert "KALIP" in out.dxf
+    assert out.metadata.get("source") == "vector_generic"
+    assert out.metadata.get("scale_verified") is True  # vektör koordinat = gerçek mm
