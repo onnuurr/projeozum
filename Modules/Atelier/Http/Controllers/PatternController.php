@@ -9,10 +9,12 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Modules\Atelier\Http\Requests\SaveTracedPatternRequest;
 use Modules\Atelier\Jobs\ExtractPatternFromPdfJob;
 use Modules\Atelier\Models\Pattern;
 use Modules\Atelier\Services\Conversion\Contracts\PdfDxfConverterContract;
 use Modules\Atelier\Services\PatternLibraryService;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 class PatternController extends Controller
 {
@@ -143,6 +145,88 @@ class PatternController extends Controller
         ExtractPatternFromPdfJob::dispatch($pattern->id);
 
         return redirect()->route('atelier.patterns.index')->with('success', 'Çıkarım yeniden başlatıldı.');
+    }
+
+    /**
+     * Raster taslak için insan-destekli izleme editörünü açar.
+     */
+    public function tracer(Pattern $pattern): Response
+    {
+        abort_unless(
+            $pattern->pdf_path && $pattern->extraction_status === Pattern::EXTRACTION_NEEDS_TRACING,
+            404,
+        );
+
+        return Inertia::render('Atelier::RasterTracer', [
+            'pattern' => [
+                'id'          => $pattern->id,
+                'name'        => $pattern->name,
+                'productType' => $pattern->product_type,
+                'sizeRange'   => $pattern->size_range,
+            ],
+            'imageBase' => route('atelier.patterns.tracer-image', ['pattern' => $pattern->id]),
+        ]);
+    }
+
+    /**
+     * Taranmış PDF sayfasını PNG olarak render eder (tuval backdrop'u).
+     */
+    public function tracerImage(Request $request, Pattern $pattern): HttpResponse
+    {
+        abort_unless((bool) $pattern->pdf_path, 404);
+        $page = max(0, (int) $request->query('page', 0));
+        $dpi  = min(300, max(72, (int) $request->query('dpi', 200)));
+        $abs  = Storage::disk('public')->path($pattern->pdf_path);
+
+        try {
+            $png = $this->converter->renderPage($abs, $page, $dpi);
+        } catch (\Throwable $e) {
+            abort(502, 'Sayfa render edilemedi: ' . $e->getMessage());
+        }
+
+        return response($png, 200)->header('Content-Type', 'image/png');
+    }
+
+    /**
+     * İzleme çıktısını (px poligonları) mm'ye çevirir, DXF üretir, kütüphaneye yazar.
+     */
+    public function saveTraced(SaveTracedPatternRequest $request, Pattern $pattern): RedirectResponse
+    {
+        abort_unless($pattern->extraction_status === Pattern::EXTRACTION_NEEDS_TRACING, 404);
+        $v   = $request->validated();
+        $ppm = (float) $v['calibration']['px_per_mm'];
+        $h   = (int) $v['calibration']['image_height_px'];
+
+        $polylines = [];
+        $parts     = [];
+        foreach ($v['pieces'] as $piece) {
+            foreach ($piece['polylines'] as $pl) {
+                $mm = [];
+                foreach ($pl['points'] as $pt) {
+                    $mm[] = [round(((float) $pt[0]) / $ppm, 3), round(($h - (float) $pt[1]) / $ppm, 3)];
+                }
+                $polylines[] = ['role' => $pl['role'], 'points' => $mm, 'closed' => $pl['role'] === 'cut'];
+            }
+            $parts[] = [
+                'part_name'  => $piece['name'],
+                'quantity'   => $piece['quantity'] ?? 1,
+                'size_range' => $piece['size'] ?? null,
+            ];
+        }
+
+        try {
+            $dxf = $this->converter->buildDxf($polylines);
+        } catch (\Throwable $e) {
+            return back()->withErrors(['trace' => 'DXF üretilemedi: ' . $e->getMessage()]);
+        }
+
+        $this->library->applyTracedDxf($pattern, $dxf, [
+            'name'         => $v['name'],
+            'product_type' => $v['product_type'] ?? $pattern->product_type,
+            'size_range'   => $v['size_range'] ?? null,
+        ], $parts);
+
+        return redirect()->route('atelier.patterns.index')->with('success', 'Kalıp sayısallaştırıldı.');
     }
 
     public function store(Request $request): RedirectResponse

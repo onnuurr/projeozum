@@ -108,6 +108,12 @@ Route::middleware(['auth', 'verified'])
             ->middleware('can:atelier.pattern.manage')->name('patterns.import');
         Route::post('patterns/{pattern}/retry-extraction', [\Modules\Atelier\Http\Controllers\PatternController::class, 'retryExtraction'])
             ->middleware('can:atelier.pattern.manage')->name('patterns.retry-extraction');
+        Route::get('patterns/{pattern}/tracer', [\Modules\Atelier\Http\Controllers\PatternController::class, 'tracer'])
+            ->middleware('can:atelier.pattern.manage')->name('patterns.tracer');
+        Route::get('patterns/{pattern}/tracer-image', [\Modules\Atelier\Http\Controllers\PatternController::class, 'tracerImage'])
+            ->middleware('can:atelier.pattern.manage')->name('patterns.tracer-image');
+        Route::post('patterns/{pattern}/traced', [\Modules\Atelier\Http\Controllers\PatternController::class, 'saveTraced'])
+            ->middleware('can:atelier.pattern.manage')->name('patterns.traced');
         Route::put('patterns/{pattern}', [\Modules\Atelier\Http\Controllers\PatternController::class, 'update'])
             ->middleware('can:atelier.pattern.manage')->name('patterns.update');
         Route::delete('patterns/{pattern}', [\Modules\Atelier\Http\Controllers\PatternController::class, 'destroy'])
