@@ -20,6 +20,8 @@ class Pattern extends Model
     public const EXTRACTION_PROCESSING = 'processing';
     public const EXTRACTION_DONE       = 'done';
     public const EXTRACTION_FAILED     = 'failed';
+    // Raster/taranmış PDF → otomatik çıkarım yapılamaz; insan-destekli izleme bekler.
+    public const EXTRACTION_NEEDS_TRACING = 'needs_tracing';
 
     protected $table = 'patterns';
 

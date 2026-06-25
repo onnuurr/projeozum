@@ -87,6 +87,24 @@ class PatternLibraryService
     }
 
     /**
+     * Raster (taranmış) PDF için 'sayısallaştırma bekliyor' taslağı oluşturur.
+     * Otomatik çıkarım YOK — kullanıcı tuval editöründe elle izler.
+     */
+    public function createRasterDraft(UploadedFile $pdf, ?int $createdBy = null): Pattern
+    {
+        $path = $pdf->store(self::DIR, 'public');
+
+        return Pattern::create([
+            'name'              => $this->stem($pdf->getClientOriginalName()),
+            'product_type'      => 'belirsiz',
+            'status'            => Pattern::STATUS_DRAFT,
+            'extraction_status' => Pattern::EXTRACTION_NEEDS_TRACING,
+            'pdf_path'          => $path,
+            'created_by'        => $createdBy,
+        ]);
+    }
+
+    /**
      * Dönüştürücü çıktısını taslak kalıba uygular: DXF'i saklar, metadatayı ve
      * parçaları yazar, durumu 'done' yapar. (Mapping ConversionPipelineService::approve ile aynı.)
      */
@@ -144,6 +162,17 @@ class PatternLibraryService
         $pattern->update([
             'extraction_status' => Pattern::EXTRACTION_FAILED,
             'extraction_error'  => mb_substr($error, 0, 1000),
+        ]);
+    }
+
+    /**
+     * Taslağı insan-destekli izleme bekler durumuna alır (raster yolu).
+     */
+    public function markNeedsTracing(Pattern $pattern): void
+    {
+        $pattern->update([
+            'extraction_status' => Pattern::EXTRACTION_NEEDS_TRACING,
+            'extraction_error'  => null,
         ]);
     }
 

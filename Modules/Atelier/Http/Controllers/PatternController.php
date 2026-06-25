@@ -91,12 +91,21 @@ class PatternController extends Controller
         ]);
 
         $imported = 0;
+        $tracing  = 0;
         $skipped  = [];
         foreach ($request->file('files') as $pdf) {
-            // Ön-kontrol: raster/taranmış PDF baştan elenir (boşa taslak+çıkarım olmasın).
-            // Servis kapalıysa probe null döner → kontrol atlanır, akış engellenmez.
+            // Ön-kontrol. Servis kapalıysa probe null döner → kontrol atlanır, akış engellenmez.
             $probe = $this->converter->probe($pdf->getRealPath());
-            if ($probe && in_array($probe['kind'] ?? '', ['raster', 'empty', 'invalid'], true)) {
+            $kind  = $probe['kind'] ?? null;
+
+            // Raster/taranmış → otomatik çıkarım yerine sayısallaştırma taslağı.
+            if ($kind === 'raster') {
+                $this->library->createRasterDraft($pdf, $request->user()?->id);
+                $tracing++;
+                continue;
+            }
+            // Boş/geçersiz → gerçekten kullanılamaz, atla.
+            if (in_array($kind, ['empty', 'invalid'], true)) {
                 $skipped[] = $pdf->getClientOriginalName();
                 continue;
             }
@@ -106,17 +115,16 @@ class PatternController extends Controller
             $imported++;
         }
 
-        if ($imported === 0 && ! empty($skipped)) {
-            return back()->with('error',
-                'Yüklenen PDF vektör kalıp değil (taranmış/raster görünüyor): ' . implode(', ', $skipped));
-        }
-        if (! empty($skipped)) {
-            return redirect()->route('atelier.patterns.index')->with('warning',
-                "{$imported} PDF incelemeye alındı. Atlandı (taranmış/raster): " . implode(', ', $skipped));
+        $parts = [];
+        if ($imported > 0) { $parts[] = "{$imported} PDF incelemeye alındı"; }
+        if ($tracing > 0)  { $parts[] = "{$tracing} taranmış PDF sayısallaştırma için hazır"; }
+        if (! empty($skipped)) { $parts[] = 'atlandı (boş/geçersiz): ' . implode(', ', $skipped); }
+
+        if ($imported === 0 && $tracing === 0) {
+            return back()->with('error', 'Hiçbir PDF işlenemedi. ' . implode('; ', $parts));
         }
 
-        return redirect()->route('atelier.patterns.index')
-            ->with('success', "{$imported} PDF incelemeye alındı; taslaklar hazırlanıyor.");
+        return redirect()->route('atelier.patterns.index')->with('success', implode('; ', $parts) . '.');
     }
 
     /**
