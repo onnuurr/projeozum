@@ -60,3 +60,31 @@ def test_vectorize_image_empty():
     polys, meta = vectorize_image(_white(40, 40), dpi=300)
     assert meta["scheme"] == "empty"
     assert polys == {}
+
+
+def _raster_pdf_bytes():
+    """Gömülü renkli-çizgili resim içeren sentetik raster PDF (vektör yok)."""
+    import io
+
+    import fitz
+    from PIL import Image
+
+    img = np.full((400, 400, 3), 255, np.uint8)
+    img[50:350, 100:103] = (200, 20, 20)    # kırmızı çizgi
+    img[50:350, 300:303] = (20, 180, 180)   # cyan çizgi
+    buf = io.BytesIO()
+    Image.fromarray(img).save(buf, "PNG")
+    doc = fitz.open()
+    page = doc.new_page(width=300, height=300)
+    page.insert_image(page.rect, stream=buf.getvalue())
+    return doc.tobytes()
+
+
+def test_convert_pdf_routes_raster_to_vectorizer():
+    from converter import convert_pdf
+
+    out = convert_pdf(_raster_pdf_bytes(), "synthetic_raster.pdf")
+    assert out.classification == "yellow"
+    assert out.dxf is not None
+    assert "BEDEN_" in out.dxf  # renk→beden katmanı
+    assert out.metadata.get("scale_verified") is False

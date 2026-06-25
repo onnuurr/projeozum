@@ -228,6 +228,14 @@ def convert_pdf(data: bytes, filename: str = "") -> ConvertOutput:
     if doc.page_count == 0:
         return ConvertOutput("red", 0.0, None, {}, ["PDF boş."])
 
+    # Raster (taranmış) PDF → otomatik vektörleştirme çekirdeği. Hiç vektör çizim yok
+    # ama gömülü resim varsa profil-güdümlü vektör hattı yerine raster hattına yönlendir.
+    has_vectors = any(len(doc[i].get_drawings()) > 0 for i in range(doc.page_count))
+    has_images = any(doc[i].get_images() for i in range(doc.page_count))
+    if not has_vectors and has_images:
+        from raster_vectorize import vectorize_raster
+        return vectorize_raster(data, filename)
+
     profile, score, candidates = detect_profile(doc)
     if profile is None:
         return ConvertOutput("red", round(score * 100, 1), None,
