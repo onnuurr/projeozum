@@ -69,6 +69,16 @@ class ConversionPipelineTest extends TestCase
             {
                 return null;
             }
+
+            public function renderPage(string $pdfAbsolutePath, int $page, int $dpi = 200): string
+            {
+                return '';
+            }
+
+            public function buildDxf(array $polylines): string
+            {
+                return '';
+            }
         });
 
         $job = $this->pipeline()->submit(UploadedFile::fake()->create('kalip.pdf', 100, 'application/pdf'));
@@ -91,6 +101,16 @@ class ConversionPipelineTest extends TestCase
             public function probe(string $pdfAbsolutePath): ?array
             {
                 return null;
+            }
+
+            public function renderPage(string $pdfAbsolutePath, int $page, int $dpi = 200): string
+            {
+                return '';
+            }
+
+            public function buildDxf(array $polylines): string
+            {
+                return '';
             }
         });
 

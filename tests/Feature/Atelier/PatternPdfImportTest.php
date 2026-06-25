@@ -119,6 +119,16 @@ class PatternPdfImportTest extends TestCase
             {
                 return null;
             }
+
+            public function renderPage(string $pdfAbsolutePath, int $page, int $dpi = 200): string
+            {
+                return '';
+            }
+
+            public function buildDxf(array $polylines): string
+            {
+                return '';
+            }
         });
 
         $pattern = $this->library()->createPdfDraft(UploadedFile::fake()->create('k.pdf', 100, 'application/pdf'));
@@ -221,19 +231,31 @@ class PatternPdfImportTest extends TestCase
             {
                 return $this->probe;
             }
+
+            public function renderPage(string $pdfAbsolutePath, int $page, int $dpi = 200): string
+            {
+                return '';
+            }
+
+            public function buildDxf(array $polylines): string
+            {
+                return '';
+            }
         });
     }
 
-    public function test_raster_pdf_rejected_on_import(): void
+    public function test_raster_pdf_becomes_needs_tracing_draft_on_import(): void
     {
+        // Raster artık reddedilmez: insan-destekli izleme için needs_tracing taslağı olur,
+        // otomatik çıkarım kuyruğa girmez.
         Queue::fake();
         $this->bindProbe(['kind' => 'raster', 'pages' => 42, 'image_pages' => 38]);
 
         $this->actingAs($this->manager())
             ->post('/atelier/patterns/import', ['files' => [UploadedFile::fake()->create('salopeta.pdf', 100, 'application/pdf')]])
-            ->assertRedirect()->assertSessionHas('error');
+            ->assertRedirect()->assertSessionHas('success');
 
-        $this->assertSame(0, Pattern::count());
+        $this->assertSame(1, Pattern::where('extraction_status', Pattern::EXTRACTION_NEEDS_TRACING)->count());
         Queue::assertNothingPushed();
     }
 
