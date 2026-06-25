@@ -41,7 +41,8 @@ return [
         // http | mock
         'driver'      => env('ATELIER_CONVERSION_DRIVER', 'http'),
         'service_url' => env('ATELIER_CONVERSION_URL', 'http://127.0.0.1:8200'),
-        'timeout'     => (int) env('ATELIER_CONVERSION_TIMEOUT', 300),
+        // Raster çok-sayfalı taramaların otomatik vektörleştirmesi uzun sürebilir.
+        'timeout'     => (int) env('ATELIER_CONVERSION_TIMEOUT', 900),
         'disk'        => env('ATELIER_CONVERSION_DISK', 'public'),
         'pdf_dir'     => 'atelier/conversions/pdf',
         'dxf_dir'     => 'atelier/conversions/dxf',

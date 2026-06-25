@@ -244,10 +244,11 @@ class PatternPdfImportTest extends TestCase
         });
     }
 
-    public function test_raster_pdf_becomes_needs_tracing_draft_on_import(): void
+    public function test_raster_pdf_dispatches_auto_vectorization_on_import(): void
     {
-        // Raster artık reddedilmez: insan-destekli izleme için needs_tracing taslağı olur,
-        // otomatik çıkarım kuyruğa girmez.
+        // Raster artık reddedilmez VE doğrudan needs_tracing yapılmaz: otomatik
+        // vektörleştirme için çıkarım job'ı kuyruğa atılır (taslak 'processing').
+        // needs_tracing yalnızca otomatik vektörleştirme red dönerse (applyExtraction) olur.
         Queue::fake();
         $this->bindProbe(['kind' => 'raster', 'pages' => 42, 'image_pages' => 38]);
 
@@ -255,8 +256,8 @@ class PatternPdfImportTest extends TestCase
             ->post('/atelier/patterns/import', ['files' => [UploadedFile::fake()->create('salopeta.pdf', 100, 'application/pdf')]])
             ->assertRedirect()->assertSessionHas('success');
 
-        $this->assertSame(1, Pattern::where('extraction_status', Pattern::EXTRACTION_NEEDS_TRACING)->count());
-        Queue::assertNothingPushed();
+        $this->assertSame(1, Pattern::where('extraction_status', Pattern::EXTRACTION_PROCESSING)->count());
+        Queue::assertPushed(ExtractPatternFromPdfJob::class, 1);
     }
 
     public function test_vector_pdf_passes_precheck(): void

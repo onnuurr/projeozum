@@ -93,20 +93,15 @@ class PatternController extends Controller
         ]);
 
         $imported = 0;
-        $tracing  = 0;
         $skipped  = [];
         foreach ($request->file('files') as $pdf) {
             // Ön-kontrol. Servis kapalıysa probe null döner → kontrol atlanır, akış engellenmez.
             $probe = $this->converter->probe($pdf->getRealPath());
             $kind  = $probe['kind'] ?? null;
 
-            // Raster/taranmış → otomatik çıkarım yerine sayısallaştırma taslağı.
-            if ($kind === 'raster') {
-                $this->library->createRasterDraft($pdf, $request->user()?->id);
-                $tracing++;
-                continue;
-            }
-            // Boş/geçersiz → gerçekten kullanılamaz, atla.
+            // Yalnızca boş/geçersiz baştan elenir. Raster taramalar artık çıkarım kuyruğuna
+            // girer: motor otomatik vektörleştirmeyi dener; başarısızsa applyExtraction
+            // taslağı needs_tracing'e alır (operatör tracer ile elle izler).
             if (in_array($kind, ['empty', 'invalid'], true)) {
                 $skipped[] = $pdf->getClientOriginalName();
                 continue;
@@ -119,10 +114,9 @@ class PatternController extends Controller
 
         $parts = [];
         if ($imported > 0) { $parts[] = "{$imported} PDF incelemeye alındı"; }
-        if ($tracing > 0)  { $parts[] = "{$tracing} taranmış PDF sayısallaştırma için hazır"; }
         if (! empty($skipped)) { $parts[] = 'atlandı (boş/geçersiz): ' . implode(', ', $skipped); }
 
-        if ($imported === 0 && $tracing === 0) {
+        if ($imported === 0) {
             return back()->with('error', 'Hiçbir PDF işlenemedi. ' . implode('; ', $parts));
         }
 

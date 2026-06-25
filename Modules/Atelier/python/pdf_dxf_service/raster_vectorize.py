@@ -162,19 +162,20 @@ def vectorize_raster(data: bytes, filename: str = "", dpi: int = 300):
 
     name = _stem(filename)
     if not all_polylines:
-        return ConvertOutput("red", 0.0, None, {"name": name},
+        return ConvertOutput("red", 0.0, None, {"name": name, "source": "raster"},
                              ["Raster vektörleştirme: çizgi bulunamadı (boş/okunamayan tarama)."])
 
     try:
         dxf = build_dxf_from_polylines(all_polylines)
     except ValueError as exc:
-        return ConvertOutput("red", 0.0, None, {"name": name}, [str(exc)])
+        return ConvertOutput("red", 0.0, None, {"name": name, "source": "raster"}, [str(exc)])
 
     roles = sorted({p["role"] for p in all_polylines})
     size_layers = sorted({ROLE_LAYER[r][0] for r in roles
                           if ROLE_LAYER.get(r, ("KALIP",))[0].startswith("BEDEN_")})
     meta = {
         "name": name,
+        "source": "raster",
         "scheme": "color" if "color" in schemes else "mono",
         "size_layers": size_layers,
         "segment_count": len(all_polylines),

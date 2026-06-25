@@ -87,24 +87,6 @@ class PatternLibraryService
     }
 
     /**
-     * Raster (taranmış) PDF için 'sayısallaştırma bekliyor' taslağı oluşturur.
-     * Otomatik çıkarım YOK — kullanıcı tuval editöründe elle izler.
-     */
-    public function createRasterDraft(UploadedFile $pdf, ?int $createdBy = null): Pattern
-    {
-        $path = $pdf->store(self::DIR, 'public');
-
-        return Pattern::create([
-            'name'              => $this->stem($pdf->getClientOriginalName()),
-            'product_type'      => 'belirsiz',
-            'status'            => Pattern::STATUS_DRAFT,
-            'extraction_status' => Pattern::EXTRACTION_NEEDS_TRACING,
-            'pdf_path'          => $path,
-            'created_by'        => $createdBy,
-        ]);
-    }
-
-    /**
      * Dönüştürücü çıktısını taslak kalıba uygular: DXF'i saklar, metadatayı ve
      * parçaları yazar, durumu 'done' yapar. (Mapping ConversionPipelineService::approve ile aynı.)
      */
@@ -114,6 +96,14 @@ class PatternLibraryService
         // (ör. raster/taranmış ya da desteklenmeyen format). 'done' gibi gösterme;
         // operatöre GERÇEK sebeple 'failed' işaretle (yol haritası §2.4 insan onayı).
         if ($result->dxf === null || $result->dxf === '' || $result->classification === 'red') {
+            // Raster otomatik vektörleştirme sonuç vermediyse (çizgi yok) operatör elle
+            // izlesin → needs_tracing (tracer). Vektör hattındaki red ise gerçek hata.
+            if (($result->metadata['source'] ?? null) === 'raster') {
+                $this->markNeedsTracing($pattern);
+
+                return $pattern->fresh();
+            }
+
             $msg = ! empty($result->errors)
                 ? implode(' ', $result->errors)
                 : 'Vektör kalıp çıkarılamadı (taranmış/desteklenmeyen format olabilir).';

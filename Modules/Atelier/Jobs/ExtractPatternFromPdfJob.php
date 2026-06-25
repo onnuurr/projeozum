@@ -28,7 +28,8 @@ class ExtractPatternFromPdfJob implements ShouldQueue
 
     public int $tries = 3;
 
-    public int $timeout = 300;
+    // Raster otomatik vektörleştirme çok sayfalı taramalarda dakikalar sürebilir.
+    public int $timeout = 900;
 
     public function __construct(public int $patternId) {}
 
