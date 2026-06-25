@@ -155,6 +155,36 @@ class PatternLibraryService
     }
 
     /**
+     * İnsan-destekli izleme çıktısını taslağa uygular: DXF'i saklar, parçaları
+     * yazar, ölçek doğrulanmış sayar, durumu 'done' yapar. (applyExtraction deseni.)
+     *
+     * @param  array<string,mixed>             $meta   name, product_type, size_range
+     * @param  array<int,array<string,mixed>>  $parts
+     */
+    public function applyTracedDxf(Pattern $pattern, string $dxf, array $meta, array $parts): Pattern
+    {
+        return DB::transaction(function () use ($pattern, $dxf, $meta, $parts) {
+            $this->deleteFile($pattern->dxf_path);
+            $dxfPath = self::DIR . '/' . Str::uuid() . '.dxf';
+            Storage::disk('public')->put($dxfPath, $dxf);
+
+            $pattern->update([
+                'name'              => $meta['name'] ?? $pattern->name,
+                'product_type'      => $meta['product_type'] ?? $pattern->product_type,
+                'size_range'        => $meta['size_range'] ?? $pattern->size_range,
+                'dxf_path'          => $dxfPath,
+                'scale_verified'    => true,
+                'extraction_status' => Pattern::EXTRACTION_DONE,
+                'extraction_error'  => null,
+            ]);
+
+            $this->syncParts($pattern, $parts);
+
+            return $pattern->fresh('parts');
+        });
+    }
+
+    /**
      * Çıkarım hatasını taslak kalıba işler (operatör görür, siler/yeniden yükler).
      */
     public function markExtractionFailed(Pattern $pattern, string $error): void
