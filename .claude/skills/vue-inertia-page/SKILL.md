@@ -135,6 +135,29 @@ Relative import (`../../../`) kullanma.
 
 Yeni icon kütüphanesi **ekleme**.
 
+## Yetki: link/buton gizleme
+
+> **ÖNCE `laravel-authorization` skill'ini çalıştır** — frontend'de buton/link
+> gizleyeceksen önce yetkinin adını ve seed'li olup olmadığını netleştir.
+
+`app/Http/Middleware/HandleInertiaRequests.php` zaten kullanıcının tüm permission
+adlarını `auth.permissions` array'i olarak paylaşıyor:
+
+```vue
+<FormButton
+    v-if="$page.props.auth.permissions.includes('tenant.export')"
+    @click="exportTenant"
+>
+    Dışa Aktar
+</FormButton>
+```
+
+- **Aynı yetki string'i** server tarafında (route + Form Request) ve burada bire
+  bir aynı.
+- Sayfa-genelinde tekrarlanırsa `useCan()` composable'ı aç ve oradan kullan
+  (henüz yok; ilk açan dokümante etsin).
+- Frontend gating yalnız UX içindir; gerçek koruma server tarafındadır.
+
 ## Pinia ve state
 
 `pinia` dependency'de var ama yaygın kullanılmıyor. Sayfa-içi state için

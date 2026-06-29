@@ -31,14 +31,21 @@ Mevcut örnekler:
 
 ## Yetkilendirme
 
+> **ÖNCE `laravel-authorization` skill'ini çalıştır.** Yeni action yazarken
+> "hangi yetkiye bağlı?" sorusunun cevabı belirlenmeden middleware string'i
+> yazma; mevcut yetkilerden seç ya da yeni yetkiyi modülün PermissionSeeder'ına
+> ekle. Aynı string buradan, Form Request `authorize()`'dan ve sidebar/Vue
+> tarafından **aynı** kullanılır.
+
 Tek yer yerine **iki katman**:
 
 1. **Route middleware** — `middleware('can:tenant.manage')` veya `['auth:sanctum','role:superadmin']`
 2. **Form Request `authorize()`** — `$this->user()?->hasPermissionTo('tenant.manage') ?? false`
    (`Modules/Tenant/Http/Requests/StoreTenantRequest.php:9`)
 
-Inline controller içinde `$user->isSuperadmin()` veya `accessibleToTenant()` scope'u
-çok tenant'lı veride **zorunlu**; route middleware'i yeterli değildir.
+Inline controller içinde `$user->isSuperadmin()` ile scope by-pass + `tenant_id`
+karşılaştırması çoklu-tenant veride **zorunlu**; route middleware'i tek başına
+yeterli değildir. Referans: `TenantMarketplaceController::authorizeTenantScope`.
 
 ## Servise delege
 

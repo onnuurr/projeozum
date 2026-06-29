@@ -53,6 +53,11 @@ class StoreTenantRequest extends FormRequest
 
 ## `authorize()` her zaman
 
+> **ÖNCE `laravel-authorization` skill'ini çalıştır.** `hasPermissionTo(...)`
+> içine string yazmadan önce "hangi yetki?" kararı net olmalı — mevcut listeden
+> seç ya da yeni yetkiyi PermissionSeeder'a ekle. Aynı string controller
+> middleware'inde de bulunmalı.
+
 - **`return true;` yazma.** Bu projede yetki `spatie/laravel-permission` ile yürür.
 - `hasPermissionTo('<resource>.<action>')` veya `hasRole('superadmin')`.
 - Null-safe okuma: `$this->user()?->hasPermissionTo(...) ?? false`.
