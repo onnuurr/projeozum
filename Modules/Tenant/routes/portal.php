@@ -10,8 +10,10 @@ use Modules\Tenant\Http\Controllers\Portal\PortalCatalogController;
 use Modules\Tenant\Http\Controllers\Portal\PortalCheckoutController;
 use Modules\Tenant\Http\Controllers\Portal\PortalCreditController;
 use Modules\Tenant\Http\Controllers\Portal\PortalDashboardController;
+use Modules\Tenant\Http\Controllers\Portal\PortalFinancialsController;
 use Modules\Tenant\Http\Controllers\Portal\PortalInvoiceController;
 use Modules\Tenant\Http\Controllers\Portal\PortalOrderController;
+use Modules\Tenant\Http\Controllers\Portal\PortalProfitController;
 
 /*
 |--------------------------------------------------------------------------
@@ -65,4 +67,14 @@ Route::middleware('can:marketplace.view-sales')->group(function () {
     Route::get('/marketplace/hepsiburada', [HepsiburadaController::class, 'index'])->name('marketplace.hepsiburada.index');
     Route::get('/marketplace/n11',         [N11Controller::class, 'index'])->name('marketplace.n11.index');
     Route::get('/marketplace/ciceksepeti', [CiceksepetiController::class, 'index'])->name('marketplace.ciceksepeti.index');
+});
+
+Route::middleware('can:portal.calculator.use')->group(function () {
+    Route::get('/profit',          [PortalProfitController::class, 'index'])->name('profit.index');
+    Route::post('/profit',         [PortalProfitController::class, 'compute'])->name('profit.compute');
+    Route::get('/profit/search',   [PortalProfitController::class, 'searchProducts'])->name('profit.search');
+});
+
+Route::middleware('can:portal.financials.view')->group(function () {
+    Route::get('/financials', [PortalFinancialsController::class, 'index'])->name('financials');
 });

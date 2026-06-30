@@ -19,6 +19,7 @@ class RouteServiceProvider extends ServiceProvider
         $this->mapApiRoutes();
         $this->mapWebRoutes();
         $this->mapPortalRoutes();
+        $this->mapFeedRoutes();
     }
 
     protected function mapWebRoutes(): void
@@ -46,5 +47,21 @@ class RouteServiceProvider extends ServiceProvider
             ->middleware(['web', 'auth', 'verified', 'tenant.subdomain', 'can:portal.access'])
             ->name('portal.')
             ->group(module_path($this->name, '/routes/portal.php'));
+    }
+
+    /**
+     * XML feed: auth-siz, sadece token-gated. Subdomain group içinde ama
+     * tenant.subdomain middleware'i bypass — controller içinde slug + token compare.
+     */
+    protected function mapFeedRoutes(): void
+    {
+        $domain = config('app.portal_domain');
+        if (! $domain) {
+            return;
+        }
+
+        Route::domain('{slug}.'.$domain)
+            ->middleware(['web', 'throttle:60,1'])
+            ->group(module_path($this->name, '/routes/feed.php'));
     }
 }

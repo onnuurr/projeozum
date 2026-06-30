@@ -27,6 +27,9 @@ class TenantPermissionSeeder extends Seeder
             'portal.checkout'       => 'Portal — Dropship Sipariş Aç',
             'marketplace.sync'      => 'Portal — Pazaryeri Senkronizasyon',
             'marketplace.view-sales'=> 'Portal — Pazaryeri Satışları Görüntüle',
+            'portal.financials.view'=> 'Portal — Kâr/Zarar Dashboard',
+            'portal.calculator.use' => 'Portal — Kâr Hesabı Kullan',
+            'portal.feed.access'    => 'Portal — XML Feed URL Erişimi',
         ];
 
         $allCreated = [];
@@ -59,6 +62,9 @@ class TenantPermissionSeeder extends Seeder
                 'portal.checkout',
                 'marketplace.sync',
                 'marketplace.view-sales',
+                'portal.financials.view',
+                'portal.calculator.use',
+                'portal.feed.access',
             ]);
         }
     }
