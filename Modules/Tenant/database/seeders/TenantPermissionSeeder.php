@@ -1,6 +1,6 @@
 <?php
 
-namespace Modules\Tenant\database\seeders;
+namespace Modules\Tenant\Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
@@ -10,7 +10,7 @@ class TenantPermissionSeeder extends Seeder
 {
     public function run(): void
     {
-        $permissions = [
+        $adminPermissions = [
             'tenant.view'          => 'Tenant\'ları Görüntüle',
             'tenant.manage'        => 'Tenant Yönet',
             'tenant-type.manage'   => 'Tenant Tipi Yönet',
@@ -18,8 +18,15 @@ class TenantPermissionSeeder extends Seeder
             'marketplace.manage'   => 'Pazaryeri Bağlantı Yönet',
         ];
 
-        $created = [];
-        foreach ($permissions as $name => $displayName) {
+        $tenantPortalPermissions = [
+            'portal.access'         => 'Portal Erişimi',
+            'portal.orders.view'    => 'Portal — Siparişleri Görüntüle',
+            'portal.invoices.view'  => 'Portal — Faturaları Görüntüle',
+            'portal.credit.view'    => 'Portal — Kredi Hareketleri',
+        ];
+
+        $allCreated = [];
+        foreach ([...$adminPermissions, ...$tenantPortalPermissions] as $name => $displayName) {
             $perm = Permission::firstOrCreate(
                 ['name' => $name, 'guard_name' => 'web'],
                 ['display_name' => $displayName],
@@ -27,18 +34,24 @@ class TenantPermissionSeeder extends Seeder
             if (! $perm->wasRecentlyCreated && $perm->display_name !== $displayName) {
                 $perm->update(['display_name' => $displayName]);
             }
-            $created[] = $perm->name;
+            $allCreated[] = $perm->name;
         }
 
         $superadmin = Role::where('name', 'superadmin')->where('guard_name', 'web')->first();
         if ($superadmin) {
-            $superadmin->givePermissionTo($created);
+            $superadmin->givePermissionTo($allCreated);
         }
 
-        // Tenant rolü kendi pazaryeri credential'larını yönetebilsin (controller scope'lu).
+        // Tenant rolü kendi portal işlerini ve pazaryeri credential'larını yönetebilsin.
         $tenantRole = Role::where('name', 'tenant')->where('guard_name', 'web')->first();
         if ($tenantRole) {
-            $tenantRole->givePermissionTo('marketplace.manage');
+            $tenantRole->givePermissionTo([
+                'marketplace.manage',
+                'portal.access',
+                'portal.orders.view',
+                'portal.invoices.view',
+                'portal.credit.view',
+            ]);
         }
     }
 }

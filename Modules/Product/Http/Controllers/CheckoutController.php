@@ -15,6 +15,9 @@ use Modules\Product\Models\Order;
 use Modules\Product\Models\OrderItem;
 use Modules\Product\Models\Product;
 use Modules\Product\Models\UserAddress;
+use Modules\Tenant\Exceptions\InsufficientCreditException;
+use Modules\Tenant\Models\Tenant;
+use Modules\Tenant\Services\TenantCreditService;
 
 class CheckoutController extends Controller
 {
@@ -115,10 +118,33 @@ class CheckoutController extends Controller
 
         $totals = $this->totalsFor($items, $data['shipping_method'] ?? 'standard', $data['promo_code'] ?? null);
 
-        $order = DB::transaction(function () use ($userId, $items, $totals, $data) {
+        // Tenant siparişi: sert kredi-blok. Transaction öncesi kontrol — race condition için
+        // charge() içinde lockForUpdate ile ikinci kez doğrulanır.
+        $tenant = $tenantId !== null ? Tenant::find($tenantId) : null;
+        if ($tenant !== null) {
+            try {
+                app(TenantCreditService::class)->assertCanCharge($tenant, (float) $totals['total']);
+            } catch (InsufficientCreditException $e) {
+                return redirect()->route('checkout.index')->with('flash', [
+                    'toast' => [
+                        'type'    => 'error',
+                        'title'   => 'Kredi limiti yetersiz',
+                        'message' => sprintf(
+                            'Toplam %.2f ₺, kullanılabilir kredi %.2f ₺.',
+                            $e->requestedAmount,
+                            $e->availableCredit,
+                        ),
+                    ],
+                ]);
+            }
+        }
+
+        $order = DB::transaction(function () use ($userId, $tenantId, $tenant, $items, $totals, $data) {
             $order = Order::create([
                 'order_no'       => $this->generateOrderNo(),
                 'user_id'        => $userId,
+                'tenant_id'      => $tenantId,
+                'order_type'     => $tenantId !== null ? Order::TYPE_DROPSHIP : Order::TYPE_B2C,
                 'shipping_info'  => [
                     'address'           => $data['address'],
                     'shipping_method'   => $data['shipping_method'],
@@ -148,6 +174,16 @@ class CheckoutController extends Controller
                     'unit_price'    => $item->price,
                     'total_price'   => $item->price * $item->qty,
                 ]);
+            }
+
+            // Tenant siparişiyse balance'ı şimdi düş; ledger satırı yazılır.
+            if ($tenant !== null) {
+                app(TenantCreditService::class)->charge(
+                    tenant: $tenant,
+                    amount: (float) $totals['total'],
+                    reason: 'order',
+                    orderId: $order->id,
+                );
             }
 
             CartItem::query()->where('user_id', $userId)->delete();
