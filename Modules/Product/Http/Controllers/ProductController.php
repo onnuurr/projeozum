@@ -3,10 +3,10 @@
 namespace Modules\Product\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Support\Media;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -346,7 +346,7 @@ class ProductController extends Controller
                 'sku'          => $product->sku,
                 'images'       => $product->images()
                     ->orderByDesc('is_cover')->orderBy('sort_order')
-                    ->pluck('url')->filter()->values()->all(),
+                    ->pluck('path')->map(fn ($p) => Media::url($p))->filter()->values()->all(),
                 'brand'        => $product->brand?->name ?? '',
                 'brandSlug'    => $product->brand?->slug,
                 'category'     => $product->category?->name ?? '',
@@ -583,10 +583,10 @@ class ProductController extends Controller
         $sort     = (int) $product->images()->max('sort_order');
 
         foreach ($request->file('images') as $file) {
-            $path = $file->store('products/' . $product->id, 'public');
+            $path = $file->store('products/' . $product->id, Media::disk());
 
             $product->images()->create([
-                'url'        => Storage::disk('public')->url($path),
+                'path'       => $path,
                 'sort_order' => ++$sort,
                 'is_cover'   => ! $hasCover,
             ]);

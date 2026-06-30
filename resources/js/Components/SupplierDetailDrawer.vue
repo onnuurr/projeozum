@@ -407,7 +407,7 @@ const recentOrders = computed(() => {
 	font-size: 11px;
 	font-weight: 600;
 }
-.cat-fabric    { background: #ede9fe; color: #7c3aed; }
+.cat-fabric    { background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary)); }
 .cat-yarn      { background: #e0f2fe; color: #0284c7; }
 .cat-dye       { background: #fce7f3; color: #be185d; }
 .cat-accessory { background: #f0fdf4; color: #16a34a; }
@@ -470,7 +470,7 @@ const recentOrders = computed(() => {
 	border-radius: 8px;
 	border: 1.5px solid #e8e8f2;
 	background: #fff;
-	color: #4a6cf7;
+	color: rgb(var(--color-primary));
 	cursor: pointer;
 	display: flex;
 	align-items: center;
@@ -480,9 +480,9 @@ const recentOrders = computed(() => {
 	text-decoration: none;
 }
 .drawer-edit-btn:hover {
-	background: #eef0ff;
+	background: rgb(var(--color-primary-soft));
 	border-color: #c0c8f8;
-	color: #2a4fd7;
+	color: rgb(var(--color-primary-hover));
 }
 
 /* Drawer section */
@@ -550,7 +550,7 @@ const recentOrders = computed(() => {
 .mono { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; }
 .iban-value { font-size: 12.5px; letter-spacing: 0.02em; }
 
-.link { color: #4a6cf7; text-decoration: none; }
+.link { color: rgb(var(--color-primary)); text-decoration: none; }
 .link:hover { text-decoration: underline; }
 
 /* Mini stats */

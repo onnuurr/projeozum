@@ -2,12 +2,12 @@
 
 namespace Modules\Atelier\Jobs;
 
+use App\Support\Media;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Storage;
 use Modules\Atelier\Models\Pattern;
 use Modules\Atelier\Services\Conversion\Contracts\PdfDxfConverterContract;
 use Modules\Atelier\Services\PatternLibraryService;
@@ -47,7 +47,10 @@ class ExtractPatternFromPdfJob implements ShouldQueue
         }
 
         try {
-            $abs    = Storage::disk('public')->path($pattern->pdf_path);
+            $abs = Media::localPath($pattern->pdf_path);
+            if (! $abs) {
+                throw new \RuntimeException('Kalıp PDF dosyası diskte bulunamadı: ' . $pattern->pdf_path);
+            }
             $result = $converter->convert($abs);
             $library->applyExtraction($pattern, $result);
         } catch (Throwable $e) {

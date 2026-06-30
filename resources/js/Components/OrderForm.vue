@@ -321,7 +321,7 @@ function onClear() {
 }
 .form-check-radio .form-check-box { border-radius: 50%; }
 .form-check input:checked + .form-check-box {
-	background: #4a6cf7; border-color: #4a6cf7;
+	background: rgb(var(--color-primary)); border-color: rgb(var(--color-primary));
 }
 .form-check input:checked + .form-check-box::after {
 	content: '';
@@ -344,16 +344,16 @@ function onClear() {
 	text-align: center;
 }
 .dropzone:hover, .dropzone.dragover {
-	border-color: #4a6cf7; background: #f4f6ff;
+	border-color: rgb(var(--color-primary)); background: rgb(var(--color-primary-soft));
 }
 .dropzone.dragover .dz-icon { transform: translateY(-4px) scale(1.1); }
 .dz-icon {
 	width: 44px; height: 44px; border-radius: 12px;
-	background: #eef0ff; display: flex; align-items: center; justify-content: center;
-	color: #4a6cf7; transition: transform .2s;
+	background: rgb(var(--color-primary-soft)); display: flex; align-items: center; justify-content: center;
+	color: rgb(var(--color-primary)); transition: transform .2s;
 }
 .dz-title { font-size: 13px; font-weight: 600; color: #333; }
-.dz-title span { color: #4a6cf7; text-decoration: underline; }
+.dz-title span { color: rgb(var(--color-primary)); text-decoration: underline; }
 .dz-sub { font-size: 11px; color: #aaa; }
 .dz-file-list {
 	display: flex; flex-direction: column; gap: 6px;

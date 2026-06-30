@@ -2,23 +2,30 @@
 
 namespace Modules\Creative\Services;
 
+use App\Support\Media;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Modules\Creative\Models\CreativeAsset;
 use Modules\Creative\Models\CreativeTemplate;
 use Modules\Creative\Services\Ai\AiSceneService;
 use Modules\Creative\Services\Ai\SceneRequest;
+use Modules\Creative\Services\Ai\Support\ImageFile;
+use Modules\Creative\Services\Enhancement\ImageEnhancerContract;
 use Modules\Creative\Services\Exceptions\PermanentRenderException;
 use Modules\Creative\Services\Rendering\RendererContract;
 
 class CreativeRenderService
 {
+    /** AI compose'a referans olarak verilecek azami ürün görseli sayısı. */
+    private const AI_MAX_REFS = 4;
+
     public function __construct(
         private RendererContract $renderer,
         private CanvasAssetResolver $resolver,
         private BrandTokenService $brandTokens,
         private AiSceneService $aiScenes,
         private CaptionService $captions,
+        private ImageEnhancerContract $enhancer,
     ) {}
 
     /**
@@ -26,8 +33,11 @@ class CreativeRenderService
      */
     public function inspectTemplate(CreativeTemplate $template): CreativeTemplate
     {
-        $absolute = Storage::disk($this->disk())->path($template->svg_path);
-        $meta     = $this->renderer->inspect($absolute);
+        $absolute = Media::localPath($template->svg_path, $this->disk());
+        if ($absolute === null) {
+            throw new PermanentRenderException('Şablon SVG bulunamadı: ' . $template->svg_path);
+        }
+        $meta = $this->renderer->inspect($absolute);
 
         $template->fill([
             'width'  => $meta['width'],
@@ -46,9 +56,17 @@ class CreativeRenderService
      */
     public function applyTemplateSlots(CreativeTemplate $template, array $slots): CreativeTemplate
     {
-        $absolute = Storage::disk($this->disk())->path($template->svg_path);
+        $absolute = Media::localPath($template->svg_path, $this->disk());
+        if ($absolute === null) {
+            throw new PermanentRenderException('Şablon SVG bulunamadı: ' . $template->svg_path);
+        }
 
         $this->renderer->applySlots($absolute, $slots);
+
+        // Uzak diskte (R2/S3) düzenlenen yerel kopyayı diske geri yükle (oku-değiştir-yaz).
+        if (! in_array($this->disk(), ['public', 'local'], true)) {
+            Storage::disk($this->disk())->put($template->svg_path, (string) file_get_contents($absolute));
+        }
 
         return $this->inspectTemplate($template);
     }
@@ -71,7 +89,8 @@ class CreativeRenderService
             throw new PermanentRenderException('Asset için şablon veya ürün bulunamadı.');
         }
 
-        $brand = $this->brandTokens->tokens();
+        $brand  = $this->brandTokens->tokens();
+        $format = $this->resolveFormat($asset);
 
         $imagePaths = [];
         $usedImage  = null;
@@ -82,12 +101,28 @@ class CreativeRenderService
                 $usedImage = $src;
 
                 if ($this->wantsAi($asset)) {
-                    // Ham ürün fotoğrafı yerine AI ile kurgulanmış/giydirilmiş sahne.
+                    // Ürünün KENDİ görselleri AI sahnesine konu olarak verilir (kapak + diğerleri).
+                    $refs = [$local];
+                    foreach ($product->images as $img) {
+                        if (count($refs) >= self::AI_MAX_REFS) {
+                            break;
+                        }
+                        if ($img->path === $src || ! $img->path) {
+                            continue; // kapak zaten eklendi
+                        }
+                        if ($p = $this->resolver->toLocalPath($img->path)) {
+                            $refs[] = $p;
+                        }
+                    }
+
                     $scene = $this->aiScenes->generate(
                         new SceneRequest(
                             productName: (string) $product->name,
                             productImagePath: $local,
+                            productImagePaths: $refs,
                             palette: $brand['palette'] ?? [],
+                            aspectLabel: $format['aspect'] ?? null,
+                            pose: $this->resolvePose($asset),
                         ),
                         (int) $product->id,
                     );
@@ -105,10 +140,19 @@ class CreativeRenderService
                 ['product_name' => (string) $product->name],
                 $imagePaths,
                 $brand,
+                $format['width'] ?? null,
+                $format['height'] ?? null,
             );
         } finally {
             $this->resolver->cleanup();
         }
+
+        // Üretim sonrası kalite iyileştirme (upscale + son dokunuş). Kapalıysa/
+        // başarısızsa $bytes değişmeden kalır (graceful degrade).
+        $tmp      = ImageFile::temp($bytes, 'png');
+        $enhanced = $this->enhancer->enhance($tmp);
+        $bytes    = (string) file_get_contents($enhanced);
+        ImageFile::delete(array_unique([$tmp, $enhanced]));
 
         $path = sprintf(
             '%s/%d/%d.png',
@@ -133,6 +177,10 @@ class CreativeRenderService
                 'caption'    => $caption['caption'] ?? null,
                 'hashtags'   => $caption['hashtags'] ?? [],
                 'render_ms'  => (int) round((microtime(true) - $startedAt) * 1000),
+                'format'       => $format['key'] ?? null,
+                'format_label' => $format['label'] ?? null,
+                'width'        => $format['width'] ?? $template->width,
+                'height'       => $format['height'] ?? $template->height,
             ]),
         ])->save();
 
@@ -160,11 +208,50 @@ class CreativeRenderService
     }
 
     /**
+     * Asset'in sosyal medya formatını config'ten çözer (meta.format → varsayılan).
+     *
+     * @return array{key:?string,width:?int,height:?int,aspect:?string,label:?string}
+     */
+    private function resolveFormat(CreativeAsset $asset): array
+    {
+        $formats = (array) config('creative.formats', []);
+        $key     = $asset->meta['format'] ?? config('creative.default_format');
+
+        if (! isset($formats[$key])) {
+            $key = (string) config('creative.default_format');
+        }
+
+        $f = $formats[$key] ?? null;
+        if (! is_array($f)) {
+            return ['key' => null, 'width' => null, 'height' => null, 'aspect' => null, 'label' => null];
+        }
+
+        return [
+            'key'    => $key,
+            'width'  => (int) $f['width'],
+            'height' => (int) $f['height'],
+            'aspect' => $f['aspect'] ?? null,
+            'label'  => $f['label'] ?? $key,
+        ];
+    }
+
+    /**
      * Asset, AI sahne/giydirme ile mi üretilmek isteniyor? (meta.use_ai)
      */
     private function wantsAi(CreativeAsset $asset): bool
     {
         return (bool) ($asset->meta['use_ai'] ?? false);
+    }
+
+    /**
+     * Asset'e özel manken duruşu yönergesini çözer (meta.pose). Boşsa null
+     * döner; bu durumda prompt builder ürüne göre kürate poz seçer.
+     */
+    private function resolvePose(CreativeAsset $asset): ?string
+    {
+        $pose = trim((string) ($asset->meta['pose'] ?? ''));
+
+        return $pose !== '' ? $pose : null;
     }
 
     /**
@@ -179,7 +266,7 @@ class CreativeRenderService
 
         $cover = $images->firstWhere('is_cover', true) ?? $images->first();
 
-        return $cover?->url;
+        return $cover?->path;
     }
 
     private function disk(): string

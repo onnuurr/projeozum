@@ -27,7 +27,9 @@ interface RendererContract
      * @param  array<string,string>  $values      slot anahtarı => metin (örn. ['product_name' => 'Tişört'])
      * @param  array<string,string>  $imagePaths  slot anahtarı => yerel dosya yolu
      * @param  array<string,mixed>   $brand       BrandTokenService çıktısı (palette/fonts/spacing/logos)
+     * @param  int|null  $outWidth   Çıktı genişliği (sosyal format); null ise şablon boyutu
+     * @param  int|null  $outHeight  Çıktı yüksekliği (sosyal format); null ise şablon boyutu
      * @return string  Görsel baytları (PNG)
      */
-    public function render(CreativeTemplate $template, array $values, array $imagePaths, array $brand = []): string;
+    public function render(CreativeTemplate $template, array $values, array $imagePaths, array $brand = [], ?int $outWidth = null, ?int $outHeight = null): string;
 }

@@ -156,13 +156,8 @@ const userMenu = computed(() => {
 })
 
 /* ── Bildirimler ── */
-const notifications = ref([
-	{ id: 1, icon: '⚠️', iconType: 'error', title: 'Geciken İş Emri: Kesim & Dikim', desc: "Büşra Çelik'e atanan iş emri teslim tarihini 2 gün geçti.", time: '5 dakika önce', read: false },
-	{ id: 2, icon: '📦', iconType: 'info', title: 'Yeni Sipariş: #SIP-1048', desc: 'Mehmet Arslan tarafından 500 metre pamuk kumaş siparişi oluşturuldu.', time: '23 dakika önce', read: false },
-	{ id: 3, icon: '✅', iconType: 'success', title: 'Kalite Kontrol Tamamlandı', desc: 'Sipariş #SIP-1041 kalite kontrolden geçti, sevkiyata hazır.', time: '2 saat önce', read: true },
-	{ id: 4, icon: '🔔', iconType: 'warning', title: 'Stok Uyarısı: Polyester Kumaş', desc: 'Polyester kumaş stoğu kritik seviyenin altına düştü (12 top kaldı).', time: '5 saat önce', read: true },
-	{ id: 5, icon: '🚚', iconType: 'success', title: 'Sevkiyat Tamamlandı', desc: 'Sipariş #SIP-1039 müşteriye teslim edildi.', time: 'Dün, 16:42', read: true },
-])
+// Gerçek DB bildirimleri HandleInertiaRequests ile paylaşılır (AppLayout çanını besler).
+const notifications = computed(() => page.props.notifications || [])
 
 // Rol bazlı görünür bildirimler (forRoles tanımlanmış olanlar filtrelenir).
 const visibleNotifications = computed(() =>
@@ -170,13 +165,14 @@ const visibleNotifications = computed(() =>
 )
 
 function markAllNotificationsRead() {
-	notifications.value.forEach((n) => (n.read = true))
-	showToast({ type: 'success', title: 'Tümü Okundu', message: 'Tüm bildirimler okundu olarak işaretlendi.' })
+	router.post(route('notifications.read-all'), {}, {
+		preserveScroll: true, preserveState: true,
+		onSuccess: () => showToast({ type: 'success', title: 'Tümü Okundu', message: 'Tüm bildirimler okundu olarak işaretlendi.' }),
+	})
 }
 
 function readNotification(id) {
-	const n = notifications.value.find((x) => x.id === id)
-	if (n) n.read = true
+	router.post(route('notifications.read', id), {}, { preserveScroll: true, preserveState: true })
 }
 
 function onNotificationClick(notification) {
@@ -314,8 +310,12 @@ watch(
 		if (notif && (!notif.forRoles || notif.forRoles.includes(currentUser.value.role))) {
 			notifications.value.unshift({ ...notif })
 		}
-	},
-	{ deep: true }
+	}
+	// DİKKAT: deep KULLANMA. Her tam Inertia yanıtı flash için YENİ bir nesne üretir,
+	// bu yüzden sığ (referans) izleme yeni toast'ları zaten yakalar. deep:true ise,
+	// onSuccess'te yapılan router.reload({ only: [...] }) gibi flash'i içermeyen kısmi
+	// yenilemelerde page.props yeniden atandığında — flash referansı aynı (bayat toast)
+	// kalsa bile — callback'i tekrar tetikleyip AYNI toast'ı ikinci kez gösteriyordu.
 )
 
 /* ── Sepet (DB destekli) ── */

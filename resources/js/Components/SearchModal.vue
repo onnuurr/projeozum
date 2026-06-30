@@ -139,7 +139,7 @@ watch(
 	padding: 8px 16px; cursor: pointer;
 	transition: background .1s;
 }
-.search-result-item:hover { background: #f4f6ff; }
+.search-result-item:hover { background: rgb(var(--color-primary-soft)); }
 
 .search-result-icon {
 	width: 28px; height: 28px; border-radius: 7px;

@@ -13,6 +13,7 @@ use Inertia\Response;
 use Modules\Product\Models\CartItem;
 use Modules\Product\Models\Order;
 use Modules\Product\Models\OrderItem;
+use Modules\Product\Models\Product;
 use Modules\Product\Models\UserAddress;
 
 class CheckoutController extends Controller
@@ -87,6 +88,29 @@ class CheckoutController extends Controller
                     'message' => 'Sipariş oluşturmak için sepete ürün ekleyin.',
                 ],
             ]);
+        }
+
+        // Tenant kullanıcı: sepetteki ürünler hâlâ erişilebilir mi? (sepete eklendikten sonra
+        // marka/kategori kuralı veya override ile bloklanmış olabilir — CartController@add ile aynı kontrol.)
+        $user     = $request->user();
+        $tenantId = (! $user->isSuperadmin() && $user->tenant_id) ? $user->tenant_id : null;
+        if ($tenantId !== null) {
+            $productIds    = $items->pluck('product_id')->unique()->all();
+            $accessibleIds = Product::query()
+                ->accessibleToTenant($tenantId)
+                ->whereKey($productIds)
+                ->pluck('id')
+                ->all();
+
+            if (array_diff($productIds, $accessibleIds) !== []) {
+                return redirect()->route('checkout.index')->with('flash', [
+                    'toast' => [
+                        'type'    => 'warning',
+                        'title'   => 'Sepette erişilemeyen ürün var',
+                        'message' => 'Artık görüntüleme yetkiniz olmayan ürünleri sepetten çıkarın.',
+                    ],
+                ]);
+            }
         }
 
         $totals = $this->totalsFor($items, $data['shipping_method'] ?? 'standard', $data['promo_code'] ?? null);

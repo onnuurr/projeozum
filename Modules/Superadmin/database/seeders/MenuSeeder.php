@@ -11,9 +11,11 @@ class MenuSeeder extends Seeder
      * Mevcut hardcoded AppLayout menülerini (baseNavItems) DB'ye taşır.
      * Kökler ikonlu (sidebar), child'lar path'li (header). Idempotent:
      * aynı label+parent için tekrar oluşturmaz.
+     * Ayrıca superadmin'e özgü nav girişlerini de ekler.
      */
     public function run(): void
     {
+        // Standart tenant navigasyonu
         foreach ($this->definition() as $order => $root) {
             $rootMenu = Menu::firstOrCreate(
                 ['label' => $root['label'], 'parent_id' => null],
@@ -37,6 +39,29 @@ class MenuSeeder extends Seeder
                 );
             }
         }
+
+        // Superadmin'e özgü nav girişleri
+        $this->seedSuperadminEntries();
+    }
+
+    /**
+     * Superadmin paneline özgü menü girişlerini ekler (idempotent).
+     * route_name ile eşleşen kayıt varsa yeniden oluşturmaz.
+     */
+    private function seedSuperadminEntries(): void
+    {
+        Menu::firstOrCreate(
+            ['route_name' => 'superadmin.logs'],
+            [
+                'parent_id'  => null,
+                'label'      => 'Sistem Logları',
+                'icon'       => 'reports',
+                'url'        => null,
+                'permission' => 'logs.view',
+                'sort_order' => 99,
+                'is_active'  => true,
+            ],
+        );
     }
 
     /**
@@ -81,7 +106,7 @@ class MenuSeeder extends Seeder
                 ['label' => 'Toplantılar'],
                 ['label' => 'Tatil Günleri'],
             ]],
-            ['label' => 'Atölye', 'icon' => 'scissors', 'url' => '/atelier', 'permission' => 'atelier.manage', 'children' => [
+            ['label' => 'Atölye', 'icon' => 'scissors', 'url' => '/atelier', 'permission' => 'atelier.view', 'children' => [
                 ['label' => 'Tüm Modeller', 'url' => '/atelier'],
                 ['label' => 'Taslaklar', 'url' => '/atelier?status=draft'],
                 ['label' => 'İnceleme Bekleyenler', 'url' => '/atelier?status=in_review'],

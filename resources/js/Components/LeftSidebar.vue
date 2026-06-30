@@ -101,15 +101,19 @@ function hideTooltip() {
 	position: relative;
 	flex-shrink: 0;
 }
-.sb-btn:hover { background: #f5f5f8; color: #555; }
-.sb-btn.active { background: #f0f0f5; color: #4a6cf7; }
+.sb-btn:hover { background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary)); }
+.sb-btn.active {
+	background: rgb(var(--color-primary));
+	color: #fff;
+	box-shadow: 0 4px 12px rgb(var(--color-primary) / .35);
+}
 .sb-btn,
 .sb-btn:link,
 .sb-btn:visited { text-decoration: none; }
 .sb-btn.theme-btn {
 	width: 30px;
 	height: 30px;
-	background: #1a1a2e;
+	background: rgb(var(--color-ink));
 	color: #fff;
 	border-radius: 50%;
 }

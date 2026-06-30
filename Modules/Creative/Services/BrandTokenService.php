@@ -2,8 +2,8 @@
 
 namespace Modules\Creative\Services;
 
+use App\Support\Media;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Storage;
 use Modules\Creative\Models\BrandKit;
 
 /**
@@ -113,7 +113,9 @@ class BrandTokenService
     }
 
     /**
-     * Göreli storage yolunu (public disk) mutlak yola çevirir; mutlak/var olan yolu korur.
+     * Göreli storage yolunu render motorunun okuyabileceği yerel mutlak yola
+     * çevirir; mutlak/var olan yolu korur. Uzak disk (R2/S3) ise dosya kalıcı
+     * yerel cache'e indirilir (render motoru yalnız yerel dosya okur).
      */
     private function resolvePath(mixed $path): ?string
     {
@@ -121,16 +123,7 @@ class BrandTokenService
             return null;
         }
 
-        if (is_file($path)) {
-            return $path;
-        }
-
-        $disk = config('creative.disk', 'public');
-        if (Storage::disk($disk)->exists($path)) {
-            return Storage::disk($disk)->path($path);
-        }
-
-        return null;
+        return Media::localPath($path, config('creative.disk', 'public'));
     }
 
     /**

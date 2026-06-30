@@ -14,12 +14,12 @@ class MenuSeederTest extends TestCase
 
     public function test_seeds_root_menus_with_children(): void
     {
-        Permission::firstOrCreate(['name' => 'atelier.manage', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'atelier.view', 'guard_name' => 'web']);
 
         (new MenuSeeder())->run();
 
-        // 10 kök menü
-        $this->assertSame(10, Menu::roots()->count());
+        // 10 standart tenant kökü + 1 superadmin kökü (Sistem Logları) = 11
+        $this->assertSame(11, Menu::roots()->count());
 
         // Pano kökü ikonlu ve child'lı
         $pano = Menu::where('label', 'Pano')->whereNull('parent_id')->first();
@@ -27,18 +27,18 @@ class MenuSeederTest extends TestCase
         $this->assertSame('dashboard', $pano->icon);
         $this->assertGreaterThan(0, $pano->children()->count());
 
-        // Atölye izne bağlı
+        // Atölye izne bağlı (okuma izni menü görünürlüğünü yönetir)
         $atelier = Menu::where('label', 'Atölye')->whereNull('parent_id')->first();
-        $this->assertSame('atelier.manage', $atelier->permission);
+        $this->assertSame('atelier.view', $atelier->permission);
     }
 
     public function test_seeder_is_idempotent(): void
     {
-        Permission::firstOrCreate(['name' => 'atelier.manage', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'atelier.view', 'guard_name' => 'web']);
 
         (new MenuSeeder())->run();
         (new MenuSeeder())->run();
 
-        $this->assertSame(10, Menu::roots()->count());
+        $this->assertSame(11, Menu::roots()->count());
     }
 }

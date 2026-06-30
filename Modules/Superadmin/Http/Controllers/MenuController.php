@@ -11,6 +11,7 @@ use Modules\Superadmin\Http\Requests\ReorderMenuRequest;
 use Modules\Superadmin\Http\Requests\StoreMenuRequest;
 use Modules\Superadmin\Http\Requests\UpdateMenuRequest;
 use Modules\Superadmin\Models\Menu;
+use Modules\Superadmin\Services\RouteCatalog;
 use Spatie\Permission\Models\Permission;
 
 class MenuController extends Controller
@@ -23,6 +24,7 @@ class MenuController extends Controller
                 'url', 'permission', 'sort_order', 'is_active',
             ]),
             'permissions' => Permission::query()->orderBy('name')->pluck('name'),
+            'routes'      => RouteCatalog::forMenu(),
         ]);
     }
 

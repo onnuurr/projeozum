@@ -3,6 +3,7 @@
 namespace Modules\Atelier\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Support\Media;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -25,7 +26,7 @@ class PatternController extends Controller
 
     public function index(Request $request): Response
     {
-        $disk    = 'public';
+        $disk    = Media::disk();
         $search  = trim((string) $request->input('search', ''));
         $type    = (string) $request->input('product_type', '');
         $status  = (string) $request->input('status', '');
@@ -170,7 +171,8 @@ class PatternController extends Controller
         abort_unless((bool) $pattern->pdf_path, 404);
         $page = max(0, (int) $request->query('page', 0));
         $dpi  = min(300, max(72, (int) $request->query('dpi', 200)));
-        $abs  = Storage::disk('public')->path($pattern->pdf_path);
+        $abs  = Media::localPath($pattern->pdf_path);
+        abort_unless((bool) $abs, 404);
 
         try {
             $png = $this->converter->renderPage($abs, $page, $dpi);

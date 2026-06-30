@@ -26,6 +26,36 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Görsel iyileştirme (üretim sonrası upscale + son dokunuş)
+    |--------------------------------------------------------------------------
+    | AI çıktısı görselin çözünürlüğünü/keskinliğini artırır. Motor: OpenCV
+    | dnn_superres (model varsa) → yoksa Pillow LANCZOS fallback; ardından Pillow
+    | ile unsharp/kontrast/doygunluk + sRGB. Devre dışıysa (veya driver=null)
+    | enhancer passthrough (NullImageEnhancer) çalışır; opencv aranmaz.
+    | UYARI: Upscaling yapısal AI hatalarını düzeltmez, keskinleştirir — bu yüzden
+    | varsayılanlar muhafazakârdır (x2, ölçülü unsharp).
+    */
+    'enhance' => [
+        'enabled'    => (bool) env('CREATIVE_ENHANCE_ENABLED', false),
+        'driver'     => env('CREATIVE_ENHANCE_DRIVER', 'python'), // python | null
+        'python_bin' => env('CREATIVE_PYTHON_BIN', 'python3'),
+        'script'     => base_path('Modules/Creative/python/enhance.py'),
+        'model_dir'  => base_path('Modules/Creative/python/models'),
+        'model_name' => env('CREATIVE_ENHANCE_MODEL', 'fsrcnn'), // fsrcnn | edsr | lapsrn | espcn
+        'scale'      => (int) env('CREATIVE_ENHANCE_SCALE', 2),
+        'max_side'   => (int) env('CREATIVE_ENHANCE_MAX_SIDE', 2048),
+        'unsharp'    => [
+            'radius'    => (float) env('CREATIVE_ENHANCE_UNSHARP_RADIUS', 2.0),
+            'percent'   => (int) env('CREATIVE_ENHANCE_UNSHARP_PERCENT', 120),
+            'threshold' => (int) env('CREATIVE_ENHANCE_UNSHARP_THRESHOLD', 3),
+        ],
+        'contrast'   => (float) env('CREATIVE_ENHANCE_CONTRAST', 1.04),
+        'saturation' => (float) env('CREATIVE_ENHANCE_SATURATION', 1.03),
+        'timeout'    => (int) env('CREATIVE_ENHANCE_TIMEOUT', 120),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Tipografi
     |--------------------------------------------------------------------------
     | Metin slotlarında kullanılacak TTF font yolları. Şablon kendi fontunu
@@ -48,8 +78,8 @@ return [
     'ai' => [
         // gemini | mock
         'compose_driver' => env('AI_STUDIO_COMPOSE_DRIVER', 'gemini'),
-        // fal | mock
-        'tryon_driver'   => env('AI_STUDIO_TRYON_DRIVER', 'fal'),
+        // gemini | fal | mock — ürün giydirme (try-on). Varsayılan: Gemini Nano Banana 2.
+        'tryon_driver'   => env('AI_STUDIO_TRYON_DRIVER', 'gemini'),
         // gemini | mock — caption/hashtag üretimi
         'caption_driver' => env('CREATIVE_CAPTION_DRIVER', 'gemini'),
 
@@ -63,6 +93,9 @@ return [
             'api_key'   => env('GEMINI_API_KEY', ''),
             'base_url'  => env('GEMINI_BASE_URL', 'https://generativelanguage.googleapis.com/v1beta'),
             'model'     => env('GEMINI_IMAGE_MODEL', 'gemini-2.5-flash-image'),
+            // Try-on (giydirme) için kullanılan görsel modeli — Nano Banana 2.
+            // Erişime göre '-preview' eki gerekebilir (gemini-3.1-flash-image-preview).
+            'tryon_model' => env('GEMINI_TRYON_MODEL', 'gemini-3.1-flash-image'),
             // Caption gibi salt-metin üretiminde kullanılan model.
             'text_model' => env('GEMINI_TEXT_MODEL', 'gemini-2.5-flash'),
             // Görsel üretiminde her ikisi de zorunlu; yalnız IMAGE → 400.
@@ -109,6 +142,68 @@ return [
     | Depolama
     |--------------------------------------------------------------------------
     */
-    'disk'       => env('CREATIVE_DISK', 'public'),
+    'disk'       => env('CREATIVE_DISK', env('MEDIA_DISK', 'public')),
     'output_dir' => 'creatives',
+
+    /*
+    |--------------------------------------------------------------------------
+    | Sosyal medya çıktı formatları
+    |--------------------------------------------------------------------------
+    | Üretimde seçilen format çıktının nihai boyutunu belirler. Render, şablonu
+    | kendi boyutunda kurguladıktan sonra çıktıyı bu ölçüye "cover" ile uydurur.
+    | aspect: AI sahne prompt'una verilen oran ipucu.
+    */
+    'default_format' => 'instagram_story',
+    'formats' => [
+        'instagram_post'     => ['label' => 'Instagram Gönderi (Kare)', 'width' => 1080, 'height' => 1080, 'aspect' => '1:1 square'],
+        'instagram_portrait' => ['label' => 'Instagram Dikey (4:5)',     'width' => 1080, 'height' => 1350, 'aspect' => '4:5 portrait'],
+        'instagram_story'    => ['label' => 'Instagram / Story (9:16)',  'width' => 1080, 'height' => 1920, 'aspect' => '9:16 vertical'],
+        'facebook_post'      => ['label' => 'Facebook Gönderi',          'width' => 1200, 'height' => 630,  'aspect' => '1.91:1 landscape'],
+        'x_post'             => ['label' => 'X (Twitter) Gönderi',       'width' => 1600, 'height' => 900,  'aspect' => '16:9 landscape'],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Sanal Manken Stüdyosu
+    |--------------------------------------------------------------------------
+    | AI ile yeniden kullanılabilir manken üretilir (compose driver), her mankene
+    | aşağıdaki poz kataloğundan görseller üretilir (kimlik referans görseliyle),
+    | ardından ürünler bu pozlara idm-vton ile giydirilip product_images'a yazılır.
+    | Çıktı dizinleri creative.disk üzerinde tutulur.
+    */
+    'mannequin' => [
+        // Referans manken + poz görsellerinin saklandığı kök dizin.
+        'output_dir' => 'mannequins',
+        // Bir mankenin "hazır" sayılması için gereken asgari hazır poz sayısı.
+        'min_poses'  => 20,
+
+        // Poz kataloğu (20+). Her poz Gemini'ye duruş yönergesi olarak verilir;
+        // manken kimliği reference_image_path ile korunmaya çalışılır.
+        'poses' => [
+            ['key' => 'standing_front',       'label' => 'Ayakta cepheden',        'prompt' => 'standing upright facing the camera, relaxed shoulders, arms naturally at the sides'],
+            ['key' => 'standing_three_qtr',   'label' => 'Üç-çeyrek duruş',        'prompt' => 'a relaxed three-quarter standing pose, weight on one leg and shoulders angled slightly to camera'],
+            ['key' => 'standing_profile',     'label' => 'Profilden',              'prompt' => 'standing in full side profile, chin level, posture tall and elegant'],
+            ['key' => 'standing_back',        'label' => 'Arkadan',                'prompt' => 'standing with the back to the camera, head turned slightly over the shoulder'],
+            ['key' => 'contrapposto',         'label' => 'Kontraposto',            'prompt' => 'a contrapposto stance, hips shifted, one knee slightly bent, fashion-editorial feel'],
+            ['key' => 'hand_on_hip',          'label' => 'El belde',               'prompt' => 'a confident frontal stance with one hand resting on the hip, chin level'],
+            ['key' => 'both_hands_hips',      'label' => 'İki el belde',           'prompt' => 'standing with both hands on the hips, strong confident posture'],
+            ['key' => 'arms_crossed',         'label' => 'Kollar kavuşmuş',        'prompt' => 'standing with arms gently crossed, calm and approachable expression'],
+            ['key' => 'walking_stride',       'label' => 'Yürüyüş',                'prompt' => 'a dynamic walking pose mid-stride that conveys movement while staying in sharp focus'],
+            ['key' => 'walking_runway',       'label' => 'Podyum yürüyüşü',        'prompt' => 'a runway walking pose, one foot crossing in front of the other, poised and deliberate'],
+            ['key' => 'looking_over_shoulder','label' => 'Omuz üstü bakış',        'prompt' => 'body angled away while looking back over the shoulder toward the camera'],
+            ['key' => 'hands_in_pockets',     'label' => 'Eller cepte',            'prompt' => 'standing casually with hands in pockets, easy relaxed mood'],
+            ['key' => 'leaning_wall',         'label' => 'Duvara yaslı',           'prompt' => 'leaning against a plain wall with crossed ankles, casual editorial vibe'],
+            ['key' => 'seated_chair',         'label' => 'Sandalyede oturma',      'prompt' => 'seated upright on a simple chair, hands resting on the lap, composed posture'],
+            ['key' => 'seated_editorial',     'label' => 'Editorial oturma',       'prompt' => 'a seated editorial pose with an elongated silhouette presented to the camera'],
+            ['key' => 'seated_floor',         'label' => 'Yerde oturma',           'prompt' => 'sitting on the floor with relaxed legs, natural candid posture'],
+            ['key' => 'crouching',            'label' => 'Çömelme',                'prompt' => 'a low crouching pose, forearms on knees, urban editorial feel'],
+            ['key' => 'arms_raised',          'label' => 'Kollar yukarıda',        'prompt' => 'a dynamic pose with both arms raised, energetic and expressive'],
+            ['key' => 'adjusting_collar',     'label' => 'Yakaya dokunuş',         'prompt' => 'one hand lightly adjusting the collar or neckline, gaze toward camera'],
+            ['key' => 'hand_in_hair',         'label' => 'Saça dokunuş',           'prompt' => 'one hand running through the hair, relaxed natural expression'],
+            ['key' => 'twisting_torso',       'label' => 'Gövde dönüşü',           'prompt' => 'torso twisting toward the camera while hips face away, showing garment movement'],
+            ['key' => 'three_qtr_back',       'label' => 'Üç-çeyrek arka',         'prompt' => 'a three-quarter back view, weight on one leg, head turned to camera'],
+            ['key' => 'step_forward',         'label' => 'Öne adım',               'prompt' => 'taking a confident step forward toward the camera, arms swinging naturally'],
+            ['key' => 'relaxed_lean',         'label' => 'Rahat yaslanış',         'prompt' => 'relaxed standing lean with weight back, hands loosely clasped in front'],
+        ],
+    ],
 ];

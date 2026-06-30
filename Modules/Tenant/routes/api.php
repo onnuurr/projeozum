@@ -6,7 +6,9 @@ use Modules\Tenant\Http\Controllers\Api\TenantInvoiceApiController;
 use Modules\Tenant\Http\Controllers\Api\TenantPriceListApiController;
 use Modules\Tenant\Http\Controllers\Api\TenantSettingsApiController;
 
-Route::middleware(['auth:sanctum', 'role:superadmin'])->prefix('v1')->group(function () {
+// Tüm v1 tenant yönetim uçları can:tenant.manage ister (web tarafıyla tutarlı; superadmin
+// Gate::before ile geçer). Böylece tenant yönetimi superadmin dışı rollere delege edilebilir.
+Route::middleware(['auth:sanctum', 'can:tenant.manage'])->prefix('v1')->group(function () {
     // Tenant CRUD
     Route::get('tenants', [TenantApiController::class, 'index']);
     Route::post('tenants', [TenantApiController::class, 'store']);

@@ -2,15 +2,15 @@
 
 namespace Modules\Creative\Services;
 
-use Illuminate\Support\Facades\Storage;
+use App\Support\Media;
 
 /**
- * product_images.url gibi değerleri Python'un okuyabileceği yerel dosya
- * yollarına çözer. http/data kaynakları geçici dosyaya yazılır ve render
- * sonrası cleanup() ile temizlenir.
+ * product_images.path gibi relative değerleri Python'un okuyabileceği yerel
+ * dosya yollarına çözer. http/data kaynakları ve uzak disk (R2/S3) dosyaları
+ * geçici dosyaya yazılır, render sonrası cleanup() ile temizlenir.
  *
- * Mantık, ProductImageController::destroy'daki `/storage/` ayrıştırmasıyla
- * uyumludur (public disk yolu).
+ * Aktif medya diski 'public' iken dosya doğrudan yerel diskten okunur
+ * (indirme yok); 's3' (Cloudflare R2/CDN) iken byte'lar temp'e indirilir.
  */
 class CanvasAssetResolver
 {
@@ -37,13 +37,10 @@ class CanvasAssetResolver
             return $this->downloadToTemp($src);
         }
 
-        // /storage/... → public disk
+        // /storage/... → medya diskindeki relative path'e indirge (geriye dönük uyum)
         $publicBase = '/storage/';
         if (str_starts_with($src, $publicBase)) {
-            $diskPath = substr($src, strlen($publicBase));
-            $full     = Storage::disk('public')->path($diskPath);
-
-            return is_file($full) ? $full : null;
+            return $this->resolveFromDisk(substr($src, strlen($publicBase)));
         }
 
         // Mutlak dosya yolu
@@ -51,10 +48,18 @@ class CanvasAssetResolver
             return $src;
         }
 
-        // Göreli storage yolu (örn. "products/1/foo.jpg")
-        $full = Storage::disk('public')->path(ltrim($src, '/'));
+        // Göreli medya yolu (örn. "products/1/foo.jpg")
+        return $this->resolveFromDisk($src);
+    }
 
-        return is_file($full) ? $full : null;
+    /**
+     * Medya diskindeki relative path'i yerel mutlak yola çözer. Yerel disk
+     * (public/local) ise gerçek dosya yolu döner; uzak disk (R2/S3) ise dosya
+     * kalıcı yerel cache'e indirilip o yol döner (App\Support\Media::localPath).
+     */
+    private function resolveFromDisk(string $diskPath): ?string
+    {
+        return Media::localPath($diskPath);
     }
 
     public function cleanup(): void

@@ -18,8 +18,18 @@ use Spatie\Permission\Models\Role;
  */
 class RolePermissionSeeder extends Seeder
 {
-    /** Silinmiş Ads/AiStudio modüllerinden kalan orphan izinler. */
-    private const ORPHAN_PERMISSIONS = ['ads.manage', 'ai.model.create'];
+    /**
+     * Silinmiş/yeniden adlandırılmış izinler.
+     *   - ads.manage, ai.model.create: silinmiş Ads/AiStudio modüllerinden kalan kalıntılar.
+     *   - creative.manage, atelier.manage: hibrit granüler izinlere bölündüğü için emekli edildi
+     *     (bkz. CreativePermissionSeeder / AtelierPermissionSeeder).
+     */
+    private const ORPHAN_PERMISSIONS = [
+        'ads.manage',
+        'ai.model.create',
+        'creative.manage',
+        'atelier.manage',
+    ];
 
     public function run(): void
     {

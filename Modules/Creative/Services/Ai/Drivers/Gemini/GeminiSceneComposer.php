@@ -20,8 +20,9 @@ class GeminiSceneComposer implements SceneComposerContract
     {
         $prompt = $this->prompts->build($request);
 
-        // Ürün görseli varsa Gemini'ye stil/renk referansı olarak verilir.
-        $refs = array_filter([$request->productImagePath]);
+        // Ürünün kendi görselleri Gemini'ye konu/sadakat referansı olarak verilir.
+        $refs = $request->productImagePaths ?: array_filter([$request->productImagePath]);
+        $refs = array_values(array_filter($refs, fn ($p) => is_string($p) && is_file($p)));
 
         $bytes = $this->client->generateImage($prompt, $refs);
 

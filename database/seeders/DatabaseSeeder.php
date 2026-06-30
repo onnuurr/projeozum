@@ -15,6 +15,12 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // RBAC: roller + izin kataloğu (tüm modüller). Demo iş verisi seed'lerinden bağımsız.
+        $this->call(RolePermissionSeeder::class);
+
+        // Creative: varsayılan marka kiti (render/AI/caption token kaynağı).
+        $this->call(\Modules\Creative\database\seeders\BrandKitSeeder::class);
+
         // User::factory(10)->create();
 
         User::factory()->create([

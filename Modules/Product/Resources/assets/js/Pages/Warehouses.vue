@@ -268,7 +268,7 @@ async function confirmDelete(w) {
 	font-size: 13px; padding: 5px 8px; border-radius: 6px;
 	color: #6b7280; transition: all .15s;
 }
-.icon-btn:hover { background: #e0e7ff; color: #4f46e5; }
+.icon-btn:hover { background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary)); }
 .icon-btn.delete:hover { background: #fee2e2; color: #dc2626; }
 
 .warehouse-info { display: flex; flex-direction: column; gap: 4px; }
@@ -307,7 +307,7 @@ async function confirmDelete(w) {
 .form-label { font-size: 12px; font-weight: 600; color: #1a1a2e; }
 .form-label .req { color: #ef4444; }
 .form-input { padding: 9px 12px; border: 1px solid #e8e8f0; border-radius: 8px; font-family: inherit; font-size: 13px; color: #1a1a2e; background: #fff; outline: none; transition: border-color .15s; }
-.form-input:focus { border-color: #7c3aed; }
+.form-input:focus { border-color: rgb(var(--color-primary)); }
 .mono-input { font-family: 'SF Mono', Menlo, Consolas, monospace; letter-spacing: 0.04em; }
 .form-hint { font-size: 11px; color: #888; }
 .form-error { font-size: 11.5px; color: #ef4444; }

@@ -1,6 +1,12 @@
 # Creative render motoru bağımlılıkları.
 #   python -m pip install -r requirements.txt
 Pillow>=10
+
+# Görsel iyileştirme (enhance.py) bağımlılıkları. dnn_superres düz opencv-python'da
+# DEĞİL, contrib pakettedir. CREATIVE_ENHANCE_ENABLED=true ise gerekir; değilse
+# enhancer NullImageEnhancer'a düşer ve bu paketler aranmaz.
+opencv-contrib-python>=4.9
+numpy>=1.26
 # Not: resvg ayrı bir CLI aracıdır (pip paketi değil). Opsiyoneldir; kurulu
 # değilse render.py salt-Pillow fallback moduna düşer. Kurulum:
 #   winget install resvg   |   scoop install resvg   |   cargo install resvg

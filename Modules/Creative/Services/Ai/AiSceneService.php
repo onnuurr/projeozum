@@ -72,7 +72,9 @@ class AiSceneService
         Storage::disk($disk)->put($rel, $bytes);
 
         return [
-            'path'   => Storage::disk($disk)->path($rel),
+            // Render slot'u yerel dosya ister; az önce okuduğumuz kaynak yerel
+            // yol zaten geçerli (uzak diske ayrıca yüklendi).
+            'path'   => $resultPath,
             'stored' => $rel,
         ];
     }

@@ -379,7 +379,7 @@ const activitySummary = computed(() => {
 	border-radius: 8px;
 	border: 1.5px solid #e8e8f2;
 	background: #fff;
-	color: #4a6cf7;
+	color: rgb(var(--color-primary));
 	cursor: pointer;
 	display: flex;
 	align-items: center;
@@ -391,9 +391,9 @@ const activitySummary = computed(() => {
 	flex-shrink: 0;
 }
 .drawer-edit-btn:hover {
-	background: #eef0ff;
+	background: rgb(var(--color-primary-soft));
 	border-color: #c0c8f8;
-	color: #2a4fd7;
+	color: rgb(var(--color-primary-hover));
 }
 
 /* ── Profil özeti ── */
@@ -447,8 +447,8 @@ const activitySummary = computed(() => {
 	font-weight: 600;
 }
 .role-admin {
-	background: #ede9fe;
-	color: #7c3aed;
+	background: rgb(var(--color-primary-soft));
+	color: rgb(var(--color-primary));
 }
 .role-manager {
 	background: #e0f2fe;
@@ -540,7 +540,7 @@ const activitySummary = computed(() => {
 }
 
 .link {
-	color: #4a6cf7;
+	color: rgb(var(--color-primary));
 	text-decoration: none;
 }
 .link:hover {

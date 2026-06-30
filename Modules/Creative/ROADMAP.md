@@ -109,6 +109,74 @@ export route + ZIP mantığı, retry/backoff, `npm run build` temiz.
 
 ---
 
+---
+
+## 🆕 Özellik İzi — Sanal Manken Stüdyosu (yeni, BrandCreative roadmap'inden bağımsız)
+**Amaç:** AI ile yeniden kullanılabilir sanal manken üret → her mankene 20+ poz üret (kimlik
+referanslı) → ürünleri bu pozlara idm-vton ile giydir → sonucu `product_images`'a (ürün seviyesi) yaz.
+
+**Kararlar (kullanıcı onaylı):** manken = AI ile sıfırdan; pozlar = AI ile (kimlik referanslı);
+çıktı = product_images (ürün seviyesi); konum = Creative içinde yeni "Sanal Manken" sekmesi.
+Mevcut Gemini compose + fal idm-vton + ImageFile + job/retry deseni yeniden kullanılır.
+
+**Fazlar:** A=Şema+model+config · B=Manken üretimi · C=Poz üretimi · D=Ürün giydirme→product_images · E=Cila.
+
+- ✅ **Faz A — Şema + Model + Config (yapıldı, migrate + schema:audit temiz)**
+  - Migrationlar (ileri tarihli, gerçek `down()`): `2026_06_11_100000_create_creative_mannequins_table`,
+    `..._100100_create_creative_mannequin_poses_table`, `..._100200_create_creative_tryon_results_table`.
+  - Modeller: `Models/Mannequin.php` (softDeletes, status sabitleri, `poses()`/`results()`),
+    `Models/MannequinPose.php` (status sabitleri, `mannequin()`/`results()`),
+    `Models/TryonResult.php` (product/mannequin/pose/productImage ilişkileri; `product_id+pose_id` unique = idempotensi).
+  - Config: `creative.mannequin.*` → `output_dir='mannequins'`, `min_poses=20`, **24'lük poz kataloğu** (`key/label/prompt`).
+  - Not: `creative_tryon_results` izlenebilirlik/idempotensi içindir; nihai görsel yine `product_images`'a yazılır.
+- ✅ **Faz B — Manken üretimi (yapıldı; mock uçtan uca + `npm run build` temiz)**
+  - DTO/Contract: `Services/Ai/MannequinRequest.php` (promptOverride dahil), `Contracts/MannequinComposerContract.php`.
+  - PromptBuilder: `Drivers/Gemini/MannequinPromptBuilder.php` — try-on'a uygun NÖTR tam boy, sade arka plan, taban kıyafet; tarif alanlarından kimlik cümlesi.
+  - Sürücüler: `Drivers/Gemini/GeminiMannequinComposer.php`, `Drivers/Mock/MockMannequinComposer.php`. Binding: provider'da `MannequinComposerContract` (gemini anahtarı varsa gerçek, yoksa mock).
+  - Orchestrator: `Services/MannequinService.php` — compose → `mannequins/{id}/reference.png` diske → model `prompt`/`reference_image_path`/`status=ready`. Geçici dosya finally ile temizlenir.
+  - Job: `Jobs/GenerateMannequinJob.php` (tries=3, backoff [10,30], generating→ready/failed).
+  - HTTP: `Http/Requests/StoreMannequinRequest.php`, `Http/Controllers/MannequinController.php` (index/store/regenerate/destroy). Route'lar `creative.mannequins.*`.
+  - UI: `Components/CreativeNav.vue`'ya "Sanal Manken" sekmesi; `Pages/CreativeMannequins.vue` (üret formu + manken grid'i, status rozeti, üretim sürerken 5sn otomatik yenileme).
+  - Not: pozlar Faz C'de; şu an grid "0/min poz hazır" gösterir.
+- ✅ **Faz C — Poz üretimi (yapıldı; mock uçtan uca: 24 poz seed + üretim, `npm run build` temiz)**
+  - DTO/Contract: `Services/Ai/MannequinPoseRequest.php`, `Contracts/MannequinPoseComposerContract.php`.
+  - PromptBuilder: `Drivers/Gemini/MannequinPosePromptBuilder.php` — referans görseldeki KİMLİĞİ koru (yüz/ten/saç/vücut/taban kıyafet), yalnız duruşu değiştir; sade arka plan tutarlı.
+  - Sürücüler: `Drivers/Gemini/GeminiMannequinPoseComposer.php` (referans görseli `refs` olarak inline verir), `Drivers/Mock/MockMannequinPoseComposer.php`. Binding: `MannequinPoseComposerContract`.
+  - Orchestrator: `Services/MannequinPoseService.php` — `seed()` katalogdan 24 pozu `updateOrCreate` ile işler (idempotent, queued); `generate()` referansı `Storage::path` ile çözüp compose → `mannequins/{id}/poses/{key}.png` → pose `ready`.
+  - Job: `Jobs/GeneratePoseJob.php` (poz başına granüler; tries=3, backoff [10,30]).
+  - HTTP: `MannequinController` → `poses()` (detay), `generatePoses()` (seed+dispatch, manken `ready` şartı), `regeneratePose()`. Route'lar `creative.mannequins.poses`, `...poses.generate`, `creative.poses.regenerate`.
+  - UI: `Pages/CreativeMannequinPoses.vue` (kimlik thumb + poz grid'i, status rozeti, tek poz yeniden üret, üretim sürerken 5sn auto-refresh); `CreativeMannequins.vue` kartına "Pozlar →" linki (yalnız ready manken).
+- ✅ **Faz D — Ürün giydirme (yapıldı; mock uçtan uca + idempotensi + `npm run build` temiz)**
+  - Orchestrator: `Services/ProductOnModelService.php` — `queue()` ürün+mankenin HAZIR pozları için `tryon_result` satırları (updateOrCreate, product_id+pose_id benzersiz); `generate()` pozu "model" + ürün kapağını "giysi" alıp `GarmentTryOnContract::tryOn` → çıktı `products/{id}/onmodel_*.png` (public disk) → `product_images`'a `images()->create` (is_cover=false). Yeniden üretimde eski ProductImage+dosya temizlenir.
+  - **URL normalizasyonu (bulgu):** product_images.url bu projede MUTLAK (`http://host/storage/...`). `toStorageRelative()` ile garment HTTP indirmeden yerelden okunur; `deleteProductImage()` '/storage/' işaretçisiyle hem mutlak hem göreli url'i siler (eski `str_starts_with('/storage/')` mutlak url'de eşleşmiyordu).
+  - Job: `Jobs/GenerateOnModelJob.php` (sonuç başına granüler; tries=3, backoff [10,30]; generating→done/failed).
+  - HTTP: `Http/Requests/GenerateTryonRequest.php`, `Http/Controllers/TryonController.php` (index: ürünler + uygun mankenler[hazır+≥1 hazır poz] + son 60 sonuç; store: queue+dispatch). Route'lar `creative.tryon.*`.
+  - UI: `Components/CreativeNav.vue`'ya "Ürün Giydirme" sekmesi; `Pages/CreativeTryon.vue` (ürün seç → manken seç → poz çoklu-seç → giydir; sonuç grid'i status rozeti + 5sn auto-refresh).
+  - Doğrulandı (mock): manken+poz üret → giydir → product_images'a yazıldı (alt: "Ürün — Poz"); yeniden üretim toplam görseli artırmadı, eski dosya silindi, image_id değişti.
+- ✅ **Faz E — Cila (yapıldı; aksiyonlar uçtan uca + `npm run build` temiz)**
+  - Kapak yap: `TryonController::setCover()` — giydirme çıktısını ürün kapağı yapar (diğer kapakları düşürür). Route `creative.tryon.cover`. UI: sonuç kartında "Kapak yap" + ★ kapak rozeti.
+  - Sonuç sil: `TryonController::destroyResult()` — ürün görselini (dosya + satır) ve tryon_result'ı siler. Route `creative.tryon.destroy`. `deleteProductImage()` mutlak/göreli url'i '/storage/' işaretçisiyle çözer.
+  - Poz ayıklama: `MannequinController::destroyPose()` — pozu görseliyle siler (kimlik tutarsızsa kaldır). Route `creative.poses.destroy`. UI: poz kartında "Sil".
+  - `TryonController::index` sonuçlarına `is_cover` eklendi (UI rozet/aksiyon için).
+  - Doğrulandı: setCover (onmodel kapak=1, eski kapak=0), destroyResult (görsel+dosya+satır gitti), destroyPose (poz+dosya gitti).
+
+**🎉 Sanal Manken Stüdyosu 5 fazı tamam.** Tam zincir: manken üret → 20+ poz üret → ürünü pozlara giydir → product_images'a ürün görseli + kapak yap.
+
+### 🔄 REVİZYON (mimari pivot — kullanıcı talebi)
+Üç yapısal değişiklik yapıldı; aşağıdaki C/D açıklamaları ESKİ tasarımı anlatır, güncel davranış bu revizyondur:
+1. **Manken = yüz + vücut ölçüleri.** `creative_mannequins`'e `face, height_cm, bust_cm, waist_cm, hips_cm` eklendi (migration `2026_06_11_101000`). `MannequinPromptBuilder` yüz + ölçüleri prompt'a işler (`Facial features...`, `height about N cm`). Form çocuk yaş aralıkları + ölçü/yüz alanları taşır.
+2. **Pozlar mankenden BAĞIMSIZ.** `creative_mannequin_poses` kaldırıldı; yeni `creative_poses` kütüphanesi (migration `2026_06_11_101100/101200`; `tryon_results.pose_id` FK → `creative_poses`). Her poz nötr figürle bir kez önizlenir: `Pose` modeli, `PoseService` (seed+generate), `PosePromptBuilder`/`{Gemini,Mock}PosePreviewComposer`, `GeneratePosePreviewJob`, `PoseController`, route `creative.poses.*`, UI `Pages/CreativePoses.vue` + nav "Pozlar". Eski `MannequinPose` modeli/`MannequinPoseService`/`GeneratePoseJob`/`CreativeMannequinPoses.vue` SİLİNDİ.
+3. **Try-on artık iki AI adımı.** `ProductOnModelService::generate` önce seçilen mankeni seçilen pozun yönergesiyle compose eder (mevcut `MannequinPoseComposer`, kimlik referansı = mankenin reference görseli), sonra ürünü giydirir. `queue(product, mannequin, poseIds)` bağımsız poz id'leri alır. UI: `CreativeTryon.vue` artık ürün + manken + (bağımsız kütüphaneden) çoklu poz seçtirir.
+- Doğrulandı (mock, gemini key runtime'da boşaltılarak): manken ölçü/yüz prompt'a girdi; 24 poz seed + önizleme; try-on iki adım → product_images. `schema:audit` temiz (tablo/model dengede), `npm run build` temiz.
+
+**Açık riskler / sonraki adımlar (talep gelirse):**
+- Kimlik tutarlılığı 20 pozda Gemini'de en iyi-çaba; `destroyPose` ile elle ayıklanır. İstenirse otomatik yüz-benzerlik skoru eklenebilir.
+- Her şey MOCK ile doğrulandı. Gerçek kalite için `.env`: `GEMINI_API_KEY` (compose+poz) + `FAL_KEY` (idm-vton try-on). Anahtar yoksa mock'a düşer.
+- Queue: job'lar dispatch ediliyor; prod'da `QUEUE_CONNECTION=redis` + `queue:work`/Horizon önerilir (AI uzun sürer).
+- Varyant seviyesi giydirme (renk/beden) ve toplu (ürün×manken) kuyruk ileride eklenebilir.
+
+---
+
 ## Devam etme talimatı (kendime not)
 1. Bu dosyadan sıradaki ⬜ fazı seç.
 2. `TaskCreate` ile o fazın adımlarını çıkar, `in_progress` işaretle.

@@ -137,7 +137,7 @@ onBeforeUnmount(() => {
 	display: flex; align-items: center; justify-content: center;
 	flex-shrink: 0;
 }
-.modal-title-icon.icon-info { background: #ede9fe; color: #7c3aed; }
+.modal-title-icon.icon-info { background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary)); }
 .modal-title-icon.icon-danger { background: #fee2e2; color: #ef4444; }
 .modal-title h4 { font-size: 15px; font-weight: 600; color: #1a1a2e; }
 .modal-title p { font-size: 12px; color: #9898b0; margin-top: 1px; }
@@ -158,9 +158,9 @@ onBeforeUnmount(() => {
 .modal-body .modal-info-row {
 	display: flex; align-items: center; gap: 10px;
 	padding: 10px 12px; border-radius: 10px;
-	background: #f8f7ff; border: 1px solid #ede9fe;
+	background: #f8f7ff; border: 1px solid rgb(var(--color-primary-soft));
 	margin-bottom: 14px;
-	font-size: 13px; color: #5b21b6;
+	font-size: 13px; color: rgb(var(--color-primary-hover));
 }
 .modal-body .modal-info-row.danger-row {
 	background: #fff8f8; border-color: #fecaca; color: #991b1b;

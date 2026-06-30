@@ -2,6 +2,7 @@
 
 namespace Modules\Atelier\Services\Conversion;
 
+use App\Support\Media;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -49,7 +50,10 @@ class ConversionPipelineService
         $job->update(['status' => ConversionJob::STATUS_PROCESSING]);
 
         try {
-            $abs    = Storage::disk($this->disk())->path($job->source_pdf_path);
+            $abs = Media::localPath($job->source_pdf_path, $this->disk());
+            if (! $abs) {
+                throw new \RuntimeException('Kaynak PDF diskte bulunamadı: ' . $job->source_pdf_path);
+            }
             $result = $this->converter->convert($abs);
 
             $dxfPath = null;

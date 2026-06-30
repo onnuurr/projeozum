@@ -3,10 +3,13 @@ window.axios = axios;
 
 window.axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 
-const csrfMeta = document.head.querySelector('meta[name="csrf-token"]');
-if (csrfMeta) {
-    window.axios.defaults.headers.common['X-CSRF-TOKEN'] = csrfMeta.content;
-}
+// CSRF: statik X-CSRF-TOKEN header'ı KULLANMA. Bu bir Inertia SPA'sı; <meta csrf-token>
+// yalnızca ilk tam yüklemede render olur ve login sonrası session token rotasyonunda
+// bayatlar. Laravel CSRF doğrulamasında X-CSRF-TOKEN, X-XSRF-TOKEN'dan önceliklidir;
+// bayat statik header taze cookie token'ını gölgeleyip web POST'larda 419 verirdi.
+// Bunun yerine axios'un yerleşik mekanizması kullanılır: her yanıtta tazelenen
+// XSRF-TOKEN cookie'sini okuyup X-XSRF-TOKEN header'ı olarak gönderir.
+// (API route'ları Bearer token kullanır; CSRF'e tabi değildir, bu header gereksizdi.)
 
 import Echo from 'laravel-echo';
 import Pusher from 'pusher-js';

@@ -101,8 +101,8 @@ onBeforeUnmount(() => document.removeEventListener('click', handleOutside))
 }
 .cs-trigger:hover { border-color: #ccc; }
 .cs-trigger.open {
-	border-color: #4a6cf7;
-	box-shadow: 0 0 0 3px rgba(74, 108, 247, 0.1);
+	border-color: rgb(var(--color-primary));
+	box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.1);
 	background: #fff;
 }
 .cs-trigger > span { flex: 1; display: flex; align-items: center; gap: 8px; }
@@ -128,8 +128,8 @@ onBeforeUnmount(() => document.removeEventListener('click', handleOutside))
 	display: flex; align-items: center; gap: 8px;
 	transition: background .1s;
 }
-.cs-option:hover { background: #f0f2ff; color: #1a1a2e; }
-.cs-option.selected { background: #f0f2ff; color: #4a6cf7; font-weight: 600; }
+.cs-option:hover { background: rgb(var(--color-primary-soft)); color: #1a1a2e; }
+.cs-option.selected { background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary)); font-weight: 600; }
 
 .cs-empty {
 	padding: 10px; text-align: center;

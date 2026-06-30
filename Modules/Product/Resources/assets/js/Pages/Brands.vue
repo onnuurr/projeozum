@@ -271,9 +271,9 @@ async function confirmDelete(b) {
 .brand-cell { display: flex; align-items: center; gap: 12px; }
 .brand-logo {
 	width: 36px; height: 36px; border-radius: 10px;
-	background: linear-gradient(135deg, #ede9fe, #ddd6fe);
+	background: linear-gradient(135deg, rgb(var(--color-primary-soft)), #ddd6fe);
 	display: flex; align-items: center; justify-content: center;
-	font-size: 16px; font-weight: 800; color: #7c3aed; flex-shrink: 0;
+	font-size: 16px; font-weight: 800; color: rgb(var(--color-primary)); flex-shrink: 0;
 }
 .brand-info { display: flex; flex-direction: column; gap: 2px; }
 .brand-name { font-weight: 600; color: #1a1a2e; font-size: 13px; }
@@ -283,7 +283,7 @@ async function confirmDelete(b) {
 
 .table-actions { display: flex; gap: 4px; }
 .table-action-btn { background: #f3f4f6; border: none; cursor: pointer; font-size: 13px; padding: 5px 9px; border-radius: 6px; color: #6b7280; transition: all .15s; }
-.table-action-btn.view:hover { background: #e0e7ff; color: #4f46e5; }
+.table-action-btn.view:hover { background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary)); }
 .table-action-btn.delete:hover { background: #fee2e2; color: #dc2626; }
 
 .form-grid { display: flex; flex-direction: column; gap: 14px; }
@@ -291,6 +291,6 @@ async function confirmDelete(b) {
 .form-label { font-size: 12px; font-weight: 600; color: #1a1a2e; }
 .form-label .req { color: #ef4444; }
 .form-input { padding: 9px 12px; border: 1px solid #e8e8f0; border-radius: 8px; font-family: inherit; font-size: 13px; color: #1a1a2e; background: #fff; outline: none; transition: border-color .15s; }
-.form-input:focus { border-color: #7c3aed; }
+.form-input:focus { border-color: rgb(var(--color-primary)); }
 .form-error { font-size: 11.5px; color: #ef4444; }
 </style>

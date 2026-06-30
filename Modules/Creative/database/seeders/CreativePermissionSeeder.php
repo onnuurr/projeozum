@@ -11,7 +11,12 @@ class CreativePermissionSeeder extends Seeder
     public function run(): void
     {
         $permissions = [
-            'creative.manage' => 'Creative Stüdyo (görsel üretim, şablon, onay)',
+            'creative.view'            => 'Creative Görüntüle',
+            'creative.generate'        => 'Creative Görsel Üret',
+            'creative.approve'         => 'Creative Asset Onayla',
+            'creative.asset.manage'    => 'Creative Manken/Poz/Tryon Yönet',
+            'creative.template.manage' => 'Creative Şablon Yönet',
+            'creative.brandkit.manage' => 'Creative Marka Kiti Yönet',
         ];
 
         $created = [];

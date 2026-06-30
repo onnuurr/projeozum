@@ -128,6 +128,25 @@ class MenuManagementTest extends TestCase
         $this->assertDatabaseHas('superadmin_menus', ['id' => $parent->id, 'parent_id' => null]);
     }
 
+    public function test_menus_index_exposes_route_catalog(): void
+    {
+        // Menüde olan route katalogdan gizlenir; olmayan menülenebilir route görünür.
+        Menu::create(['label' => 'Ayarlar', 'route_name' => 'superadmin.settings', 'sort_order' => 0]);
+
+        $this->actingAs($this->superadmin)
+            ->get('/superadmin/menus')
+            ->assertInertia(fn ($page) => $page
+                ->has('routes')
+                ->where('routes', function ($routes) {
+                    $names = collect($routes)->pluck('name');
+
+                    return $names->contains('superadmin.menus')          // menüde yok → görünür
+                        && ! $names->contains('superadmin.settings')      // menüde var → gizli
+                        && ! $names->contains('superadmin.menus.update'); // parametreli → hariç
+                })
+            );
+    }
+
     public function test_non_superadmin_cannot_manage_menus(): void
     {
         $user = User::factory()->create();

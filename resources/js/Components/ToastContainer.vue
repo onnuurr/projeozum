@@ -89,7 +89,7 @@ const icons = {
 .toast-success .toast-icon { background: #f0fdf4; color: #22c55e; }
 .toast-error .toast-icon { background: #fef2f2; color: #ef4444; }
 .toast-warning .toast-icon { background: #fffbeb; color: #f59e0b; }
-.toast-info .toast-icon { background: #eff6ff; color: #3b82f6; }
+.toast-info .toast-icon { background: rgb(var(--color-primary-soft)); color: #3b82f6; }
 
 .toast-body { flex: 1; min-width: 0; }
 .toast-title { font-size: 13px; font-weight: 700; color: #1a1a2e; margin-bottom: 2px; line-height: 1.3; }

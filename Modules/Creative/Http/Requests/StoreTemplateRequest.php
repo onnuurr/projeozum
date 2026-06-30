@@ -19,7 +19,7 @@ class StoreTemplateRequest extends FormRequest
                 'required',
                 'file',
                 'mimetypes:image/svg+xml,text/plain,text/xml,application/xml',
-                'max:5120',
+                'max:15120',
             ],
         ];
     }

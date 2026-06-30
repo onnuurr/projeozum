@@ -331,7 +331,7 @@ function marketplaceLabel(code) {
 
 .table-actions { display: flex; gap: 4px; }
 .table-action-btn { background: #f3f4f6; border: none; cursor: pointer; font-size: 13px; padding: 5px 9px; border-radius: 6px; color: #6b7280; transition: all .15s; }
-.table-action-btn.view:hover { background: #e0e7ff; color: #4f46e5; }
+.table-action-btn.view:hover { background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary)); }
 .table-action-btn.toggle:hover { background: #fef3c7; color: #92400e; }
 .table-action-btn.delete:hover { background: #fee2e2; color: #dc2626; }
 
@@ -340,7 +340,7 @@ function marketplaceLabel(code) {
 .form-label { font-size: 12px; font-weight: 600; color: #1a1a2e; }
 .form-label .req { color: #ef4444; }
 .form-input { padding: 9px 12px; border: 1px solid #e8e8f0; border-radius: 8px; font-family: inherit; font-size: 13px; color: #1a1a2e; background: #fff; outline: none; transition: border-color .15s; }
-.form-input:focus { border-color: #7c3aed; }
+.form-input:focus { border-color: rgb(var(--color-primary)); }
 .form-input:disabled { background: #f5f5f8; color: #888; cursor: not-allowed; }
 .form-error { font-size: 11.5px; color: #ef4444; }
 .form-check { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: #1a1a2e; }

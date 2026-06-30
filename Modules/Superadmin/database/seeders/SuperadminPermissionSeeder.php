@@ -11,7 +11,10 @@ class SuperadminPermissionSeeder extends Seeder
     public function run(): void
     {
         $permissions = [
-            'logs.view' => 'Log Görüntüleme',
+            'logs.view'       => 'Log Görüntüleme',
+            'settings.manage' => 'Sistem Ayarları Yönet',
+            'menu.manage'     => 'Menü Yönet',
+            'rbac.manage'     => 'Rol & İzin Yönet',
         ];
 
         $created = [];

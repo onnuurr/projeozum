@@ -13,8 +13,26 @@ export default {
 
     theme: {
         extend: {
+            // Renkler app.css :root değişkenlerinden beslenir (TEK KAYNAK).
+            // alpha-value deseni sayesinde bg-primary/10 gibi opaklıklar çalışır.
+            colors: {
+                primary: {
+                    DEFAULT: 'rgb(var(--color-primary) / <alpha-value>)',
+                    hover: 'rgb(var(--color-primary-hover) / <alpha-value>)',
+                    soft: 'rgb(var(--color-primary-soft) / <alpha-value>)',
+                },
+                ink: 'rgb(var(--color-ink) / <alpha-value>)',
+                muted: 'rgb(var(--color-muted) / <alpha-value>)',
+                surface: 'rgb(var(--color-surface) / <alpha-value>)',
+                canvas: 'rgb(var(--color-bg) / <alpha-value>)',
+                line: 'rgb(var(--color-border) / <alpha-value>)',
+                success: 'rgb(var(--color-success) / <alpha-value>)',
+                warning: 'rgb(var(--color-warning) / <alpha-value>)',
+                danger: 'rgb(var(--color-danger) / <alpha-value>)',
+                info: 'rgb(var(--color-info) / <alpha-value>)',
+            },
             fontFamily: {
-                sans: ['"Plus Jakarta Sans"', ...defaultTheme.fontFamily.sans],
+                sans: ['Inter', ...defaultTheme.fontFamily.sans],
                 mono: ['"JetBrains Mono"', ...defaultTheme.fontFamily.mono],
             },
             fontSize: {

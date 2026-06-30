@@ -345,9 +345,9 @@ watch(
 	gap: 4px;
 	font-size: 11.5px;
 	font-weight: 600;
-	color: #4a6cf7;
+	color: rgb(var(--color-primary));
 	text-decoration: none;
-	background: #eef0ff;
+	background: rgb(var(--color-primary-soft));
 	padding: 5px 10px;
 	border-radius: 7px;
 	transition: background .15s;
@@ -388,8 +388,8 @@ watch(
 }
 .form-input:focus {
 	outline: none;
-	border-color: #4a6cf7;
-	box-shadow: 0 0 0 3px rgba(74, 108, 247, 0.12);
+	border-color: rgb(var(--color-primary));
+	box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.12);
 }
 
 .mono-input {
@@ -459,8 +459,8 @@ watch(
 }
 .scope-card:hover { border-color: #c8d0f8; }
 .scope-card.active {
-	background: #f0f4ff;
-	border-color: #4a6cf7;
+	background: rgb(var(--color-primary-soft));
+	border-color: rgb(var(--color-primary));
 }
 .scope-card input { display: none; }
 
@@ -496,8 +496,8 @@ watch(
 	transition: all .15s;
 }
 .scope-card.active .sc-check {
-	background: #4a6cf7;
-	border-color: #4a6cf7;
+	background: rgb(var(--color-primary));
+	border-color: rgb(var(--color-primary));
 }
 .scope-card.active .sc-check::after {
 	content: '';

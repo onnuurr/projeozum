@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1000" viewBox="0 0 800 1000" fill="none">
+  <rect width="800" height="1000" fill="#f3f3f8"/>
+  <g transform="translate(400 430)" stroke="#c4c4d4" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M-120 -70 L0 -120 L120 -70 L120 90 L-120 90 Z"/>
+    <path d="M-120 -70 L0 -20 L120 -70"/>
+    <path d="M0 -20 L0 90"/>
+  </g>
+  <text x="400" y="600" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="40" font-weight="700" fill="#9a9ab0">Ürün görseli</text>
+  <text x="400" y="654" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="40" font-weight="700" fill="#9a9ab0">hazırlanıyor</text>
+</svg>

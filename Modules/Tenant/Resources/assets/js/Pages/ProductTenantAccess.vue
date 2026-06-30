@@ -285,7 +285,7 @@ async function confirmReset(r) {
 .tenant-code { color: #888; }
 
 .badge { display: inline-block; padding: 3px 9px; border-radius: 6px; font-size: 11px; font-weight: 600; }
-.badge-type { background: #e0e7ff; color: #4338ca; }
+.badge-type { background: rgb(var(--color-primary-soft)); color: #4338ca; }
 
 .status-pill { display: inline-block; padding: 3px 9px; border-radius: 6px; font-size: 11px; font-weight: 600; margin-right: 6px; }
 .status-pill.allowed { background: #dcfce7; color: #15803d; }
@@ -294,11 +294,11 @@ async function confirmReset(r) {
 .src-tag { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 600; }
 .src-tag.default { background: #f3f4f6; color: #6b7280; }
 .src-tag.rule { background: #fef3c7; color: #92400e; }
-.src-tag.override { background: #ede9fe; color: #7c3aed; }
+.src-tag.override { background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary)); }
 
 .form-input { padding: 7px 10px; border: 1px solid #e8e8f0; border-radius: 6px; font-family: inherit; font-size: 13px; color: #1a1a2e; background: #fff; outline: none; transition: border-color .15s; }
 .form-input.compact { width: 100%; max-width: 140px; }
-.form-input:focus { border-color: #7c3aed; }
+.form-input:focus { border-color: rgb(var(--color-primary)); }
 .form-input:disabled { background: #f5f5f8; color: #aaa; cursor: not-allowed; }
 .form-check { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12.5px; color: #444; }
 

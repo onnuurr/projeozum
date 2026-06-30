@@ -1,0 +1,91 @@
+<?php
+
+namespace Modules\Creative\Services;
+
+use Illuminate\Support\Facades\Storage;
+use Modules\Creative\Models\Mannequin;
+use Modules\Creative\Services\Ai\Contracts\MannequinComposerContract;
+use Modules\Creative\Services\Ai\Drivers\Gemini\MannequinPromptBuilder;
+use Modules\Creative\Services\Ai\MannequinRequest;
+use Modules\Creative\Services\Ai\Support\ImageFile;
+use RuntimeException;
+
+/**
+ * Sanal manken kimlik görseli üretim orchestrator'ı.
+ *
+ * Model tarifinden bir referans görsel kurgular (compose), kalıcı diske yazar
+ * ve mankeni 'ready' işaretler. Ara çıktı (geçici dosya) her durumda temizlenir.
+ */
+class MannequinService
+{
+    public function __construct(
+        private MannequinComposerContract $composer,
+        private MannequinPromptBuilder $prompts,
+    ) {}
+
+    public function generate(Mannequin $mannequin): Mannequin
+    {
+        $request = $this->toRequest($mannequin);
+        // Üretilen prompt izlenebilirlik için saklanır; aynısı compose'a verilir.
+        $prompt  = $this->prompts->build($request);
+        $request->promptOverride = $prompt;
+
+        $temp = null;
+
+        try {
+            $temp = $this->composer->compose($request);
+            $rel  = $this->persist($temp, $mannequin);
+
+            $mannequin->fill([
+                'prompt'               => $prompt,
+                'reference_image_path' => $rel,
+                'status'               => Mannequin::STATUS_READY,
+                'error'                => null,
+            ])->save();
+
+            return $mannequin;
+        } finally {
+            ImageFile::delete([$temp]);
+        }
+    }
+
+    private function toRequest(Mannequin $mannequin): MannequinRequest
+    {
+        return new MannequinRequest(
+            name:     (string) $mannequin->name,
+            gender:   $mannequin->gender,
+            ageRange: $mannequin->age_range,
+            skinTone: $mannequin->skin_tone,
+            bodyType: $mannequin->body_type,
+            hair:     $mannequin->hair,
+            face:     $mannequin->face,
+            heightCm: $mannequin->height_cm,
+            bustCm:   $mannequin->bust_cm,
+            waistCm:  $mannequin->waist_cm,
+            hipsCm:   $mannequin->hips_cm,
+            extras:   $mannequin->extras,
+        );
+    }
+
+    /**
+     * Referans görseli kalıcı diske yazar, disk göreli yolu döndürür.
+     */
+    private function persist(string $sourcePath, Mannequin $mannequin): string
+    {
+        $bytes = @file_get_contents($sourcePath);
+        if ($bytes === false || $bytes === '') {
+            throw new RuntimeException('Manken görseli okunamadı.');
+        }
+
+        $disk = config('creative.disk', 'public');
+        $rel  = sprintf(
+            '%s/%d/reference.png',
+            config('creative.mannequin.output_dir', 'mannequins'),
+            $mannequin->id,
+        );
+
+        Storage::disk($disk)->put($rel, $bytes);
+
+        return $rel;
+    }
+}

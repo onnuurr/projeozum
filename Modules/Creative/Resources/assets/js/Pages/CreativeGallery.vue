@@ -65,7 +65,8 @@
 		<div v-else class="asset-grid">
 			<div v-for="a in assets.data" :key="a.id" class="asset-card" :class="reviewClass(a)">
 				<div class="asset-image">
-					<img v-if="a.image_url" :src="a.image_url" :alt="a.product?.name" />
+					<img v-if="a.image_url" :src="a.image_url" :alt="a.product?.name" class="clickable" @click="openPreview(a)" />
+					<button v-if="a.image_url" class="zoom-badge" title="Büyük önizleme" @click="openPreview(a)">⤢</button>
 					<div v-else class="asset-placeholder">
 						<span v-if="a.status === 'failed'" class="status-icon failed">⚠️</span>
 						<span v-else class="status-icon spin">⏳</span>
@@ -79,7 +80,10 @@
 
 				<div class="asset-meta">
 					<span class="asset-product">{{ a.product?.name ?? '—' }}</span>
-					<span class="asset-template">{{ a.template?.name ?? '—' }}</span>
+					<span class="asset-template">
+						{{ a.template?.name ?? '—' }}
+						<span v-if="a.format_label" class="asset-format">{{ a.format_label }}</span>
+					</span>
 					<span v-if="a.error" class="asset-error" :title="a.error">{{ a.error }}</span>
 					<span class="asset-date">{{ a.created_at }}</span>
 				</div>
@@ -130,6 +134,32 @@
 			</div>
 		</div>
 
+		<!-- Büyük önizleme (lightbox) -->
+		<Teleport to="body">
+			<div v-if="preview" class="lightbox" @click.self="closePreview">
+				<div class="lb-box">
+					<button class="lb-close" @click="closePreview">✕</button>
+					<div class="lb-img-wrap">
+						<img :src="preview.image_url" :alt="preview.product?.name" />
+					</div>
+					<div class="lb-side">
+						<h3 class="lb-title">{{ preview.product?.name ?? '—' }}</h3>
+						<div class="lb-tags-meta">
+							<span v-if="preview.format_label" class="lb-chip">{{ preview.format_label }}</span>
+							<span v-if="preview.width" class="lb-chip dim">{{ preview.width }}×{{ preview.height }}</span>
+							<span v-if="preview.template?.name" class="lb-chip ghost">{{ preview.template.name }}</span>
+						</div>
+						<div v-if="preview.caption" class="lb-caption">{{ preview.caption }}</div>
+						<div v-if="preview.hashtags?.length" class="lb-hashtags">{{ preview.hashtags.join(' ') }}</div>
+						<a :href="preview.image_url" target="_blank" :download="`creative-${preview.id}.png`" class="btn btn-primary lb-download">
+							<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
+							İndir
+						</a>
+					</div>
+				</div>
+			</div>
+		</Teleport>
+
 		<!-- Sayfalama -->
 		<div v-if="assets.last_page > 1" class="pagination">
 			<button
@@ -146,7 +176,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, inject } from 'vue'
+import { ref, reactive, inject, onMounted, onUnmounted } from 'vue'
 import { Head, Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
@@ -166,6 +196,16 @@ function fmtMs(ms) {
 
 const showToast = inject('showToast', null)
 const busy = ref(null)
+const preview = ref(null)
+
+function openPreview(a) {
+	if (a.image_url) preview.value = a
+}
+function closePreview() { preview.value = null }
+
+function onKey(e) { if (e.key === 'Escape') closePreview() }
+onMounted(() => window.addEventListener('keydown', onKey))
+onUnmounted(() => window.removeEventListener('keydown', onKey))
 
 // Asset id → düzenlenmekte olan caption taslağı (hashtag'ler boşlukla ayrık metin).
 const drafts = reactive({})
@@ -204,7 +244,6 @@ function saveCaption(a) {
 	}, {
 		preserveScroll: true,
 		preserveState: false,
-		onSuccess: () => showToast?.({ type: 'success', title: 'Caption kaydedildi', message: a.product?.name ?? '' }),
 		onError: (errs) => showToast?.({ type: 'error', title: 'Kaydedilemedi', message: Object.values(errs)[0] || 'Sunucu hatası.' }),
 		onFinish: () => { busy.value = null },
 	})
@@ -217,22 +256,12 @@ function statusLabel(s) { return STATUS_LABELS[s] ?? s }
 function reviewLabel(r) { return REVIEW_LABELS[r] ?? r }
 function reviewClass(a) { return a.review_status === 'approved' ? 'is-approved' : a.review_status === 'rejected' ? 'is-rejected' : '' }
 
-const ACTION_MSG = {
-	approve: { type: 'success', title: 'Görsel onaylandı' },
-	reject: { type: 'warning', title: 'Görsel reddedildi' },
-	regenerate: { type: 'info', title: 'Yeniden üretim kuyruğa alındı' },
-}
-
 function action(a, kind) {
 	if (busy.value) return
 	busy.value = a.id
 	router.post(`/creative/assets/${a.id}/${kind}`, {}, {
 		preserveScroll: true,
 		preserveState: false,
-		onSuccess: () => {
-			const m = ACTION_MSG[kind]
-			showToast?.({ type: m.type, title: m.title, message: a.product?.name ?? '' })
-		},
 		onError: (errs) => {
 			showToast?.({ type: 'error', title: 'İşlem başarısız', message: Object.values(errs)[0] || 'Sunucu hatası.' })
 		},
@@ -265,7 +294,7 @@ function goTo(url) {
 .tpl-bar { display: flex; align-items: center; gap: 8px; font-size: 11px; }
 .tpl-bar-name { width: 90px; color: #555; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tpl-bar-track { flex: 1; height: 6px; background: #f0f0f5; border-radius: 3px; overflow: hidden; }
-.tpl-bar-fill { display: block; height: 100%; background: #7c3aed; border-radius: 3px; }
+.tpl-bar-fill { display: block; height: 100%; background: rgb(var(--color-primary)); border-radius: 3px; }
 .tpl-bar-num { color: #999; font-family: 'SF Mono', Menlo, Consolas, monospace; white-space: nowrap; }
 
 .card { background: #fff; border-radius: 16px; border: 1px solid #ebebf0; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.04); }
@@ -278,6 +307,11 @@ function goTo(url) {
 
 .asset-image { position: relative; aspect-ratio: 1; background: #f5f5f8; display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .asset-image img { width: 100%; height: 100%; object-fit: cover; }
+.asset-image img.clickable { cursor: zoom-in; }
+.zoom-badge { position: absolute; bottom: 8px; right: 8px; width: 28px; height: 28px; border: none; border-radius: 8px; background: rgba(26,26,46,.6); color: #fff; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity .15s; }
+.asset-card:hover .zoom-badge { opacity: 1; }
+.zoom-badge:hover { background: rgba(26,26,46,.85); }
+.asset-format { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 5px; background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary-hover)); font-size: 10px; font-weight: 700; }
 .asset-placeholder { display: flex; flex-direction: column; align-items: center; gap: 8px; color: #aaa; }
 .status-icon { font-size: 28px; }
 .status-icon.spin { animation: pulse 1.4s ease-in-out infinite; }
@@ -301,10 +335,10 @@ function goTo(url) {
 
 .asset-caption { padding: 0 13px 10px; display: flex; flex-direction: column; gap: 6px; }
 .caption-input { width: 100%; resize: vertical; border: 1px solid #e8e8f0; border-radius: 8px; padding: 7px 9px; font-size: 12px; font-family: inherit; color: #333; line-height: 1.4; }
-.caption-input:focus { outline: none; border-color: #d8d4f0; background: #faf8ff; }
-.hashtag-input { width: 100%; border: 1px solid #e8e8f0; border-radius: 8px; padding: 6px 9px; font-size: 11.5px; font-family: 'SF Mono', Menlo, Consolas, monospace; color: #7c3aed; }
-.hashtag-input:focus { outline: none; border-color: #d8d4f0; background: #faf8ff; }
-.act-btn.save-caption { background: #ede9fe; color: #6d28d9; }
+.caption-input:focus { outline: none; border-color: rgb(var(--color-primary) / .35); background: rgb(var(--color-primary-soft)); }
+.hashtag-input { width: 100%; border: 1px solid #e8e8f0; border-radius: 8px; padding: 6px 9px; font-size: 11.5px; font-family: 'SF Mono', Menlo, Consolas, monospace; color: rgb(var(--color-primary)); }
+.hashtag-input:focus { outline: none; border-color: rgb(var(--color-primary) / .35); background: rgb(var(--color-primary-soft)); }
+.act-btn.save-caption { background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary-hover)); }
 .act-btn.save-caption:hover:not(:disabled) { background: #ddd6fe; }
 
 .asset-actions { display: flex; gap: 6px; padding: 0 13px 13px; flex-wrap: wrap; }
@@ -319,7 +353,25 @@ function goTo(url) {
 
 .pagination { display: flex; gap: 4px; justify-content: center; margin-top: 24px; flex-wrap: wrap; }
 .page-btn { min-width: 34px; height: 34px; padding: 0 10px; border: 1px solid #e8e8f0; background: #fff; border-radius: 8px; font-size: 13px; color: #555; cursor: pointer; font-family: inherit; }
-.page-btn:hover:not(.disabled):not(.active) { background: #faf8ff; border-color: #d8d4f0; }
-.page-btn.active { background: #7c3aed; border-color: #7c3aed; color: #fff; font-weight: 700; }
+.page-btn:hover:not(.disabled):not(.active) { background: rgb(var(--color-primary-soft)); border-color: rgb(var(--color-primary) / .35); }
+.page-btn.active { background: rgb(var(--color-primary)); border-color: rgb(var(--color-primary)); color: #fff; font-weight: 700; }
 .page-btn.disabled { opacity: .4; cursor: not-allowed; }
+
+/* Lightbox */
+.lightbox { position: fixed; inset: 0; z-index: 9999; background: rgba(15,15,25,.82); display: flex; align-items: center; justify-content: center; padding: 32px; backdrop-filter: blur(3px); }
+.lb-box { display: flex; gap: 0; max-width: 1100px; max-height: 90vh; background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,.4); position: relative; }
+.lb-close { position: absolute; top: 12px; right: 12px; z-index: 2; width: 34px; height: 34px; border: none; border-radius: 50%; background: rgba(255,255,255,.9); color: #1a1a2e; font-size: 16px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.2); }
+.lb-close:hover { background: #fff; }
+.lb-img-wrap { background: #11111b repeating-conic-gradient(#1a1a26 0% 25%, #15151f 0% 50%) 0 / 24px 24px; display: flex; align-items: center; justify-content: center; min-width: 0; }
+.lb-img-wrap img { max-width: 62vw; max-height: 90vh; object-fit: contain; display: block; }
+.lb-side { width: 300px; flex-shrink: 0; padding: 22px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }
+.lb-title { font-size: 17px; font-weight: 700; color: #1a1a2e; }
+.lb-tags-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+.lb-chip { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 6px; background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary-hover)); }
+.lb-chip.dim { background: #f0f0f5; color: #555; font-family: 'SF Mono', Menlo, Consolas, monospace; }
+.lb-chip.ghost { background: #f5f5f8; color: #888; }
+.lb-caption { font-size: 13px; line-height: 1.5; color: #333; white-space: pre-wrap; }
+.lb-hashtags { font-size: 12px; color: rgb(var(--color-primary)); font-family: 'SF Mono', Menlo, Consolas, monospace; line-height: 1.5; }
+.lb-download { margin-top: auto; justify-content: center; }
+@media (max-width: 820px) { .lb-box { flex-direction: column; } .lb-img-wrap img { max-width: 86vw; max-height: 50vh; } .lb-side { width: auto; } }
 </style>

@@ -222,8 +222,8 @@ watch(
 }
 
 .icon-add {
-	background: #eef0ff !important;
-	color: #4a6cf7 !important;
+	background: rgb(var(--color-primary-soft)) !important;
+	color: rgb(var(--color-primary)) !important;
 }
 .icon-edit {
 	background: #fef3c7 !important;
@@ -236,12 +236,12 @@ watch(
 	gap: 10px;
 	padding: 10px 12px;
 	border-radius: 10px;
-	background: #f0f4ff;
-	border: 1px solid #e0e7ff;
+	background: rgb(var(--color-primary-soft));
+	border: 1px solid rgb(var(--color-primary-soft));
 	font-size: 12.5px;
 	color: #4338ca;
 }
-.info-banner svg { flex-shrink: 0; color: #6366f1; }
+.info-banner svg { flex-shrink: 0; color: rgb(var(--color-primary)); }
 
 .info-banner.edit-banner {
 	background: #fffbeb;
@@ -317,7 +317,7 @@ watch(
 	transition: border-color .15s, background .15s;
 	user-select: none;
 }
-.perm-row:hover { border-color: #d0d8f8; background: #f4f6ff; }
+.perm-row:hover { border-color: #d0d8f8; background: rgb(var(--color-primary-soft)); }
 .perm-row input[type=checkbox] { display: none; }
 
 .perm-check {
@@ -333,8 +333,8 @@ watch(
 	transition: all .15s;
 }
 .perm-row input:checked + .perm-check {
-	background: #4a6cf7;
-	border-color: #4a6cf7;
+	background: rgb(var(--color-primary));
+	border-color: rgb(var(--color-primary));
 }
 .perm-row input:checked + .perm-check::after {
 	content: '';

@@ -909,8 +909,8 @@ function printShippingLabel() {
 	color: #b45309;
 }
 .os-shipped {
-	background: #ede9fe;
-	color: #6d28d9;
+	background: rgb(var(--color-primary-soft));
+	color: rgb(var(--color-primary-hover));
 }
 .os-delivered {
 	background: #dcfce7;
@@ -959,7 +959,7 @@ function printShippingLabel() {
 	text-transform: uppercase;
 }
 .ch-web {
-	background: #eff6ff;
+	background: rgb(var(--color-primary-soft));
 	color: #2563eb;
 }
 .ch-mobile {
@@ -967,8 +967,8 @@ function printShippingLabel() {
 	color: #be185d;
 }
 .ch-b2b {
-	background: #f5f3ff;
-	color: #7c3aed;
+	background: rgb(var(--color-primary-soft));
+	color: rgb(var(--color-primary));
 }
 
 /* ── Status progress ── */
@@ -1195,7 +1195,7 @@ function printShippingLabel() {
 }
 
 .link {
-	color: #4a6cf7;
+	color: rgb(var(--color-primary));
 	text-decoration: none;
 }
 .link:hover {
@@ -1351,8 +1351,8 @@ function printShippingLabel() {
 .addr-tag {
 	display: inline-block;
 	padding: 2px 8px;
-	background: #ede9fe;
-	color: #7c3aed;
+	background: rgb(var(--color-primary-soft));
+	color: rgb(var(--color-primary));
 	border-radius: 5px;
 	font-size: 10px;
 	font-weight: 700;
@@ -1387,12 +1387,12 @@ function printShippingLabel() {
 	justify-content: center;
 }
 .pay-card {
-	background: #eff6ff;
+	background: rgb(var(--color-primary-soft));
 	color: #2563eb;
 }
 .pay-bank {
-	background: #f5f3ff;
-	color: #7c3aed;
+	background: rgb(var(--color-primary-soft));
+	color: rgb(var(--color-primary));
 }
 .pay-cod {
 	background: #fffbeb;
@@ -1509,7 +1509,7 @@ function printShippingLabel() {
 	border-radius: 8px;
 	border: 1.5px solid #e8e8f2;
 	background: #fff;
-	color: #4a6cf7;
+	color: rgb(var(--color-primary));
 	cursor: pointer;
 	display: flex;
 	align-items: center;
@@ -1517,7 +1517,7 @@ function printShippingLabel() {
 	transition: all 0.15s;
 }
 .drawer-edit-btn:hover {
-	background: #eef0ff;
+	background: rgb(var(--color-primary-soft));
 	border-color: #c0c8f8;
 }
 

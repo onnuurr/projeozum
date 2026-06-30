@@ -34,6 +34,24 @@ const tabs = [
 		icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>',
 	},
 	{
+		key: 'mannequins',
+		label: 'Sanal Manken',
+		href: '/creative/mannequins',
+		icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="6" r="3"/><path d="M12 9v7M8 21l4-5 4 5M6 12h12"/></svg>',
+	},
+	{
+		key: 'poses',
+		label: 'Pozlar',
+		href: '/creative/poses',
+		icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="4" r="2"/><path d="M12 6v6m0 0l-4 8m4-8l4 8M6 9l6 1 6-1"/></svg>',
+	},
+	{
+		key: 'tryon',
+		label: 'Ürün Giydirme',
+		href: '/creative/tryon',
+		icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20.4 14.5L16 10 4 22M3 7l4-4 4 4M7 3v12"/></svg>',
+	},
+	{
 		key: 'templates',
 		label: 'Şablonlar',
 		href: '/creative/templates',
@@ -51,7 +69,7 @@ const tabs = [
 <style scoped>
 .creative-nav { display: flex; gap: 4px; margin-bottom: 18px; background: #fff; border: 1px solid #ebebf0; border-radius: 12px; padding: 5px; box-shadow: 0 1px 4px rgba(0,0,0,.04); }
 .cn-tab { display: flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; color: #888; text-decoration: none; transition: all .15s; }
-.cn-tab:hover { background: #faf8ff; color: #555; }
-.cn-tab.active { background: #7c3aed; color: #fff; }
+.cn-tab:hover { background: rgb(var(--color-primary-soft)); color: #555; }
+.cn-tab.active { background: rgb(var(--color-primary)); color: #fff; }
 .cn-icon { display: inline-flex; }
 </style>

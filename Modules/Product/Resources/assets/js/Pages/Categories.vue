@@ -25,7 +25,7 @@
 		<!-- İstatistik kartları -->
 		<div class="stats-grid">
 			<div class="stat-card">
-				<div class="stat-icon" style="background: #eff6ff">📂</div>
+				<div class="stat-icon" style="background: rgb(var(--color-primary-soft))">📂</div>
 				<div class="stat-content">
 					<div class="stat-label">Toplam Kategori</div>
 					<div class="stat-value">{{ stats.total }}</div>
@@ -39,7 +39,7 @@
 				</div>
 			</div>
 			<div class="stat-card">
-				<div class="stat-icon" style="background: #f5f3ff">🏪</div>
+				<div class="stat-icon" style="background: rgb(var(--color-primary-soft))">🏪</div>
 				<div class="stat-content">
 					<div class="stat-label">Aktif Pazaryeri</div>
 					<div class="stat-value">{{ stats.activeMarketplaces }} / {{ marketplaces.length }}</div>
@@ -78,9 +78,23 @@
 				/>
 			</div>
 
+			<!-- Toplu işlem çubuğu -->
+			<div v-if="selectedCount > 0" class="bulk-bar">
+				<span class="bulk-info"><strong>{{ selectedCount }}</strong> kategori seçildi</span>
+				<div class="bulk-actions">
+					<button class="btn btn-ghost btn-sm" @click="clearSelection">Vazgeç</button>
+					<button class="btn btn-danger btn-sm btn-with-icon" :disabled="bulkBusy" @click="bulkDelete">
+						🗑️ Seçilenleri Sil
+					</button>
+				</div>
+			</div>
+
 			<table class="data-table">
 				<thead>
 					<tr>
+						<th class="col-check">
+							<input type="checkbox" :checked="allVisibleSelected" @change="toggleSelectAllVisible" aria-label="Tümünü seç" />
+						</th>
 						<th style="width: 26%">Kategori</th>
 						<th style="width: 10%">Ürün</th>
 						<th style="width: 28%">Pazaryeri Entegrasyonları</th>
@@ -91,9 +105,12 @@
 				</thead>
 				<tbody>
 					<tr v-if="paginated.length === 0">
-						<td colspan="6" class="empty-row">Kayıt bulunamadı</td>
+						<td colspan="7" class="empty-row">Kayıt bulunamadı</td>
 					</tr>
-					<tr v-for="cat in paginated" :key="cat.id">
+					<tr v-for="cat in paginated" :key="cat.id" :class="{ 'row-selected': isSelected(cat.id) }">
+						<td class="col-check">
+							<input type="checkbox" :checked="isSelected(cat.id)" @change="toggleRow(cat.id)" :aria-label="`${cat.name} seç`" />
+						</td>
 						<td>
 							<div class="cat-cell">
 								<div class="cat-icon">{{ cat.icon }}</div>
@@ -273,6 +290,55 @@ const stats = computed(() => {
 		mappingRate: totalCells > 0 ? Math.round((mappedCells / totalCells) * 100) : 0,
 	}
 })
+
+/* ── Toplu seçim ── */
+const selected = ref(new Set())
+const bulkBusy = ref(false)
+const selectedCount = computed(() => selected.value.size)
+
+function isSelected(id) { return selected.value.has(id) }
+function toggleRow(id) {
+	const next = new Set(selected.value)
+	next.has(id) ? next.delete(id) : next.add(id)
+	selected.value = next
+}
+const allVisibleSelected = computed(() =>
+	paginated.value.length > 0 && paginated.value.every((c) => selected.value.has(c.id)),
+)
+function toggleSelectAllVisible() {
+	const ids = paginated.value.map((c) => c.id)
+	const next = new Set(selected.value)
+	if (allVisibleSelected.value) ids.forEach((id) => next.delete(id))
+	else ids.forEach((id) => next.add(id))
+	selected.value = next
+}
+function clearSelection() { selected.value = new Set() }
+
+async function bulkDelete() {
+	const ids = [...selected.value]
+	if (!ids.length) return
+	const ok = await $swal.dangerConfirm({
+		title: 'Kategorileri Sil',
+		html: `<strong>${ids.length}</strong> kategori kalıcı olarak silinecek.<br>İçlerindeki ürünler ve pazaryeri eşleştirmeleri de etkilenir.`,
+		confirmText: 'Sil',
+		cancelText: 'Vazgeç',
+	})
+	if (!ok) return
+
+	bulkBusy.value = true
+	router.post('/products/categories/bulk-destroy', { ids }, {
+		preserveScroll: true,
+		preserveState: false,
+		onSuccess: () => {
+			showToast?.({ type: 'warning', title: 'Kategoriler Silindi', message: `${ids.length} kategori kaldırıldı.` })
+			clearSelection()
+		},
+		onError: (errs) => {
+			showToast?.({ type: 'error', title: 'Silme Başarısız', message: Object.values(errs)[0] || 'Sunucu hatası.' })
+		},
+		onFinish: () => { bulkBusy.value = false },
+	})
+}
 
 /* ── Filtreler ── */
 const searchQuery = ref('')
@@ -652,6 +718,27 @@ async function confirmDelete(cat) {
 }
 .card-search input::placeholder { color: #bbb; }
 
+/* ── Toplu işlem çubuğu ── */
+.bulk-bar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 10px 18px;
+	background: #faf5ff;
+	border-bottom: 1px solid #f0e9fb;
+}
+.bulk-info { font-size: 13px; color: rgb(var(--color-primary-hover)); }
+.bulk-info strong { font-weight: 800; }
+.bulk-actions { display: flex; gap: 8px; }
+.btn-danger { background: #dc2626; color: #fff; border: none; }
+.btn-danger:hover:not(:disabled) { background: #b91c1c; }
+.btn-danger:disabled { opacity: .55; cursor: not-allowed; }
+
+.col-check { width: 40px; text-align: center; padding-left: 16px; padding-right: 0; }
+.col-check input { width: 15px; height: 15px; accent-color: rgb(var(--color-primary)); cursor: pointer; }
+.data-table tr.row-selected td { background: #faf5ff; }
+
 /* ── Tablo ── */
 .data-table {
 	width: 100%;
@@ -693,7 +780,7 @@ async function confirmDelete(cat) {
 .cat-icon {
 	width: 36px; height: 36px;
 	border-radius: 10px;
-	background: #f5f3ff;
+	background: rgb(var(--color-primary-soft));
 	display: flex; align-items: center; justify-content: center;
 	font-size: 18px;
 	flex-shrink: 0;
@@ -817,7 +904,7 @@ async function confirmDelete(cat) {
 	color: #6b7280;
 	transition: all .15s;
 }
-.table-action-btn.view:hover { background: #e0e7ff; color: #4f46e5; }
+.table-action-btn.view:hover { background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary)); }
 .table-action-btn.delete:hover { background: #fee2e2; color: #dc2626; }
 
 /* ── Pagination ── */

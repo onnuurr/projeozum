@@ -2,6 +2,7 @@
 
 namespace Modules\Atelier\Services;
 
+use App\Support\Media;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
@@ -62,7 +63,7 @@ class AssignmentService
         $path = $assignment->delivered_file_path;
         if ($file instanceof UploadedFile) {
             $this->deleteFile($assignment->delivered_file_path);
-            $path = $file->store(self::DIR, 'public');
+            $path = $file->store(self::DIR, Media::disk());
         }
 
         $assignment->update([
@@ -123,8 +124,8 @@ class AssignmentService
 
     private function deleteFile(?string $path): void
     {
-        if (is_string($path) && $path !== '' && Storage::disk('public')->exists($path)) {
-            Storage::disk('public')->delete($path);
+        if (is_string($path) && $path !== '' && Storage::disk(Media::disk())->exists($path)) {
+            Storage::disk(Media::disk())->delete($path);
         }
     }
 }

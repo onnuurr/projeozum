@@ -18,9 +18,10 @@ class GeminiClient
      * Verilen prompt (ve opsiyonel referans görseller) ile bir görsel üretir.
      *
      * @param  array<int,string>  $imagePaths  inline referans görsellerin yerel yolları
+     * @param  string|null        $model       Model override (boşsa config'teki varsayılan)
      * @return string  Üretilen görselin ham baytları (PNG)
      */
-    public function generateImage(string $prompt, array $imagePaths = []): string
+    public function generateImage(string $prompt, array $imagePaths = [], ?string $model = null): string
     {
         $apiKey = (string) config('creative.ai.gemini.api_key');
         if ($apiKey === '') {
@@ -40,7 +41,7 @@ class GeminiClient
         }
 
         $base  = rtrim((string) config('creative.ai.gemini.base_url'), '/');
-        $model = (string) config('creative.ai.gemini.model');
+        $model = $model ?: (string) config('creative.ai.gemini.model');
 
         $response = Http::timeout((int) config('creative.ai.timeout', 240))
             ->withHeaders(['x-goog-api-key' => $apiKey])

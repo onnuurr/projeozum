@@ -2,5 +2,6 @@
     "Atelier": true,
     "Superadmin": true,
     "Product": true,
-    "Tenant": true
+    "Tenant": true,
+    "Creative": true
 }

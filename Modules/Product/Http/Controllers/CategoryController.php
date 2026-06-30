@@ -5,6 +5,7 @@ namespace Modules\Product\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -97,6 +98,28 @@ class CategoryController extends Controller
 
         return redirect()->route('products.categories.index')
             ->with('success', 'Kategori silindi.');
+    }
+
+    /**
+     * Birden çok kategoriyi topluca siler.
+     */
+    public function bulkDestroy(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'ids'   => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer', 'exists:product_categories,id'],
+        ]);
+
+        $count = 0;
+        DB::transaction(function () use ($data, &$count) {
+            foreach (Category::whereIn('id', $data['ids'])->get() as $category) {
+                $category->delete();
+                $count++;
+            }
+        });
+
+        return redirect()->route('products.categories.index')
+            ->with('success', "{$count} kategori silindi.");
     }
 
     public function connectMarketplace(Marketplace $marketplace): RedirectResponse

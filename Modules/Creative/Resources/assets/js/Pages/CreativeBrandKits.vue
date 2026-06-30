@@ -389,7 +389,6 @@ function save() {
 		preserveScroll: true,
 		preserveState: false,
 		onError: (errs) => Object.assign(errors, errs),
-		onSuccess: () => showToast?.({ type: 'success', title: form.id ? 'Kit güncellendi' : 'Kit oluşturuldu', message: form.name }),
 		onFinish: () => { busy.value = false },
 	}
 	if (form.id) router.put(`/creative/brandkits/${form.id}`, payload(), opts)
@@ -404,7 +403,7 @@ async function remove() {
 	router.delete(`/creative/brandkits/${form.id}`, {
 		preserveScroll: true,
 		preserveState: false,
-		onSuccess: () => { showToast?.({ type: 'warning', title: 'Kit silindi', message: form.name }); newKit() },
+		onSuccess: () => { newKit() },
 		onFinish: () => { busy.value = false },
 	})
 }

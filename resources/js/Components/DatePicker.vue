@@ -161,8 +161,8 @@ onBeforeUnmount(() => document.removeEventListener('click', handleOutside))
 }
 .dp-trigger:hover { border-color: #ccc; }
 .dp-trigger.open {
-	border-color: #4a6cf7;
-	box-shadow: 0 0 0 3px rgba(74, 108, 247, .10);
+	border-color: rgb(var(--color-primary));
+	box-shadow: 0 0 0 3px rgb(var(--color-primary) / .10);
 	background: #fff;
 }
 .dp-trigger-text { flex: 1; color: #1a1a2e; }
@@ -223,9 +223,9 @@ onBeforeUnmount(() => document.removeEventListener('click', handleOutside))
 .dp-cell:hover:not(.dp-empty):not(.dp-selected) { background: #f0f0f5; }
 .dp-cell.dp-empty { pointer-events: none; }
 .dp-cell.dp-other-month { color: #ccc; }
-.dp-cell.dp-today { color: #4a6cf7; font-weight: 700; background: #eef0ff; }
+.dp-cell.dp-today { color: rgb(var(--color-primary)); font-weight: 700; background: rgb(var(--color-primary-soft)); }
 .dp-cell.dp-selected { background: #1a1a2e; color: #fff; font-weight: 700; }
-.dp-cell.dp-selected.dp-today { background: #4a6cf7; }
+.dp-cell.dp-selected.dp-today { background: rgb(var(--color-primary)); }
 
 .dp-footer {
 	display: flex; justify-content: space-between; align-items: center;
@@ -233,10 +233,10 @@ onBeforeUnmount(() => document.removeEventListener('click', handleOutside))
 	border-top: 1px solid #f0f0f5;
 }
 .dp-today-btn {
-	font-size: 11.5px; font-weight: 600; color: #4a6cf7;
+	font-size: 11.5px; font-weight: 600; color: rgb(var(--color-primary));
 	background: none; border: none; cursor: pointer; padding: 0;
 }
-.dp-today-btn:hover { color: #2a4fd7; }
+.dp-today-btn:hover { color: rgb(var(--color-primary-hover)); }
 .dp-clear-btn {
 	font-size: 11.5px; font-weight: 600; color: #aaa;
 	background: none; border: none; cursor: pointer; padding: 0;

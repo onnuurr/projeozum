@@ -412,7 +412,7 @@ onBeforeUnmount(() => {
 	width: 100%;
 	height: 44px;
 	padding: 0 14px;
-	border: 1.5px solid #4a6cf7;
+	border: 1.5px solid rgb(var(--color-primary));
 	border-radius: 10px;
 	background: #f5f7ff;
 	color: #1a1a2e;
@@ -421,7 +421,7 @@ onBeforeUnmount(() => {
 	font-weight: 600;
 	letter-spacing: 0.01em;
 	outline: none;
-	box-shadow: 0 0 0 3px rgba(74, 108, 247, 0.1);
+	box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.1);
 	cursor: text;
 	user-select: all;
 }

@@ -37,16 +37,16 @@ class BrandController extends Controller
     {
         Brand::create($this->validateBrand($request));
 
-        return redirect()->route('products.brands.index')
-            ->with('success', 'Marka eklendi.');
+        // Toast'ı frontend (Brands.vue onSuccess) gösterir; backend flash eklemek
+        // global flash→toast izleyiciyle çift toast'a yol açar.
+        return redirect()->route('products.brands.index');
     }
 
     public function update(Request $request, Brand $brand): RedirectResponse
     {
         $brand->update($this->validateBrand($request, $brand->id));
 
-        return redirect()->route('products.brands.index')
-            ->with('success', 'Marka güncellendi.');
+        return redirect()->route('products.brands.index');
     }
 
     public function destroy(Brand $brand): RedirectResponse
@@ -59,8 +59,7 @@ class BrandController extends Controller
 
         $brand->delete();
 
-        return redirect()->route('products.brands.index')
-            ->with('success', 'Marka silindi.');
+        return redirect()->route('products.brands.index');
     }
 
     private function validateBrand(Request $request, ?int $ignoreId = null): array

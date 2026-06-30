@@ -96,8 +96,8 @@ defineProps({
 
 /* Linklere hover */
 a.breadcrumb-item:hover {
-	background: #f4f6ff;
-	color: #4a6cf7;
+	background: rgb(var(--color-primary-soft));
+	color: rgb(var(--color-primary));
 }
 a.breadcrumb-item:hover svg {
 	opacity: 1;

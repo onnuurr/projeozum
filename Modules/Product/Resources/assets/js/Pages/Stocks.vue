@@ -308,7 +308,7 @@ function submitMovement() {
 .status-empty { background: #fee2e2; color: #dc2626; }
 
 .table-action-btn { background: #f3f4f6; border: none; cursor: pointer; font-size: 13px; padding: 5px 9px; border-radius: 6px; color: #6b7280; transition: all .15s; }
-.table-action-btn:hover { background: #e0e7ff; color: #4f46e5; }
+.table-action-btn:hover { background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary)); }
 
 /* Form */
 .form-grid { display: flex; flex-direction: column; gap: 14px; }
@@ -316,7 +316,7 @@ function submitMovement() {
 .form-label { font-size: 12px; font-weight: 600; color: #1a1a2e; }
 .form-label .req { color: #ef4444; }
 .form-input { padding: 9px 12px; border: 1px solid #e8e8f0; border-radius: 8px; font-family: inherit; font-size: 13px; color: #1a1a2e; background: #fff; outline: none; transition: border-color .15s; }
-.form-input:focus { border-color: #7c3aed; }
+.form-input:focus { border-color: rgb(var(--color-primary)); }
 .form-hint { font-size: 11px; color: #888; }
 .form-error { font-size: 11.5px; color: #ef4444; }
 
@@ -338,5 +338,5 @@ function submitMovement() {
 	transition: all .15s;
 }
 .type-btn:hover { border-color: #c0c0d8; }
-.type-btn.active { border-color: #7c3aed; background: #ede9fe; color: #5b21b6; }
+.type-btn.active { border-color: rgb(var(--color-primary)); background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary-hover)); }
 </style>

@@ -19,7 +19,7 @@
               <div class="user-cell">
                 <div 
                   class="user-avatar" 
-                  :style="{ background: row.avatarGradient || 'linear-gradient(135deg, #667eea, #764ba2)' }"
+                  :style="{ background: row.avatarGradient || 'linear-gradient(135deg, rgb(var(--color-primary)), rgb(var(--color-primary-hover)))' }"
                 >
                   {{ row.initials || getInitials(row[column.field]) }}
                 </div>
@@ -257,7 +257,7 @@ const visiblePages = computed(() => {
   font-weight: 600;
 }
 
-.role-badge.role-admin { background: #ede9fe; color: #7c3aed; }
+.role-badge.role-admin { background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary)); }
 .role-badge.role-manager { background: #e0f2fe; color: #0284c7; }
 .role-badge.role-user { background: #f0fdf4; color: #16a34a; }
 .role-badge.role-operator { background: #fff7ed; color: #ea580c; }
@@ -298,8 +298,8 @@ const visiblePages = computed(() => {
 }
 
 .table-action-btn.view:hover {
-  background: #e0e7ff;
-  color: #4f46e5;
+  background: rgb(var(--color-primary-soft));
+  color: rgb(var(--color-primary));
 }
 
 .table-action-btn.edit {

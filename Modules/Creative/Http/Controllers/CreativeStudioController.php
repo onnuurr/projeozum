@@ -40,9 +40,19 @@ class CreativeStudioController extends Controller
                 'cover' => optional($p->images->first())->url,
             ]);
 
+        $formats = collect(config('creative.formats', []))
+            ->map(fn ($f, $key) => [
+                'key'    => $key,
+                'label'  => $f['label'] ?? $key,
+                'width'  => $f['width'],
+                'height' => $f['height'],
+            ])->values();
+
         return Inertia::render('Creative::CreativeStudio', [
-            'templates' => $templates,
-            'products'  => $products,
+            'templates'      => $templates,
+            'products'       => $products,
+            'formats'        => $formats,
+            'default_format' => config('creative.default_format'),
         ]);
     }
 
@@ -51,6 +61,14 @@ class CreativeStudioController extends Controller
         $templateId = (int) $request->validated('template_id');
         $productIds = $request->validated('product_ids');
         $useAi      = (bool) $request->validated('use_ai', false);
+        $format     = $request->validated('format', config('creative.default_format'));
+        $pose       = trim((string) $request->validated('pose', ''));
+
+        $meta = ['use_ai' => $useAi, 'format' => $format];
+        if ($pose !== '') {
+            // Boşsa hiç yazma; prompt builder ürüne göre kürate poz seçsin.
+            $meta['pose'] = $pose;
+        }
 
         foreach ($productIds as $productId) {
             $asset = CreativeAsset::create([
@@ -58,7 +76,7 @@ class CreativeStudioController extends Controller
                 'template_id'   => $templateId,
                 'status'        => CreativeAsset::STATUS_QUEUED,
                 'review_status' => CreativeAsset::REVIEW_PENDING,
-                'meta'          => ['use_ai' => $useAi],
+                'meta'          => $meta,
             ]);
 
             GenerateCreativeJob::dispatch($asset->id);
@@ -82,6 +100,9 @@ class CreativeStudioController extends Controller
                 'image_url'     => $this->url($a->image_path),
                 'caption'       => $a->meta['caption'] ?? null,
                 'hashtags'      => $a->meta['hashtags'] ?? [],
+                'format_label'  => $a->meta['format_label'] ?? null,
+                'width'         => $a->meta['width'] ?? null,
+                'height'        => $a->meta['height'] ?? null,
                 'product'       => $a->product?->only(['id', 'name', 'slug']),
                 'template'      => $a->template?->only(['id', 'name']),
                 'created_at'    => $a->created_at?->toDateTimeString(),
@@ -171,7 +192,8 @@ class CreativeStudioController extends Controller
             $slug  = $asset->product?->slug ?: 'asset';
             $base  = sprintf('%s-%d', $slug, $asset->id);
 
-            $zip->addFile($disk->path($asset->image_path), $base . '.png');
+            // addFromString disk-bağımsızdır (yerel ve R2/S3 için aynı çalışır).
+            $zip->addFromString($base . '.png', (string) $disk->get($asset->image_path));
 
             $caption  = $asset->meta['caption'] ?? null;
             $hashtags = $asset->meta['hashtags'] ?? [];

@@ -101,10 +101,22 @@
 				<strong>{{ selectedTemplate ? 1 : 0 }}</strong> şablon =
 				<strong>{{ selectedTemplate ? selectedProducts.size : 0 }}</strong> görsel
 			</div>
+			<label class="format-select" title="Sosyal medya çıktı boyutu">
+				<span class="fs-label">Format</span>
+				<select v-model="selectedFormat">
+					<option v-for="f in formats" :key="f.key" :value="f.key">{{ f.label }} · {{ f.width }}×{{ f.height }}</option>
+				</select>
+			</label>
 			<label class="ai-toggle" :class="{ on: useAi }" title="Ham ürün fotoğrafı yerine AI ile kurgulanmış sahne + giydirme kullan">
 				<input v-model="useAi" type="checkbox" />
 				<span class="ai-dot"></span>
 				<span class="ai-label">✨ AI sahne / giydirme</span>
+			</label>
+			<label v-if="useAi" class="pose-select" title="AI mankeninin duruşu (poz planlaması)">
+				<span class="fs-label">Poz</span>
+				<select v-model="selectedPose">
+					<option v-for="p in poseOptions" :key="p.label" :value="p.value">{{ p.label }}</option>
+				</select>
 			</label>
 			<button
 				class="btn btn-primary btn-with-icon"
@@ -132,6 +144,8 @@ defineOptions({ layout: AppLayout })
 const props = defineProps({
 	templates: { type: Array, default: () => [] },
 	products: { type: Array, default: () => [] },
+	formats: { type: Array, default: () => [] },
+	default_format: { type: String, default: null },
 })
 
 const showToast = inject('showToast', null)
@@ -142,6 +156,18 @@ const selectedProducts = reactive(new Set())
 const search = ref('')
 const busy = ref(false)
 const useAi = ref(false)
+const selectedFormat = ref(props.default_format || props.formats[0]?.key || null)
+
+// Poz planlaması: değer doğrudan AI prompt'una giden duruş yönergesidir.
+// Boş değer = "Otomatik": backend ürün adına göre kürate poz seçer.
+const poseOptions = [
+	{ value: '', label: 'Otomatik (ürüne göre)' },
+	{ value: 'a relaxed three-quarter standing pose, weight on one leg and shoulders angled slightly to camera', label: 'Üç-çeyrek duruş' },
+	{ value: 'a confident frontal stance with chin level and arms resting naturally so the product stays fully visible', label: 'Frontal / güçlü duruş' },
+	{ value: 'a dynamic walking pose mid-stride that conveys movement while keeping the product in sharp focus', label: 'Yürüyüş / hareketli' },
+	{ value: 'a seated editorial pose with an elongated silhouette and the product clearly presented to camera', label: 'Oturma / editorial' },
+]
+const selectedPose = ref('')
 
 const filteredProducts = computed(() => {
 	const q = search.value.trim().toLowerCase()
@@ -176,14 +202,9 @@ function generate() {
 		template_id: selectedTemplate.value,
 		product_ids: Array.from(selectedProducts),
 		use_ai: useAi.value,
+		format: selectedFormat.value,
+		pose: useAi.value ? (selectedPose.value || null) : null,
 	}, {
-		onSuccess: () => {
-			showToast?.({
-				type: 'success',
-				title: 'Üretim başladı',
-				message: `${selectedProducts.size} görsel kuyruğa alındı${useAi.value ? ' (AI sahne)' : ''}.`,
-			})
-		},
 		onError: (errs) => {
 			showToast?.({
 				type: 'error',
@@ -212,47 +233,57 @@ function generate() {
 .card-search svg { color: #aaa; flex-shrink: 0; }
 .card-search input { border: none; background: none; outline: none; font-family: inherit; font-size: 13px; color: #1a1a2e; width: 100%; }
 .card-search input::placeholder { color: #bbb; }
-.link-btn { background: none; border: none; color: #7c3aed; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.link-btn { background: none; border: none; color: rgb(var(--color-primary)); font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
 
 /* Şablonlar */
 .template-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px; }
 .template-card { position: relative; text-align: left; padding: 0; border: 2px solid #ebebf0; border-radius: 12px; background: #fff; cursor: pointer; overflow: hidden; transition: border-color .15s, box-shadow .15s; font-family: inherit; }
-.template-card:hover { border-color: #d8d4f0; }
-.template-card.selected { border-color: #7c3aed; box-shadow: 0 0 0 3px rgba(124,58,237,.12); }
+.template-card:hover { border-color: rgb(var(--color-primary) / .35); }
+.template-card.selected { border-color: rgb(var(--color-primary)); box-shadow: 0 0 0 3px rgb(var(--color-primary) / .12); }
 .template-preview { aspect-ratio: 1; background: #f5f5f8; display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .template-preview img { width: 100%; height: 100%; object-fit: cover; }
 .no-preview { font-size: 12px; color: #bbb; font-weight: 700; }
 .template-meta { padding: 9px 11px; display: flex; flex-direction: column; gap: 2px; }
 .template-name { font-size: 13px; font-weight: 600; color: #1a1a2e; }
 .template-dim { font-size: 11px; color: #999; font-family: 'SF Mono', Menlo, Consolas, monospace; }
-.check-badge { position: absolute; top: 8px; right: 8px; width: 22px; height: 22px; border-radius: 50%; background: #7c3aed; color: #fff; font-size: 12px; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+.check-badge { position: absolute; top: 8px; right: 8px; width: 22px; height: 22px; border-radius: 50%; background: rgb(var(--color-primary)); color: #fff; font-size: 12px; display: flex; align-items: center; justify-content: center; font-weight: 700; }
 
 /* Ürünler */
 .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
 .product-card { position: relative; text-align: center; padding: 12px 10px; border: 2px solid #ebebf0; border-radius: 12px; background: #fff; cursor: pointer; transition: border-color .15s, background .15s; font-family: inherit; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.product-card:hover { border-color: #d8d4f0; }
-.product-card.selected { border-color: #7c3aed; background: #faf8ff; }
-.product-thumb { width: 56px; height: 56px; border-radius: 10px; background: linear-gradient(135deg, #ede9fe, #ddd6fe); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.product-card:hover { border-color: rgb(var(--color-primary) / .35); }
+.product-card.selected { border-color: rgb(var(--color-primary)); background: rgb(var(--color-primary-soft)); }
+.product-thumb { width: 56px; height: 56px; border-radius: 10px; background: linear-gradient(135deg, rgb(var(--color-primary-soft)), #ddd6fe); display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .product-thumb img { width: 100%; height: 100%; object-fit: cover; }
-.product-thumb .no-preview { color: #7c3aed; font-size: 20px; }
+.product-thumb .no-preview { color: rgb(var(--color-primary)); font-size: 20px; }
 .product-name { font-size: 12px; font-weight: 600; color: #1a1a2e; line-height: 1.3; }
-.select-dot { position: absolute; top: 8px; right: 8px; width: 16px; height: 16px; border-radius: 50%; border: 2px solid #d8d4f0; transition: all .15s; }
-.select-dot.on { background: #7c3aed; border-color: #7c3aed; box-shadow: inset 0 0 0 2px #fff; }
+.select-dot { position: absolute; top: 8px; right: 8px; width: 16px; height: 16px; border-radius: 50%; border: 2px solid rgb(var(--color-primary) / .35); transition: all .15s; }
+.select-dot.on { background: rgb(var(--color-primary)); border-color: rgb(var(--color-primary)); box-shadow: inset 0 0 0 2px #fff; }
 
 /* Aksiyon çubuğu */
 .action-bar { position: sticky; bottom: 0; display: flex; align-items: center; justify-content: space-between; gap: 16px; background: #fff; border: 1px solid #ebebf0; border-radius: 14px; padding: 14px 18px; box-shadow: 0 -2px 12px rgba(0,0,0,.05); }
 .selection-summary { font-size: 13px; color: #666; margin-right: auto; }
 .selection-summary strong { color: #1a1a2e; }
 
+/* Format seçici */
+.format-select { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border: 1px solid #ebebf0; border-radius: 10px; }
+.format-select .fs-label { font-size: 12px; font-weight: 600; color: #555; }
+.format-select select { border: none; background: none; outline: none; font-family: inherit; font-size: 12.5px; color: #1a1a2e; cursor: pointer; max-width: 230px; }
+
+/* Poz seçici */
+.pose-select { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border: 1px solid #ebebf0; border-radius: 10px; }
+.pose-select .fs-label { font-size: 12px; font-weight: 600; color: #555; }
+.pose-select select { border: none; background: none; outline: none; font-family: inherit; font-size: 12.5px; color: #1a1a2e; cursor: pointer; max-width: 190px; }
+
 /* AI anahtarı */
 .ai-toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; padding: 7px 12px; border: 1px solid #ebebf0; border-radius: 10px; transition: all .15s; }
-.ai-toggle:hover { border-color: #d8d4f0; }
-.ai-toggle.on { border-color: #7c3aed; background: #faf8ff; }
+.ai-toggle:hover { border-color: rgb(var(--color-primary) / .35); }
+.ai-toggle.on { border-color: rgb(var(--color-primary)); background: rgb(var(--color-primary-soft)); }
 .ai-toggle input { display: none; }
-.ai-dot { width: 32px; height: 18px; border-radius: 10px; background: #d8d4f0; position: relative; transition: background .15s; flex-shrink: 0; }
+.ai-dot { width: 32px; height: 18px; border-radius: 10px; background: rgb(var(--color-primary) / .35); position: relative; transition: background .15s; flex-shrink: 0; }
 .ai-dot::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: transform .15s; }
-.ai-toggle.on .ai-dot { background: #7c3aed; }
+.ai-toggle.on .ai-dot { background: rgb(var(--color-primary)); }
 .ai-toggle.on .ai-dot::after { transform: translateX(14px); }
 .ai-label { font-size: 12px; font-weight: 600; color: #555; white-space: nowrap; }
-.ai-toggle.on .ai-label { color: #7c3aed; }
+.ai-toggle.on .ai-label { color: rgb(var(--color-primary)); }
 </style>

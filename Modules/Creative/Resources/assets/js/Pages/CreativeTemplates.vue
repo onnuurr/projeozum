@@ -292,7 +292,7 @@ function saveSlots() {
 	router.put(`/creative/templates/${current.value.id}/slots`, { slots: payload }, {
 		preserveScroll: true,
 		preserveState: false,
-		onSuccess: () => { dirty.value = false; showToast?.({ type: 'success', title: 'Slotlar kaydedildi', message: current.value?.name }) },
+		onSuccess: () => { dirty.value = false },
 		onError: (errs) => showToast?.({ type: 'error', title: 'Kaydedilemedi', message: Object.values(errs)[0] || 'Hata' }),
 		onFinish: () => { saving.value = false },
 	})
@@ -316,7 +316,6 @@ function uploadTemplate(e) {
 	router.post('/creative/templates', fd, {
 		preserveScroll: true,
 		preserveState: false,
-		onSuccess: () => showToast?.({ type: 'success', title: 'Şablon yüklendi', message: file.name }),
 		onError: (errs) => showToast?.({ type: 'error', title: 'Yüklenemedi', message: Object.values(errs)[0] || 'Hata' }),
 		onFinish: () => { uploading.value = false; e.target.value = '' },
 	})
@@ -329,7 +328,7 @@ async function removeTemplate() {
 	router.delete(`/creative/templates/${current.value.id}`, {
 		preserveScroll: true,
 		preserveState: false,
-		onSuccess: () => { selectedId.value = null; showToast?.({ type: 'warning', title: 'Şablon silindi' }) },
+		onSuccess: () => { selectedId.value = null },
 	})
 }
 

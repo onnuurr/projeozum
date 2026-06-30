@@ -2,6 +2,7 @@
 
 namespace Modules\Atelier\Services;
 
+use App\Support\Media;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -74,7 +75,7 @@ class PatternLibraryService
      */
     public function createPdfDraft(UploadedFile $pdf, ?int $createdBy = null): Pattern
     {
-        $path = $pdf->store(self::DIR, 'public');
+        $path = $pdf->store(self::DIR, Media::disk());
 
         return Pattern::create([
             'name'              => $this->stem($pdf->getClientOriginalName()),
@@ -119,7 +120,7 @@ class PatternLibraryService
             if ($result->dxf !== null && $result->dxf !== '') {
                 $this->deleteFile($pattern->dxf_path);
                 $dxfPath = self::DIR . '/' . Str::uuid() . '.dxf';
-                Storage::disk('public')->put($dxfPath, $result->dxf);
+                Storage::disk(Media::disk())->put($dxfPath, $result->dxf);
             }
 
             $pattern->update([
@@ -156,7 +157,7 @@ class PatternLibraryService
         return DB::transaction(function () use ($pattern, $dxf, $meta, $parts) {
             $this->deleteFile($pattern->dxf_path);
             $dxfPath = self::DIR . '/' . Str::uuid() . '.dxf';
-            Storage::disk('public')->put($dxfPath, $dxf);
+            Storage::disk(Media::disk())->put($dxfPath, $dxf);
 
             $pattern->update([
                 'name'              => $meta['name'] ?? $pattern->name,
@@ -216,15 +217,15 @@ class PatternLibraryService
             $file = $files[$field] ?? null;
             if ($file instanceof UploadedFile) {
                 $this->deleteFile($pattern->{$column}); // eskisini değiştir
-                $pattern->{$column} = $file->store(self::DIR, 'public');
+                $pattern->{$column} = $file->store(self::DIR, Media::disk());
             }
         }
     }
 
     private function deleteFile(?string $path): void
     {
-        if (is_string($path) && $path !== '' && Storage::disk('public')->exists($path)) {
-            Storage::disk('public')->delete($path);
+        if (is_string($path) && $path !== '' && Storage::disk(Media::disk())->exists($path)) {
+            Storage::disk(Media::disk())->delete($path);
         }
     }
 

@@ -396,13 +396,12 @@ const showToast = inject('showToast')
 const cart = inject('cart')
 
 /* ── Galeri ── */
-const images = computed(() => [
-	`https://picsum.photos/seed/tek-p${props.product.id}/800/1000`,
-	`https://picsum.photos/seed/tek-p${props.product.id}-b/800/1000`,
-	`https://picsum.photos/seed/tek-p${props.product.id}-c/800/1000`,
-	`https://picsum.photos/seed/tek-p${props.product.id}-d/800/1000`,
-	`https://picsum.photos/seed/tek-p${props.product.id}-e/800/1000`,
-])
+const images = computed(() => {
+	const real = props.product.images
+	if (Array.isArray(real) && real.length) return real
+	// Görsel yüklenmemişse "hazırlanıyor" görseli.
+	return ['/images/product-placeholder.svg']
+})
 
 const selectedImage = ref(0)
 const zoomActive = ref(false)
@@ -553,7 +552,7 @@ function scrollToTabs() {
 	border-radius: 8px;
 	transition: background .12s, color .12s;
 }
-.back-link:hover { background: #fafafe; color: #4a6cf7; }
+.back-link:hover { background: #fafafe; color: rgb(var(--color-primary)); }
 
 /* ── Üst bölüm ── */
 .product-top {
@@ -722,7 +721,7 @@ function scrollToTabs() {
 .stars { display: flex; gap: 1px; }
 
 .meta-link {
-	color: #4a6cf7;
+	color: rgb(var(--color-primary));
 	text-decoration: none;
 	font-weight: 500;
 }
@@ -961,7 +960,7 @@ function scrollToTabs() {
 	align-items: flex-start;
 	gap: 10px;
 }
-.perk svg { color: #4a6cf7; flex-shrink: 0; margin-top: 2px; }
+.perk svg { color: rgb(var(--color-primary)); flex-shrink: 0; margin-top: 2px; }
 
 .perk-title {
 	font-size: 12px;
@@ -1022,7 +1021,7 @@ function scrollToTabs() {
 	font-weight: 700;
 	color: #666;
 }
-.tab-btn.active .tab-count { background: #ede9fe; color: #7c3aed; }
+.tab-btn.active .tab-count { background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary)); }
 
 .tabs-body { padding: 22px; }
 
@@ -1175,7 +1174,7 @@ function scrollToTabs() {
 .review-avatar {
 	width: 34px; height: 34px;
 	border-radius: 50%;
-	background: linear-gradient(135deg, #667eea, #764ba2);
+	background: linear-gradient(135deg, rgb(var(--color-primary)), rgb(var(--color-primary-hover)));
 	color: #fff;
 	display: flex; align-items: center; justify-content: center;
 	font-size: 11px;

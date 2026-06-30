@@ -406,12 +406,12 @@ const cancelOtp = () => {
     background:
         radial-gradient(
             900px 600px at 80% 0%,
-            rgba(124, 58, 237, 0.55),
+            rgb(var(--color-primary) / 0.55),
             transparent 60%
         ),
         radial-gradient(
             700px 500px at 0% 100%,
-            rgba(74, 108, 247, 0.55),
+            rgb(var(--color-primary) / 0.55),
             transparent 60%
         ),
         linear-gradient(135deg, #1a1a2e 0%, #2a2a4e 55%, #312e81 100%);
@@ -538,7 +538,7 @@ const cancelOtp = () => {
 }
 .brand-headline em {
     font-style: normal;
-    background: linear-gradient(135deg, #c7d2fe 0%, #a78bfa 100%);
+    background: linear-gradient(135deg, #c7d2fe 0%, rgb(var(--color-primary) / .5) 100%);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -597,7 +597,7 @@ const cancelOtp = () => {
     color: #fff;
 }
 .gc-icon.b1 {
-    background: linear-gradient(135deg, #4a6cf7, #7c3aed);
+    background: linear-gradient(135deg, rgb(var(--color-primary)), rgb(var(--color-primary)));
 }
 .gc-icon.b2 {
     background: linear-gradient(135deg, #22c55e, #14b8a6);
@@ -635,7 +635,7 @@ const cancelOtp = () => {
     display: block;
     height: 100%;
     width: 72%;
-    background: linear-gradient(90deg, #818cf8, #a78bfa);
+    background: linear-gradient(90deg, #818cf8, rgb(var(--color-primary) / .5));
     border-radius: 999px;
 }
 
@@ -666,7 +666,7 @@ const cancelOtp = () => {
     letter-spacing: -0.02em;
 }
 .feature-num span {
-    color: #a78bfa;
+    color: rgb(var(--color-primary) / .5);
 }
 .feature-label {
     font-size: 11.5px;
@@ -757,12 +757,12 @@ const cancelOtp = () => {
 .field-link {
     font-size: 12px;
     font-weight: 500;
-    color: #4a6cf7;
+    color: rgb(var(--color-primary));
     text-decoration: none;
     transition: color 0.15s;
 }
 .field-link:hover {
-    color: #2a4fd7;
+    color: rgb(var(--color-primary-hover));
 }
 .input-wrap {
     position: relative;
@@ -818,8 +818,8 @@ const cancelOtp = () => {
     padding-right: 42px;
 }
 .form-input:focus {
-    border-color: #4a6cf7;
-    box-shadow: 0 0 0 3px rgba(74, 108, 247, 0.12);
+    border-color: rgb(var(--color-primary));
+    box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.12);
     background: #fff;
 }
 .form-input::placeholder {
@@ -876,12 +876,12 @@ const cancelOtp = () => {
     font-family: inherit;
     font-size: 12.5px;
     font-weight: 600;
-    color: #4a6cf7;
+    color: rgb(var(--color-primary));
     cursor: pointer;
     transition: color 0.15s;
 }
 .otp-resend:hover:not(:disabled) {
-    color: #2a4fd7;
+    color: rgb(var(--color-primary-hover));
 }
 .otp-resend:disabled {
     opacity: 0.5;
@@ -1068,7 +1068,7 @@ const cancelOtp = () => {
     transition: color 0.15s;
 }
 .form-bottom a:hover {
-    color: #4a6cf7;
+    color: rgb(var(--color-primary));
 }
 .form-bottom .legal {
     display: flex;
@@ -1125,7 +1125,7 @@ const cancelOtp = () => {
     left: 0;
     width: 3px;
     border-radius: 0 3px 3px 0;
-    background: #4a6cf7;
+    background: rgb(var(--color-primary));
 }
 .toast.error::after {
     background: #ef4444;
@@ -1138,8 +1138,8 @@ const cancelOtp = () => {
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    background: #eff6ff;
-    color: #4a6cf7;
+    background: rgb(var(--color-primary-soft));
+    color: rgb(var(--color-primary));
 }
 .toast.error .toast-icon {
     background: #fef2f2;

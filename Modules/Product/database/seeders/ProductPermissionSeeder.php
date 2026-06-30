@@ -12,6 +12,9 @@ class ProductPermissionSeeder extends Seeder
     {
         $permissions = [
             'product.view'       => 'Ürünleri Görüntüle',
+            'product.add'        => 'Ürün Ekle/Düzenle',
+            'product.delete'     => 'Ürün Sil',
+            'category.manage'    => 'Kategori & Pazaryeri Eşleme Yönet',
             'brand.manage'       => 'Marka Yönet',
             'warehouse.manage'   => 'Depo Yönet',
             'stock.manage'       => 'Stok Yönet',
@@ -35,6 +38,12 @@ class ProductPermissionSeeder extends Seeder
         $superadmin = Role::where('name', 'superadmin')->where('guard_name', 'web')->first();
         if ($superadmin) {
             $superadmin->givePermissionTo($created);
+        }
+
+        // Tenant rolü paylaşımlı katalogu yalnızca görüntüler (yönetim izinleri verilmez).
+        $tenantRole = Role::where('name', 'tenant')->where('guard_name', 'web')->first();
+        if ($tenantRole) {
+            $tenantRole->givePermissionTo('product.view');
         }
     }
 }

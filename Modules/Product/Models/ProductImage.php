@@ -2,7 +2,9 @@
 
 namespace Modules\Product\Models;
 
+use App\Support\Media;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Prunable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -21,7 +23,7 @@ class ProductImage extends Model
     protected $fillable = [
         'product_id',
         'product_variant_id',
-        'url',
+        'path',
         'alt_text',
         'sort_order',
         'is_cover',
@@ -31,6 +33,18 @@ class ProductImage extends Model
         'sort_order' => 'integer',
         'is_cover'   => 'boolean',
     ];
+
+    /** Frontend, görseli `url` anahtarından okur; relative path'ten türetilir. */
+    protected $appends = ['url'];
+
+    /**
+     * DB'de relative path (örn. "products/1/x.png") tutulur; tam URL aktif
+     * medya diski (local /storage veya R2/CDN) üzerinden okuma anında üretilir.
+     */
+    protected function url(): Attribute
+    {
+        return Attribute::get(fn () => Media::url($this->path));
+    }
 
     public function product(): BelongsTo
     {

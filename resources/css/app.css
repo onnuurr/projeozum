@@ -13,13 +13,41 @@
 	box-sizing: border-box;
 }
 
+/* ============================================================
+   Tema renk sistemi — TEK KAYNAK.
+   Değerler RGB triplet (Tailwind alpha-value uyumu için):
+   CSS'te  rgb(var(--color-primary))         → düz renk
+           rgb(var(--color-primary) / .12)   → şeffaf
+   Tailwind'de  bg-primary / text-primary / bg-primary/10 …
+   Tema değiştirmek için yalnızca buradaki değerleri değiştir.
+   ============================================================ */
+:root {
+	/* Birincil — canlı turuncu (referans: Salesify dashboard) */
+	--color-primary: 249 106 33;        /* #F96A21 */
+	--color-primary-hover: 226 86 20;   /* #E25614 */
+	--color-primary-soft: 255 240 230;  /* #FFF0E6 açık turuncu zemin */
+
+	/* Nötr / yüzey */
+	--color-ink: 26 26 30;              /* #1A1A1E güçlü metin */
+	--color-muted: 138 138 148;        /* #8A8A94 ikincil metin */
+	--color-surface: 255 255 255;      /* kart/panel */
+	--color-bg: 245 245 247;           /* uygulama arka planı */
+	--color-border: 236 236 239;       /* kenarlık */
+
+	/* Semantik */
+	--color-success: 22 163 74;        /* #16A34A */
+	--color-warning: 245 158 11;       /* #F59E0B */
+	--color-danger: 220 38 38;         /* #DC2626 */
+	--color-info: 37 99 235;           /* #2563EB */
+}
+
 html, body {
 	font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-	color: #1a1a2e;
+	color: rgb(var(--color-ink));
 }
 
 body {
-	background: #d8d8e8;
+	background: rgb(var(--color-bg));
 	height: 100vh;
 	overflow: hidden;
 }
@@ -54,24 +82,24 @@ body {
 .btn-with-icon { display: inline-flex; align-items: center; gap: 6px; }
 
 /* Renkler */
-.btn-primary { background: #1a1a2e; color: #fff; }
-.btn-primary:hover { background: #2a2a4e; }
-.btn-secondary { background: none; color: #666; border: 1.5px solid #e8e8f0; }
+.btn-primary { background: rgb(var(--color-primary)); color: #fff; }
+.btn-primary:hover { background: rgb(var(--color-primary-hover)); }
+.btn-secondary { background: none; color: #666; border: 1.5px solid rgb(var(--color-border)); }
 .btn-secondary:hover { background: #f5f5f8; color: #333; }
-.btn-success { background: #16a34a; color: #fff; }
-.btn-success:hover { background: #15803d; }
-.btn-warning { background: #ca8a04; color: #fff; }
-.btn-warning:hover { background: #a16207; }
-.btn-info { background: #2563eb; color: #fff; }
-.btn-info:hover { background: #1d4ed8; }
-.btn-danger { background: #fee2e2; color: #dc2626; }
-.btn-danger:hover { background: #fecaca; }
+.btn-success { background: rgb(var(--color-success)); color: #fff; }
+.btn-success:hover { background: rgb(var(--color-success) / .85); }
+.btn-warning { background: rgb(var(--color-warning)); color: #fff; }
+.btn-warning:hover { background: rgb(var(--color-warning) / .85); }
+.btn-info { background: rgb(var(--color-info)); color: #fff; }
+.btn-info:hover { background: rgb(var(--color-info) / .85); }
+.btn-danger { background: rgb(var(--color-danger) / .12); color: rgb(var(--color-danger)); }
+.btn-danger:hover { background: rgb(var(--color-danger) / .2); }
 .btn-ghost { background: none; color: #666; border: none; }
-.btn-ghost:hover { background: #f0f0f5; color: #1a1a2e; }
+.btn-ghost:hover { background: #f0f0f5; color: rgb(var(--color-ink)); }
 
 /* Outline */
-.btn-outline-primary { background: none; color: #1a1a2e; border: 1.5px solid #1a1a2e; }
-.btn-outline-primary:hover { background: #1a1a2e; color: #fff; }
+.btn-outline-primary { background: none; color: rgb(var(--color-primary)); border: 1.5px solid rgb(var(--color-primary)); }
+.btn-outline-primary:hover { background: rgb(var(--color-primary)); color: #fff; }
 .btn-outline-success { background: none; color: #16a34a; border: 1.5px solid #16a34a; }
 .btn-outline-success:hover { background: #16a34a; color: #fff; }
 .btn-outline-danger { background: none; color: #dc2626; border: 1.5px solid #dc2626; }
@@ -116,8 +144,8 @@ body {
 	transition: border-color .15s, box-shadow .15s;
 }
 .form-input:focus {
-	border-color: #4a6cf7;
-	box-shadow: 0 0 0 3px rgba(74, 108, 247, 0.1);
+	border-color: rgb(var(--color-primary));
+	box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.12);
 	background: #fff;
 }
 .form-input::placeholder { color: #bbb; }
@@ -129,8 +157,8 @@ body {
 	transition: border-color .15s, box-shadow .15s;
 }
 .form-textarea:focus {
-	border-color: #4a6cf7;
-	box-shadow: 0 0 0 3px rgba(74, 108, 247, 0.1);
+	border-color: rgb(var(--color-primary));
+	box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.12);
 	background: #fff;
 }
 .form-textarea::placeholder { color: #bbb; }
@@ -302,9 +330,9 @@ body {
 }
 
 .swal2-popup.tek-swal .swal2-icon.swal2-info {
-	border-color: #bfdbfe;
-	color: #4a6cf7;
-	background: #eff6ff;
+	border-color: rgb(var(--color-primary) / .35);
+	color: rgb(var(--color-primary));
+	background: rgb(var(--color-primary-soft));
 }
 .swal2-popup.tek-swal .swal2-icon.swal2-question {
 	border-color: #c4b5fd;
@@ -352,8 +380,8 @@ body {
 .swal2-popup.tek-swal .swal2-input:focus,
 .swal2-popup.tek-swal .swal2-textarea:focus,
 .swal2-popup.tek-swal .swal2-select:focus {
-	border-color: #4a6cf7;
-	box-shadow: 0 0 0 3px rgba(74, 108, 247, 0.12);
+	border-color: rgb(var(--color-primary));
+	box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.12);
 	outline: none;
 }
 .swal2-popup.tek-swal .swal2-input-label {
@@ -375,13 +403,13 @@ body {
 
 /* Timer progress bar */
 .swal2-popup.tek-swal .swal2-timer-progress-bar {
-	background: linear-gradient(90deg, #4a6cf7, #7c3aed);
+	background: linear-gradient(90deg, rgb(var(--color-primary)), rgb(var(--color-primary-hover)));
 	height: 3px;
 }
 
 /* Loader */
 .swal2-popup.tek-swal .swal2-loader {
-	border-color: #4a6cf7 transparent #4a6cf7 transparent;
+	border-color: rgb(var(--color-primary)) transparent rgb(var(--color-primary)) transparent;
 }
 
 /* Animasyon: SweetAlert2'nin kendi swal2-show / swal2-hide keyframe'leri kullanılır.

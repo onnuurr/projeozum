@@ -244,6 +244,14 @@ def main():
         composite_images(canvas, image_slots, images)
         draw_texts(canvas, text_slots, values, fonts_cfg, palette)
 
+    # Sosyal format: nihai tuvali istenen cikti boyutuna "cover" ile uydur.
+    out_w = payload.get("output_width")
+    out_h = payload.get("output_height")
+    if out_w and out_h:
+        out_w, out_h = int(out_w), int(out_h)
+        if out_w > 0 and out_h > 0 and (canvas.width, canvas.height) != (out_w, out_h):
+            canvas = fit_image(canvas, out_w, out_h, "cover")
+
     buf = io.BytesIO()
     if mime == "image/jpeg":
         flat = Image.new("RGB", canvas.size, (255, 255, 255))

@@ -3,6 +3,7 @@
 namespace Modules\Product\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Support\Media;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -16,16 +17,15 @@ class ProductImageController extends Controller
     public function store(Request $request, Product $product): RedirectResponse
     {
         $data = $request->validate([
-            'image'              => ['required', 'file', 'image', 'max:5120'], // 5MB
+            'image'              => ['required', 'file', 'mimes:jpeg,jpg,png,webp,gif', 'max:5120'], // 5MB (webp dahil)
             'product_variant_id' => ['nullable', 'integer', Rule::exists('product_variants', 'id')],
             'alt_text'           => ['nullable', 'string', 'max:191'],
             'is_cover'           => ['nullable', 'boolean'],
         ]);
 
-        $path = $request->file('image')->store('products/' . $product->id, 'public');
-        $url  = Storage::disk('public')->url($path);
+        $path = $request->file('image')->store('products/' . $product->id, Media::disk());
 
-        DB::transaction(function () use ($product, $data, $url) {
+        DB::transaction(function () use ($product, $data, $path) {
             $isCover = (bool) ($data['is_cover'] ?? false);
 
             if ($isCover) {
@@ -36,7 +36,7 @@ class ProductImageController extends Controller
 
             $product->images()->create([
                 'product_variant_id' => $data['product_variant_id'] ?? null,
-                'url'                => $url,
+                'path'               => $path,
                 'alt_text'           => $data['alt_text'] ?? null,
                 'sort_order'         => $sortOrder,
                 'is_cover'           => $isCover,
@@ -69,11 +69,9 @@ class ProductImageController extends Controller
 
     public function destroy(ProductImage $image): RedirectResponse
     {
-        // url'den disk path'ini çıkar; sadece /storage/ ile başlayan local kayıtları sil
-        $publicBase = '/storage/';
-        if (str_starts_with($image->url, $publicBase)) {
-            $diskPath = substr($image->url, strlen($publicBase));
-            Storage::disk('public')->delete($diskPath);
+        // DB'de relative path tutulur; aktif medya diskinden doğrudan silinir.
+        if ($image->path) {
+            Storage::disk(Media::disk())->delete($image->path);
         }
 
         $image->delete();

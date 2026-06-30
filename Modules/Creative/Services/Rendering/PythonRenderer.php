@@ -2,8 +2,8 @@
 
 namespace Modules\Creative\Services\Rendering;
 
+use App\Support\Media;
 use Illuminate\Support\Facades\Process;
-use Illuminate\Support\Facades\Storage;
 use Modules\Creative\Models\CreativeTemplate;
 use RuntimeException;
 
@@ -33,7 +33,7 @@ class PythonRenderer implements RendererContract
         ], asJson: true);
     }
 
-    public function render(CreativeTemplate $template, array $values, array $imagePaths, array $brand = []): string
+    public function render(CreativeTemplate $template, array $values, array $imagePaths, array $brand = [], ?int $outWidth = null, ?int $outHeight = null): string
     {
         // Brand kit fontları (varsa) config fontlarının yerine geçer.
         $brandFonts = is_array($brand['fonts'] ?? null) ? $brand['fonts'] : [];
@@ -54,6 +54,9 @@ class PythonRenderer implements RendererContract
             'palette'   => is_array($brand['palette'] ?? null) ? $brand['palette'] : [],
             'resvg_bin' => $this->resvgBin(),
             'mime'      => 'image/png',
+            // Nihai çıktı boyutu (sosyal format); verilirse canvas buna "cover" uydurulur.
+            'output_width'  => $outWidth,
+            'output_height' => $outHeight,
         ];
 
         return $this->run($this->script('render'), $payload, asJson: false);
@@ -107,7 +110,9 @@ class PythonRenderer implements RendererContract
             return $path;
         }
 
-        return Storage::disk(config('creative.disk', 'public'))->path($path);
+        // Uzak disk (R2/S3) ise yerel cache'e indirir; çözülemezse göreli yolu
+        // döndürür (Python net bir "dosya yok" hatasıyla başarısız olur).
+        return Media::localPath($path, config('creative.disk', 'public')) ?? $path;
     }
 
     private function script(string $key): string

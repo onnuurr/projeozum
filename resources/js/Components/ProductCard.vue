@@ -2,7 +2,7 @@
 	<Link
 		:href="`/products/${product.slug ?? product.id}`"
 		class="product-card"
-		:class="{ 'out-of-stock': !inStock }"
+		:class="{ 'out-of-stock': !inStock, 'selectable': selectable, 'is-selected': selected }"
 	>
 		<!-- Görsel alan -->
 		<div class="product-media">
@@ -19,6 +19,19 @@
 				<span v-else-if="product.isNew" class="badge badge-new">Yeni</span>
 				<span v-if="product.isBestSeller" class="badge badge-bestseller">Çok Satan</span>
 			</div>
+
+			<!-- Toplu seçim onay kutusu (yalnız yetkili) -->
+			<button
+				v-if="selectable"
+				type="button"
+				class="select-check"
+				:class="{ on: selected }"
+				:aria-pressed="selected"
+				aria-label="Seç"
+				@click.stop.prevent="$emit('toggle-select', product)"
+			>
+				<span class="select-box"></span>
+			</button>
 
 			<!-- Sağ üst aksiyonlar -->
 			<div class="actions-stack">
@@ -168,9 +181,11 @@ const props = defineProps({
 	canEdit: { type: Boolean, default: false },
 	canDelete: { type: Boolean, default: false },
 	canManageAccess: { type: Boolean, default: false },
+	selectable: { type: Boolean, default: false },
+	selected: { type: Boolean, default: false },
 })
 
-defineEmits(['toggle-favorite', 'add-to-cart', 'edit', 'delete', 'tenant-access'])
+defineEmits(['toggle-favorite', 'add-to-cart', 'edit', 'delete', 'tenant-access', 'toggle-select'])
 
 const inStock = computed(() => props.product.stock > 0)
 
@@ -188,7 +203,7 @@ const discountPercent = computed(() => {
 	return Math.round(((oldPrice - price) / oldPrice) * 100)
 })
 
-const imageUrl = computed(() => `https://picsum.photos/seed/tek-p${props.product.id}/600/750`)
+const imageUrl = computed(() => props.product.image || '/images/product-placeholder.svg')
 
 function formatPrice(value) {
 	return '₺' + value.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -215,6 +230,52 @@ function formatPrice(value) {
 	box-shadow: 0 16px 32px rgba(0, 0, 0, 0.08);
 	border-color: #d8d8e8;
 }
+
+.product-card.is-selected {
+	border-color: rgb(var(--color-primary));
+	box-shadow: 0 0 0 2px rgb(var(--color-primary) / .35);
+}
+
+/* Seçim kutusu (sol üst) */
+.select-check {
+	position: absolute;
+	top: 8px;
+	left: 8px;
+	z-index: 4;
+	cursor: pointer;
+	padding: 0;
+	border: none;
+	background: none;
+	line-height: 0;
+}
+.select-box {
+	display: block;
+	position: relative;
+	width: 22px;
+	height: 22px;
+	border-radius: 6px;
+	background: rgba(255, 255, 255, .9);
+	border: 2px solid #c9c9d6;
+	box-shadow: 0 1px 4px rgba(0, 0, 0, .15);
+	transition: all .12s;
+}
+.select-check.on .select-box {
+	background: rgb(var(--color-primary));
+	border-color: rgb(var(--color-primary));
+}
+.select-check.on .select-box::after {
+	content: '';
+	position: absolute;
+	left: 7px;
+	top: 3px;
+	width: 5px;
+	height: 10px;
+	border: solid #fff;
+	border-width: 0 2.5px 2.5px 0;
+	transform: rotate(45deg);
+}
+/* Seçim modunda rozetleri checkbox'ın altına it */
+.product-card.selectable .badges { margin-top: 30px; }
 
 /* ── Media ── */
 .product-media {
@@ -290,9 +351,9 @@ function formatPrice(value) {
 .round-action:hover { transform: scale(1.1); background: #fff; }
 
 .favorite-btn.active { color: #ef4444; }
-.edit-btn:hover   { color: #4a6cf7; }
+.edit-btn:hover   { color: rgb(var(--color-primary)); }
 .delete-btn:hover { color: #dc2626; }
-.tenant-btn:hover { color: #7c3aed; }
+.tenant-btn:hover { color: rgb(var(--color-primary)); }
 
 /* Admin butonları sadece kart hover'unda görünür */
 .admin-action {

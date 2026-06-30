@@ -22,7 +22,7 @@ return [
         // Tek tarifte üretilecek varyant sayısı (kullanıcı 1..max arası seçer).
         'max_variants' => (int) env('ATELIER_CONCEPT_MAX_VARIANTS', 4),
         // Üretilen konsept görsellerinin saklandığı disk ve dizin.
-        'disk' => env('ATELIER_CONCEPT_DISK', 'public'),
+        'disk' => env('ATELIER_CONCEPT_DISK', env('MEDIA_DISK', 'public')),
         'dir'  => 'atelier/concepts',
     ],
 
@@ -43,7 +43,7 @@ return [
         'service_url' => env('ATELIER_CONVERSION_URL', 'http://127.0.0.1:8200'),
         // Raster çok-sayfalı taramaların otomatik vektörleştirmesi uzun sürebilir.
         'timeout'     => (int) env('ATELIER_CONVERSION_TIMEOUT', 900),
-        'disk'        => env('ATELIER_CONVERSION_DISK', 'public'),
+        'disk'        => env('ATELIER_CONVERSION_DISK', env('MEDIA_DISK', 'public')),
         'pdf_dir'     => 'atelier/conversions/pdf',
         'dxf_dir'     => 'atelier/conversions/dxf',
     ],
