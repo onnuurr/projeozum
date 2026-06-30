@@ -10,9 +10,10 @@
 			</div>
 			<nav class="portal-nav">
 				<Link href="/" class="portal-nav-link" :class="{ active: isActive('/') }">Pano</Link>
-				<!-- Phase 1+ link'leri geldikçe doldurulacak -->
-				<a href="#" class="portal-nav-link disabled">Siparişlerim</a>
-				<a href="#" class="portal-nav-link disabled">Faturalarım</a>
+				<Link href="/orders" class="portal-nav-link" :class="{ active: page.url.startsWith('/orders') }">Siparişlerim</Link>
+				<Link href="/invoices" class="portal-nav-link" :class="{ active: page.url.startsWith('/invoices') }">Faturalarım</Link>
+				<Link href="/credit" class="portal-nav-link" :class="{ active: page.url.startsWith('/credit') }">Kredi</Link>
+				<!-- Phase 2-4 ile aktive edilecek -->
 				<a href="#" class="portal-nav-link disabled">Pazaryerleri</a>
 				<a href="#" class="portal-nav-link disabled">Kâr Hesabı</a>
 				<a href="#" class="portal-nav-link disabled">Ayarlar</a>
