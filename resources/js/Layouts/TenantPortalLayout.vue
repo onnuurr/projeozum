@@ -15,8 +15,8 @@
 				<Link href="/orders" class="portal-nav-link" :class="{ active: page.url.startsWith('/orders') }">Siparişlerim</Link>
 				<Link href="/invoices" class="portal-nav-link" :class="{ active: page.url.startsWith('/invoices') }">Faturalarım</Link>
 				<Link href="/credit" class="portal-nav-link" :class="{ active: page.url.startsWith('/credit') }">Kredi</Link>
-				<!-- Phase 3-4 ile aktive edilecek -->
-				<a href="#" class="portal-nav-link disabled">Pazaryerleri</a>
+				<Link href="/marketplace" class="portal-nav-link" :class="{ active: page.url.startsWith('/marketplace') }">Pazaryerleri</Link>
+				<!-- Phase 4 ile aktive edilecek -->
 				<a href="#" class="portal-nav-link disabled">Kâr Hesabı</a>
 				<a href="#" class="portal-nav-link disabled">Ayarlar</a>
 			</nav>

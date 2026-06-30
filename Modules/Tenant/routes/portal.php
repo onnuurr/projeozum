@@ -1,6 +1,11 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\Tenant\Http\Controllers\Portal\Marketplace\CiceksepetiController;
+use Modules\Tenant\Http\Controllers\Portal\Marketplace\HepsiburadaController;
+use Modules\Tenant\Http\Controllers\Portal\Marketplace\N11Controller;
+use Modules\Tenant\Http\Controllers\Portal\Marketplace\TrendyolController;
+use Modules\Tenant\Http\Controllers\Portal\MarketplaceHubController;
 use Modules\Tenant\Http\Controllers\Portal\PortalCatalogController;
 use Modules\Tenant\Http\Controllers\Portal\PortalCheckoutController;
 use Modules\Tenant\Http\Controllers\Portal\PortalCreditController;
@@ -43,4 +48,21 @@ Route::middleware('can:portal.catalog.view')->group(function () {
 Route::middleware('can:portal.checkout')->group(function () {
     Route::get('/checkout',                 [PortalCheckoutController::class, 'index'])->name('checkout.index');
     Route::post('/checkout',                [PortalCheckoutController::class, 'store'])->name('checkout.store');
+});
+
+// Pazaryeri hub + provider başına ayrı route group (her birinin kendi controller'ı).
+Route::middleware('can:marketplace.view-sales')->group(function () {
+    Route::get('/marketplace', [MarketplaceHubController::class, 'index'])->name('marketplace.index');
+
+    Route::prefix('marketplace/trendyol')->name('marketplace.trendyol.')->group(function () {
+        Route::get('/',                  [TrendyolController::class, 'index'])->name('index');
+        Route::post('/push',             [TrendyolController::class, 'pushProducts'])->middleware('can:marketplace.sync')->name('push');
+        Route::post('/pull-orders',      [TrendyolController::class, 'pullOrders'])->middleware('can:marketplace.sync')->name('pull-orders');
+        Route::get('/listings',          [TrendyolController::class, 'listings'])->name('listings');
+        Route::get('/category-tree',     [TrendyolController::class, 'categoryTree'])->name('category-tree');
+    });
+
+    Route::get('/marketplace/hepsiburada', [HepsiburadaController::class, 'index'])->name('marketplace.hepsiburada.index');
+    Route::get('/marketplace/n11',         [N11Controller::class, 'index'])->name('marketplace.n11.index');
+    Route::get('/marketplace/ciceksepeti', [CiceksepetiController::class, 'index'])->name('marketplace.ciceksepeti.index');
 });

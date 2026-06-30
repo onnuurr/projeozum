@@ -1,0 +1,40 @@
+{
+  "page": 0,
+  "size": 200,
+  "totalElements": 2,
+  "totalPages": 1,
+  "content": [
+    {
+      "orderNumber": "TY-STUB-100",
+      "status": "Created",
+      "orderDate": 1718000000000,
+      "lines": [
+        {
+          "id": "LINE-100-1",
+          "sku": "STUB-SKU-001",
+          "productName": "Stub Bluz · Beyaz · M",
+          "price": 149.90,
+          "quantity": 1,
+          "commission": 22.49,
+          "shippingFee": 12.99
+        }
+      ]
+    },
+    {
+      "orderNumber": "TY-STUB-101",
+      "status": "Shipped",
+      "orderDate": 1718600000000,
+      "lines": [
+        {
+          "id": "LINE-101-1",
+          "sku": "STUB-SKU-002",
+          "productName": "Stub Pantolon · Siyah · L",
+          "price": 299.00,
+          "quantity": 2,
+          "commission": 89.70,
+          "shippingFee": 19.99
+        }
+      ]
+    }
+  ]
+}
