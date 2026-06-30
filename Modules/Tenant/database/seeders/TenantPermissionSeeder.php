@@ -23,6 +23,8 @@ class TenantPermissionSeeder extends Seeder
             'portal.orders.view'    => 'Portal — Siparişleri Görüntüle',
             'portal.invoices.view'  => 'Portal — Faturaları Görüntüle',
             'portal.credit.view'    => 'Portal — Kredi Hareketleri',
+            'portal.catalog.view'   => 'Portal — Katalog Görüntüle',
+            'portal.checkout'       => 'Portal — Dropship Sipariş Aç',
         ];
 
         $allCreated = [];
@@ -51,6 +53,8 @@ class TenantPermissionSeeder extends Seeder
                 'portal.orders.view',
                 'portal.invoices.view',
                 'portal.credit.view',
+                'portal.catalog.view',
+                'portal.checkout',
             ]);
         }
     }

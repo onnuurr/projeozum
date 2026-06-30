@@ -1,6 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\Tenant\Http\Controllers\Portal\PortalCatalogController;
+use Modules\Tenant\Http\Controllers\Portal\PortalCheckoutController;
 use Modules\Tenant\Http\Controllers\Portal\PortalCreditController;
 use Modules\Tenant\Http\Controllers\Portal\PortalDashboardController;
 use Modules\Tenant\Http\Controllers\Portal\PortalInvoiceController;
@@ -31,4 +33,14 @@ Route::middleware('can:portal.invoices.view')->group(function () {
 
 Route::middleware('can:portal.credit.view')->group(function () {
     Route::get('/credit',                  [PortalCreditController::class, 'index'])->name('credit');
+});
+
+Route::middleware('can:portal.catalog.view')->group(function () {
+    Route::get('/catalog',                  [PortalCatalogController::class, 'index'])->name('catalog.index');
+    Route::get('/catalog/{product:slug}',   [PortalCatalogController::class, 'show'])->name('catalog.show');
+});
+
+Route::middleware('can:portal.checkout')->group(function () {
+    Route::get('/checkout',                 [PortalCheckoutController::class, 'index'])->name('checkout.index');
+    Route::post('/checkout',                [PortalCheckoutController::class, 'store'])->name('checkout.store');
 });
