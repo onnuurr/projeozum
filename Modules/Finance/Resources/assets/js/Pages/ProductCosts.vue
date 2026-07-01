@@ -9,6 +9,8 @@
 			]"
 		/>
 
+		<FinanceNav current="product-costs" />
+
 		<div class="page-header">
 			<div>
 				<h1 class="page-title">Ürün Maliyetleri</h1>
@@ -67,6 +69,7 @@ import { ref, computed } from 'vue'
 import { Head } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
+import FinanceNav from '../Components/FinanceNav.vue'
 
 defineOptions({ layout: AppLayout })
 

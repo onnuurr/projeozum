@@ -92,6 +92,10 @@ class MenuSeeder extends Seeder
             ['route_name' => 'finance.product-costs', 'label' => 'Ürün Maliyetleri'],
             ['route_name' => 'finance.sales', 'label' => 'Satış Geçmişi'],
             ['route_name' => 'finance.tenant-purchases', 'label' => 'Bayi Alışverişleri'],
+            ['route_name' => 'finance.supplier-invoices.index', 'label' => 'Alınan Faturalar'],
+            ['route_name' => 'finance.proformas.index', 'label' => 'Proforma Faturalar'],
+            ['route_name' => 'finance.outgoing-invoices.index', 'label' => 'Düzenlenen Faturalar'],
+            ['route_name' => 'finance.bank-accounts.index', 'label' => 'Banka'],
         ];
 
         foreach ($children as $order => $child) {

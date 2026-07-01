@@ -8,6 +8,8 @@
 			]"
 		/>
 
+		<FinanceNav current="dashboard" />
+
 		<div class="page-header">
 			<div>
 				<h1 class="page-title">Finans</h1>
@@ -33,16 +35,27 @@
 			</Link>
 		</div>
 
-		<div class="card links-card">
-			<h3>Modüller</h3>
-			<div class="links-grid">
-				<Link href="/finance/product-costs">Ürün Maliyetleri</Link>
-				<Link href="/finance/sales">Satış Geçmişi</Link>
-				<Link href="/finance/tenant-purchases">Bayi Alışverişleri</Link>
-			</div>
-			<p class="dim">
-				Alınan/düzenlenen faturalar, proforma ve banka mutabakatı sonraki fazlarda eklenecek.
-			</p>
+		<div class="kpi-grid">
+			<Link href="/finance/supplier-invoices" class="kpi-card">
+				<span class="kpi-label">Alınan Faturalar</span>
+				<span class="kpi-value">{{ formatMoney(supplierInvoices.unpaidAmount) }}</span>
+				<span class="kpi-hint">{{ supplierInvoices.invoiceCount }} fatura · ödenmemiş bakiye</span>
+			</Link>
+			<Link href="/finance/proformas" class="kpi-card">
+				<span class="kpi-label">Açık Proformalar</span>
+				<span class="kpi-value">{{ proformas.openCount }}</span>
+				<span class="kpi-hint">{{ proformas.invoiceCount }} toplam proforma</span>
+			</Link>
+			<Link href="/finance/outgoing-invoices" class="kpi-card">
+				<span class="kpi-label">Düzenlenen Faturalar</span>
+				<span class="kpi-value">{{ outgoingInvoices.invoiceCount }}</span>
+				<span class="kpi-hint">{{ outgoingInvoices.notSentCount }} e-Fatura gönderilmedi</span>
+			</Link>
+			<Link href="/finance/bank-accounts" class="kpi-card">
+				<span class="kpi-label">Banka Mutabakatı</span>
+				<span class="kpi-value">{{ bank.unmatchedCount }}</span>
+				<span class="kpi-hint">eşleşmemiş işlem · {{ bank.accountCount }} hesap</span>
+			</Link>
 		</div>
 	</div>
 </template>
@@ -51,6 +64,7 @@
 import { Head, Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
+import FinanceNav from '../Components/FinanceNav.vue'
 
 defineOptions({ layout: AppLayout })
 
@@ -58,6 +72,10 @@ defineProps({
 	sales: { type: Object, required: true },
 	tenantPurchases: { type: Object, required: true },
 	costs: { type: Object, required: true },
+	supplierInvoices: { type: Object, required: true },
+	proformas: { type: Object, required: true },
+	outgoingInvoices: { type: Object, required: true },
+	bank: { type: Object, required: true },
 })
 
 function formatMoney(value) {
@@ -82,12 +100,4 @@ function formatMoney(value) {
 .kpi-hint { font-size: 12px; color: #999; }
 
 .card { background: #fff; border-radius: 16px; border: 1px solid #ebebf0; padding: 18px; box-shadow: 0 1px 4px rgba(0,0,0,.04); }
-.links-card h3 { font-size: 15px; font-weight: 700; color: #1a1a2e; margin-bottom: 12px; }
-.links-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
-.links-grid a {
-	padding: 8px 14px; background: #f5f5f8; border-radius: 8px; font-size: 13px; font-weight: 600;
-	color: rgb(var(--color-primary)); text-decoration: none;
-}
-.links-grid a:hover { background: rgb(var(--color-primary-soft)); }
-.dim { font-size: 12px; color: #999; }
 </style>

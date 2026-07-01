@@ -2,6 +2,9 @@
 
 namespace Modules\Finance\Providers;
 
+use Modules\Finance\Console\Commands\ExpireProformas;
+use Modules\Finance\Contracts\EInvoiceProviderInterface;
+use Modules\Finance\Services\EInvoice\NullEInvoiceProvider;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 
 class FinanceServiceProvider extends ModuleServiceProvider
@@ -17,6 +20,15 @@ class FinanceServiceProvider extends ModuleServiceProvider
     protected string $nameLower = 'finance';
 
     /**
+     * Command classes to register.
+     *
+     * @var string[]
+     */
+    protected array $commands = [
+        ExpireProformas::class,
+    ];
+
+    /**
      * Provider classes to register.
      *
      * @var string[]
@@ -25,4 +37,13 @@ class FinanceServiceProvider extends ModuleServiceProvider
         EventServiceProvider::class,
         RouteServiceProvider::class,
     ];
+
+    public function register(): void
+    {
+        parent::register();
+
+        // e-Fatura entegratörü henüz seçilmedi; somut sürücü bağlanana kadar
+        // tek binding budur (bkz. EInvoiceProviderInterface doc-block'u).
+        $this->app->bind(EInvoiceProviderInterface::class, NullEInvoiceProvider::class);
+    }
 }

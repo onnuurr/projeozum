@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Schedule;
 use App\Models\ActivityLog;
 use App\Models\ErrorLog;
 use Modules\Atelier\Models\MaterialMovement;
+use Modules\Finance\Models\BankTransaction;
 use Modules\Product\Models\PriceList;
 use Modules\Product\Models\ProductImage;
 use Modules\Product\Models\Stock;
@@ -37,6 +38,7 @@ Schedule::command('model:prune', [
         StockMovement::class,
         PriceList::class,
         MaterialMovement::class,
+        BankTransaction::class,
     ],
 ])->daily()->onOneServer()->runInBackground();
 
@@ -51,3 +53,6 @@ Schedule::command('auth:clear-resets')->daily();
 
 // Süresi geçmiş etiketli cache kayıtları (yalnızca destekleyen sürücülerde etkili).
 Schedule::command('cache:prune-stale-tags')->hourly();
+
+// Geçerlilik tarihi dolmuş proforma faturaları expired yapar (Finance modülü).
+Schedule::command('finance:expire-proformas')->daily();
