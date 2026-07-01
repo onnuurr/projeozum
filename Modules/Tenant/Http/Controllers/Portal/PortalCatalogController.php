@@ -7,12 +7,16 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Product\Models\Product;
+use Modules\Product\Services\ProductDisplayResolver;
 use Modules\Tenant\Models\Tenant;
 use Modules\Tenant\Services\TenantAccessService;
 
 class PortalCatalogController extends Controller
 {
-    public function __construct(private TenantAccessService $access) {}
+    public function __construct(
+        private TenantAccessService $access,
+        private ProductDisplayResolver $display,
+    ) {}
 
     public function index(Request $request): Response
     {
@@ -34,17 +38,21 @@ class PortalCatalogController extends Controller
 
         $products = $query->orderBy('name')->paginate(24);
 
-        $products->through(fn (Product $p) => [
-            'id'             => $p->id,
-            'name'           => $p->name,
-            'slug'           => $p->slug,
-            'sku'            => $p->sku,
-            'brand'          => $p->brand?->name,
-            'category'       => $p->category?->name,
-            'tenant_price'   => $this->access->priceFor($tenant, $p),
-            'purchase_price' => (float) ($p->purchase_price ?? 0),
-            'image'          => "https://picsum.photos/seed/tek-p{$p->id}/300/400",
-        ]);
+        $products->through(function (Product $p) use ($tenant) {
+            $display = $this->display->for($p, $tenant);
+            return [
+                'id'             => $p->id,
+                'name'           => $display->name,
+                'slug'           => $p->slug,
+                'sku'            => $p->sku,
+                'brand'          => $p->brand?->name,
+                'category'       => $p->category?->name,
+                'tenant_price'   => $this->access->priceFor($tenant, $p),
+                'purchase_price' => (float) ($p->purchase_price ?? 0),
+                'image'          => "https://picsum.photos/seed/tek-p{$p->id}/300/400",
+                'display_source' => $display->source,
+            ];
+        });
 
         return Inertia::render('Tenant::Portal/Catalog', [
             'tenant'   => $this->tenantPayload($tenant),
@@ -62,15 +70,17 @@ class PortalCatalogController extends Controller
         abort_unless($this->access->canAccess($tenant, $product), 404);
 
         $product->load(['brand:id,name', 'category:id,name', 'variants']);
+        $display = $this->display->for($product, $tenant);
 
         return Inertia::render('Tenant::Portal/CatalogProduct', [
             'tenant'  => $this->tenantPayload($tenant),
             'product' => [
                 'id'             => $product->id,
-                'name'           => $product->name,
+                'name'           => $display->name,
                 'slug'           => $product->slug,
                 'sku'            => $product->sku,
-                'description'    => $product->description ?? null,
+                'description'    => $display->description,
+                'display_source' => $display->source,
                 'brand'          => $product->brand?->name,
                 'category'       => $product->category?->name,
                 'image'          => "https://picsum.photos/seed/tek-p{$product->id}/600/800",

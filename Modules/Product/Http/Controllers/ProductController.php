@@ -15,12 +15,16 @@ use Modules\Product\Models\Category;
 use Modules\Product\Models\Marketplace;
 use Modules\Product\Models\PriceList;
 use Modules\Product\Models\Product;
+use Modules\Product\Models\ProductDescriptionMaterial;
 use Modules\Product\Models\ProductFavorite;
+use Modules\Product\Services\ProductMaterialLinkService;
 use Modules\Tenant\Models\Tenant;
 use Modules\Tenant\Models\TenantProductAccess;
 
 class ProductController extends Controller
 {
+    public function __construct(private ProductMaterialLinkService $materialLinks) {}
+
     public function index(Request $request): Response
     {
         $user = $request->user();
@@ -179,6 +183,7 @@ class ProductController extends Controller
         $product->load([
             'variants' => fn ($q) => $q->orderBy('sort_order'),
             'images'   => fn ($q) => $q->orderByDesc('is_cover')->orderBy('sort_order'),
+            'descriptionMaterials.material:id,code,name,type,unit,specs',
         ]);
 
         [$categories, $brands] = $this->formReferenceData();
@@ -198,6 +203,7 @@ class ProductController extends Controller
             $product = Product::create($this->productAttributes($data));
 
             $this->syncVariants($product, $data['variants']);
+            $this->materialLinks->syncMaterials($product, $data['description_materials'] ?? []);
 
             return $product;
         });
@@ -216,6 +222,7 @@ class ProductController extends Controller
             $product->update($this->productAttributes($data));
 
             $this->syncVariants($product, $data['variants']);
+            $this->materialLinks->syncMaterials($product, $data['description_materials'] ?? []);
         });
 
         $this->storeUploadedImages($product, $request);
@@ -507,6 +514,10 @@ class ProductController extends Controller
             'careInstructions' => $product->care_instructions,
             'material'         => $product->material,
             'originCountry'    => $product->origin_country,
+            'publicName'        => $product->public_name,
+            'publicDescription' => $product->public_description,
+            'tenantDescription' => $product->tenant_description,
+            'aiGeneratedAt'     => $product->ai_generated_at?->toIso8601String(),
             // SEO
             'metaTitle'        => $product->meta_title,
             'metaDescription'  => $product->meta_description,
@@ -536,6 +547,22 @@ class ProductController extends Controller
                 'old_price'  => $v->old_price !== null ? (float) $v->old_price : null,
                 'stock'      => (int) $v->stock,
             ])->values()->all(),
+            'description_materials' => $product->relationLoaded('descriptionMaterials')
+                ? $product->descriptionMaterials->map(fn ($r) => [
+                    'material_id' => $r->material_id,
+                    'material'    => $r->material ? [
+                        'id'    => $r->material->id,
+                        'code'  => $r->material->code,
+                        'name'  => $r->material->name,
+                        'type'  => $r->material->type,
+                        'unit'  => $r->material->unit,
+                        'specs' => (array) ($r->material->specs ?? []),
+                    ] : null,
+                    'role'       => $r->role,
+                    'sort_order' => (int) $r->sort_order,
+                    'notes'      => $r->notes,
+                ])->values()->all()
+                : [],
         ];
     }
 
@@ -617,6 +644,9 @@ class ProductController extends Controller
             'care_instructions' => $data['care_instructions'] ?? null,
             'material'          => $data['material'] ?? null,
             'origin_country'    => $data['origin_country'] ?? 'TR',
+            'public_name'        => $data['public_name'] ?? null,
+            'public_description' => $data['public_description'] ?? null,
+            'tenant_description' => $data['tenant_description'] ?? null,
             // SEO
             'meta_title'        => $data['meta_title'] ?? null,
             'meta_description'  => $data['meta_description'] ?? null,
@@ -661,6 +691,11 @@ class ProductController extends Controller
             'material'          => ['nullable', 'string', 'max:191'],
             'origin_country'    => ['nullable', 'string', 'size:2'],
 
+            // Açıklamalar (M2)
+            'public_name'        => ['nullable', 'string', 'max:255'],
+            'public_description' => ['nullable', 'string', 'max:10000'],
+            'tenant_description' => ['nullable', 'string', 'max:10000'],
+
             // SEO
             'meta_title'        => ['nullable', 'string', 'max:191'],
             'meta_description'  => ['nullable', 'string', 'max:500'],
@@ -689,6 +724,13 @@ class ProductController extends Controller
             'variants.*.price'          => ['required', 'numeric', 'min:0'],
             'variants.*.old_price'      => ['nullable', 'numeric', 'min:0'],
             'variants.*.stock'          => ['required', 'integer', 'min:0'],
+
+            // Ürün açıklaması için materyal bağı (M1).
+            'description_materials'                 => ['nullable', 'array'],
+            'description_materials.*.material_id'   => ['required_with:description_materials.*', 'integer', Rule::exists('materials', 'id')],
+            'description_materials.*.role'          => ['required_with:description_materials.*', Rule::in(ProductDescriptionMaterial::ROLES)],
+            'description_materials.*.sort_order'    => ['nullable', 'integer', 'min:0'],
+            'description_materials.*.notes'         => ['nullable', 'string', 'max:500'],
         ], [
             'variants.required' => 'En az bir varyant eklenmelidir.',
             'variants.min'      => 'En az bir varyant eklenmelidir.',

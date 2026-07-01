@@ -15,10 +15,14 @@ Route::middleware(['auth', 'verified'])
         // Hammaddeler
         Route::get('materials', [\Modules\Atelier\Http\Controllers\MaterialController::class, 'index'])
             ->middleware('can:atelier.view')->name('materials.index');
+        Route::get('materials-lookup', [\Modules\Atelier\Http\Controllers\MaterialLookupController::class, 'search'])
+            ->middleware('can:atelier.view')->name('materials.lookup');
         Route::post('materials', [\Modules\Atelier\Http\Controllers\MaterialController::class, 'store'])
             ->middleware('can:atelier.material.manage')->name('materials.store');
         Route::put('materials/{material}', [\Modules\Atelier\Http\Controllers\MaterialController::class, 'update'])
             ->middleware('can:atelier.material.manage')->name('materials.update');
+        Route::put('materials/{material}/specs', [\Modules\Atelier\Http\Controllers\MaterialController::class, 'updateSpecs'])
+            ->middleware('can:atelier.material.manage')->name('materials.specs.update');
         Route::delete('materials/{material}', [\Modules\Atelier\Http\Controllers\MaterialController::class, 'destroy'])
             ->middleware('can:atelier.material.manage')->name('materials.destroy');
         Route::post('materials/movement', [\Modules\Atelier\Http\Controllers\MaterialController::class, 'movement'])

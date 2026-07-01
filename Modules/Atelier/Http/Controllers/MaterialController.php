@@ -8,13 +8,18 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Modules\Atelier\Http\Requests\UpdateMaterialSpecsRequest;
 use Modules\Atelier\Models\Material;
 use Modules\Atelier\Models\MaterialMovement;
+use Modules\Atelier\Services\MaterialSpecService;
 use Modules\Atelier\Services\MaterialStockService;
 
 class MaterialController extends Controller
 {
-    public function __construct(private MaterialStockService $stock) {}
+    public function __construct(
+        private MaterialStockService $stock,
+        private MaterialSpecService $specs,
+    ) {}
 
     public function index(): Response
     {
@@ -30,11 +35,20 @@ class MaterialController extends Controller
                 'unitCost'     => (float) $m->unit_cost,
                 'currentStock' => (float) $m->current_stock,
                 'isActive'     => $m->is_active,
+                'specs'        => (array) ($m->specs ?? []),
             ]);
 
         return Inertia::render('Atelier::Materials', [
             'materials' => $materials,
         ]);
+    }
+
+    public function updateSpecs(UpdateMaterialSpecsRequest $request, Material $material): RedirectResponse
+    {
+        $this->specs->updateSpecs($material, $request->specs());
+
+        return redirect()->route('atelier.materials.index')
+            ->with('success', 'Malzeme özellikleri güncellendi.');
     }
 
     public function store(Request $request): RedirectResponse

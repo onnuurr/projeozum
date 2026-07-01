@@ -33,6 +33,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('/overrides', [TenantAccessController::class, 'storeOverride'])->name('overrides.store');
             Route::put('/overrides/{access}', [TenantAccessController::class, 'updateOverride'])
                 ->whereNumber('access')->name('overrides.update');
+            Route::put('/overrides/{access}/custom-copy', [TenantAccessController::class, 'updateCustomCopy'])
+                ->whereNumber('access')->name('overrides.custom-copy');
             Route::delete('/overrides/{access}', [TenantAccessController::class, 'destroyOverride'])
                 ->whereNumber('access')->name('overrides.destroy');
         });

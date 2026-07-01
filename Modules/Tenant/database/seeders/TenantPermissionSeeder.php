@@ -11,11 +11,12 @@ class TenantPermissionSeeder extends Seeder
     public function run(): void
     {
         $adminPermissions = [
-            'tenant.view'          => 'Tenant\'ları Görüntüle',
-            'tenant.manage'        => 'Tenant Yönet',
-            'tenant-type.manage'   => 'Tenant Tipi Yönet',
-            'tenant-access.manage' => 'Tenant Erişimi Yönet',
-            'marketplace.manage'   => 'Pazaryeri Bağlantı Yönet',
+            'tenant.view'              => 'Tenant\'ları Görüntüle',
+            'tenant.manage'            => 'Tenant Yönet',
+            'tenant-type.manage'       => 'Tenant Tipi Yönet',
+            'tenant-access.manage'     => 'Tenant Erişimi Yönet',
+            'tenant.product.customize' => 'Tenant\'a Özel Ürün Metni Yaz',
+            'marketplace.manage'       => 'Pazaryeri Bağlantı Yönet',
         ];
 
         $tenantPortalPermissions = [

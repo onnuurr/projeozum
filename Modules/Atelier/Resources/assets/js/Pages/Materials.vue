@@ -98,7 +98,8 @@
 						<td class="num dim">{{ m.unitCost }}</td>
 						<td>
 							<div class="table-actions">
-								<button class="table-action-btn" @click="openMove(m)" title="Stok Hareketi">⇅</button>
+								<button class="table-action-btn" @click="openSpecs(m)" title="Özellikler (AI için)">🧵</button>
+									<button class="table-action-btn" @click="openMove(m)" title="Stok Hareketi">⇅</button>
 								<button class="table-action-btn" @click="edit(m)" title="Düzenle">✏️</button>
 								<button class="table-action-btn danger" @click="remove(m)" title="Sil">🗑️</button>
 							</div>
@@ -106,6 +107,22 @@
 					</tr>
 				</tbody>
 			</table>
+		</div>
+
+		<!-- Materyal Özellikleri Modal (AI için) -->
+		<div v-if="specs.material_id" class="modal-overlay" @click.self="specs.material_id = null">
+			<div class="modal-box modal-box-wide">
+				<div class="modal-head">
+					<span class="modal-title">Materyal Özellikleri — <em>{{ specs.material_name }}</em></span>
+					<button class="modal-close" @click="specs.material_id = null">✕</button>
+				</div>
+				<p class="modal-desc">AI ürün açıklaması bu bilgilerden üretilir. Kumaş için kompozisyon ve gramaj yeterli.</p>
+				<MaterialSpecsPanel v-model="specs.data" />
+				<div class="modal-foot">
+					<button type="button" class="btn btn-ghost" @click="specs.material_id = null">Kapat</button>
+					<button type="button" class="btn btn-primary" @click="submitSpecs" :disabled="specsBusy">Kaydet</button>
+				</div>
+			</div>
 		</div>
 
 		<!-- Stok Hareketi Modal -->
@@ -154,6 +171,8 @@ import { Head, router, useForm } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import AtelierNav from '../Components/AtelierNav.vue'
+import MaterialSpecsPanel from '../Components/MaterialSpecsPanel.vue'
+import axios from 'axios'
 
 defineOptions({ layout: AppLayout })
 
@@ -189,6 +208,28 @@ const move = useForm({ material_id: null, type: 'in', quantity: 0, reason: 'purc
 function openMove(m) { move.material_id = m.id; move.type = 'in'; move.quantity = 0; move.reason = 'purchase' }
 function submitMove() {
   move.post('/atelier/materials/movement', { onSuccess: () => { move.reset(); move.material_id = null } })
+}
+
+const showToast = inject('showToast')
+const specs = ref({ material_id: null, material_name: '', data: {} })
+const specsBusy = ref(false)
+function openSpecs(m) {
+  specs.value = { material_id: m.id, material_name: m.name, data: { ...(m.specs || {}) } }
+}
+async function submitSpecs() {
+  if (!specs.value.material_id || specsBusy.value) return
+  specsBusy.value = true
+  try {
+    await axios.put(`/atelier/materials/${specs.value.material_id}/specs`, { specs: specs.value.data })
+    showToast?.({ type: 'success', title: 'Özellikler kaydedildi' })
+    specs.value.material_id = null
+    router.reload({ only: ['materials'], preserveScroll: true })
+  } catch (e) {
+    const msg = e?.response?.data?.errors?.specs?.[0] || 'Kayıt başarısız.'
+    showToast?.({ type: 'error', title: 'Hata', message: msg })
+  } finally {
+    specsBusy.value = false
+  }
 }
 </script>
 
@@ -234,6 +275,9 @@ function submitMove() {
 /* Modal */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; z-index: 9000; }
 .modal-box { background: #fff; border-radius: 16px; padding: 24px; width: 360px; max-width: calc(100vw - 32px); display: flex; flex-direction: column; gap: 16px; box-shadow: 0 8px 40px rgba(0,0,0,.15); }
+.modal-box-wide { width: 560px; }
+.modal-desc { font-size: 12.5px; color: #888; margin: -6px 0 2px; }
+.modal-title em { color: rgb(var(--color-primary)); font-style: normal; font-weight: 700; }
 .modal-head { display: flex; align-items: center; justify-content: space-between; }
 .modal-title { font-size: 16px; font-weight: 700; color: #1a1a2e; }
 .modal-close { background: none; border: none; cursor: pointer; font-size: 15px; color: #888; padding: 2px 6px; border-radius: 6px; transition: all .15s; }

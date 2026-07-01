@@ -375,7 +375,7 @@
 					<div class="card-body">
 						<div class="form-grid-2">
 							<div class="form-group">
-								<label class="form-label">Kumaş İçeriği</label>
+								<label class="form-label">Kumaş İçeriği (özet)</label>
 								<input v-model="form.material" class="form-input" type="text" placeholder="örn. %100 Pamuk" />
 								<span v-if="errors.material" class="form-error">{{ errors.material }}</span>
 							</div>
@@ -389,6 +389,91 @@
 							<label class="form-label">Yıkama / Bakım Talimatları</label>
 							<textarea v-model="form.care_instructions" class="form-input" rows="3" placeholder="örn. 30°C'de yıkanır, ütülenmez…" />
 							<span v-if="errors.care_instructions" class="form-error">{{ errors.care_instructions }}</span>
+						</div>
+					</div>
+				</section>
+
+				<section class="card card-overflow">
+					<header class="card-head">
+						<h2>Materyaller</h2>
+						<p>AI açıklamada kullanılacak kumaş ve aksesuarları seçin. Materyallere kompozisyon/gramaj gibi özellikler Atelier · Hammadde ekranında girilir.</p>
+					</header>
+					<div class="card-body">
+						<MaterialPicker v-model="form.description_materials" />
+						<span v-if="firstMaterialError" class="form-error">{{ firstMaterialError }}</span>
+					</div>
+				</section>
+			</div>
+
+			<!-- ── Açıklama (AI) ── -->
+			<div v-show="activeTab === 'description'" class="tab-panel" role="tabpanel">
+				<section class="card">
+					<header class="card-head flex-row">
+						<div>
+							<h2>AI Ürün Açıklaması</h2>
+							<p>Materyaller + ürün adına göre iki tonda metin. Metinler formu kaydedince kalıcı olur.</p>
+						</div>
+						<div class="ai-actions">
+							<span v-if="aiGeneratedAt" class="ai-stamp">Son üretim: {{ new Date(aiGeneratedAt).toLocaleString('tr-TR') }}</span>
+							<button
+								type="button"
+								class="btn btn-primary btn-sm"
+								:disabled="aiBusy || !isEdit"
+								:title="!isEdit ? 'Önce ürünü kaydedin' : 'AI ile açıklama üret'"
+								@click="generateAiDescription"
+							>
+								{{ aiBusy ? '✨ Üretiliyor…' : '✨ AI ile Üret' }}
+							</button>
+						</div>
+					</header>
+					<div class="card-body">
+						<div v-if="!isEdit" class="inline-hint">
+							AI açıklama üretimi için önce ürünü kaydedin (temel bilgiler yeterli).
+						</div>
+						<div v-if="aiError" class="error-inline">{{ aiError }}</div>
+
+						<div class="form-group">
+							<div class="label-row">
+								<label class="form-label">Storefront Adı <span class="form-help">(B2C, opsiyonel — boşsa "Ürün Adı" kullanılır)</span></label>
+							</div>
+							<input v-model="form.public_name" class="form-input" type="text" maxlength="255" placeholder="örn. Ege Pamuğu Basic Tişört" />
+							<span v-if="errors.public_name" class="form-error">{{ errors.public_name }}</span>
+						</div>
+
+						<div class="form-group">
+							<div class="label-row">
+								<label class="form-label">B2C Açıklama (Storefront)</label>
+								<button type="button" class="btn btn-ghost btn-xs" @click="previewMode.public = !previewMode.public">
+									{{ previewMode.public ? 'Metin' : 'Önizleme' }}
+								</button>
+							</div>
+							<textarea
+								v-if="!previewMode.public"
+								v-model="form.public_description"
+								class="form-input"
+								rows="8"
+								placeholder="Müşteriye storytelling — markdown desteklenir (**kalın**, *italik*, - liste)"
+							/>
+							<MarkdownPreview v-else :source="form.public_description" />
+							<span v-if="errors.public_description" class="form-error">{{ errors.public_description }}</span>
+						</div>
+
+						<div class="form-group">
+							<div class="label-row">
+								<label class="form-label">B2B Açıklama (Bayi Portalı — Varsayılan)</label>
+								<button type="button" class="btn btn-ghost btn-xs" @click="previewMode.tenant = !previewMode.tenant">
+									{{ previewMode.tenant ? 'Metin' : 'Önizleme' }}
+								</button>
+							</div>
+							<textarea
+								v-if="!previewMode.tenant"
+								v-model="form.tenant_description"
+								class="form-input"
+								rows="8"
+								placeholder="Bayiye spec-forward: kompozisyon, gramaj, bakım, satılabilirlik. Markdown desteklenir."
+							/>
+							<MarkdownPreview v-else :source="form.tenant_description" />
+							<span v-if="errors.tenant_description" class="form-error">{{ errors.tenant_description }}</span>
 						</div>
 					</div>
 				</section>
@@ -436,6 +521,9 @@ import { Head, Link, router, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import CustomSelect from '@/Components/CustomSelect.vue'
+import MaterialPicker from '@/Components/MaterialPicker.vue'
+import MarkdownPreview from '@/Components/MarkdownPreview.vue'
+import axios from 'axios'
 
 defineOptions({ layout: AppLayout })
 
@@ -452,13 +540,14 @@ const isEdit = computed(() => !!props.product)
 
 /* ── Sekmeler ── */
 const tabs = [
-	{ key: 'general',    label: 'Genel Bilgiler' },
-	{ key: 'seo',        label: 'SEO' },
-	{ key: 'price',      label: 'Fiyat-Kargo' },
-	{ key: 'variant',    label: 'Stok-Varyant' },
-	{ key: 'images',     label: 'Resimler' },
-	{ key: 'attributes', label: 'Özellikler' },
-	{ key: 'other',      label: 'Diğer' },
+	{ key: 'general',     label: 'Genel Bilgiler' },
+	{ key: 'seo',         label: 'SEO' },
+	{ key: 'price',       label: 'Fiyat-Kargo' },
+	{ key: 'variant',     label: 'Stok-Varyant' },
+	{ key: 'images',      label: 'Resimler' },
+	{ key: 'attributes',  label: 'Özellikler' },
+	{ key: 'description', label: 'Açıklama (AI)' },
+	{ key: 'other',       label: 'Diğer' },
 ]
 const activeTab = ref('general')
 
@@ -471,6 +560,8 @@ const fieldTabMap = {
 	variants: 'variant',
 	images: 'images',
 	material: 'attributes', origin_country: 'attributes', care_instructions: 'attributes',
+	description_materials: 'attributes',
+	public_name: 'description', public_description: 'description', tenant_description: 'description',
 	barcode: 'other', is_domestic: 'other', manufacturer_code: 'other', gtip_code: 'other',
 }
 function tabForField(field) {
@@ -488,6 +579,41 @@ const tabsWithErrors = computed(() => {
 	for (const field of Object.keys(errors.value)) set.add(tabForField(field))
 	return set
 })
+
+const firstMaterialError = computed(() => {
+	const key = Object.keys(errors.value).find((k) => k.startsWith('description_materials'))
+	return key ? errors.value[key] : ''
+})
+
+/* ── AI açıklama (M2) ── */
+const aiBusy = ref(false)
+const aiError = ref('')
+const aiGeneratedAt = ref(null)
+const previewMode = reactive({ public: false, tenant: false })
+
+async function generateAiDescription() {
+	if (!props.product?.id) {
+		aiError.value = 'Önce ürünü kaydedin, sonra AI ile açıklama üretin.'
+		return
+	}
+	if (aiBusy.value) return
+	aiBusy.value = true
+	aiError.value = ''
+	try {
+		const { data } = await axios.post(`/products/${props.product.id}/ai-description`)
+		form.public_description = data.data.public_description
+		form.tenant_description = data.data.tenant_description
+		aiGeneratedAt.value = new Date().toISOString()
+		showToast?.({ type: 'success', title: 'AI açıklama üretildi', message: 'Metinleri gözden geçirip kaydedin.' })
+	} catch (e) {
+		aiError.value = e?.response?.data?.message || 'AI çağrısı başarısız.'
+		showToast?.({ type: 'error', title: 'AI Hatası', message: aiError.value })
+	} finally {
+		aiBusy.value = false
+	}
+}
+
+const canUseAi = computed(() => !!(page.props.auth?.user?.permissions?.includes?.('product.ai.generate') ?? true))
 
 /* ── Görseller ── */
 const newImages = ref([])      // { file, preview }
@@ -590,6 +716,12 @@ const defaultForm = () => ({
 	manufacturer_code: '',
 	gtip_code: '',
 	variants: [],
+	// AI için materyal bağı
+	description_materials: [],
+	// AI açıklama alanları (M2)
+	public_name: '',
+	public_description: '',
+	tenant_description: '',
 })
 
 const form = reactive(defaultForm())
@@ -766,6 +898,15 @@ function buildPayload() {
 			old_price: v.old_price ? Number(v.old_price) : null,
 			stock: Number(v.stock) || 0,
 		})),
+		description_materials: (form.description_materials || []).map((r, i) => ({
+			material_id: r.material_id,
+			role: r.role,
+			sort_order: r.sort_order ?? i,
+			notes: r.notes || null,
+		})),
+		public_name: form.public_name?.trim() || null,
+		public_description: form.public_description?.trim() || null,
+		tenant_description: form.tenant_description?.trim() || null,
 		images: newImages.value.map((x) => x.file),
 	}
 }
@@ -849,7 +990,20 @@ function loadFromProduct(p) {
 		manufacturer_code: p.manufacturerCode ?? '',
 		gtip_code: p.gtipCode ?? '',
 		variants: [],
+		description_materials: Array.isArray(p.description_materials)
+			? p.description_materials.map((r) => ({
+				material_id: r.material_id,
+				material: r.material || null,
+				role: r.role,
+				sort_order: r.sort_order ?? 0,
+				notes: r.notes || null,
+			}))
+			: [],
+		public_name: p.publicName ?? '',
+		public_description: p.publicDescription ?? '',
+		tenant_description: p.tenantDescription ?? '',
 	})
+	aiGeneratedAt.value = p.aiGeneratedAt ?? null
 
 	const variants = Array.isArray(p.variants) ? p.variants : []
 	const sizesSet = new Set()
@@ -1133,4 +1287,14 @@ onMounted(() => {
 }
 .toggle-row input { accent-color: rgb(var(--color-primary)); width: 14px; height: 14px; cursor: pointer; }
 .toggle-text { font-size: 12.5px; color: #444; font-weight: 600; }
+
+/* AI Açıklama tab */
+.ai-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ai-stamp { font-size: 11.5px; color: #888; }
+.btn-xs { padding: 3px 10px; font-size: 11px; height: 26px; border-radius: 6px; }
+.label-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.error-inline {
+	background: #fef2f2; border: 1px solid #fecaca;
+	color: #b91c1c; font-size: 12px; padding: 8px 12px; border-radius: 8px;
+}
 </style>

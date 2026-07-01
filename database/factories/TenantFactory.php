@@ -31,6 +31,7 @@ class TenantFactory extends Factory
             'payment_term_days' => $this->faker->randomElement([0, 7, 15, 30]),
             'discount_rate'     => $this->faker->randomFloat(2, 0, 25),
             'is_active'         => true,
+            'feed_secret'       => Str::random(64),
         ];
     }
 

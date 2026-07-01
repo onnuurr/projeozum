@@ -119,6 +119,7 @@
 						<td>
 							<div class="table-actions">
 								<button v-if="canManage" class="table-action-btn view" @click="editOverride(o)" title="Düzenle">✏️</button>
+									<button v-if="canCustomizeCopy" class="table-action-btn view" @click="openCustomCopy(o)" title="Özel Metin (Bu Bayiye Özel)">📝</button>
 								<button v-if="canManage" class="table-action-btn delete" @click="confirmDeleteOverride(o)" title="Sil">🗑️</button>
 							</div>
 						</td>
@@ -203,6 +204,34 @@
 				</button>
 			</template>
 		</AppModal>
+
+		<!-- ─── Özel Metin (Bayiye Özel) Modal ─────────────────────────── -->
+		<AppModal v-model="customCopyOpen" title="Bayiye Özel Ürün Metni" size="lg" variant="info">
+			<div v-if="customCopy.product_name" class="picked-product">
+				<strong>{{ customCopy.product_name }}</strong>
+			</div>
+			<form class="form-grid" @submit.prevent="submitCustomCopy">
+				<div class="form-row">
+					<label class="form-label">Özel Ürün Adı</label>
+					<input v-model="customCopy.custom_name" type="text" maxlength="255" class="form-input" placeholder="Boş: bu bayi için varsayılan adı gösterir" />
+					<span v-if="customCopy.default_public_name" class="form-help">Varsayılan: {{ customCopy.default_public_name }}</span>
+				</div>
+				<div class="form-row">
+					<label class="form-label">Özel Açıklama (Markdown)</label>
+					<textarea v-model="customCopy.custom_description" rows="8" class="form-input" placeholder="Boş: default tenant_description'ı gösterir" />
+					<button
+						v-if="customCopy.default_tenant_description"
+						type="button"
+						class="btn btn-ghost btn-xs"
+						@click="customCopy.custom_description = customCopy.default_tenant_description"
+					>↓ Varsayılandan kopyala</button>
+				</div>
+			</form>
+			<template #footer="{ close }">
+				<button class="btn btn-ghost" @click="close" :disabled="customCopy.busy">İptal</button>
+				<button class="btn btn-primary" @click="submitCustomCopy" :disabled="customCopy.busy">Kaydet</button>
+			</template>
+		</AppModal>
 	</div>
 </template>
 
@@ -221,6 +250,7 @@ const props = defineProps({
 	overrides: { type: Array, default: () => [] },
 	brands: { type: Array, default: () => [] },
 	categories: { type: Array, default: () => [] },
+	canCustomizeCopy: { type: Boolean, default: false },
 })
 
 const showToast = inject('showToast')
@@ -228,6 +258,51 @@ const $swal = inject('$swal')
 const page = usePage()
 
 const canManage = computed(() => (page.props.auth?.permissions ?? []).includes('tenant-access.manage'))
+const canCustomizeCopy = computed(() => props.canCustomizeCopy)
+
+/* ── Bayiye Özel Metin modalı (M3) ── */
+const customCopyOpen = ref(false)
+const customCopy = reactive({
+	access_id: null,
+	product_name: '',
+	custom_name: '',
+	custom_description: '',
+	default_public_name: '',
+	default_tenant_description: '',
+	busy: false,
+})
+function openCustomCopy(o) {
+	Object.assign(customCopy, {
+		access_id: o.id,
+		product_name: o.product_name,
+		custom_name: o.custom_name || '',
+		custom_description: o.custom_description || '',
+		default_public_name: o.default_public_name || '',
+		default_tenant_description: o.default_tenant_description || '',
+		busy: false,
+	})
+	customCopyOpen.value = true
+}
+function submitCustomCopy() {
+	if (!customCopy.access_id || customCopy.busy) return
+	customCopy.busy = true
+	router.put(
+		`/tenants/${props.tenant.id}/access/overrides/${customCopy.access_id}/custom-copy`,
+		{ custom_name: customCopy.custom_name || null, custom_description: customCopy.custom_description || null },
+		{
+			preserveScroll: true,
+			onSuccess: () => {
+				customCopyOpen.value = false
+				showToast?.({ type: 'success', title: 'Özel metin kaydedildi', message: customCopy.product_name })
+			},
+			onError: (errs) => {
+				const first = Object.values(errs)[0]
+				showToast?.({ type: 'error', title: 'Kayıt başarısız', message: first || 'Doğrulama hatası' })
+			},
+			onFinish: () => { customCopy.busy = false },
+		},
+	)
+}
 
 function formatPrice(v) {
 	return Number(v ?? 0).toFixed(2).replace('.', ',')

@@ -16,6 +16,8 @@ class TenantProductAccess extends Model
         'is_blocked',
         'custom_price',
         'notes',
+        'custom_name',
+        'custom_description',
     ];
 
     protected $casts = [

@@ -58,9 +58,13 @@ class TenantAccessController extends Controller
                 'brand_name'   => $a->product?->brand?->name,
                 'category_name'=> $a->product?->category?->name,
                 'base_price'   => (float) ($a->product?->price ?? 0),
-                'is_blocked'   => $a->is_blocked,
-                'custom_price' => $a->custom_price !== null ? (float) $a->custom_price : null,
-                'notes'        => $a->notes,
+                'default_public_name'        => $a->product?->public_name,
+                'default_tenant_description' => $a->product?->tenant_description,
+                'is_blocked'         => $a->is_blocked,
+                'custom_price'       => $a->custom_price !== null ? (float) $a->custom_price : null,
+                'custom_name'        => $a->custom_name,
+                'custom_description' => $a->custom_description,
+                'notes'              => $a->notes,
             ]);
 
         $brands = Brand::query()
@@ -85,6 +89,7 @@ class TenantAccessController extends Controller
             'overrides'  => $overrides,
             'brands'     => $brands,
             'categories' => $categories,
+            'canCustomizeCopy' => (bool) request()->user()?->can('tenant.product.customize'),
         ]);
     }
 
@@ -171,6 +176,27 @@ class TenantAccessController extends Controller
         ]);
 
         return back()->with('success', 'Override güncellendi.');
+    }
+
+    /**
+     * Bir bayi için ürün özel adı ve açıklamasını günceller (M3).
+     */
+    public function updateCustomCopy(Request $request, Tenant $tenant, TenantProductAccess $access): RedirectResponse
+    {
+        abort_if($access->tenant_id !== $tenant->id, 404);
+        abort_unless($request->user()?->can('tenant.product.customize'), 403);
+
+        $data = $request->validate([
+            'custom_name'        => ['nullable', 'string', 'max:255'],
+            'custom_description' => ['nullable', 'string', 'max:10000'],
+        ]);
+
+        $access->update([
+            'custom_name'        => $data['custom_name'] ?: null,
+            'custom_description' => $data['custom_description'] ?: null,
+        ]);
+
+        return back()->with('success', 'Bayiye özel metin güncellendi.');
     }
 
     public function destroyOverride(Tenant $tenant, TenantProductAccess $access): RedirectResponse
