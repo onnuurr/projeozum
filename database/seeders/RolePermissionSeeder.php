@@ -50,6 +50,7 @@ class RolePermissionSeeder extends Seeder
             \Modules\Creative\database\seeders\CreativePermissionSeeder::class,
             \Modules\Atelier\database\seeders\AtelierPermissionSeeder::class,
             \Modules\Superadmin\Database\Seeders\SuperadminPermissionSeeder::class,
+            \Modules\Finance\database\seeders\FinancePermissionSeeder::class,
         ]);
     }
 }
