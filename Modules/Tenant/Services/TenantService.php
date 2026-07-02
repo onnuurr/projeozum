@@ -24,10 +24,6 @@ class TenantService
 
     public function update(Tenant $tenant, array $data): Tenant
     {
-        if (isset($data['name']) && ! isset($data['slug'])) {
-            $data['slug'] = Str::slug($data['name']);
-        }
-
         $tenant->update($data);
 
         return $tenant->fresh();

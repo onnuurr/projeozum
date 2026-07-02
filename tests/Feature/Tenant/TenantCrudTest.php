@@ -88,4 +88,24 @@ class TenantCrudTest extends TestCase
             ->getJson('/api/v1/tenants')
             ->assertForbidden();
     }
+
+    public function test_slug_is_immutable_on_name_update(): void
+    {
+        $tenant = Tenant::factory()->create([
+            'slug' => 'ozel-slug',
+            'name' => 'Eski Ad',
+            'code' => 'REG01',
+        ]);
+
+        $this->actingAs($this->superadmin)
+            ->putJson("/api/v1/tenants/{$tenant->id}", [
+                'name' => 'Yeni Ad',
+            ])
+            ->assertOk();
+
+        $this->assertDatabaseHas('tenants', [
+            'id'   => $tenant->id,
+            'slug' => 'ozel-slug',
+        ]);
+    }
 }
