@@ -10,9 +10,12 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Tenant\Models\Tenant;
 use Modules\Tenant\Models\TenantType;
+use Modules\Tenant\Services\TenantService;
 
 class TenantController extends Controller
 {
+    public function __construct(private TenantService $service) {}
+
     public function index(Request $request): Response
     {
         $query = Tenant::query()
@@ -91,7 +94,7 @@ class TenantController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        Tenant::create($this->validateTenant($request));
+        $this->service->create($this->validateTenant($request));
 
         return redirect()->route('tenants.index')
             ->with('success', 'Tenant eklendi.');
@@ -99,7 +102,7 @@ class TenantController extends Controller
 
     public function update(Request $request, Tenant $tenant): RedirectResponse
     {
-        $tenant->update($this->validateTenant($request, $tenant->id));
+        $this->service->update($tenant, $this->validateTenant($request, $tenant->id));
 
         return redirect()->route('tenants.index')
             ->with('success', 'Tenant güncellendi.');
