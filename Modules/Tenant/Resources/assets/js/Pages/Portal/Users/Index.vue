@@ -26,7 +26,7 @@
 						</td>
 						<td>{{ u.permissions.length }}</td>
 						<td class="row-actions">
-							<template v-if="!u.is_admin">
+							<template v-if="!u.is_admin && u.id !== $page.props.auth.user.id">
 								<button @click="openEdit(u)">Düzenle</button>
 								<button @click="toggleActive(u)">{{ u.is_active ? 'Pasifleştir' : 'Aktifleştir' }}</button>
 								<button @click="openReset(u)">Şifre</button>
