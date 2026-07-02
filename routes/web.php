@@ -16,7 +16,7 @@ if ($portalDomain) {
         ->group(base_path('Modules/Tenant/routes/feed.php'));
 
     Route::domain('{slug}.'.$portalDomain)
-        ->middleware(['auth', 'verified', 'tenant.subdomain', 'can:portal.access'])
+        ->middleware(['auth', 'verified', 'active', 'tenant.subdomain', 'can:portal.access'])
         ->name('portal.')
         ->group(base_path('Modules/Tenant/routes/portal.php'));
 }
