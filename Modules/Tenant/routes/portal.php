@@ -80,6 +80,9 @@ Route::middleware('can:portal.financials.view')->group(function () {
     Route::get('/financials', [PortalFinancialsController::class, 'index'])->name('financials');
 });
 
+// NOT: {user} route-model binding global scope'ludur (User::find). Cross-tenant
+// izolasyonu tamamen portal-user.manage gate'i ile sağlanır (farklı tenant → 403).
+// Bu bilinçli bir karardır; spec cross-tenant için 403 ister (404 değil).
 Route::middleware('can:portal.users.manage')->group(function () {
     Route::get('/users',                          [PortalUserController::class, 'index'])->name('users.index');
     Route::post('/users',                         [PortalUserController::class, 'store'])->name('users.store');

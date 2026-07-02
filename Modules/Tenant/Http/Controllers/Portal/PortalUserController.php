@@ -55,7 +55,10 @@ class PortalUserController extends Controller
 
         $this->service->create($tenant, $request->validated());
 
-        return redirect('/users')->with('success', 'Kullanıcı eklendi.');
+        // route('portal.users.index') kullanılamaz: tenant.subdomain middleware {slug}'ı
+        // forgetParameter ile düşürdüğü için named-route URL üretimi UrlGenerationException verir.
+        // Mevcut host'tan mutlak URL kur.
+        return redirect($request->getSchemeAndHttpHost() . '/users')->with('success', 'Kullanıcı eklendi.');
     }
 
     public function update(UpdatePortalUserRequest $request, User $user): RedirectResponse
@@ -64,7 +67,10 @@ class PortalUserController extends Controller
 
         $this->service->update($user, $request->validated());
 
-        return redirect('/users')->with('success', 'Kullanıcı güncellendi.');
+        // route('portal.users.index') kullanılamaz: tenant.subdomain middleware {slug}'ı
+        // forgetParameter ile düşürdüğü için named-route URL üretimi UrlGenerationException verir.
+        // Mevcut host'tan mutlak URL kur.
+        return redirect($request->getSchemeAndHttpHost() . '/users')->with('success', 'Kullanıcı güncellendi.');
     }
 
     public function destroy(Request $request, User $user): RedirectResponse
@@ -76,7 +82,10 @@ class PortalUserController extends Controller
 
         $this->service->delete($user);
 
-        return redirect('/users')->with('success', 'Kullanıcı silindi.');
+        // route('portal.users.index') kullanılamaz: tenant.subdomain middleware {slug}'ı
+        // forgetParameter ile düşürdüğü için named-route URL üretimi UrlGenerationException verir.
+        // Mevcut host'tan mutlak URL kur.
+        return redirect($request->getSchemeAndHttpHost() . '/users')->with('success', 'Kullanıcı silindi.');
     }
 
     public function toggleActive(Request $request, User $user): RedirectResponse
