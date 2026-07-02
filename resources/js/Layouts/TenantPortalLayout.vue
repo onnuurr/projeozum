@@ -18,6 +18,12 @@
 				<Link href="/marketplace" class="portal-nav-link" :class="{ active: page.url.startsWith('/marketplace') }">Pazaryerleri</Link>
 				<Link href="/financials" class="portal-nav-link" :class="{ active: page.url.startsWith('/financials') }">Kâr/Zarar</Link>
 				<Link href="/profit" class="portal-nav-link" :class="{ active: page.url.startsWith('/profit') }">Kâr Hesabı</Link>
+				<Link
+					v-if="page.props.auth.permissions.includes('portal.users.manage')"
+					href="/users"
+					class="portal-nav-link"
+					:class="{ active: page.url.startsWith('/users') }"
+				>Kullanıcılar</Link>
 				<a href="#" class="portal-nav-link disabled">Ayarlar</a>
 			</nav>
 			<div class="portal-footer">

@@ -34,7 +34,7 @@ class RolePermissionSeeder extends Seeder
     public function run(): void
     {
         // 1) Roller — izin seeder'ları bunlara atama yaptığı için ÖNCE oluşturulur.
-        foreach (['superadmin', 'tenant'] as $role) {
+        foreach (['superadmin', 'tenant', 'tenant-user'] as $role) {
             Role::firstOrCreate(['name' => $role, 'guard_name' => 'web']);
         }
 

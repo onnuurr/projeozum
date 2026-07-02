@@ -17,6 +17,7 @@ class TenantPermissionSeeder extends Seeder
             'tenant-access.manage'     => 'Tenant Erişimi Yönet',
             'tenant.product.customize' => 'Tenant\'a Özel Ürün Metni Yaz',
             'marketplace.manage'       => 'Pazaryeri Bağlantı Yönet',
+            'portal.users.manage'      => 'Portal — Kullanıcı Yönet',
         ];
 
         $tenantPortalPermissions = [
@@ -66,7 +67,15 @@ class TenantPermissionSeeder extends Seeder
                 'portal.financials.view',
                 'portal.calculator.use',
                 'portal.feed.access',
+                'portal.users.manage',
             ]);
+        }
+
+        // Alt kullanıcılar için baseline rol: yalnız giriş (portal.access).
+        // Granüler portal.* izinleri kullanıcıya doğrudan atanır (TenantUserService).
+        $tenantUserRole = Role::where('name', 'tenant-user')->where('guard_name', 'web')->first();
+        if ($tenantUserRole) {
+            $tenantUserRole->givePermissionTo('portal.access');
         }
     }
 }

@@ -24,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'log.access'         => \App\Http\Middleware\EnsureLogAccess::class,
             'tenant.subdomain'   => \Modules\Tenant\Http\Middleware\ResolveTenantFromSubdomain::class,
             'tenant.owns'        => \Modules\Tenant\Http\Middleware\EnforceTenantOwnership::class,
+            'active'             => \Modules\Tenant\Http\Middleware\EnsureUserActive::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

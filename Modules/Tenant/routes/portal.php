@@ -14,6 +14,7 @@ use Modules\Tenant\Http\Controllers\Portal\PortalFinancialsController;
 use Modules\Tenant\Http\Controllers\Portal\PortalInvoiceController;
 use Modules\Tenant\Http\Controllers\Portal\PortalOrderController;
 use Modules\Tenant\Http\Controllers\Portal\PortalProfitController;
+use Modules\Tenant\Http\Controllers\Portal\PortalUserController;
 
 /*
 |--------------------------------------------------------------------------
@@ -77,4 +78,16 @@ Route::middleware('can:portal.calculator.use')->group(function () {
 
 Route::middleware('can:portal.financials.view')->group(function () {
     Route::get('/financials', [PortalFinancialsController::class, 'index'])->name('financials');
+});
+
+// NOT: {user} route-model binding global scope'ludur (User::find). Cross-tenant
+// izolasyonu tamamen portal-user.manage gate'i ile sağlanır (farklı tenant → 403).
+// Bu bilinçli bir karardır; spec cross-tenant için 403 ister (404 değil).
+Route::middleware('can:portal.users.manage')->group(function () {
+    Route::get('/users',                          [PortalUserController::class, 'index'])->name('users.index');
+    Route::post('/users',                         [PortalUserController::class, 'store'])->name('users.store');
+    Route::put('/users/{user}',                   [PortalUserController::class, 'update'])->whereNumber('user')->name('users.update');
+    Route::delete('/users/{user}',                [PortalUserController::class, 'destroy'])->whereNumber('user')->name('users.destroy');
+    Route::post('/users/{user}/toggle-active',    [PortalUserController::class, 'toggleActive'])->whereNumber('user')->name('users.toggle-active');
+    Route::post('/users/{user}/reset-password',   [PortalUserController::class, 'resetPassword'])->whereNumber('user')->name('users.reset-password');
 });
