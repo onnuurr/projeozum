@@ -26,5 +26,12 @@ class TenantServiceProvider extends ModuleServiceProvider
 
         Gate::policy(Order::class, OrderPolicy::class);
         Gate::policy(TenantInvoice::class, TenantInvoicePolicy::class);
+
+        // Inertia testing view-finder'a "Tenant::" namespace hint'i tanıt ki
+        // assertInertia(component('Tenant::Portal/Dashboard')) çağrısı modül
+        // sayfalarını dosya sisteminde bulabilsin.
+        $this->app->resolving('inertia.testing.view-finder', function ($finder) {
+            $finder->addNamespace('Tenant', module_path('Tenant', 'Resources/assets/js/Pages'));
+        });
     }
 }

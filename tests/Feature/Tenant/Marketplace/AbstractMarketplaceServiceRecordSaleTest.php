@@ -98,10 +98,15 @@ class AbstractMarketplaceServiceRecordSaleTest extends TestCase
             'valid_from'      => '2026-01-01',
         ]);
 
-        // Bir product oluştur (commission lookup category_id'ye bakar; null OK).
+        // Bir product oluştur (commission lookup category_id'ye bakar; null döndüğü için default rate seçilir).
+        $categoryId = \DB::table('product_categories')->insertGetId([
+            'name' => 'Cat', 'slug' => 'cat-' . uniqid(),
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
         $pid = \DB::table('products')->insertGetId([
             'name' => 'X', 'slug' => 'x-' . uniqid(), 'sku' => 'SKU-' . uniqid(),
-            'price' => 100, 'created_at' => now(), 'updated_at' => now(),
+            'price' => 100, 'category_id' => $categoryId,
+            'created_at' => now(), 'updated_at' => now(),
         ]);
 
         $service = $this->makeService($cred);

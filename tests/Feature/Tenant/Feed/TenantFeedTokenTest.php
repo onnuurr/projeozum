@@ -14,10 +14,15 @@ class TenantFeedTokenTest extends TestCase
 
     private function createProduct(string $name, ?int $brandId = null): int
     {
+        $categoryId = DB::table('product_categories')->insertGetId([
+            'name' => 'Cat', 'slug' => 'cat-' . uniqid(),
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
         return DB::table('products')->insertGetId([
             'name' => $name, 'slug' => str_replace(' ', '-', strtolower($name)) . '-' . uniqid(),
             'sku' => 'SKU-' . uniqid(), 'price' => 100,
-            'brand_id' => $brandId,
+            'brand_id' => $brandId, 'category_id' => $categoryId,
             'created_at' => now(), 'updated_at' => now(),
         ]);
     }

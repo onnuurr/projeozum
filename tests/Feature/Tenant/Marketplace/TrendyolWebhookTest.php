@@ -13,6 +13,14 @@ class TrendyolWebhookTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // HMAC verifikasyonu sadece 'live' driver'da devrededir; stub imzayı bypass eder.
+        config(['tenant.marketplace.driver' => 'live']);
+    }
+
     private function setupCred(string $supplierId, string $apiSecret): TenantMarketplaceCredential
     {
         $tenant = Tenant::factory()->create();

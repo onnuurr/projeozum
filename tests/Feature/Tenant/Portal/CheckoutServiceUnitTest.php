@@ -23,9 +23,14 @@ class CheckoutServiceUnitTest extends TestCase
 
     private function cart(int $userId, int $qty = 1, float $price = 100): \Illuminate\Support\Collection
     {
+        $categoryId = DB::table('product_categories')->insertGetId([
+            'name' => 'Cat', 'slug' => 'cat-' . uniqid(),
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
         $pid = DB::table('products')->insertGetId([
             'name' => 'X', 'slug' => 'x-' . uniqid(), 'sku' => 'SKU-' . uniqid(),
-            'price' => $price, 'created_at' => now(), 'updated_at' => now(),
+            'price' => $price, 'category_id' => $categoryId,
+            'created_at' => now(), 'updated_at' => now(),
         ]);
         CartItem::create([
             'user_id' => $userId, 'product_id' => $pid, 'variant_id' => null,

@@ -53,9 +53,14 @@ class PortalCheckoutTest extends TestCase
         $user = User::factory()->create(['tenant_id' => $tenant->id]);
         $user->assignRole('tenant');
 
+        $categoryId = DB::table('product_categories')->insertGetId([
+            'name' => 'Cat', 'slug' => 'cat-' . uniqid(),
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
         $productId = DB::table('products')->insertGetId([
             'name' => 'Bluz', 'slug' => 'bluz-' . uniqid(), 'sku' => 'SKU-' . uniqid(),
-            'price' => 150, 'created_at' => now(), 'updated_at' => now(),
+            'price' => 150, 'category_id' => $categoryId,
+            'created_at' => now(), 'updated_at' => now(),
         ]);
         CartItem::create([
             'user_id' => $user->id, 'product_id' => $productId, 'variant_id' => null,
@@ -85,9 +90,14 @@ class PortalCheckoutTest extends TestCase
         $user = User::factory()->create(['tenant_id' => $tenant->id]);
         $user->assignRole('tenant');
 
+        $categoryId = DB::table('product_categories')->insertGetId([
+            'name' => 'Cat', 'slug' => 'cat-' . uniqid(),
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
         $productId = DB::table('products')->insertGetId([
             'name' => 'Pahalı', 'slug' => 'p-' . uniqid(), 'sku' => 'SKU-' . uniqid(),
-            'price' => 500, 'created_at' => now(), 'updated_at' => now(),
+            'price' => 500, 'category_id' => $categoryId,
+            'created_at' => now(), 'updated_at' => now(),
         ]);
         CartItem::create([
             'user_id' => $user->id, 'product_id' => $productId, 'variant_id' => null,

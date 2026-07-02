@@ -4,6 +4,7 @@ namespace Tests\Feature\Tenant\Foundations;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Modules\Product\Models\CartItem;
 use Modules\Product\Models\Order;
 use Modules\Tenant\Models\Tenant;
@@ -38,16 +39,24 @@ class CheckoutCreditEnforcementTest extends TestCase
         $user = User::factory()->create(['tenant_id' => $tenant->id]);
         $this->actingAs($user);
 
-        // Sepete yüksek fiyatlı ürün koy — fiyatı kontrol edebilmek için fixture-product yerine
-        // doğrudan cart_items'a yazıyoruz; CheckoutController price'ı buradan okur.
+        // Sepete yüksek fiyatlı ürün koy — CheckoutController price'ı cart_items.price'dan okur.
+        $categoryId = DB::table('product_categories')->insertGetId([
+            'name' => 'Cat', 'slug' => 'cat-' . uniqid(),
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $productId = DB::table('products')->insertGetId([
+            'name' => 'Ürün', 'slug' => 'u-' . uniqid(), 'sku' => 'SKU-' . uniqid(),
+            'price' => 9999, 'category_id' => $categoryId,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
         CartItem::create([
             'user_id'    => $user->id,
-            'product_id' => 1,         // FK ihlali engelleme için sadece DB seed'siz; nullable değil ama testte yok varsayımı
+            'product_id' => $productId,
             'variant_id' => null,
             'color'      => null,
             'size'       => null,
             'qty'        => 1,
-            'price'      => 9999.00,   // limit > available
+            'price'      => 9999.00,
         ]);
 
         $this->post(route('checkout.store'), $this->payload())

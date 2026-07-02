@@ -55,9 +55,13 @@ class ProfitCalculatorTest extends TestCase
             'commission_rate' => 18.0, 'shipping_rate' => 4.0,
             'valid_from' => '2026-01-01',
         ]);
+        $catId = DB::table('product_categories')->insertGetId([
+            'name' => 'Genel', 'slug' => 'genel-' . uniqid(),
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
         $pid = DB::table('products')->insertGetId([
             'name' => 'X', 'slug' => 'x-' . uniqid(), 'sku' => 'SKU-' . uniqid(),
-            'price' => 100, 'purchase_price' => 50,
+            'category_id' => $catId, 'price' => 100, 'purchase_price' => 50,
             'created_at' => now(), 'updated_at' => now(),
         ]);
         $product = Product::find($pid);
@@ -73,9 +77,13 @@ class ProfitCalculatorTest extends TestCase
 
     public function test_net_profit_sign(): void
     {
+        $catId = DB::table('product_categories')->insertGetId([
+            'name' => 'Genel', 'slug' => 'genel-' . uniqid(),
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
         $pid = DB::table('products')->insertGetId([
             'name' => 'Maliyetli', 'slug' => 'p-' . uniqid(), 'sku' => 'S-' . uniqid(),
-            'price' => 500, 'purchase_price' => 300,
+            'category_id' => $catId, 'price' => 500, 'purchase_price' => 300,
             'created_at' => now(), 'updated_at' => now(),
         ]);
         $product = Product::find($pid);

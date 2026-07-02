@@ -38,14 +38,22 @@ class PortalCatalogAccessTest extends TestCase
 
     private function createProduct(int $brandId, string $name): int
     {
-        return DB::table('products')->insertGetId([
-            'brand_id'   => $brandId,
-            'name'       => $name,
-            'slug'       => \Illuminate\Support\Str::slug($name) . '-' . uniqid(),
-            'sku'        => 'SKU-' . strtoupper(uniqid()),
-            'price'      => 100,
+        $categoryId = DB::table('product_categories')->insertGetId([
+            'name'       => 'Cat',
+            'slug'       => 'cat-' . uniqid(),
             'created_at' => now(),
             'updated_at' => now(),
+        ]);
+
+        return DB::table('products')->insertGetId([
+            'brand_id'    => $brandId,
+            'category_id' => $categoryId,
+            'name'        => $name,
+            'slug'        => \Illuminate\Support\Str::slug($name) . '-' . uniqid(),
+            'sku'         => 'SKU-' . strtoupper(uniqid()),
+            'price'       => 100,
+            'created_at'  => now(),
+            'updated_at'  => now(),
         ]);
     }
 

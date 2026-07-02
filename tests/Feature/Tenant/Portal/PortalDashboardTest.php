@@ -46,7 +46,7 @@ class PortalDashboardTest extends TestCase
             ->assertOk()
             ->assertInertia(fn ($p) => $p
                 ->component('Tenant::Portal/Dashboard')
-                ->where('snapshot.credit_limit', 1000.0)
+                ->where('snapshot.credit_limit', fn ($v) => (float) $v === 1000.0)
                 ->has('topProducts')
                 ->has('monthlyTrend')
             );

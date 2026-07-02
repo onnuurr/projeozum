@@ -4,6 +4,7 @@ namespace Tests\Feature\Tenant\Portal;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Modules\Product\Models\Order;
 use Modules\Product\Models\OrderItem;
 use Modules\Tenant\Models\Tenant;
@@ -27,8 +28,25 @@ class AnalyticsServiceTest extends TestCase
     {
         $tenant = Tenant::factory()->create();
         $order = Order::factory()->forTenant($tenant)->create();
-        OrderItem::factory()->create(['order_id' => $order->id, 'product_name' => 'A', 'qty' => 5, 'total_price' => 500]);
-        OrderItem::factory()->create(['order_id' => $order->id, 'product_name' => 'B', 'qty' => 2, 'total_price' => 200]);
+
+        // Ayrık product_id'ler olmadan GROUP BY tek gruba düşürür → 2 gerçek ürün.
+        $catId = DB::table('product_categories')->insertGetId([
+            'name' => 'Cat', 'slug' => 'cat-' . uniqid(),
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $pidA = DB::table('products')->insertGetId([
+            'name' => 'A', 'slug' => 'a-' . uniqid(), 'sku' => 'SKU-A-' . uniqid(),
+            'price' => 100, 'category_id' => $catId,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $pidB = DB::table('products')->insertGetId([
+            'name' => 'B', 'slug' => 'b-' . uniqid(), 'sku' => 'SKU-B-' . uniqid(),
+            'price' => 100, 'category_id' => $catId,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        OrderItem::factory()->create(['order_id' => $order->id, 'product_id' => $pidA, 'product_name' => 'A', 'qty' => 5, 'total_price' => 500]);
+        OrderItem::factory()->create(['order_id' => $order->id, 'product_id' => $pidB, 'product_name' => 'B', 'qty' => 2, 'total_price' => 200]);
 
         $top = $this->service->topProducts($tenant, months: 6, limit: 5);
 

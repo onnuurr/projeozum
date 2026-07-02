@@ -47,9 +47,10 @@ class ResolveTenantFromSubdomain
         app()->instance('current_tenant', $tenant);
         $request->attributes->set('tenant', $tenant);
 
-        // Route'un sonraki controller'ları model binding için {tenant} param'ı bekleyebilir;
-        // slug üzerinden çözülen tenant'ı route param'ı olarak da inject et.
-        $request->route()->setParameter('tenant', $tenant);
+        // {slug} route parametresi controller signature'ında yer almadığı için
+        // burada unutulur — aksi halde array_values pozisyonlarını kaydırıp
+        // "Argument #2 must be of type Order, string given" tarzı TypeError'a yol açar.
+        $request->route()->forgetParameter('slug');
 
         return $next($request);
     }
