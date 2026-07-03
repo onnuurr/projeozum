@@ -90,6 +90,14 @@
 							<label class="form-label">Not</label>
 							<input v-model="form.note" type="text" class="form-input" placeholder="isteğe bağlı" />
 						</div>
+					</div>
+					<div class="form-row-inline">
+						<div class="form-row" style="flex: 2">
+							<label class="form-label">Fatura Dosyası (PDF/görsel)</label>
+							<input type="file" class="form-input" accept=".pdf,.jpg,.jpeg,.png" @change="onFileChange" />
+							<span v-if="editing && form.hadFile && !form.file" class="dim">Mevcut dosya korunacak, değiştirmek için yeni dosya seçin.</span>
+							<span v-if="form.errors.file" class="form-error">{{ form.errors.file }}</span>
+						</div>
 						<div class="form-row form-row-actions">
 							<label class="form-label">&nbsp;</label>
 							<div class="btn-group">
@@ -136,6 +144,7 @@
 						<td><span class="badge" :class="'badge-' + inv.status">{{ statusLabel(inv.status) }}</span></td>
 						<td>
 							<div class="table-actions">
+								<a v-if="inv.hasFile" class="table-action-btn" title="Dosyayı indir" :href="`/finance/supplier-invoices/${inv.id}/file`" target="_blank">📎</a>
 								<button v-if="inv.status !== 'paid'" class="table-action-btn" title="Ödendi işaretle" @click="markPaid(inv)">✅</button>
 								<button class="table-action-btn" title="Düzenle" @click="edit(inv)">✏️</button>
 								<button class="table-action-btn danger" title="Sil" @click="remove(inv)">🗑️</button>
@@ -182,10 +191,16 @@ function emptyForm() {
 		status: 'unpaid',
 		production_order_id: null,
 		note: '',
+		file: null,
+		hadFile: false,
 	}
 }
 
 const form = useForm(emptyForm())
+
+function onFileChange(e) {
+	form.file = e.target.files[0] ?? null
+}
 
 function recalcTotal() {
 	const subtotal = Number(form.subtotal) || 0
@@ -209,6 +224,8 @@ function edit(inv) {
 		status: inv.status,
 		production_order_id: inv.productionOrderId,
 		note: inv.note,
+		file: null,
+		hadFile: inv.hasFile,
 	})
 }
 

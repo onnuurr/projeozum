@@ -4,6 +4,7 @@ namespace Modules\Finance\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\File;
 use Modules\Finance\Models\SupplierInvoice;
 
 class UpdateSupplierInvoiceRequest extends FormRequest
@@ -34,6 +35,7 @@ class UpdateSupplierInvoiceRequest extends FormRequest
             'category'             => ['nullable', 'string', 'max:100'],
             'production_order_id'  => ['nullable', Rule::exists('production_orders', 'id')],
             'note'                 => ['nullable', 'string'],
+            'file'                 => ['nullable', File::default()->max(10 * 1024)->extensions(['pdf', 'jpg', 'jpeg', 'png'])],
         ];
     }
 }

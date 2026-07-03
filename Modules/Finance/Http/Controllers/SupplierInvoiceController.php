@@ -4,9 +4,11 @@ namespace Modules\Finance\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Atelier\Models\ProductionOrder;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Modules\Finance\Http\Requests\StoreSupplierInvoiceRequest;
 use Modules\Finance\Http\Requests\UpdateSupplierInvoiceRequest;
 use Modules\Finance\Models\SupplierInvoice;
@@ -37,6 +39,7 @@ class SupplierInvoiceController extends Controller
             'productionOrderId'  => $invoice->production_order_id,
             'productionOrderCode' => $invoice->productionOrder?->code,
             'note'               => $invoice->note,
+            'hasFile'            => $invoice->file_path !== null,
         ]);
 
         $productionOrders = ProductionOrder::query()
@@ -54,16 +57,42 @@ class SupplierInvoiceController extends Controller
 
     public function store(StoreSupplierInvoiceRequest $request): RedirectResponse
     {
-        $this->service->create($request->validated(), $request->user()->id);
+        $data = $request->safe()->except('file');
+        if ($request->hasFile('file')) {
+            $data['file_path'] = $request->file('file')->store('finance/supplier-invoices');
+        }
+
+        $this->service->create($data, $request->user()->id);
 
         return redirect()->route('finance.supplier-invoices.index');
     }
 
     public function update(UpdateSupplierInvoiceRequest $request, SupplierInvoice $supplierInvoice): RedirectResponse
     {
-        $this->service->update($supplierInvoice, $request->validated());
+        $data = $request->safe()->except('file');
+        if ($request->hasFile('file')) {
+            // Eski dosya varsa yenisiyle değiştirilir; yoksa mevcut file_path korunur.
+            if ($supplierInvoice->file_path) {
+                Storage::delete($supplierInvoice->file_path);
+            }
+            $data['file_path'] = $request->file('file')->store('finance/supplier-invoices');
+        }
+
+        $this->service->update($supplierInvoice, $data);
 
         return redirect()->route('finance.supplier-invoices.index');
+    }
+
+    public function downloadFile(SupplierInvoice $supplierInvoice): StreamedResponse
+    {
+        abort_unless($supplierInvoice->file_path && Storage::exists($supplierInvoice->file_path), 404);
+
+        $extension = pathinfo($supplierInvoice->file_path, PATHINFO_EXTENSION);
+
+        return Storage::download(
+            $supplierInvoice->file_path,
+            "fatura-{$supplierInvoice->invoice_no}.{$extension}",
+        );
     }
 
     public function destroy(SupplierInvoice $supplierInvoice): RedirectResponse

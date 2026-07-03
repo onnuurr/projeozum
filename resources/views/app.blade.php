@@ -13,7 +13,14 @@
 
         <!-- Scripts -->
         @routes
-        @vite(['resources/js/app.js', "resources/js/Pages/{$page['component']}.vue"])
+        @php
+            // Modül sayfaları ("Finance::Dashboard") manifest'te Modules/... yoluyla
+            // anahtarlanır; app.js'teki import.meta.glob eşlemesinin sunucu tarafı karşılığı.
+            $inertiaPagePath = str_contains($page['component'], '::')
+                ? vsprintf('Modules/%s/Resources/assets/js/Pages/%s.vue', explode('::', $page['component'], 2))
+                : "resources/js/Pages/{$page['component']}.vue";
+        @endphp
+        @vite(['resources/js/app.js', $inertiaPagePath])
         @inertiaHead
     </head>
     <body class="font-sans antialiased">

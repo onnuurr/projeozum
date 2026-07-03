@@ -26,6 +26,7 @@ Route::middleware(['auth', 'verified', 'can:finance.manage'])->prefix('finance')
         Route::put('/{supplierInvoice}', [SupplierInvoiceController::class, 'update'])->name('update');
         Route::delete('/{supplierInvoice}', [SupplierInvoiceController::class, 'destroy'])->name('destroy');
         Route::post('/{supplierInvoice}/mark-paid', [SupplierInvoiceController::class, 'markPaid'])->name('mark-paid');
+        Route::get('/{supplierInvoice}/file', [SupplierInvoiceController::class, 'downloadFile'])->name('download-file');
     });
 
     // Proforma faturalar
