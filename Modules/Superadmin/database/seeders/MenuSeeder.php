@@ -28,6 +28,14 @@ class MenuSeeder extends Seeder
                 ],
             );
 
+            // firstOrCreate yalnızca oluşturma anında permission set eder; önceden var olan
+            // kökler için görünürlük politikası (definition()) sonradan değişirse burada
+            // reconcile edilir (bkz. modül *PermissionSeeder'larındaki aynı desen).
+            $definedPermission = $root['permission'] ?? null;
+            if (! $rootMenu->wasRecentlyCreated && $rootMenu->permission !== $definedPermission) {
+                $rootMenu->update(['permission' => $definedPermission]);
+            }
+
             foreach ($root['children'] as $childOrder => $child) {
                 Menu::firstOrCreate(
                     ['label' => $child['label'], 'parent_id' => $rootMenu->id],
@@ -75,7 +83,7 @@ class MenuSeeder extends Seeder
                 ['label' => 'Kar Marjı Hesaplayıcı', 'url' => '/tenant/margin-calculator'],
                 ['label' => 'Stok Analizi'],
             ]],
-            ['label' => 'İlişkiler', 'icon' => 'relations', 'url' => '/tenants', 'children' => [
+            ['label' => 'İlişkiler', 'icon' => 'relations', 'url' => '/tenants', 'permission' => 'tenant.view', 'children' => [
                 ['label' => 'Tenant\'lar', 'url' => '/tenants'],
                 ['label' => 'Tenant Tipleri', 'url' => '/tenants/types'],
                 ['label' => 'Müşteriler'],
@@ -95,7 +103,7 @@ class MenuSeeder extends Seeder
                 ['label' => 'Teklifler'],
                 ['label' => 'İadeler'],
             ]],
-            ['label' => 'Stok', 'icon' => 'layers', 'url' => '/products/stocks', 'children' => [
+            ['label' => 'Stok', 'icon' => 'layers', 'url' => '/products/stocks', 'permission' => 'stock.manage', 'children' => [
                 ['label' => 'Stok Durumu', 'url' => '/products/stocks'],
                 ['label' => 'Stok Hareketleri', 'url' => '/products/stocks/history'],
                 ['label' => 'Depolar', 'url' => '/products/warehouses'],

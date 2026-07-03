@@ -77,8 +77,10 @@ class RoleController extends Controller
 
 public function update(Request $request, Role $role)
 {
-    if ($role->name === 'superadmin' && $request->name !== 'superadmin') {
-        return back()->with('error', 'Superadmin rolünün sistem adı değiştirilemez.');
+    // superadmin ve tenant: 5 modülün permission seeder'ı bu isimlerle Role::where(...) araması
+    // yapıyor. Rename edilirse o seeder'lar rolü bir daha bulamaz ve permission ataması sessizce durur.
+    if (in_array($role->name, ['superadmin', 'tenant'], true) && $request->name !== $role->name) {
+        return back()->with('error', 'Bu rolün sistem adı değiştirilemez.');
     }
 
     $request->validate([
@@ -95,11 +97,11 @@ public function update(Request $request, Role $role)
 }
 public function destroy(Role $role)
 {
-    // 'superadmin' rolünün silinmesini engelle
-    if ($role->name === 'superadmin') {
-        return back()->with('error', 'Superadmin rolü silinemez.');
+    // superadmin ve tenant: sistem rolleri, silinemez (bkz. update() içindeki gerekçe).
+    if (in_array($role->name, ['superadmin', 'tenant'], true)) {
+        return back()->with('error', 'Bu sistem rolü silinemez.');
     }
-    
+
     // Bu role atanmış kullanıcılar varsa silmeyi engelle.
     // Bu, hem daha güvenli bir yaklaşımdır hem de kullanıcıya net bilgi verir.
     if ($role->users()->count() > 0) {
