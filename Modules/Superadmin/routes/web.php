@@ -20,6 +20,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('superadmin/settings', [SettingsController::class, 'update'])
         ->middleware('can:settings.manage')->name('superadmin.settings.update');
 
+    // GEÇİCİ — canlıya geçmeden önce kaldırılacak (local git pull butonu).
+    Route::post('superadmin/settings/git-pull', [SettingsController::class, 'gitPull'])
+        ->middleware('can:settings.manage')->name('superadmin.settings.git-pull');
+
     // Canlı sistem bilgisi (JSON — dashboard ve ayarlar sayfası bunu polling eder)
     Route::get('superadmin/system-info', SystemInfoController::class)
         ->middleware('can:settings.manage')->name('superadmin.system-info');

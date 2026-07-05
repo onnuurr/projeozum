@@ -112,6 +112,24 @@ class SettingsController extends Controller
     }
 
     /**
+     * GEÇİCİ — canlıya geçmeden önce kaldırılacak. Ayarlar sayfasındaki
+     * "Git Pull" butonu bunu çağırır; sadece local ortamda çalışır.
+     */
+    public function gitPull(): RedirectResponse
+    {
+        if (! app()->environment('local')) {
+            abort(404);
+        }
+
+        $exitCode = Artisan::call('git:pull');
+        $output   = trim(Artisan::output());
+
+        return $exitCode === 0
+            ? back()->with('success', "Git pull tamamlandı.\n{$output}")
+            : back()->with('error', "Git pull başarısız.\n{$output}");
+    }
+
+    /**
      * UI'daki mail form alanlarını .env'deki MAIL_* anahtarlarına eşleyip yazar.
      * Şifre maskelenmiş (MASK) gelirse atlanır. Yazımdan sonra config cache temizlenir.
      */

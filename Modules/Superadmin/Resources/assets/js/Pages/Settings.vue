@@ -1036,6 +1036,10 @@
 						<button class="btn btn-secondary btn-sm" @click="cacheAction('config')">Config Cache Yenile</button>
 						<button class="btn btn-secondary btn-sm" @click="cacheAction('route')">Route Cache Yenile</button>
 						<button class="btn btn-secondary btn-sm" @click="cacheAction('view')">View Cache Yenile</button>
+						<!-- GEÇİCİ: local git pull — canlıya geçmeden önce kaldırılacak -->
+						<button v-if="isLocal" class="btn btn-secondary btn-sm" :disabled="gitPulling" @click="gitPull">
+							{{ gitPulling ? 'Çekiliyor…' : 'Git Pull (local)' }}
+						</button>
 					</div>
 				</section>
 
@@ -1353,7 +1357,7 @@
 
 <script setup>
 import { ref, computed, reactive, watch, onBeforeUnmount } from 'vue'
-import { Head, useForm, router } from '@inertiajs/vue3'
+import { Head, useForm, router, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import CustomSelect from '@/Components/CustomSelect.vue'
@@ -1485,6 +1489,20 @@ function runBackup() {
 function cacheAction(type) {
 	const labels = { clear: 'Tüm cache temizlendi', config: 'Config cache yenilendi', route: 'Route cache yenilendi', view: 'View cache yenilendi' }
 	showToast?.({ type: 'success', title: 'Tamamlandı', message: labels[type] })
+}
+
+/* ── GEÇİCİ: local git pull — canlıya geçmeden önce kaldırılacak ── */
+const isLocal = computed(() => usePage().props.app?.isLocal === true)
+const gitPulling = ref(false)
+
+function gitPull() {
+	if (gitPulling.value) return
+	gitPulling.value = true
+	router.post('/superadmin/settings/git-pull', {}, {
+		preserveScroll: true,
+		preserveState: true,
+		onFinish: () => { gitPulling.value = false },
+	})
 }
 
 /* ── Roller & İzinler ── */

@@ -41,7 +41,8 @@ class HandleInertiaRequests extends Middleware
                 'permissions' => fn () => $user?->getAllPermissions()?->pluck('name')->all() ?? [],
             ],
             'app' => [
-                'name' => config('app.name'),
+                'name'    => config('app.name'),
+                'isLocal' => app()->environment('local'),
             ],
             'cart'  => fn () => $this->cartPayload($user?->id),
             'menu'  => fn () => MenuTreeBuilder::forUser($user),
