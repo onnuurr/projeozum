@@ -35,6 +35,11 @@ class Product extends Model
         'care_instructions',
         'material',
         'origin_country',
+        // Açıklamalar (M2)
+        'public_name',
+        'public_description',
+        'tenant_description',
+        'ai_generated_at',
         // SEO
         'meta_title',
         'meta_description',
@@ -52,18 +57,19 @@ class Product extends Model
     ];
 
     protected $casts = [
-        'price'          => 'decimal:2',
-        'old_price'      => 'decimal:2',
-        'market_price'   => 'decimal:2',
-        'purchase_price' => 'decimal:2',
-        'rating'         => 'decimal:2',
-        'review_count'  => 'integer',
-        'is_new'        => 'boolean',
-        'free_shipping' => 'boolean',
-        'weight'        => 'decimal:3',
-        'desi'          => 'decimal:2',
-        'shipping_fee'  => 'decimal:2',
-        'is_domestic'   => 'boolean',
+        'price'            => 'decimal:2',
+        'old_price'        => 'decimal:2',
+        'market_price'     => 'decimal:2',
+        'purchase_price'   => 'decimal:2',
+        'rating'           => 'decimal:2',
+        'review_count'     => 'integer',
+        'is_new'           => 'boolean',
+        'free_shipping'    => 'boolean',
+        'weight'           => 'decimal:3',
+        'desi'             => 'decimal:2',
+        'shipping_fee'     => 'decimal:2',
+        'is_domestic'      => 'boolean',
+        'ai_generated_at'  => 'datetime',
     ];
 
     public function category(): BelongsTo
@@ -100,6 +106,17 @@ class Product extends Model
     {
         return $this->belongsToMany(User::class, 'product_favorites')
             ->withTimestamps();
+    }
+
+    public function descriptionMaterials(): HasMany
+    {
+        return $this->hasMany(ProductDescriptionMaterial::class)
+            ->orderBy('sort_order');
+    }
+
+    public function boms(): HasMany
+    {
+        return $this->hasMany(\Modules\Atelier\Models\ProductBom::class);
     }
 
     public function getRouteKeyName(): string

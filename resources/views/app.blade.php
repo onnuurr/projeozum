@@ -13,7 +13,15 @@
 
         <!-- Scripts -->
         @routes
-        @vite(['resources/js/app.js', "resources/js/Pages/{$page['component']}.vue"])
+        @php
+            // Modül sayfaları "Module::Portal/Sub/Page" adıyla gelir; vite manifesti
+            // Modules/{Module}/Resources/assets/js/Pages/{Sub/Page}.vue yolunu bekler.
+            $pageComponent = $page['component'];
+            $pageEntry = str_contains($pageComponent, '::')
+                ? 'Modules/'.str_replace('::', '/Resources/assets/js/Pages/', $pageComponent).'.vue'
+                : "resources/js/Pages/{$pageComponent}.vue";
+        @endphp
+        @vite(['resources/js/app.js', $pageEntry])
         @inertiaHead
     </head>
     <body class="font-sans antialiased">

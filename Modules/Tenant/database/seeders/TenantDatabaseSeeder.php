@@ -9,8 +9,9 @@ class TenantDatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
-            \Modules\Tenant\database\seeders\TenantTypeSeeder::class,
-            \Modules\Tenant\database\seeders\TenantPermissionSeeder::class,
+            TenantTypeSeeder::class,
+            TenantPermissionSeeder::class,
+            MarketplaceCommissionSeeder::class,
         ]);
     }
 }

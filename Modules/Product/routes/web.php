@@ -48,6 +48,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('can:product.delete')
         ->name('products.bulk-destroy');
 
+    // AI destekli açıklama üretimi (Gemini). Sync — 20sn timeout kabul.
+    Route::post('/products/{product:id}/ai-description',
+        [\Modules\Product\Http\Controllers\ProductAiDescriptionController::class, 'generate'])
+        ->whereNumber('product')
+        ->middleware('can:product.ai.generate')
+        ->name('products.ai-description');
+
     Route::prefix('products/categories')->name('products.categories.')->group(function () {
         Route::get('/', [CategoryController::class, 'index'])->name('index');
         Route::post('/', [CategoryController::class, 'store'])

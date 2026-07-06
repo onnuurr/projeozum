@@ -6,6 +6,21 @@ use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
+// Portal subdomain rotaları web dosyasının en tepesinde tanımlanmalı ki
+// domain-siz "/" gibi rotalardan ÖNCE eşleşme kontrolü yapılsın.
+// (İlk eşleşen kazanır — bkz. Illuminate\Routing\RouteCollection::matchAgainstRoutes.)
+$portalDomain = config('app.portal_domain') ?: env('PORTAL_DOMAIN');
+if ($portalDomain) {
+    Route::domain('{slug}.'.$portalDomain)
+        ->middleware(['throttle:60,1'])
+        ->group(base_path('Modules/Tenant/routes/feed.php'));
+
+    Route::domain('{slug}.'.$portalDomain)
+        ->middleware(['auth', 'verified', 'tenant.subdomain', 'can:portal.access'])
+        ->name('portal.')
+        ->group(base_path('Modules/Tenant/routes/portal.php'));
+}
+
 Route::get('/', function () {
     return Inertia::render('Auth/Login', [
         'canLogin' => Route::has('login'),

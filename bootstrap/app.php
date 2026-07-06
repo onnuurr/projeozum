@@ -22,6 +22,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'permission'         => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
             'log.access'         => \App\Http\Middleware\EnsureLogAccess::class,
+            'tenant.subdomain'   => \Modules\Tenant\Http\Middleware\ResolveTenantFromSubdomain::class,
+            'tenant.owns'        => \Modules\Tenant\Http\Middleware\EnforceTenantOwnership::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

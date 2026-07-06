@@ -1,6 +1,6 @@
 <?php
 
-namespace Modules\Tenant\database\seeders;
+namespace Modules\Tenant\Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Modules\Tenant\Models\TenantType;

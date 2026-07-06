@@ -10,6 +10,7 @@ use Modules\Product\Models\PriceList;
 use Modules\Product\Models\ProductImage;
 use Modules\Product\Models\Stock;
 use Modules\Product\Models\StockMovement;
+use Modules\Tenant\Models\MarketplaceSyncLog;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -37,6 +38,7 @@ Schedule::command('model:prune', [
         StockMovement::class,
         PriceList::class,
         MaterialMovement::class,
+        MarketplaceSyncLog::class,
     ],
 ])->daily()->onOneServer()->runInBackground();
 

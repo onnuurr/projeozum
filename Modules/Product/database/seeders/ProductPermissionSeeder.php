@@ -11,14 +11,15 @@ class ProductPermissionSeeder extends Seeder
     public function run(): void
     {
         $permissions = [
-            'product.view'       => 'Ürünleri Görüntüle',
-            'product.add'        => 'Ürün Ekle/Düzenle',
-            'product.delete'     => 'Ürün Sil',
-            'category.manage'    => 'Kategori & Pazaryeri Eşleme Yönet',
-            'brand.manage'       => 'Marka Yönet',
-            'warehouse.manage'   => 'Depo Yönet',
-            'stock.manage'       => 'Stok Yönet',
-            'price-list.manage'  => 'Fiyat Listesi Yönet',
+            'product.view'        => 'Ürünleri Görüntüle',
+            'product.add'         => 'Ürün Ekle/Düzenle',
+            'product.delete'      => 'Ürün Sil',
+            'product.ai.generate' => 'Ürün AI Açıklama Üret',
+            'category.manage'     => 'Kategori & Pazaryeri Eşleme Yönet',
+            'brand.manage'        => 'Marka Yönet',
+            'warehouse.manage'    => 'Depo Yönet',
+            'stock.manage'        => 'Stok Yönet',
+            'price-list.manage'   => 'Fiyat Listesi Yönet',
         ];
 
         $created = [];

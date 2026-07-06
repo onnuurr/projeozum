@@ -41,6 +41,7 @@ class Tenant extends Model
         'postal_code',
         'logo_path',
         'settings',
+        'feed_secret',
         'created_by',
         'credit_limit',
         'current_balance',
@@ -49,6 +50,10 @@ class Tenant extends Model
         'is_active',
         'activated_at',
         'notes',
+    ];
+
+    protected $hidden = [
+        'feed_secret',
     ];
 
     protected $casts = [
@@ -94,6 +99,11 @@ class Tenant extends Model
     public function invoices(): HasMany
     {
         return $this->hasMany(TenantInvoice::class);
+    }
+
+    public function creditLedger(): HasMany
+    {
+        return $this->hasMany(TenantCreditLedger::class);
     }
 
     public function creator(): BelongsTo

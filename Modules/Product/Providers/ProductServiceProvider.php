@@ -4,6 +4,8 @@ namespace Modules\Product\Providers;
 
 use Nwidart\Modules\Support\ModuleServiceProvider;
 use Illuminate\Console\Scheduling\Schedule;
+use Modules\Product\Services\Ai\Contracts\ProductDescriptionGenerator;
+use Modules\Product\Services\Ai\GeminiProductDescriptionGenerator;
 
 class ProductServiceProvider extends ModuleServiceProvider
 {
@@ -16,6 +18,13 @@ class ProductServiceProvider extends ModuleServiceProvider
      * The lowercase version of the module name.
      */
     protected string $nameLower = 'product';
+
+    public function register(): void
+    {
+        parent::register();
+
+        $this->app->bind(ProductDescriptionGenerator::class, GeminiProductDescriptionGenerator::class);
+    }
 
     /**
      * Command classes to register.

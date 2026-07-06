@@ -18,6 +18,9 @@ class RouteServiceProvider extends ServiceProvider
     {
         $this->mapApiRoutes();
         $this->mapWebRoutes();
+        // Portal ve feed subdomain rotaları routes/web.php'nin en tepesinden
+        // yükleniyor (bkz. o dosyanın başındaki blok) — domain-siz "/" rotasından
+        // önce register edilmeleri gerektiği için buradan çağırılmıyor.
     }
 
     protected function mapWebRoutes(): void

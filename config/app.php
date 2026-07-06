@@ -56,6 +56,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Tenant Portal Domain
+    |--------------------------------------------------------------------------
+    |
+    | Bayi portalı subdomain'i: {tenant.slug}.{portal_domain}/...
+    | Boş bırakılırsa portal route'ları kaydedilmez (eski davranış korunur).
+    | Local dev: 'bizimsite.test', prod: 'bizimsite.com'.
+    | Cookie subdomain'ler arası paylaşılsın diye SESSION_DOMAIN=.bizimsite.com
+    | ayarlanmalı (config/session.php).
+    |
+    */
+
+    'portal_domain' => env('PORTAL_DOMAIN'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

@@ -10,10 +10,14 @@ use Modules\Tenant\Models\TenantPriceList;
 
 class TenantService
 {
+    public function __construct(private TenantCreditService $credit) {}
+
     public function create(array $data): Tenant
     {
-        $data['slug'] = $data['slug'] ?? Str::slug($data['name']);
-        $data['created_by'] = $data['created_by'] ?? auth()->id();
+        $data['slug']        = $data['slug']        ?? Str::slug($data['name']);
+        $data['created_by']  = $data['created_by']  ?? auth()->id();
+        // Phase 4 XML feed token; rotate edilebilir.
+        $data['feed_secret'] = $data['feed_secret'] ?? Str::random(64);
 
         return Tenant::create($data);
     }
@@ -72,9 +76,21 @@ class TenantService
 
     public function markInvoicePaid(TenantInvoice $invoice): void
     {
+        if ($invoice->status === 'paid') {
+            return;
+        }
+
         $invoice->update([
             'status'  => 'paid',
             'paid_at' => now(),
         ]);
+
+        // Fatura ödendi → tenant'ın borcu o kadar düşer.
+        $this->credit->credit(
+            tenant: $invoice->tenant,
+            amount: (float) $invoice->amount,
+            reason: 'invoice_paid',
+            invoiceId: $invoice->id,
+        );
     }
 }

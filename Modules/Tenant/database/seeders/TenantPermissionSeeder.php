@@ -1,6 +1,6 @@
 <?php
 
-namespace Modules\Tenant\database\seeders;
+namespace Modules\Tenant\Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
@@ -10,16 +10,31 @@ class TenantPermissionSeeder extends Seeder
 {
     public function run(): void
     {
-        $permissions = [
-            'tenant.view'          => 'Tenant\'ları Görüntüle',
-            'tenant.manage'        => 'Tenant Yönet',
-            'tenant-type.manage'   => 'Tenant Tipi Yönet',
-            'tenant-access.manage' => 'Tenant Erişimi Yönet',
-            'marketplace.manage'   => 'Pazaryeri Bağlantı Yönet',
+        $adminPermissions = [
+            'tenant.view'              => 'Tenant\'ları Görüntüle',
+            'tenant.manage'            => 'Tenant Yönet',
+            'tenant-type.manage'       => 'Tenant Tipi Yönet',
+            'tenant-access.manage'     => 'Tenant Erişimi Yönet',
+            'tenant.product.customize' => 'Tenant\'a Özel Ürün Metni Yaz',
+            'marketplace.manage'       => 'Pazaryeri Bağlantı Yönet',
         ];
 
-        $created = [];
-        foreach ($permissions as $name => $displayName) {
+        $tenantPortalPermissions = [
+            'portal.access'         => 'Portal Erişimi',
+            'portal.orders.view'    => 'Portal — Siparişleri Görüntüle',
+            'portal.invoices.view'  => 'Portal — Faturaları Görüntüle',
+            'portal.credit.view'    => 'Portal — Kredi Hareketleri',
+            'portal.catalog.view'   => 'Portal — Katalog Görüntüle',
+            'portal.checkout'       => 'Portal — Dropship Sipariş Aç',
+            'marketplace.sync'      => 'Portal — Pazaryeri Senkronizasyon',
+            'marketplace.view-sales'=> 'Portal — Pazaryeri Satışları Görüntüle',
+            'portal.financials.view'=> 'Portal — Kâr/Zarar Dashboard',
+            'portal.calculator.use' => 'Portal — Kâr Hesabı Kullan',
+            'portal.feed.access'    => 'Portal — XML Feed URL Erişimi',
+        ];
+
+        $allCreated = [];
+        foreach ([...$adminPermissions, ...$tenantPortalPermissions] as $name => $displayName) {
             $perm = Permission::firstOrCreate(
                 ['name' => $name, 'guard_name' => 'web'],
                 ['display_name' => $displayName],
@@ -27,18 +42,31 @@ class TenantPermissionSeeder extends Seeder
             if (! $perm->wasRecentlyCreated && $perm->display_name !== $displayName) {
                 $perm->update(['display_name' => $displayName]);
             }
-            $created[] = $perm->name;
+            $allCreated[] = $perm->name;
         }
 
         $superadmin = Role::where('name', 'superadmin')->where('guard_name', 'web')->first();
         if ($superadmin) {
-            $superadmin->givePermissionTo($created);
+            $superadmin->givePermissionTo($allCreated);
         }
 
-        // Tenant rolü kendi pazaryeri credential'larını yönetebilsin (controller scope'lu).
+        // Tenant rolü kendi portal işlerini ve pazaryeri credential'larını yönetebilsin.
         $tenantRole = Role::where('name', 'tenant')->where('guard_name', 'web')->first();
         if ($tenantRole) {
-            $tenantRole->givePermissionTo('marketplace.manage');
+            $tenantRole->givePermissionTo([
+                'marketplace.manage',
+                'portal.access',
+                'portal.orders.view',
+                'portal.invoices.view',
+                'portal.credit.view',
+                'portal.catalog.view',
+                'portal.checkout',
+                'marketplace.sync',
+                'marketplace.view-sales',
+                'portal.financials.view',
+                'portal.calculator.use',
+                'portal.feed.access',
+            ]);
         }
     }
 }

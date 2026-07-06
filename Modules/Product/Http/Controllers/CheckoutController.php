@@ -5,16 +5,14 @@ namespace Modules\Product\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Product\Models\CartItem;
-use Modules\Product\Models\Order;
-use Modules\Product\Models\OrderItem;
 use Modules\Product\Models\Product;
 use Modules\Product\Models\UserAddress;
+use Modules\Product\Services\CheckoutService;
+use Modules\Tenant\Exceptions\InsufficientCreditException;
 
 class CheckoutController extends Controller
 {
@@ -115,45 +113,21 @@ class CheckoutController extends Controller
 
         $totals = $this->totalsFor($items, $data['shipping_method'] ?? 'standard', $data['promo_code'] ?? null);
 
-        $order = DB::transaction(function () use ($userId, $items, $totals, $data) {
-            $order = Order::create([
-                'order_no'       => $this->generateOrderNo(),
-                'user_id'        => $userId,
-                'shipping_info'  => [
-                    'address'           => $data['address'],
-                    'shipping_method'   => $data['shipping_method'],
-                    'card'              => $data['card']    ?? null,
-                    'billing'           => $data['billing'] ?? null,
-                    'installment_count' => $data['installment_count'] ?? 1,
-                    'promo_code'        => $totals['promo_code'],
+        try {
+            $order = app(CheckoutService::class)->place($data, $userId, $tenantId, $items, $totals);
+        } catch (InsufficientCreditException $e) {
+            return redirect()->route('checkout.index')->with('flash', [
+                'toast' => [
+                    'type'    => 'error',
+                    'title'   => 'Kredi limiti yetersiz',
+                    'message' => sprintf(
+                        'Toplam %.2f ₺, kullanılabilir kredi %.2f ₺.',
+                        $e->requestedAmount,
+                        $e->availableCredit,
+                    ),
                 ],
-                'payment_method' => $data['payment_method'],
-                'note'           => $data['note'] ?? null,
-                'subtotal'       => $totals['subtotal'],
-                'shipping_fee'   => $totals['shipping_fee'],
-                'total'          => $totals['total'],
-                'status'         => 'pending',
             ]);
-
-            foreach ($items as $item) {
-                OrderItem::create([
-                    'order_id'      => $order->id,
-                    'product_id'    => $item->product_id,
-                    'product_name'  => $item->product?->name ?? 'Ürün',
-                    'product_brand' => $item->product?->brand?->name,
-                    'product_image' => "https://picsum.photos/seed/tek-p{$item->product_id}/200/250",
-                    'color'         => $item->color,
-                    'size'          => $item->size,
-                    'qty'           => $item->qty,
-                    'unit_price'    => $item->price,
-                    'total_price'   => $item->price * $item->qty,
-                ]);
-            }
-
-            CartItem::query()->where('user_id', $userId)->delete();
-
-            return $order;
-        });
+        }
 
         return redirect()->route('products.index')->with('flash', [
             'toast' => [
@@ -257,8 +231,4 @@ class CheckoutController extends Controller
         ];
     }
 
-    private function generateOrderNo(): string
-    {
-        return 'SIP-' . now()->format('Ymd') . '-' . strtoupper(Str::random(6));
-    }
 }

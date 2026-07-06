@@ -102,6 +102,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Alias — Portal scaffold ve middleware'lerin tercih ettiği yöntem ismi.
+     */
+    public function isTenantUser(): bool
+    {
+        return $this->tenant_id !== null;
+    }
+
+    /**
      * Check if two-factor authentication is enabled.
      */
     public function isTwoFactorEnabled(): bool
