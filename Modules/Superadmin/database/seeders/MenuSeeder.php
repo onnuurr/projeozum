@@ -42,6 +42,9 @@ class MenuSeeder extends Seeder
 
         // Superadmin'e özgü nav girişleri
         $this->seedSuperadminEntries();
+
+        // Finance modülü (sadece iç kullanım — finance.manage izni gerekir).
+        $this->seedFinanceEntries();
     }
 
     /**
@@ -62,6 +65,50 @@ class MenuSeeder extends Seeder
                 'is_active'  => true,
             ],
         );
+    }
+
+    /**
+     * Finans modülüne özgü menü ağacı (kök + alt sayfalar). Tenant'lara kapalı;
+     * her satır `finance.manage` iznine bağlı. route_name ile eşleşen kayıt
+     * varsa yeniden oluşturmaz (idempotent).
+     */
+    private function seedFinanceEntries(): void
+    {
+        $root = Menu::firstOrCreate(
+            ['route_name' => 'finance.dashboard'],
+            [
+                'parent_id'  => null,
+                'label'      => 'Finans',
+                'icon'       => 'reports',
+                'url'        => null,
+                'permission' => 'finance.manage',
+                'sort_order' => 6,
+                'is_active'  => true,
+            ],
+        );
+
+        $children = [
+            ['route_name' => 'finance.dashboard', 'label' => 'Genel Bakış'],
+            ['route_name' => 'finance.product-costs', 'label' => 'Ürün Maliyetleri'],
+            ['route_name' => 'finance.sales', 'label' => 'Satış Geçmişi'],
+            ['route_name' => 'finance.tenant-purchases', 'label' => 'Bayi Alışverişleri'],
+            ['route_name' => 'finance.supplier-invoices.index', 'label' => 'Alınan Faturalar'],
+            ['route_name' => 'finance.proformas.index', 'label' => 'Proforma Faturalar'],
+            ['route_name' => 'finance.outgoing-invoices.index', 'label' => 'Düzenlenen Faturalar'],
+            ['route_name' => 'finance.bank-accounts.index', 'label' => 'Banka'],
+        ];
+
+        foreach ($children as $order => $child) {
+            Menu::firstOrCreate(
+                ['route_name' => $child['route_name'], 'parent_id' => $root->id],
+                [
+                    'label'      => $child['label'],
+                    'permission' => 'finance.manage',
+                    'sort_order' => $order,
+                    'is_active'  => true,
+                ],
+            );
+        }
     }
 
     /**

@@ -3,5 +3,6 @@
     "Superadmin": true,
     "Product": true,
     "Tenant": true,
-    "Creative": true
+    "Creative": true,
+    "Finance": true
 }
