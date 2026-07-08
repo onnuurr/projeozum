@@ -88,6 +88,29 @@ class ProformaInvoiceService
                 'created_by'                 => $userId,
             ]);
 
+            // Proforma kalemlerini faturaya taşı. Proforma kalemlerinde KDV oranı
+            // tutulmadığı için toplamdan efektif oranı türetip her satıra uygularız
+            // (subtotal 0 ise oran 0). Kalem tutarları TL; entegratöre giderken kuruşa çevrilir.
+            $proforma->loadMissing('items');
+            $effectiveRate = (float) $proforma->subtotal > 0
+                ? round((float) $proforma->tax_amount / (float) $proforma->subtotal * 100, 2)
+                : 0.0;
+
+            foreach ($proforma->items as $item) {
+                $taxable = (float) $item->total_price;
+                $vat     = round($taxable * $effectiveRate / 100, 2);
+
+                $invoice->items()->create([
+                    'item_name'      => $item->description,
+                    'quantity'       => $item->qty,
+                    'unit_price'     => $item->unit_price,
+                    'vat_rate'       => $effectiveRate,
+                    'taxable_amount' => $taxable,
+                    'vat_amount'     => $vat,
+                    'line_total'     => round($taxable + $vat, 2),
+                ]);
+            }
+
             $proforma->update([
                 'converted_invoice_id' => $invoice->id,
                 'status'               => ProformaInvoice::STATUS_CONVERTED,

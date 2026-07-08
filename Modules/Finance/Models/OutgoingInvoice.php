@@ -5,6 +5,7 @@ namespace Modules\Finance\Models;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Modules\Product\Models\Order;
 use Modules\Tenant\Models\TenantInvoice;
@@ -71,6 +72,11 @@ class OutgoingInvoice extends Model
         'efatura_raw_response'  => 'array',
         'sent_at'               => 'datetime',
     ];
+
+    public function items(): HasMany
+    {
+        return $this->hasMany(OutgoingInvoiceItem::class);
+    }
 
     public function order(): BelongsTo
     {

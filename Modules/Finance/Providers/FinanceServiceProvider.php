@@ -5,6 +5,7 @@ namespace Modules\Finance\Providers;
 use Modules\Finance\Console\Commands\ExpireProformas;
 use Modules\Finance\Contracts\EInvoiceProviderInterface;
 use Modules\Finance\Services\EInvoice\NullEInvoiceProvider;
+use Modules\Finance\Services\EInvoice\TrendyolEFaturamProvider;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 
 class FinanceServiceProvider extends ModuleServiceProvider
@@ -42,8 +43,18 @@ class FinanceServiceProvider extends ModuleServiceProvider
     {
         parent::register();
 
-        // e-Fatura entegratörü henüz seçilmedi; somut sürücü bağlanana kadar
-        // tek binding budur (bkz. EInvoiceProviderInterface doc-block'u).
-        $this->app->bind(EInvoiceProviderInterface::class, NullEInvoiceProvider::class);
+        // e-Fatura entegratörü: kimlik bilgisi (email+password) tanımlıysa gerçek
+        // Trendyol e-Faturam sürücüsü, yoksa hiçbir dış istek atmayan NullEInvoiceProvider.
+        $this->app->bind(EInvoiceProviderInterface::class, function ($app) {
+            $config = (array) config('finance.einvoice', []);
+
+            $usable = ($config['driver'] ?? null) === 'trendyol'
+                && ! empty($config['email'])
+                && ! empty($config['password']);
+
+            return $usable
+                ? new TrendyolEFaturamProvider($config)
+                : new NullEInvoiceProvider();
+        });
     }
 }
