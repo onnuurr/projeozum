@@ -7,6 +7,7 @@ use Modules\Product\Http\Controllers\CartController;
 use Modules\Product\Http\Controllers\CategoryController;
 use Modules\Product\Http\Controllers\CheckoutController;
 use Modules\Product\Http\Controllers\FavoriteController;
+use Modules\Product\Http\Controllers\OrderController;
 use Modules\Product\Http\Controllers\PriceListController;
 use Modules\Product\Http\Controllers\ProductController;
 use Modules\Product\Http\Controllers\ProductImageController;
@@ -139,6 +140,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/products/prices/{priceList}', [PriceListController::class, 'destroy'])
         ->whereNumber('priceList')->middleware('can:price-list.manage')
         ->name('products.prices.destroy');
+
+    // ─── Admin Sipariş Yönetimi (Faz 2) ──────────────────────────────────
+    // Ana domain. Portal /orders subdomain'de ayrı (PortalOrderController,
+    // salt-okuma) tanımlıdır; subdomain routing çakışma yaratmaz.
+    Route::get('/orders', [OrderController::class, 'index'])
+        ->middleware('can:order.view')->name('orders.index');
+    Route::get('/orders/{order}', [OrderController::class, 'show'])
+        ->whereNumber('order')->middleware('can:order.view')->name('orders.show');
+    Route::put('/orders/{order}/status', [OrderController::class, 'updateStatus'])
+        ->whereNumber('order')->middleware('can:order.manage')->name('orders.update-status');
 
     Route::prefix('cart')->name('cart.')->group(function () {
         Route::post('/', [CartController::class, 'add'])->name('add');

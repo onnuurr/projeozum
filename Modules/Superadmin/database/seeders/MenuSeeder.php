@@ -136,7 +136,7 @@ class MenuSeeder extends Seeder
                 ['label' => 'Markalar', 'url' => '/products/brands'],
                 ['label' => 'Koleksiyonlar'],
             ]],
-            ['label' => 'Siparişler', 'icon' => 'orders', 'url' => '/orders', 'children' => [
+            ['label' => 'Siparişler', 'icon' => 'orders', 'url' => '/orders', 'permission' => 'order.view', 'children' => [
                 ['label' => 'Sipariş Listesi', 'url' => '/orders'],
                 ['label' => 'Yeni Sipariş'],
                 ['label' => 'Teklifler'],

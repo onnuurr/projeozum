@@ -31,8 +31,9 @@ class PortalOrderController extends Controller
             ]);
 
         return Inertia::render('Tenant::Portal/Orders', [
-            'tenant' => $this->tenantPayload($tenant),
-            'orders' => $orders,
+            'tenant'   => $this->tenantPayload($tenant),
+            'orders'   => $orders,
+            'statuses' => Order::statuses(),
         ]);
     }
 
@@ -43,7 +44,8 @@ class PortalOrderController extends Controller
         $order->load('items');
 
         return Inertia::render('Tenant::Portal/OrderDetail', [
-            'tenant' => $this->tenantPayload($request->attributes->get('tenant')),
+            'tenant'   => $this->tenantPayload($request->attributes->get('tenant')),
+            'statuses' => Order::statuses(),
             'order'  => [
                 'id'             => $order->id,
                 'order_no'       => $order->order_no,
