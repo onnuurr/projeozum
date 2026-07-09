@@ -7,6 +7,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use Modules\Product\Exceptions\InsufficientStockException;
 use Modules\Product\Models\CartItem;
 use Modules\Product\Services\CheckoutService;
 use Modules\Tenant\Exceptions\InsufficientCreditException;
@@ -90,6 +91,14 @@ class PortalCheckoutController extends Controller
                     'type'    => 'error',
                     'title'   => 'Kredi limiti yetersiz',
                     'message' => sprintf('Toplam %.2f ₺, kullanılabilir kredi %.2f ₺.', $e->requestedAmount, $e->availableCredit),
+                ],
+            ]);
+        } catch (InsufficientStockException $e) {
+            return redirect('/checkout')->with('flash', [
+                'toast' => [
+                    'type'    => 'error',
+                    'title'   => 'Stok yetersiz',
+                    'message' => sprintf('Sepetteki bir ürün için yeterli stok yok (mevcut: %d).', $e->available),
                 ],
             ]);
         }

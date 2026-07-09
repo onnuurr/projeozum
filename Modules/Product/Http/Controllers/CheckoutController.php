@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Modules\Product\Exceptions\InsufficientStockException;
 use Modules\Product\Models\CartItem;
 use Modules\Product\Models\Product;
 use Modules\Product\Models\UserAddress;
@@ -111,6 +112,18 @@ class CheckoutController extends Controller
             }
         }
 
+        // Tenant-only B2B: sipariş kesimi (yeniden fiyatlama + stok/kredi) yalnız tenant
+        // bağlamında anlamlıdır. Tenant'sız (saf B2C) checkout artık desteklenmiyor.
+        if ($tenantId === null) {
+            return redirect()->route('checkout.index')->with('flash', [
+                'toast' => [
+                    'type'    => 'warning',
+                    'title'   => 'Sipariş oluşturulamadı',
+                    'message' => 'Bu hesap bir bayiye bağlı değil.',
+                ],
+            ]);
+        }
+
         $totals = $this->totalsFor($items, $data['shipping_method'] ?? 'standard', $data['promo_code'] ?? null);
 
         try {
@@ -125,6 +138,14 @@ class CheckoutController extends Controller
                         $e->requestedAmount,
                         $e->availableCredit,
                     ),
+                ],
+            ]);
+        } catch (InsufficientStockException $e) {
+            return redirect()->route('checkout.index')->with('flash', [
+                'toast' => [
+                    'type'    => 'error',
+                    'title'   => 'Stok yetersiz',
+                    'message' => sprintf('Sepetteki bir ürün için yeterli stok yok (mevcut: %d).', $e->available),
                 ],
             ]);
         }

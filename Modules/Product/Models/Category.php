@@ -2,6 +2,8 @@
 
 namespace Modules\Product\Models;
 
+use Database\Factories\CategoryFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -9,7 +11,14 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Category extends Model
 {
+    /** @use HasFactory<CategoryFactory> */
+    use HasFactory;
     use SoftDeletes;
+
+    protected static function newFactory(): CategoryFactory
+    {
+        return CategoryFactory::new();
+    }
 
     protected $table = 'product_categories';
 

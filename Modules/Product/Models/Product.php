@@ -3,7 +3,9 @@
 namespace Modules\Product\Models;
 
 use App\Models\User;
+use Database\Factories\ProductFactory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -13,7 +15,14 @@ use Illuminate\Support\Str;
 
 class Product extends Model
 {
+    /** @use HasFactory<ProductFactory> */
+    use HasFactory;
     use SoftDeletes;
+
+    protected static function newFactory(): ProductFactory
+    {
+        return ProductFactory::new();
+    }
 
     protected $table = 'products';
 

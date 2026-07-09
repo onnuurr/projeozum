@@ -40,33 +40,13 @@ class CheckoutServiceUnitTest extends TestCase
         return CartItem::with('product')->where('user_id', $userId)->get();
     }
 
-    public function test_b2c_path_writes_order_with_null_tenant(): void
-    {
-        $user = User::factory()->create(['tenant_id' => null]);
-        $items = $this->cart($user->id, 1, 100);
-        $totals = ['subtotal' => 100, 'shipping_fee' => 0, 'total' => 100, 'promo_code' => null];
-
-        $order = app(CheckoutService::class)->place(
-            ['address' => [], 'shipping_method' => 'standard', 'payment_method' => 'bank'],
-            $user->id,
-            null,
-            $items,
-            $totals,
-        );
-
-        $this->assertNull($order->tenant_id);
-        $this->assertSame('b2c', $order->order_type);
-        $this->assertEquals(100, (float) $order->total);
-        // Cart temizlendi.
-        $this->assertSame(0, CartItem::where('user_id', $user->id)->count());
-    }
-
     public function test_tenant_path_writes_order_and_charges_credit(): void
     {
         $tenant = Tenant::factory()->create(['credit_limit' => 5000, 'current_balance' => 0]);
         $user = User::factory()->create(['tenant_id' => $tenant->id]);
         $items = $this->cart($user->id, 2, 250);
-        $totals = ['subtotal' => 500, 'shipping_fee' => 49.90, 'total' => 549.90, 'promo_code' => null];
+        // $totals yalnız görüntü; place() server-side yeniden fiyatlar: 2 x 250 = 500 → ücretsiz kargo.
+        $totals = ['subtotal' => 500, 'shipping_fee' => 0, 'total' => 500, 'promo_code' => null];
 
         $order = app(CheckoutService::class)->place(
             ['shipping_method' => 'standard'],
@@ -78,7 +58,8 @@ class CheckoutServiceUnitTest extends TestCase
 
         $this->assertSame($tenant->id, $order->tenant_id);
         $this->assertSame('dropship', $order->order_type);
-        $this->assertEqualsWithDelta(549.90, (float) $tenant->fresh()->current_balance, 0.01);
+        $this->assertEqualsWithDelta(500.00, (float) $order->total, 0.01);
+        $this->assertEqualsWithDelta(500.00, (float) $tenant->fresh()->current_balance, 0.01);
         $this->assertSame(1, TenantCreditLedger::where('tenant_id', $tenant->id)->where('order_id', $order->id)->count());
     }
 
