@@ -57,7 +57,9 @@
       "Bash(python -m pytest test_endpoints.py -k render -v)",
       "Bash(gh repo *)",
       "Bash(git ls-remote *)",
-      "Bash(gh auth *)"
+      "Bash(gh auth *)",
+      "Bash(git merge *)",
+      "Bash(echo \"EXIT: $?\")"
     ]
   }
 }

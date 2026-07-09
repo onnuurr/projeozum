@@ -1,0 +1,23 @@
+Trendyol E-Faturam Entegrasyon Dokümanı
+Giriş ve Kullanıcı Tipleri
+Trendyol E-Faturam sistemine entegre olacak paydaşlar, operasyonel modellerine göre iki ana grupta sınıflandırılır:
+
+1. API Kullanıcıları (Bireysel Entegrasyon)
+Doğrudan kendi firması adına fatura düzenlemek isteyen mükelleflerdir.
+
+Yetkilendirme: signIn endpoint'i üzerinden alınan token ile işlem yapılır.
+Kapsam: Mevcut API dokümantasyonu üzerinden fatura oluşturma, iptal ve sorgulama süreçlerini yönetirler.
+2. Pazaryeri Entegratörleri
+Kendi sistemleri üzerinden birden fazla mükellefin e-fatura süreçlerini yöneten "köprü" platformlardır.
+
+Kapsam: Standart API servislerine ek olarak, alt mükelleflerin yönetimi için Pazaryeri Entegrasyonu Dokümantasyonu içerisinde yer alan özel metotları kullanmaları gerekmektedir.
+Ortam Bilgileri
+Test ortamı Gateway adresi: https://stage-apigateway.trendyolefaturam.com
+Canlı ortamı Gateway adresi: https://apigateway.trendyolecozum.com
+Önemli Notlar
+Fatura oluştururken createOutgoingEInvoice, createEArchive ve createDespatchAdvice isteklerindeki tutarların kuruş olarak girilmesi gerekmektedir. Örneğin 114.55 TL'lik tutarı 11455 olarak girmelisiniz.
+1 Temmuz 2024 tarihinden itibaren internet satış e-arşiv faturalarında gönderi bilgileri zorunlu hale gelmiştir. paymentInfo alanındaki purchaseUrl ve ödeme ile ilgili zorunlu alanları girdikten sonra, deliveryInfo bölümündeki alanları da bu kapsama dahil olan e-arşiv faturalar için dolu olarak göndermeniz gerekmektedir.
+
+
+-------------------SIGN IN --------------------------------------
+Token almak için atılan login isteğidir.
