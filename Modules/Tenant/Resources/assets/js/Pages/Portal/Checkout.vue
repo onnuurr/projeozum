@@ -51,11 +51,10 @@
 
 				<section class="card">
 					<h2 class="card-title">Kargo</h2>
-					<select v-model="form.shipping_method">
-						<option value="standard">Standart (49,90 ₺)</option>
-						<option value="express">Hızlı (79,90 ₺)</option>
-						<option value="same_day">Aynı Gün (129,90 ₺)</option>
-					</select>
+					<label v-for="m in shippingMethods" :key="m.id" class="radio">
+						<input v-model="form.shipping_method" type="radio" :value="m.id" />
+						<span>{{ m.label }} <em class="muted">— {{ m.description }}</em></span>
+					</label>
 				</section>
 
 				<section class="card">
@@ -68,7 +67,7 @@
 					<span>Şartları kabul ediyorum.</span>
 				</label>
 
-				<button class="btn-primary" :disabled="submitting" type="submit">
+				<button class="btn-primary" :disabled="submitting || belowMinOrder" type="submit">
 					{{ submitting ? 'Gönderiliyor...' : 'Siparişi Tamamla' }}
 				</button>
 			</form>
@@ -84,10 +83,25 @@
 					</ul>
 				</section>
 
+				<section v-if="lineWarnings.length" class="card warn-card">
+					<p v-for="(w, idx) in lineWarnings" :key="idx" class="warn">⚠ {{ w }}</p>
+				</section>
+
 				<section class="card totals">
 					<div><span>Ara Toplam:</span><span class="mono">{{ formatMoney(totals.subtotal) }}</span></div>
+					<div v-if="Number(totals.discount_amount) > 0" class="discount">
+						<span>İskonto (%{{ Number(totals.discount_rate) }}):</span>
+						<span class="mono">− {{ formatMoney(totals.discount_amount) }}</span>
+					</div>
 					<div><span>Kargo:</span><span class="mono">{{ formatMoney(totals.shipping_fee) }}</span></div>
 					<div class="grand"><span>Toplam:</span><span class="mono">{{ formatMoney(totals.total) }}</span></div>
+					<div v-if="dueDateLabel" class="due"><span>Vade:</span><span class="mono">{{ dueDateLabel }}</span></div>
+				</section>
+
+				<section v-if="belowMinOrder" class="card warn-card">
+					<p class="warn">
+						⚠ Minimum sipariş tutarı {{ formatMoney(tenant.min_order_total) }} — sipariş açılamaz.
+					</p>
 				</section>
 
 				<section class="card credit-preview" :class="{ over: credit.after_order < 0 || totals.total > credit.available }">
@@ -104,7 +118,7 @@
 </template>
 
 <script setup>
-import { reactive, ref, inject } from 'vue'
+import { reactive, ref, computed, inject } from 'vue'
 import { Head, router } from '@inertiajs/vue3'
 import TenantPortalLayout from '@/Layouts/TenantPortalLayout.vue'
 
@@ -115,13 +129,14 @@ const props = defineProps({
 	items: { type: Array, default: () => [] },
 	totals: { type: Object, required: true },
 	credit: { type: Object, required: true },
+	shippingMethods: { type: Array, default: () => [] },
 })
 
 const showToast = inject('showToast', null)
 
 const form = reactive({
 	billing_to: 'us',
-	shipping_method: 'standard',
+	shipping_method: props.shippingMethods[0]?.id ?? 'cargo',
 	note: '',
 	terms_accepted: false,
 	address: {
@@ -135,6 +150,31 @@ const form = reactive({
 })
 
 const submitting = ref(false)
+
+const belowMinOrder = computed(() =>
+	props.tenant.min_order_total != null && Number(props.totals.subtotal) < Number(props.tenant.min_order_total),
+)
+
+const dueDateLabel = computed(() => {
+	const days = Number(props.tenant.payment_term_days ?? 0)
+	if (!days) return null
+	const d = new Date()
+	d.setDate(d.getDate() + days)
+	return d.toLocaleDateString('tr-TR') + ` (${days} gün vade)`
+})
+
+const lineWarnings = computed(() => {
+	const out = []
+	for (const i of props.items) {
+		if (i.min_order_qty != null && Number(i.qty) < Number(i.min_order_qty)) {
+			out.push(`${i.product_name ?? 'Ürün'}: minimum ${i.min_order_qty} adet gerekli.`)
+		}
+		if (i.order_multiple != null && Number(i.order_multiple) > 0 && Number(i.qty) % Number(i.order_multiple) !== 0) {
+			out.push(`${i.product_name ?? 'Ürün'}: ${i.order_multiple} katları hâlinde sipariş edilmeli.`)
+		}
+	}
+	return out
+})
 
 function formatMoney(v) {
 	return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 2 }).format(Number(v ?? 0))
@@ -165,6 +205,7 @@ function submit() {
 .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
 .radio { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 13px; cursor: pointer; }
+.muted { color: #888; font-style: normal; font-size: 12px; }
 .terms { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 6px 0; cursor: pointer; }
 .btn-primary { padding: 12px 24px; background: #4338ca; color: #fff; border: none; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -174,8 +215,11 @@ function submit() {
 .qty { color: #555; }
 .mono { font-family: 'SF Mono', Menlo, Consolas, monospace; }
 .totals div { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; }
+.totals .discount { color: #16a34a; }
 .totals .grand { font-weight: 700; font-size: 16px; padding-top: 8px; border-top: 1px solid #ebebf0; margin-top: 4px; }
+.totals .due { color: #b45309; font-size: 12px; }
+.warn-card { background: #fef3c7; border-color: #fcd34d; }
 .credit-preview.over { background: #fee2e2; border-color: #fca5a5; }
 .credit-preview div { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; }
-.warn { font-size: 12px; color: #b91c1c; margin-top: 8px; }
+.warn { font-size: 12px; color: #b91c1c; margin: 4px 0; }
 </style>

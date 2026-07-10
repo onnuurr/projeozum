@@ -26,13 +26,10 @@ class StoreDropshipOrderRequest extends FormRequest
             'address.city'            => ['required', 'string', 'max:80'],
             'address.postal_code'     => ['nullable', 'string', 'max:16'],
 
-            'shipping_method'         => ['required', Rule::in(['standard', 'express', 'same_day'])],
+            // D6: kargo `cargo` (sabit ücret, eşik üstü ücretsiz) veya `pickup` (depodan teslim).
+            'shipping_method'         => ['required', Rule::in(['cargo', 'pickup'])],
             'note'                    => ['nullable', 'string', 'max:500'],
-            'promo_code'              => ['nullable', 'string', 'max:32'],
             'terms_accepted'          => ['accepted'],
-
-            // Dropship için ödeme yöntemi anlamsız (bize borç olarak yazılır) — yine de log için kabul.
-            'payment_method'          => ['nullable', 'string', 'max:32'],
         ];
     }
 }

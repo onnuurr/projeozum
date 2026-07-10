@@ -21,6 +21,7 @@ class Order extends Model
         return OrderFactory::new();
     }
 
+    /** @deprecated Tenant-only B2B'de B2C sipariş tipi kullanılmıyor; Faz 4'te silinecek. Yeni kod bu sabite YAZMAMALI. */
     public const TYPE_B2C      = 'b2c';
     public const TYPE_DROPSHIP = 'dropship';
 
@@ -78,15 +79,21 @@ class Order extends Model
         'subtotal',
         'shipping_fee',
         'total',
+        'discount_rate',
+        'discount_amount',
+        'due_date',
         'status',
         'order_type',
     ];
 
     protected $casts = [
-        'shipping_info' => 'array',
-        'subtotal'      => 'decimal:2',
-        'shipping_fee'  => 'decimal:2',
-        'total'         => 'decimal:2',
+        'shipping_info'   => 'array',
+        'subtotal'        => 'decimal:2',
+        'shipping_fee'    => 'decimal:2',
+        'total'           => 'decimal:2',
+        'discount_rate'   => 'decimal:2',
+        'discount_amount' => 'decimal:2',
+        'due_date'        => 'date',
     ];
 
     public function user(): BelongsTo

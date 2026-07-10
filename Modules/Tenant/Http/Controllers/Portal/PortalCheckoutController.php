@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Product\Exceptions\InsufficientStockException;
+use Modules\Product\Exceptions\MinimumOrderException;
 use Modules\Product\Models\CartItem;
 use Modules\Product\Services\CheckoutService;
 use Modules\Tenant\Exceptions\InsufficientCreditException;
@@ -39,30 +40,41 @@ class PortalCheckoutController extends Controller
             ]);
         }
 
-        $totals = $this->checkout->computeTotals($items, 'standard', null);
+        $totals    = $this->checkout->quote($tenant, $items, 'cargo');
+        $available = $this->credit->availableCreditFor($tenant);
 
         return Inertia::render('Tenant::Portal/Checkout', [
             'tenant'   => [
-                'id'      => $tenant->id,
-                'code'    => $tenant->code,
-                'name'    => $tenant->name,
-                'slug'    => $tenant->slug,
-                'address' => $tenant->address,
-                'city'    => $tenant->city,
-                'phone'   => $tenant->phone,
+                'id'                => $tenant->id,
+                'code'              => $tenant->code,
+                'name'              => $tenant->name,
+                'slug'              => $tenant->slug,
+                'address'           => $tenant->address,
+                'city'              => $tenant->city,
+                'phone'             => $tenant->phone,
+                'discount_rate'     => (float) $tenant->discount_rate,
+                'min_order_total'   => $tenant->min_order_total !== null ? (float) $tenant->min_order_total : null,
+                'payment_term_days' => (int) $tenant->payment_term_days,
             ],
             'items'    => $items->map(fn ($i) => [
-                'id'           => $i->id,
-                'product_name' => $i->product?->name,
-                'color'        => $i->color,
-                'size'         => $i->size,
-                'qty'          => (int) $i->qty,
-                'price'        => (float) $i->price,
+                'id'             => $i->id,
+                'product_name'   => $i->product?->name,
+                'color'          => $i->color,
+                'size'           => $i->size,
+                'qty'            => (int) $i->qty,
+                'price'          => (float) $i->price,
+                'min_order_qty'  => $i->product?->min_order_qty,
+                'order_multiple' => $i->product?->order_multiple,
             ])->all(),
             'totals'   => $totals,
+            'shippingMethods' => array_map(
+                fn ($id, $m) => ['id' => $id, 'label' => $m['label'], 'description' => $m['description']],
+                array_keys(config('product.shipping.methods', [])),
+                array_values(config('product.shipping.methods', [])),
+            ),
             'credit'   => [
-                'available'    => $this->credit->availableCreditFor($tenant),
-                'after_order'  => max(0.0, $this->credit->availableCreditFor($tenant) - (float) $totals['total']),
+                'available'   => $available,
+                'after_order' => max(0.0, $available - (float) $totals['total']),
             ],
         ]);
     }
@@ -81,10 +93,18 @@ class PortalCheckoutController extends Controller
         }
 
         $data   = $request->validated();
-        $totals = $this->checkout->computeTotals($items, $data['shipping_method'], $data['promo_code'] ?? null);
+        $totals = $this->checkout->quote($tenant, $items, $data['shipping_method']);
 
         try {
             $order = $this->checkout->place($data, $userId, $tenant->id, $items, $totals);
+        } catch (MinimumOrderException $e) {
+            return redirect('/checkout')->with('flash', [
+                'toast' => [
+                    'type'    => 'warning',
+                    'title'   => 'Minimum sipariş kuralı',
+                    'message' => $e->getMessage(),
+                ],
+            ]);
         } catch (InsufficientCreditException $e) {
             return redirect('/checkout')->with('flash', [
                 'toast' => [
@@ -115,7 +135,7 @@ class PortalCheckoutController extends Controller
     private function loadCart(int $userId)
     {
         return CartItem::query()
-            ->with(['product:id,name,slug,brand_id', 'product.brand:id,name'])
+            ->with(['product:id,name,slug,brand_id,min_order_qty,order_multiple', 'product.brand:id,name'])
             ->where('user_id', $userId)
             ->orderBy('id')
             ->get();

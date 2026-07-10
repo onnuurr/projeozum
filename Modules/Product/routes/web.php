@@ -1,11 +1,9 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use Modules\Product\Http\Controllers\AddressController;
 use Modules\Product\Http\Controllers\BrandController;
 use Modules\Product\Http\Controllers\CartController;
 use Modules\Product\Http\Controllers\CategoryController;
-use Modules\Product\Http\Controllers\CheckoutController;
 use Modules\Product\Http\Controllers\FavoriteController;
 use Modules\Product\Http\Controllers\OrderController;
 use Modules\Product\Http\Controllers\PriceListController;
@@ -162,18 +160,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/', [CartController::class, 'clear'])->name('clear');
     });
 
-    Route::get('/checkout', [CheckoutController::class, 'index'])->name('checkout.index');
-    Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');
-
-    Route::prefix('checkout/addresses')->name('checkout.addresses.')->group(function () {
-        Route::post('/', [AddressController::class, 'store'])->name('store');
-        Route::put('/{address}', [AddressController::class, 'update'])
-            ->whereNumber('address')
-            ->name('update');
-        Route::delete('/{address}', [AddressController::class, 'destroy'])
-            ->whereNumber('address')
-            ->name('destroy');
-    });
+    // NOT (Faz 3 · D5): ana domain B2C `/checkout` ve `/checkout/addresses/*` rotaları
+    // kaldırıldı (tenant-only B2B; checkout portal subdomain'de PortalCheckoutController).
+    // `/cart/*` KALIR — portal bu sepet altyapısını subdomain üzerinden kullanır.
 
     // Ürün detay slug ile çözülür. Literal `/products/*` route'larından
     // (categories, marketplaces, vb.) sonra tanımlanmalı; aksi halde

@@ -42,14 +42,14 @@ class CheckoutServiceUnitTest extends TestCase
 
     public function test_tenant_path_writes_order_and_charges_credit(): void
     {
-        $tenant = Tenant::factory()->create(['credit_limit' => 5000, 'current_balance' => 0]);
+        $tenant = Tenant::factory()->create(['credit_limit' => 5000, 'current_balance' => 0, 'discount_rate' => 0]);
         $user = User::factory()->create(['tenant_id' => $tenant->id]);
         $items = $this->cart($user->id, 2, 250);
         // $totals yalnız görüntü; place() server-side yeniden fiyatlar: 2 x 250 = 500 → ücretsiz kargo.
         $totals = ['subtotal' => 500, 'shipping_fee' => 0, 'total' => 500, 'promo_code' => null];
 
         $order = app(CheckoutService::class)->place(
-            ['shipping_method' => 'standard'],
+            ['shipping_method' => 'cargo'],
             $user->id,
             $tenant->id,
             $items,
@@ -65,7 +65,7 @@ class CheckoutServiceUnitTest extends TestCase
 
     public function test_tenant_over_limit_throws(): void
     {
-        $tenant = Tenant::factory()->create(['credit_limit' => 100, 'current_balance' => 50]);
+        $tenant = Tenant::factory()->create(['credit_limit' => 100, 'current_balance' => 50, 'discount_rate' => 0]);
         $user = User::factory()->create(['tenant_id' => $tenant->id]);
         $items = $this->cart($user->id, 1, 200);
         $totals = ['subtotal' => 200, 'shipping_fee' => 0, 'total' => 200, 'promo_code' => null];
