@@ -5,9 +5,9 @@ namespace Modules\Product\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Modules\Product\Http\Requests\StoreStockMovementRequest;
 use Modules\Product\Models\Stock;
 use Modules\Product\Models\StockMovement;
 use Modules\Product\Models\Warehouse;
@@ -79,19 +79,9 @@ class StockController extends Controller
         ]);
     }
 
-    public function movement(Request $request): RedirectResponse
+    public function movement(StoreStockMovementRequest $request): RedirectResponse
     {
-        $data = $request->validate([
-            'product_variant_id' => ['required', 'integer', Rule::exists('product_variants', 'id')],
-            'warehouse_id'       => ['required', 'integer', Rule::exists('warehouses', 'id')],
-            'type'               => ['required', Rule::in([
-                StockMovement::TYPE_IN,
-                StockMovement::TYPE_OUT,
-                StockMovement::TYPE_ADJUSTMENT,
-            ])],
-            'quantity'           => ['required', 'integer', 'not_in:0'],
-            'note'               => ['nullable', 'string', 'max:1000'],
-        ]);
+        $data = $request->validated();
 
         $this->stock->move(
             variantId: (int) $data['product_variant_id'],

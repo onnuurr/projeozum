@@ -57,6 +57,7 @@ class OrderService
                         tenant: $order->tenant,
                         amount: (float) $order->total,
                         reason: 'order_cancelled',
+                        orderId: $order->id,
                     );
                 }
             }

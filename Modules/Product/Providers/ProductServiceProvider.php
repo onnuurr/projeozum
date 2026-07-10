@@ -4,6 +4,7 @@ namespace Modules\Product\Providers;
 
 use Nwidart\Modules\Support\ModuleServiceProvider;
 use Illuminate\Console\Scheduling\Schedule;
+use Modules\Product\Console\PruneStaleCartsCommand;
 use Modules\Product\Console\SyncVariantStockCommand;
 use Modules\Product\Services\Ai\Contracts\ProductDescriptionGenerator;
 use Modules\Product\Services\Ai\GeminiProductDescriptionGenerator;
@@ -28,6 +29,7 @@ class ProductServiceProvider extends ModuleServiceProvider
 
         $this->commands([
             SyncVariantStockCommand::class,
+            PruneStaleCartsCommand::class,
         ]);
     }
 

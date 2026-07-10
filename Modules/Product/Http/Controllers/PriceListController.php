@@ -4,25 +4,16 @@ namespace Modules\Product\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
+use Modules\Product\Http\Requests\StorePriceListRequest;
+use Modules\Product\Http\Requests\UpdatePriceListRequest;
 use Modules\Product\Models\PriceList;
 use Modules\Product\Models\ProductVariant;
 
 class PriceListController extends Controller
 {
-    public function store(Request $request, ProductVariant $variant): RedirectResponse
+    public function store(StorePriceListRequest $request, ProductVariant $variant): RedirectResponse
     {
-        $data = $request->validate([
-            'type'      => ['required', Rule::in([
-                PriceList::TYPE_RETAIL,
-                PriceList::TYPE_DEALER,
-                PriceList::TYPE_DROPSHIP,
-            ])],
-            'price'     => ['required', 'numeric', 'min:0'],
-            'currency'  => ['nullable', 'string', 'size:3'],
-            'is_active' => ['nullable', 'boolean'],
-        ]);
+        $data = $request->validated();
 
         // (variant_id, type) unique — varsa güncelle, yoksa oluştur
         PriceList::updateOrCreate(
@@ -40,15 +31,9 @@ class PriceListController extends Controller
         return back()->with('success', 'Fiyat listesi güncellendi.');
     }
 
-    public function update(Request $request, PriceList $priceList): RedirectResponse
+    public function update(UpdatePriceListRequest $request, PriceList $priceList): RedirectResponse
     {
-        $data = $request->validate([
-            'price'     => ['required', 'numeric', 'min:0'],
-            'currency'  => ['nullable', 'string', 'size:3'],
-            'is_active' => ['nullable', 'boolean'],
-        ]);
-
-        $priceList->update($data);
+        $priceList->update($request->validated());
 
         return back()->with('success', 'Fiyat güncellendi.');
     }

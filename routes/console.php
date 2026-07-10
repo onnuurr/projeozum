@@ -58,3 +58,6 @@ Schedule::command('cache:prune-stale-tags')->hourly();
 
 // Geçerlilik tarihi dolmuş proforma faturaları expired yapar (Finance modülü).
 Schedule::command('finance:expire-proformas')->daily();
+
+// 30 günden eski terk edilmiş sepet kalemleri (UX hijyeni — stok/fiyat place()'te çözülür).
+Schedule::command('product:prune-stale-carts')->daily()->onOneServer();

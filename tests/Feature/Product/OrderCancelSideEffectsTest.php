@@ -80,6 +80,8 @@ class OrderCancelSideEffectsTest extends TestCase
             ->first();
         $this->assertNotNull($refund);
         $this->assertEqualsWithDelta(800.0, (float) $refund->amount, 0.01);
+        // Faz 4: iade satırı artık order_id taşır → admin sipariş detayı "Kredi Hareketleri"nde görünür.
+        $this->assertSame($order->id, $refund->order_id);
         $this->assertEqualsWithDelta(0.0, (float) $tenant->fresh()->current_balance, 0.01);
     }
 
