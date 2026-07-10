@@ -43,4 +43,15 @@ window.Echo = new Echo({
     forceTLS: false,
     useTLS: false,
     enabledTransports: ['ws'],
+    // Varsayılan XHR authorizer YERİNE axios kullanılır — statik <meta csrf-token>
+    // yerine axios'un XSRF-TOKEN cookie mekanizması devreye girer.
+    // Aksi halde login sonrası session rotasyonunda /broadcasting/auth 419 verir.
+    authorizer: (channel) => ({
+        authorize: (socketId, callback) => {
+            window.axios
+                .post('/broadcasting/auth', { socket_id: socketId, channel_name: channel.name })
+                .then((response) => callback(false, response.data))
+                .catch((error) => callback(true, error));
+        },
+    }),
 });

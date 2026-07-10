@@ -2,7 +2,9 @@
 
 namespace Modules\Product\Models;
 
+use Database\Factories\PriceListFactory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Prunable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,8 +12,15 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PriceList extends Model
 {
+    /** @use HasFactory<PriceListFactory> */
+    use HasFactory;
     use Prunable;
     use SoftDeletes;
+
+    protected static function newFactory(): PriceListFactory
+    {
+        return PriceListFactory::new();
+    }
 
     /** Soft-delete kalıntısının silineceği gün eşiği. */
     public const PRUNE_AFTER_DAYS = 30;

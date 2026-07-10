@@ -135,17 +135,30 @@
 							<span v-else class="no-preview">{{ statusLabel(r.status) }}</span>
 							<span class="status-badge" :class="r.status">{{ statusLabel(r.status) }}</span>
 							<span v-if="r.is_cover" class="cover-badge">★ Kapak</span>
+							<span v-if="r.review_status" class="review-badge" :class="`r-${r.review_status}`">
+								{{ reviewLabel(r.review_status) }}
+							</span>
 						</div>
 						<div class="result-meta">
 							<span class="result-product">{{ r.product_name }}</span>
 							<span class="result-sub">{{ r.mannequin_name }} · {{ r.pose_label }}</span>
+							<span v-if="r.creator_name" class="result-creator">Üreten: {{ r.creator_name }}{{ r.is_own ? ' (siz)' : '' }}</span>
 							<p v-if="r.error" class="result-error" :title="r.error">⚠ {{ r.error }}</p>
+							<div v-if="r.can_review" class="review-actions">
+								<button type="button" class="act-btn approve" :disabled="busyReview === r.id" @click="approve(r)">✓ Onayla</button>
+								<button type="button" class="act-btn reject" :disabled="busyReview === r.id" @click="reject(r)">✕ Reddet</button>
+							</div>
 							<div v-if="r.status === 'done'" class="result-actions">
-								<button v-if="!r.is_cover" type="button" class="link-btn" @click="setCover(r)">Kapak yap</button>
-								<span v-else class="is-cover-note">Kapak</span>
+								<template v-if="r.review_status === 'approved'">
+									<button v-if="!r.is_cover" type="button" class="link-btn" @click="setCover(r)">Kapak yap</button>
+									<span v-else class="is-cover-note">Kapak</span>
+								</template>
 								<button type="button" class="link-btn danger" @click="destroyResult(r)">Sil</button>
 							</div>
 						</div>
+						<Link v-if="r.can_chat" :href="`/creative/tryon/${r.id}/review-chat`" class="chat-link">
+							💬 AI ile Konuş <span v-if="r.review_chats?.length">({{ r.review_chats.length }} mesaj)</span>
+						</Link>
 					</div>
 				</div>
 			</div>
@@ -174,6 +187,7 @@ const $swal = inject('$swal')
 
 const search = ref('')
 const busy = ref(false)
+const busyReview = ref(null)
 const selectedProduct = ref(null)
 const selectedMannequin = ref(null)
 const selectedPoses = reactive(new Set())
@@ -195,7 +209,43 @@ const canGenerate = computed(() =>
 const hasPending = computed(() => props.results.some(r => r.status === 'queued' || r.status === 'generating'))
 
 const STATUS_LABELS = { queued: 'Sırada', generating: 'Üretiliyor', done: 'Hazır', failed: 'Başarısız' }
+const REVIEW_LABELS = { pending: 'Onay Bekliyor', approved: 'Onaylı', rejected: 'Reddedildi' }
 function statusLabel(s) { return STATUS_LABELS[s] || s }
+function reviewLabel(r) { return REVIEW_LABELS[r] || r }
+
+function approve(r) {
+	if (busyReview.value) return
+	busyReview.value = r.id
+	router.post(`/creative/tryon/${r.id}/approve`, {}, {
+		preserveScroll: true,
+		preserveState: false,
+		onError: (errs) => showToast?.({ type: 'error', title: 'Onaylanamadı', message: Object.values(errs)[0] || 'Sunucu hatası.' }),
+		onFinish: () => { busyReview.value = null },
+	})
+}
+
+async function reject(r) {
+	const res = await $swal.fire({
+		icon: 'question',
+		title: 'Reddetme Gerekçesi',
+		input: 'textarea',
+		inputPlaceholder: 'Işık, detay, açı, giydirme doğruluğu vb. neyin düzeltilmesi gerektiğini somut yazın…',
+		showCancelButton: true,
+		confirmButtonText: 'Reddet',
+		cancelButtonText: 'Vazgeç',
+		customClass: { confirmButton: 'btn btn-danger', cancelButton: 'btn btn-ghost' },
+		inputValidator: (v) => (!v || v.trim().length < 10) ? 'En az 10 karakter yazın.' : undefined,
+	})
+	if (!res.isConfirmed) return
+
+	busyReview.value = r.id
+	router.post(`/creative/tryon/${r.id}/reject`, { reason: res.value }, {
+		preserveScroll: true,
+		preserveState: false,
+		onError: (errs) => showToast?.({ type: 'error', title: 'Reddedilemedi', message: Object.values(errs)[0] || 'Sunucu hatası.' }),
+		onFinish: () => { busyReview.value = null },
+	})
+}
 
 function togglePose(id) {
 	if (selectedPoses.has(id)) selectedPoses.delete(id)
@@ -317,12 +367,26 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
 .status-badge.done { background: #16a34a; }
 .status-badge.failed { background: #dc2626; }
 .cover-badge { position: absolute; top: 6px; right: 6px; font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 20px; background: #1a1a2e; color: #fff; }
+.review-badge { position: absolute; bottom: 6px; left: 6px; padding: 2px 7px; border-radius: 20px; font-size: 9px; font-weight: 700; text-transform: uppercase; }
+.review-badge.r-pending { background: #f59e0b; color: #fff; }
+.review-badge.r-approved { background: #16a34a; color: #fff; }
+.review-badge.r-rejected { background: #dc2626; color: #fff; }
 .result-meta { padding: 8px 10px; }
 .result-product { font-size: 12px; font-weight: 700; color: #1a1a2e; display: block; }
 .result-sub { font-size: 11px; color: #888; }
+.result-creator { font-size: 10px; color: #aaa; display: block; }
 .result-error { font-size: 10px; color: #dc2626; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.review-actions { display: flex; gap: 6px; margin-top: 6px; }
+.act-btn { flex: 1; border: none; cursor: pointer; font-size: 11px; font-weight: 600; padding: 6px; border-radius: 8px; font-family: inherit; transition: all .15s; }
+.act-btn:disabled { opacity: .45; cursor: not-allowed; }
+.act-btn.approve { background: #dcfce7; color: #15803d; }
+.act-btn.approve:hover:not(:disabled) { background: #bbf7d0; }
+.act-btn.reject { background: #fee2e2; color: #b91c1c; }
+.act-btn.reject:hover:not(:disabled) { background: #fecaca; }
 .result-actions { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
 .link-btn { background: none; border: none; color: rgb(var(--color-primary)); font-size: 11px; font-weight: 600; cursor: pointer; font-family: inherit; padding: 0; }
 .link-btn.danger { color: #dc2626; margin-left: auto; }
 .is-cover-note { font-size: 11px; color: #16a34a; font-weight: 600; }
+.chat-link { display: block; text-align: center; padding: 8px 12px; margin: 0 12px 12px; background: #eef2ff; color: #4338ca; border-radius: 8px; font-size: 12px; font-weight: 600; text-decoration: none; }
+.chat-link:hover { background: #e0e7ff; }
 </style>

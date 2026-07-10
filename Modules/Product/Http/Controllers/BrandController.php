@@ -4,10 +4,10 @@ namespace Modules\Product\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Modules\Product\Http\Requests\StoreBrandRequest;
+use Modules\Product\Http\Requests\UpdateBrandRequest;
 use Modules\Product\Models\Brand;
 
 class BrandController extends Controller
@@ -33,18 +33,18 @@ class BrandController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(StoreBrandRequest $request): RedirectResponse
     {
-        Brand::create($this->validateBrand($request));
+        Brand::create($request->validated());
 
         // Toast'ı frontend (Brands.vue onSuccess) gösterir; backend flash eklemek
         // global flash→toast izleyiciyle çift toast'a yol açar.
         return redirect()->route('products.brands.index');
     }
 
-    public function update(Request $request, Brand $brand): RedirectResponse
+    public function update(UpdateBrandRequest $request, Brand $brand): RedirectResponse
     {
-        $brand->update($this->validateBrand($request, $brand->id));
+        $brand->update($request->validated());
 
         return redirect()->route('products.brands.index');
     }
@@ -60,22 +60,5 @@ class BrandController extends Controller
         $brand->delete();
 
         return redirect()->route('products.brands.index');
-    }
-
-    private function validateBrand(Request $request, ?int $ignoreId = null): array
-    {
-        return $request->validate([
-            'name'       => ['required', 'string', 'max:191'],
-            'slug'       => [
-                'required',
-                'string',
-                'max:191',
-                'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/',
-                Rule::unique('brands', 'slug')->ignore($ignoreId),
-            ],
-            'sort_order' => ['nullable', 'integer', 'min:0'],
-        ], [
-            'slug.regex' => 'Slug yalnızca küçük harf, rakam ve tire içerebilir.',
-        ]);
     }
 }

@@ -20,6 +20,8 @@ class ProductPermissionSeeder extends Seeder
             'warehouse.manage'    => 'Depo Yönet',
             'stock.manage'        => 'Stok Yönet',
             'price-list.manage'   => 'Fiyat Listesi Yönet',
+            'order.view'          => 'Siparişleri Görüntüle',
+            'order.manage'        => 'Sipariş Durumu Yönet',
         ];
 
         $created = [];

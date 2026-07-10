@@ -119,17 +119,28 @@
 							<span v-else class="no-preview">{{ statusLabel(m.status) }}</span>
 							<button v-if="m.reference_url" class="zoom-badge" title="Büyük önizleme" @click="openPreview(m)">⤢</button>
 							<span class="status-badge" :class="m.status">{{ statusLabel(m.status) }}</span>
+							<span v-if="m.review_status" class="review-badge" :class="`r-${m.review_status}`">
+								{{ reviewLabel(m.review_status) }}
+							</span>
 						</div>
 						<div class="mannequin-meta">
 							<span class="mannequin-name">{{ m.name }}</span>
 							<span class="mannequin-traits">{{ traitLine(m) || '—' }}</span>
 							<span v-if="measureLine(m)" class="mannequin-measures">{{ measureLine(m) }}</span>
+							<span v-if="m.creator_name" class="mannequin-creator">Üreten: {{ m.creator_name }}{{ m.is_own ? ' (siz)' : '' }}</span>
 							<p v-if="m.error" class="mannequin-error" :title="m.error">⚠ {{ m.error }}</p>
+						</div>
+						<div v-if="m.can_review" class="mannequin-review-actions">
+							<button type="button" class="act-btn approve" :disabled="busyReview === m.id" @click="approve(m)">✓ Onayla</button>
+							<button type="button" class="act-btn reject" :disabled="busyReview === m.id" @click="reject(m)">✕ Reddet</button>
 						</div>
 						<div class="mannequin-actions">
 							<button type="button" class="link-btn" @click="regenerate(m)">Yeniden üret</button>
 							<button type="button" class="link-btn danger" @click="destroy(m)">Sil</button>
 						</div>
+						<Link v-if="m.can_chat" :href="`/creative/mannequins/${m.id}/review-chat`" class="chat-link">
+							💬 AI ile Konuş <span v-if="m.review_chats?.length">({{ m.review_chats.length }} mesaj)</span>
+						</Link>
 					</div>
 				</div>
 			</div>
@@ -163,7 +174,7 @@
 
 <script setup>
 import { ref, reactive, computed, inject, onMounted, onUnmounted } from 'vue'
-import { Head, router } from '@inertiajs/vue3'
+import { Head, Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import CreativeNav from '../Components/CreativeNav.vue'
@@ -178,6 +189,7 @@ const showToast = inject('showToast', null)
 const $swal = inject('$swal')
 
 const busy = ref(false)
+const busyReview = ref(null)
 const preview = ref(null)
 const form = reactive({
 	name: '', gender: '', age_range: '', skin_tone: '', body_type: '', hair: '',
@@ -204,11 +216,47 @@ const bodyTypes = [
 ]
 
 const STATUS_LABELS = { draft: 'Taslak', generating: 'Üretiliyor', ready: 'Hazır', failed: 'Başarısız' }
+const REVIEW_LABELS = { pending: 'Onay Bekliyor', approved: 'Onaylı', rejected: 'Reddedildi' }
 
 const canCreate = computed(() => form.name.trim().length > 0)
 const hasPending = computed(() => props.mannequins.some(m => m.status === 'draft' || m.status === 'generating'))
 
 function statusLabel(s) { return STATUS_LABELS[s] || s }
+function reviewLabel(r) { return REVIEW_LABELS[r] || r }
+
+function approve(m) {
+	if (busyReview.value) return
+	busyReview.value = m.id
+	router.post(`/creative/mannequins/${m.id}/approve`, {}, {
+		preserveScroll: true,
+		preserveState: false,
+		onError: (errs) => showToast?.({ type: 'error', title: 'Onaylanamadı', message: Object.values(errs)[0] || 'Sunucu hatası.' }),
+		onFinish: () => { busyReview.value = null },
+	})
+}
+
+async function reject(m) {
+	const r = await $swal.fire({
+		icon: 'question',
+		title: 'Reddetme Gerekçesi',
+		input: 'textarea',
+		inputPlaceholder: 'Işık, detay, açı, kimlik tutarlılığı vb. neyin düzeltilmesi gerektiğini somut yazın…',
+		showCancelButton: true,
+		confirmButtonText: 'Reddet',
+		cancelButtonText: 'Vazgeç',
+		customClass: { confirmButton: 'btn btn-danger', cancelButton: 'btn btn-ghost' },
+		inputValidator: (v) => (!v || v.trim().length < 10) ? 'En az 10 karakter yazın.' : undefined,
+	})
+	if (!r.isConfirmed) return
+
+	busyReview.value = m.id
+	router.post(`/creative/mannequins/${m.id}/reject`, { reason: r.value }, {
+		preserveScroll: true,
+		preserveState: false,
+		onError: (errs) => showToast?.({ type: 'error', title: 'Reddedilemedi', message: Object.values(errs)[0] || 'Sunucu hatası.' }),
+		onFinish: () => { busyReview.value = null },
+	})
+}
 
 function traitLine(m) {
 	return [m.gender, m.age_range, m.skin_tone, m.body_type].filter(Boolean).join(' · ')
@@ -323,11 +371,23 @@ onUnmounted(() => {
 .status-badge.generating { background: #f59e0b; }
 .status-badge.ready { background: #16a34a; }
 .status-badge.failed { background: #dc2626; }
+.review-badge { position: absolute; top: 8px; right: 8px; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; }
+.review-badge.r-pending { background: #f59e0b; color: #fff; }
+.review-badge.r-approved { background: #16a34a; color: #fff; }
+.review-badge.r-rejected { background: #dc2626; color: #fff; }
 .mannequin-meta { padding: 10px 12px; display: flex; flex-direction: column; gap: 3px; flex: 1; }
 .mannequin-name { font-size: 13px; font-weight: 700; color: #1a1a2e; }
 .mannequin-traits { font-size: 11px; color: #888; }
 .mannequin-measures { font-size: 11px; color: rgb(var(--color-primary)); font-weight: 600; margin-top: 2px; }
+.mannequin-creator { font-size: 10.5px; color: #aaa; }
 .mannequin-error { font-size: 11px; color: #dc2626; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mannequin-review-actions { display: flex; gap: 8px; padding: 0 12px 10px; }
+.act-btn { flex: 1; border: none; cursor: pointer; font-size: 12px; font-weight: 600; padding: 7px 6px; border-radius: 8px; font-family: inherit; transition: all .15s; }
+.act-btn:disabled { opacity: .45; cursor: not-allowed; }
+.act-btn.approve { background: #dcfce7; color: #15803d; }
+.act-btn.approve:hover:not(:disabled) { background: #bbf7d0; }
+.act-btn.reject { background: #fee2e2; color: #b91c1c; }
+.act-btn.reject:hover:not(:disabled) { background: #fecaca; }
 .mannequin-actions { display: flex; gap: 12px; padding: 10px 12px; border-top: 1px solid #f0f0f5; }
 .link-btn { background: none; border: none; color: rgb(var(--color-primary)); font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; padding: 0; }
 .link-btn.danger { color: #dc2626; margin-left: auto; }
@@ -347,4 +407,6 @@ onUnmounted(() => {
 .lb-chip.ghost { background: #f5f5f8; color: #888; }
 .lb-download { margin-top: auto; justify-content: center; }
 @media (max-width: 820px) { .lb-box { flex-direction: column; } .lb-img-wrap img { max-width: 86vw; max-height: 50vh; } .lb-side { width: auto; } }
+.chat-link { display: block; text-align: center; padding: 8px 12px; margin: 0 12px 12px; background: #eef2ff; color: #4338ca; border-radius: 8px; font-size: 12px; font-weight: 600; text-decoration: none; }
+.chat-link:hover { background: #e0e7ff; }
 </style>

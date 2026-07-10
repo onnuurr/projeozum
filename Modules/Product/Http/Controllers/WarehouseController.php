@@ -4,10 +4,10 @@ namespace Modules\Product\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Modules\Product\Http\Requests\StoreWarehouseRequest;
+use Modules\Product\Http\Requests\UpdateWarehouseRequest;
 use Modules\Product\Models\Warehouse;
 
 class WarehouseController extends Controller
@@ -36,17 +36,17 @@ class WarehouseController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(StoreWarehouseRequest $request): RedirectResponse
     {
-        Warehouse::create($this->validateWarehouse($request));
+        Warehouse::create($request->validated());
 
         return redirect()->route('products.warehouses.index')
             ->with('success', 'Depo eklendi.');
     }
 
-    public function update(Request $request, Warehouse $warehouse): RedirectResponse
+    public function update(UpdateWarehouseRequest $request, Warehouse $warehouse): RedirectResponse
     {
-        $warehouse->update($this->validateWarehouse($request, $warehouse->id));
+        $warehouse->update($request->validated());
 
         return redirect()->route('products.warehouses.index')
             ->with('success', 'Depo güncellendi.');
@@ -64,24 +64,5 @@ class WarehouseController extends Controller
 
         return redirect()->route('products.warehouses.index')
             ->with('success', 'Depo silindi.');
-    }
-
-    private function validateWarehouse(Request $request, ?int $ignoreId = null): array
-    {
-        return $request->validate([
-            'name'      => ['required', 'string', 'max:191'],
-            'code'      => [
-                'required',
-                'string',
-                'max:32',
-                'regex:/^[A-Z0-9_-]+$/',
-                Rule::unique('warehouses', 'code')->ignore($ignoreId),
-            ],
-            'address'   => ['nullable', 'string', 'max:1000'],
-            'city'      => ['nullable', 'string', 'max:100'],
-            'is_active' => ['nullable', 'boolean'],
-        ], [
-            'code.regex' => 'Depo kodu yalnızca büyük harf, rakam, tire ve alt çizgi içerebilir.',
-        ]);
     }
 }

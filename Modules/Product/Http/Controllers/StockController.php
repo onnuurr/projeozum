@@ -5,17 +5,18 @@ namespace Modules\Product\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
-use Modules\Product\Models\ProductVariant;
+use Modules\Product\Http\Requests\StoreStockMovementRequest;
 use Modules\Product\Models\Stock;
 use Modules\Product\Models\StockMovement;
 use Modules\Product\Models\Warehouse;
+use Modules\Product\Services\StockService;
 
 class StockController extends Controller
 {
+    public function __construct(private StockService $stock) {}
+
     public function index(Request $request): Response
     {
         $query = Stock::query()
@@ -78,66 +79,19 @@ class StockController extends Controller
         ]);
     }
 
-    public function movement(Request $request): RedirectResponse
+    public function movement(StoreStockMovementRequest $request): RedirectResponse
     {
-        $data = $request->validate([
-            'product_variant_id' => ['required', 'integer', Rule::exists('product_variants', 'id')],
-            'warehouse_id'       => ['required', 'integer', Rule::exists('warehouses', 'id')],
-            'type'               => ['required', Rule::in([
-                StockMovement::TYPE_IN,
-                StockMovement::TYPE_OUT,
-                StockMovement::TYPE_ADJUSTMENT,
-            ])],
-            'quantity'           => ['required', 'integer', 'not_in:0'],
-            'note'               => ['nullable', 'string', 'max:1000'],
-        ]);
+        $data = $request->validated();
 
-        DB::transaction(function () use ($data, $request) {
-            $stock = Stock::query()
-                ->where('product_variant_id', $data['product_variant_id'])
-                ->where('warehouse_id', $data['warehouse_id'])
-                ->lockForUpdate()
-                ->first();
-
-            if (! $stock) {
-                $stock = Stock::create([
-                    'product_variant_id' => $data['product_variant_id'],
-                    'warehouse_id'       => $data['warehouse_id'],
-                    'quantity'           => 0,
-                ]);
-            }
-
-            $before = $stock->quantity;
-            $signed = match ($data['type']) {
-                StockMovement::TYPE_IN         => abs($data['quantity']),
-                StockMovement::TYPE_OUT        => -abs($data['quantity']),
-                StockMovement::TYPE_ADJUSTMENT => (int) $data['quantity'],
-            };
-
-            $after = $before + $signed;
-            if ($after < 0) {
-                abort(422, 'Stok negatife düşemez.');
-            }
-
-            $stock->update(['quantity' => $after]);
-
-            StockMovement::create([
-                'product_variant_id' => $data['product_variant_id'],
-                'warehouse_id'       => $data['warehouse_id'],
-                'type'               => $data['type'],
-                'quantity'           => $signed,
-                'before_quantity'    => $before,
-                'after_quantity'     => $after,
-                'note'               => $data['note'] ?? null,
-                'user_id'            => $request->user()?->id,
-            ]);
-
-            // variants.stock denormalize toplam (karar #4)
-            $variant = ProductVariant::find($data['product_variant_id']);
-            $variant?->update([
-                'stock' => (int) Stock::where('product_variant_id', $variant->id)->sum('quantity'),
-            ]);
-        });
+        $this->stock->move(
+            variantId: (int) $data['product_variant_id'],
+            warehouseId: (int) $data['warehouse_id'],
+            type: $data['type'],
+            qty: (int) $data['quantity'],
+            reference: null,
+            note: $data['note'] ?? null,
+            userId: $request->user()?->id,
+        );
 
         return redirect()->route('products.stocks.index')
             ->with('success', 'Stok hareketi kaydedildi.');

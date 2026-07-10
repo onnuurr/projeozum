@@ -3,7 +3,9 @@
 namespace Modules\Product\Models;
 
 use App\Models\User;
+use Database\Factories\StockMovementFactory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Prunable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,8 +14,15 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class StockMovement extends Model
 {
+    /** @use HasFactory<StockMovementFactory> */
+    use HasFactory;
     use Prunable;
     use SoftDeletes;
+
+    protected static function newFactory(): StockMovementFactory
+    {
+        return StockMovementFactory::new();
+    }
 
     /** Soft-delete kalıntısının silineceği gün eşiği. */
     public const PRUNE_AFTER_DAYS = 30;

@@ -62,10 +62,11 @@ class TenantCreditService
         Tenant $tenant,
         float $amount,
         string $reason,
+        ?int $orderId = null,
         ?int $invoiceId = null,
         ?int $byUserId = null,
     ): TenantCreditLedger {
-        return DB::transaction(function () use ($tenant, $amount, $reason, $invoiceId, $byUserId) {
+        return DB::transaction(function () use ($tenant, $amount, $reason, $orderId, $invoiceId, $byUserId) {
             $locked = Tenant::query()->lockForUpdate()->findOrFail($tenant->id);
 
             $newBalance = (float) $locked->current_balance - $amount;
@@ -76,7 +77,7 @@ class TenantCreditService
                 'type'          => TenantCreditLedger::TYPE_CREDIT,
                 'amount'        => $amount,
                 'reason'        => $reason,
-                'order_id'      => null,
+                'order_id'      => $orderId,
                 'invoice_id'    => $invoiceId,
                 'balance_after' => $newBalance,
                 'created_by'    => $byUserId ?? Auth::id(),

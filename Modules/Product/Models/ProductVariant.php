@@ -2,12 +2,22 @@
 
 namespace Modules\Product\Models;
 
+use Database\Factories\ProductVariantFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ProductVariant extends Model
 {
+    /** @use HasFactory<ProductVariantFactory> */
+    use HasFactory;
+
+    protected static function newFactory(): ProductVariantFactory
+    {
+        return ProductVariantFactory::new();
+    }
+
     protected $table = 'product_variants';
 
     protected $fillable = [

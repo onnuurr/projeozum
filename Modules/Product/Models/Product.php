@@ -3,7 +3,9 @@
 namespace Modules\Product\Models;
 
 use App\Models\User;
+use Database\Factories\ProductFactory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -13,7 +15,14 @@ use Illuminate\Support\Str;
 
 class Product extends Model
 {
+    /** @use HasFactory<ProductFactory> */
+    use HasFactory;
     use SoftDeletes;
+
+    protected static function newFactory(): ProductFactory
+    {
+        return ProductFactory::new();
+    }
 
     protected $table = 'products';
 
@@ -32,6 +41,8 @@ class Product extends Model
         'review_count',
         'is_new',
         'free_shipping',
+        'min_order_qty',
+        'order_multiple',
         'care_instructions',
         'material',
         'origin_country',
@@ -65,6 +76,8 @@ class Product extends Model
         'review_count'     => 'integer',
         'is_new'           => 'boolean',
         'free_shipping'    => 'boolean',
+        'min_order_qty'    => 'integer',
+        'order_multiple'   => 'integer',
         'weight'           => 'decimal:3',
         'desi'             => 'decimal:2',
         'shipping_fee'     => 'decimal:2',

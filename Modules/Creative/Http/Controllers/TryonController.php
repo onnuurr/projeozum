@@ -5,22 +5,27 @@ namespace Modules\Creative\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Support\Media;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Modules\Creative\Http\Controllers\Concerns\HandlesCreativeReview;
 use Modules\Creative\Http\Requests\GenerateTryonRequest;
 use Modules\Creative\Jobs\GenerateOnModelJob;
 use Modules\Creative\Models\Mannequin;
 use Modules\Creative\Models\Pose;
 use Modules\Creative\Models\TryonResult;
 use Modules\Creative\Services\ProductOnModelService;
+use Modules\Creative\Services\ReviewNotifier;
 use Modules\Product\Models\Product;
 use Modules\Product\Models\ProductImage;
 
 class TryonController extends Controller
 {
+    use HandlesCreativeReview;
+
     public function index(): Response
     {
         // Giysi kaynağı ProductOnModelService::pickGarmentSrc ile aynı mantıkta seçilir:
@@ -40,9 +45,12 @@ class TryonController extends Controller
                 ];
             });
 
-        // Kimliği hazır + referans görseli olan mankenler giydirmeye uygundur.
+        // Kimliği hazır + referans görseli olan VE ONAYLI mankenler giydirmeye uygundur —
+        // onaylanmamış bir kimlikle giydirme üretilirse, onay reddedilirse tüm giydirmeler
+        // de baştan üretilmesi gerekir.
         $mannequins = Mannequin::query()
             ->where('status', Mannequin::STATUS_READY)
+            ->where('review_status', Mannequin::REVIEW_APPROVED)
             ->whereNotNull('reference_image_path')
             ->orderBy('name')
             ->get()
@@ -64,20 +72,44 @@ class TryonController extends Controller
             ]);
 
         $results = TryonResult::query()
-            ->with(['product:id,name', 'mannequin:id,name', 'pose:id,label', 'productImage:id,url,is_cover'])
+            ->with([
+                'product:id,name', 'mannequin:id,name', 'pose:id,label',
+                'productImage:id,url,is_cover', 'creator:id,name', 'reviewer:id,name',
+                'reviewChats' => fn ($q) => $q->orderBy('created_at')->with('user:id,name'),
+            ])
             ->latest()
             ->limit(60)
             ->get()
             ->map(fn (TryonResult $r) => [
-                'id'             => $r->id,
-                'status'         => $r->status,
-                'error'          => $r->error,
-                'product_name'   => $r->product?->name,
-                'mannequin_name' => $r->mannequin?->name,
-                'pose_label'     => $r->pose?->label,
-                'image_url'      => $r->productImage?->url,
-                'is_cover'       => (bool) $r->productImage?->is_cover,
-                'created_at'     => $r->created_at?->toDateTimeString(),
+                'id'              => $r->id,
+                'status'          => $r->status,
+                'error'           => $r->error,
+                'product_name'    => $r->product?->name,
+                'mannequin_name'  => $r->mannequin?->name,
+                'pose_label'      => $r->pose?->label,
+                // Onaydan önce henüz product_images satırı yok; staged (bekleyen) önizleme gösterilir.
+                'image_url'       => $r->productImage?->url ?? Media::url($r->staged_image_path),
+                'is_cover'        => (bool) $r->productImage?->is_cover,
+                'created_at'      => $r->created_at?->toDateTimeString(),
+                'created_by'      => $r->created_by,
+                'creator_name'    => $r->creator?->name,
+                'review_status'   => $r->review_status,
+                'review_note'     => $r->review_note,
+                'reviewer_name'   => $r->reviewer?->name,
+                'can_review'      => auth()->user()?->can('creative.approve')
+                    && $r->created_by !== auth()->id()
+                    && $r->review_status === TryonResult::REVIEW_PENDING,
+                'is_own'          => $r->created_by === auth()->id(),
+                'can_chat'        => $r->review_status === TryonResult::REVIEW_REJECTED
+                    && ($r->created_by === auth()->id() || auth()->user()?->can('creative.approve')),
+                'review_chats'    => $r->reviewChats->map(fn ($c) => [
+                    'id'         => $c->id,
+                    'role'       => $c->role,
+                    'content'    => $c->content,
+                    'user_name'  => $c->user?->name,
+                    'created_at' => $c->created_at?->toDateTimeString(),
+                ]),
+                'chat_suggestion' => $r->meta['chat_suggested_instruction'] ?? null,
             ]);
 
         return Inertia::render('Creative::CreativeTryon', [
@@ -102,7 +134,7 @@ class TryonController extends Controller
             ]);
         }
 
-        $queued = $service->queue($product, $mannequin, $request->validated('pose_ids'));
+        $queued = $service->queue($product, $mannequin, $request->validated('pose_ids'), auth()->id());
 
         if ($queued->isEmpty()) {
             return back()->with('error', 'Seçili pozların hiçbiri hazır değil.');
@@ -113,6 +145,47 @@ class TryonController extends Controller
         }
 
         return back()->with('success', $queued->count() . ' görsel giydirme kuyruğuna alındı.');
+    }
+
+    public function approve(TryonResult $result, ProductOnModelService $service, ReviewNotifier $notifier): RedirectResponse
+    {
+        $this->guardNotOwnWork($result);
+
+        if ($result->review_status !== TryonResult::REVIEW_PENDING) {
+            return back()->with('error', 'Bu sonuç onay bekliyor durumda değil.');
+        }
+
+        $service->publish($result);
+
+        $result->update([
+            'review_status' => TryonResult::REVIEW_APPROVED,
+            'reviewed_by'   => auth()->id(),
+            'reviewed_at'   => now(),
+        ]);
+
+        $notifier->notifyDecision($result, true);
+
+        return back()->with('success', 'Giydirme görseli onaylandı ve ürüne eklendi.');
+    }
+
+    public function reject(TryonResult $result, Request $request, ReviewNotifier $notifier): RedirectResponse
+    {
+        $this->guardNotOwnWork($result);
+
+        if ($result->review_status !== TryonResult::REVIEW_PENDING) {
+            return back()->with('error', 'Bu sonuç onay bekliyor durumda değil.');
+        }
+
+        $result->update([
+            'review_status' => TryonResult::REVIEW_REJECTED,
+            'review_note'   => $this->validatedReviewNote($request),
+            'reviewed_by'   => auth()->id(),
+            'reviewed_at'   => now(),
+        ]);
+
+        $notifier->notifyDecision($result, false);
+
+        return back()->with('success', 'Giydirme görseli reddedildi.');
     }
 
     /**
@@ -140,29 +213,14 @@ class TryonController extends Controller
     }
 
     /**
-     * Giydirme sonucunu ve ürettiği ürün görselini (dosyasıyla) siler.
+     * Giydirme sonucunu, ürettiği ürün görselini (onaylandıysa) ve staged
+     * (onaylanmamış) dosyayı siler.
      */
-    public function destroyResult(TryonResult $result): RedirectResponse
+    public function destroyResult(TryonResult $result, ProductOnModelService $service): RedirectResponse
     {
-        $result->loadMissing('productImage');
-        $this->deleteProductImage($result->productImage);
-        $result->delete();
+        $service->destroy($result);
 
         return back()->with('success', 'Giydirme sonucu silindi.');
-    }
-
-    private function deleteProductImage(?ProductImage $image): void
-    {
-        if (! $image) {
-            return;
-        }
-
-        // DB'de relative path tutulur; aktif medya diskinden doğrudan silinir.
-        if ($image->path) {
-            Storage::disk(Media::disk())->delete($image->path);
-        }
-
-        $image->delete();
     }
 
     private function url(?string $path): ?string

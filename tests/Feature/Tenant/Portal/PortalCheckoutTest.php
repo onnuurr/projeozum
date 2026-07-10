@@ -32,7 +32,7 @@ class PortalCheckoutTest extends TestCase
     {
         return [
             'billing_to'     => 'us',
-            'shipping_method'=> 'standard',
+            'shipping_method'=> 'cargo',
             'terms_accepted' => true,
             'address' => [
                 'name'   => 'Bayi Test',
@@ -49,6 +49,7 @@ class PortalCheckoutTest extends TestCase
             'slug'           => 'co-' . uniqid(),
             'credit_limit'   => 10000,
             'current_balance'=> 0,
+            'discount_rate'  => 0, // sipariş düzeyi iskonto testte sabit total bekliyor
         ]);
         $user = User::factory()->create(['tenant_id' => $tenant->id]);
         $user->assignRole('tenant');
@@ -86,6 +87,7 @@ class PortalCheckoutTest extends TestCase
             'slug'            => 'co2-' . uniqid(),
             'credit_limit'    => 200,
             'current_balance' => 180, // 20 ₺ kullanılabilir
+            'discount_rate'   => 0,
         ]);
         $user = User::factory()->create(['tenant_id' => $tenant->id]);
         $user->assignRole('tenant');

@@ -2,8 +2,11 @@
 
 namespace Modules\Creative\Models;
 
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -36,14 +39,20 @@ class Mannequin extends Model
         'status',
         'error',
         'meta',
+        'created_by',
+        'review_status',
+        'review_note',
+        'reviewed_by',
+        'reviewed_at',
     ];
 
     protected $casts = [
-        'height_cm' => 'integer',
-        'bust_cm'   => 'integer',
-        'waist_cm'  => 'integer',
-        'hips_cm'   => 'integer',
-        'meta'      => 'array',
+        'height_cm'   => 'integer',
+        'bust_cm'     => 'integer',
+        'waist_cm'    => 'integer',
+        'hips_cm'     => 'integer',
+        'meta'        => 'array',
+        'reviewed_at' => 'datetime',
     ];
 
     public const STATUS_DRAFT      = 'draft';
@@ -51,8 +60,27 @@ class Mannequin extends Model
     public const STATUS_READY      = 'ready';
     public const STATUS_FAILED     = 'failed';
 
+    public const REVIEW_PENDING  = 'pending';
+    public const REVIEW_APPROVED = 'approved';
+    public const REVIEW_REJECTED = 'rejected';
+
     public function results(): HasMany
     {
         return $this->hasMany(TryonResult::class, 'mannequin_id');
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function reviewer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
+    public function reviewChats(): MorphMany
+    {
+        return $this->morphMany(ReviewChat::class, 'subject');
     }
 }
