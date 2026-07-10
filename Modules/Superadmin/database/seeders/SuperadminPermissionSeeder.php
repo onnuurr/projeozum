@@ -15,6 +15,8 @@ class SuperadminPermissionSeeder extends Seeder
             'settings.manage' => 'Sistem Ayarları Yönet',
             'menu.manage'     => 'Menü Yönet',
             'rbac.manage'     => 'Rol & İzin Yönet',
+            'users.view'      => 'Kullanıcıları Görüntüle',
+            'users.manage'    => 'Kullanıcı Yönet',
         ];
 
         $created = [];

@@ -6,6 +6,7 @@ use Modules\Creative\Http\Controllers\CreativeStudioController;
 use Modules\Creative\Http\Controllers\CreativeTemplateController;
 use Modules\Creative\Http\Controllers\MannequinController;
 use Modules\Creative\Http\Controllers\PoseController;
+use Modules\Creative\Http\Controllers\ReviewChatController;
 use Modules\Creative\Http\Controllers\TryonController;
 
 // Yetkiler hibrit granülerdir (bkz. CreativePermissionSeeder): okuma için creative.view,
@@ -52,6 +53,10 @@ Route::middleware(['auth', 'verified'])
         ->middleware('can:creative.asset.manage')->name('mannequins.store');
     Route::post('/mannequins/{mannequin}/regenerate', [MannequinController::class, 'regenerate'])
         ->middleware('can:creative.asset.manage')->whereNumber('mannequin')->name('mannequins.regenerate');
+    Route::post('/mannequins/{mannequin}/approve', [MannequinController::class, 'approve'])
+        ->middleware('can:creative.approve')->whereNumber('mannequin')->name('mannequins.approve');
+    Route::post('/mannequins/{mannequin}/reject', [MannequinController::class, 'reject'])
+        ->middleware('can:creative.approve')->whereNumber('mannequin')->name('mannequins.reject');
     Route::delete('/mannequins/{mannequin}', [MannequinController::class, 'destroy'])
         ->middleware('can:creative.asset.manage')->whereNumber('mannequin')->name('mannequins.destroy');
 
@@ -72,10 +77,28 @@ Route::middleware(['auth', 'verified'])
         ->middleware('can:creative.view')->name('tryon.index');
     Route::post('/tryon', [TryonController::class, 'store'])
         ->middleware('can:creative.asset.manage')->name('tryon.store');
+    Route::post('/tryon/{result}/approve', [TryonController::class, 'approve'])
+        ->middleware('can:creative.approve')->whereNumber('result')->name('tryon.approve');
+    Route::post('/tryon/{result}/reject', [TryonController::class, 'reject'])
+        ->middleware('can:creative.approve')->whereNumber('result')->name('tryon.reject');
     Route::post('/tryon/{result}/cover', [TryonController::class, 'setCover'])
         ->middleware('can:creative.asset.manage')->whereNumber('result')->name('tryon.cover');
     Route::delete('/tryon/{result}', [TryonController::class, 'destroyResult'])
         ->middleware('can:creative.asset.manage')->whereNumber('result')->name('tryon.destroy');
+
+    // ─── Onay sohbet asistanı (reddedilen manken/tryon için) ──────────────
+    Route::get('/mannequins/{mannequin}/review-chat', [ReviewChatController::class, 'showMannequin'])
+        ->middleware('can:creative.view')->whereNumber('mannequin')->name('mannequins.review-chat.show');
+    Route::get('/tryon/{result}/review-chat', [ReviewChatController::class, 'showTryon'])
+        ->middleware('can:creative.view')->whereNumber('result')->name('tryon.review-chat.show');
+    Route::post('/mannequins/{mannequin}/review-chat', [ReviewChatController::class, 'sendMannequin'])
+        ->middleware('can:creative.view')->whereNumber('mannequin')->name('mannequins.review-chat');
+    Route::post('/mannequins/{mannequin}/review-chat/apply', [ReviewChatController::class, 'applyMannequin'])
+        ->middleware('can:creative.view')->whereNumber('mannequin')->name('mannequins.review-chat.apply');
+    Route::post('/tryon/{result}/review-chat', [ReviewChatController::class, 'sendTryon'])
+        ->middleware('can:creative.view')->whereNumber('result')->name('tryon.review-chat');
+    Route::post('/tryon/{result}/review-chat/apply', [ReviewChatController::class, 'applyTryon'])
+        ->middleware('can:creative.view')->whereNumber('result')->name('tryon.review-chat.apply');
 
     // ─── Marka Kiti (Brand Kit) ──────────────────────────────────────────
     Route::get('/brandkits', [BrandKitController::class, 'index'])

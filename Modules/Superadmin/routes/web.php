@@ -9,6 +9,7 @@ use Modules\Superadmin\Http\Controllers\RoleController;
 use Modules\Superadmin\Http\Controllers\SettingsController;
 use Modules\Superadmin\Http\Controllers\SuperadminController;
 use Modules\Superadmin\Http\Controllers\SystemInfoController;
+use Modules\Superadmin\Http\Controllers\UserController;
 
 // Granüler can:* izinleriyle korunur; izinler delege edilebilir (superadmin Gate::before ile geçer).
 // İstisna: dashboard (superadmin resource) ve rol/izin yönetimi (rbac.manage) hassas meta-yönetim
@@ -50,6 +51,22 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('superadmin/logs', [LogViewerController::class, 'index'])
         ->middleware(['can:logs.view', 'log.access'])
         ->name('superadmin.logs');
+
+    // Kullanıcı Yönetimi (hassas meta-yönetim) — users.* izni + role:superadmin çift kilit.
+    // Bkz. Global Constraints: bu ekrandan superadmin dahil her role atama yapılabildiği için
+    // delege edilmez. Route::resource('superadmin')'dan ÖNCE tanımlanmalı (shadow önleme).
+    Route::middleware('role:superadmin')->group(function () {
+        Route::get('superadmin/users', [UserController::class, 'index'])
+            ->middleware('can:users.view')->name('superadmin.users.index');
+        Route::post('superadmin/users', [UserController::class, 'store'])
+            ->middleware('can:users.manage')->name('superadmin.users.store');
+        Route::put('superadmin/users/{user}', [UserController::class, 'update'])
+            ->middleware('can:users.manage')->name('superadmin.users.update');
+        Route::delete('superadmin/users/{user}', [UserController::class, 'destroy'])
+            ->middleware('can:users.manage')->name('superadmin.users.destroy');
+        Route::post('superadmin/users/{user}/toggle', [UserController::class, 'toggleActive'])
+            ->middleware('can:users.manage')->name('superadmin.users.toggle');
+    });
 
     // Dashboard (meta-yönetim) — yalnızca superadmin.
     Route::middleware('role:superadmin')->group(function () {

@@ -15,12 +15,15 @@ use RuntimeException;
  *
  * Model tarifinden bir referans görsel kurgular (compose), kalıcı diske yazar
  * ve mankeni 'ready' işaretler. Ara çıktı (geçici dosya) her durumda temizlenir.
+ * Üretim bitince görsel insan onayına düşer (review_status=pending) — kimlik
+ * onaylanana kadar giydirme aşamasında seçilebilir olmaz.
  */
 class MannequinService
 {
     public function __construct(
         private MannequinComposerContract $composer,
         private MannequinPromptBuilder $prompts,
+        private ReviewNotifier $notifier,
     ) {}
 
     public function generate(Mannequin $mannequin): Mannequin
@@ -41,7 +44,13 @@ class MannequinService
                 'reference_image_path' => $rel,
                 'status'               => Mannequin::STATUS_READY,
                 'error'                => null,
+                'review_status'        => Mannequin::REVIEW_PENDING,
+                'review_note'          => null,
+                'reviewed_by'          => null,
+                'reviewed_at'          => null,
             ])->save();
+
+            $this->notifier->notifyPending($mannequin, $mannequin->created_by);
 
             return $mannequin;
         } finally {

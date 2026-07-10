@@ -40,7 +40,7 @@ Laravel Reverb + laravel-echo/pusher-js (zaten kurulu), Pest/PHPUnit (`Tests\Fea
 
 ## PHASE A — Superadmin Kullanıcı Yönetimi
 
-### Task A1: `users` tablosuna phone/job_title migration'ı
+### Task 1 (A1): `users` tablosuna phone/job_title migration'ı
 
 **Files:**
 - Create: `database/migrations/2026_07_10_160000_add_profile_columns_to_users_table.php`
@@ -106,7 +106,7 @@ git commit -m "feat(superadmin): users tablosuna phone/job_title kolonları ekle
 
 ---
 
-### Task A2: `users.view`/`users.manage` izinlerini ekle
+### Task 2 (A2): `users.view`/`users.manage` izinlerini ekle
 
 **Files:**
 - Modify: `Modules/Superadmin/database/seeders/SuperadminPermissionSeeder.php`
@@ -201,7 +201,7 @@ git commit -m "feat(superadmin): users.view/users.manage izinlerini ekle"
 
 ---
 
-### Task A3: `UserController` + route'lar + CRUD testleri
+### Task 3 (A3): `UserController` + route'lar + CRUD testleri
 
 **Files:**
 - Create: `Modules/Superadmin/Http/Controllers/UserController.php`
@@ -530,7 +530,7 @@ git commit -m "feat(superadmin): kullanıcı CRUD + tek-rol atama controller'ı 
 
 ---
 
-### Task A4: `Users.vue` sayfası + kullanıcı menüsüne link
+### Task 4 (A4): `Users.vue` sayfası + kullanıcı menüsüne link
 
 **Files:**
 - Create: `Modules/Superadmin/Resources/assets/js/Pages/Users.vue`
@@ -911,7 +911,7 @@ git commit -m "feat(superadmin): Kullanıcılar sayfası + kullanıcı menüsü 
 
 ## PHASE B — Anlık Bildirim Altyapısı
 
-### Task B1: Broadcasting config + `routes/channels.php`
+### Task 5 (B1): Broadcasting config + `routes/channels.php`
 
 **Files:**
 - Create: `config/broadcasting.php` (artisan tarafından üretilir)
@@ -997,7 +997,7 @@ git commit -m "feat(broadcasting): Reverb private kullanıcı kanalı altyapıs�
 
 ---
 
-### Task B2: `bootstrap.js` — CSRF-güvenli Echo authorizer
+### Task 6 (B2): `bootstrap.js` — CSRF-güvenli Echo authorizer
 
 **Files:**
 - Modify: `resources/js/bootstrap.js`
@@ -1055,7 +1055,7 @@ git commit -m "feat(broadcasting): Echo authorizer'ı axios/XSRF-TOKEN'a bağla 
 
 ---
 
-### Task B3: Creative bildirimlerini `ShouldBroadcast` yap
+### Task 7 (B3): Creative bildirimlerini `ShouldBroadcast` yap
 
 **Files:**
 - Modify: `Modules/Creative/Notifications/ImagePendingReviewNotification.php`
@@ -1131,7 +1131,7 @@ git commit -m "feat(creative): onay bildirimlerini ShouldBroadcast yap (anlık t
 
 ---
 
-### Task B4: `AppLayout.vue` — genel Echo bildirim dinleyicisi
+### Task 8 (B4): `AppLayout.vue` — genel Echo bildirim dinleyicisi
 
 **Files:**
 - Modify: `resources/js/Layouts/AppLayout.vue`
@@ -1205,7 +1205,7 @@ git commit -m "feat(broadcasting): AppLayout'a genel anlık bildirim dinleyicisi
 
 ## PHASE C — Chatbot Tam Sayfa
 
-### Task C1: `ReviewChatController` — GET `show*` action'ları + route'lar
+### Task 9 (C1): `ReviewChatController` — GET `show*` action'ları + route'lar
 
 **Files:**
 - Modify: `Modules/Creative/Http/Controllers/ReviewChatController.php`
@@ -1388,7 +1388,7 @@ git commit -m "feat(creative): chatbot için GET show sayfası action'ları ve r
 
 ---
 
-### Task C2: `ReviewChat.vue` tam sayfa
+### Task 10 (C2): `ReviewChat.vue` tam sayfa
 
 **Files:**
 - Create: `Modules/Creative/Resources/assets/js/Pages/ReviewChat.vue`
@@ -1583,7 +1583,7 @@ git commit -m "feat(creative): reddedilen görseller için tam sayfa chatbot ara
 
 ---
 
-### Task C3: Liste sayfalarını linke indirge, `ReviewChatPanel.vue` kaldır
+### Task 11 (C3): Liste sayfalarını linke indirge, `ReviewChatPanel.vue` kaldır
 
 **Files:**
 - Modify: `Modules/Creative/Resources/assets/js/Pages/CreativeMannequins.vue`
