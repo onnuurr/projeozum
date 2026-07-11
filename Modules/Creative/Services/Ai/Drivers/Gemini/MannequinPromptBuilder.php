@@ -11,10 +11,16 @@ use Modules\Creative\Services\Ai\MannequinRequest;
  * tam boy, cepheden, sade arka plan, üzerinde giysi değişimine uygun basit
  * taban kıyafet. Bu görsel tüm pozlara kimlik referansı olur.
  *
- * Cinsiyet ve yaş, virgüllü bir sıfat listesine gömülmek yerine ÖZNE ismine
- * yazılır (ör. "a young girl", "an adult man") — görsel modelleri özne ismine
- * çok daha güçlü ağırlık verdiği için kız/erkek ve çocuk/yetişkin ayrımı bu
- * sayede güvenilir olur. Ayrıca prompt, fotogerçekçilik çapaları taşır.
+ * Prompt SABİT/DİNAMİK olarak kurgulanır (bkz. creative.ai.prompt):
+ *  - [Kimlik Duvarı] cinsiyet/yaş özne isminde + yapılandırılabilir kimlik profili
+ *    (yüz yapısı, ten, göz, saç). Profil varsayılan Türk (Anadolu/buğday); bir
+ *    manken alanı verilirse o parça kullanıcı değeriyle EZİLİR.
+ *  - [Dinamik] yaş/vücut/ölçü/ek tarif.
+ *  - [Gerçekçilik + Işık/Kamera] PromptDirectives ile paylaşılan sabit çapalar.
+ *
+ * Cinsiyet ve yaş, virgüllü sıfat listesine gömülmek yerine ÖZNE ismine yazılır
+ * (ör. "a young girl", "an adult man") — görsel modelleri özne ismine çok daha
+ * güçlü ağırlık verdiği için kız/erkek ve çocuk/yetişkin ayrımı böyle güvenilir olur.
  */
 class MannequinPromptBuilder
 {
@@ -29,21 +35,80 @@ class MannequinPromptBuilder
 
         $lines = [
             sprintf(
-                'Generate a single ultra-realistic, full-body studio photograph of %s modeling clothing. The subject is unmistakably %s.',
+                'Generate a single, full-body, editorial high-end studio catalog photograph of %s modeling clothing. The subject is unmistakably %s.',
                 $subject,
                 $subject,
             ),
-            $this->realism(),
+            $this->identity($request),
+            $this->expression($request),
             $this->descriptors($request),
-            $this->face($request),
             $this->measurements($request, $isChild),
-            'Standing upright and facing the camera in a neutral relaxed pose, arms slightly away from the body, the entire body visible from head to feet.',
-            'Plain seamless light-gray studio background with soft, even, diffused studio lighting and no props.',
-            'The subject wears simple plain neutral-tone fitted base clothing suitable for virtual garment try-on (a clean minimal baseline outfit).',
+            'Standing upright and facing the camera in a neutral, relaxed pose, arms slightly away from the body, the entire body visible from head to feet.',
+            'Keep the background clean, seamless, minimal and free of props.',
+            'The subject wears simple, plain, neutral-tone fitted base clothing suitable for virtual garment try-on (a clean minimal baseline outfit).',
+            PromptDirectives::realism(),
+            PromptDirectives::camera(),
             'One real human being only, centered in frame, no text, no watermark, no logo.',
         ];
 
         return implode(' ', array_filter($lines));
+    }
+
+    /**
+     * [Kimlik Duvarı] — yapılandırılabilir kimlik profili (yüz/göz/ten/saç).
+     * Manken alanı verilmişse ilgili parçayı kullanıcı değeriyle EZER; böylece
+     * profil "varsayılan ama override edilebilir" olur ve çift-talimat oluşmaz.
+     */
+    private function identity(MannequinRequest $request): ?string
+    {
+        $profile = $this->identityProfile();
+
+        $face = trim((string) $request->face);
+        $skin = trim((string) $request->skinTone);
+        $hair = trim((string) $request->hair);
+
+        $parts = array_filter([
+            // Sıra: yüz yapısı → göz → ten → saç.
+            $face !== '' ? $face : ($profile['face_structure'] ?? null),
+            $profile['eyes'] ?? null,
+            $skin !== '' ? sprintf('a %s skin tone', $skin) : ($profile['skin'] ?? null),
+            $hair !== '' ? sprintf('%s hair', $hair) : ($profile['hair'] ?? null),
+        ]);
+
+        if ($parts === []) {
+            return null;
+        }
+
+        return 'The model has ' . $this->joinList($parts) . '.';
+    }
+
+    /**
+     * İfade: çocuk/genç için sıcak, doğal gülümseme varsayılanı; yetişkinde
+     * zorlanmaz (nötr katalog). Kullanıcı `face` yazmışsa ifadeyi orada
+     * belirlemiş olabileceğinden bu varsayılan eklenmez.
+     */
+    private function expression(MannequinRequest $request): ?string
+    {
+        if (trim((string) $request->face) !== '') {
+            return null;
+        }
+
+        return in_array($this->ageBand($request->ageRange), ['child', 'teen'], true)
+            ? 'The expression is a warm, genuine, natural smile that softly crinkles the skin around the eyes.'
+            : null;
+    }
+
+    /**
+     * Aktif kimlik profilinin yapısal parçaları (config). Bilinmeyen profil → boş.
+     *
+     * @return array<string,string>
+     */
+    private function identityProfile(): array
+    {
+        $key      = (string) config('creative.ai.prompt.default_identity_profile', 'turkish_anatolian');
+        $profiles = (array) config('creative.ai.prompt.identity_profiles', []);
+
+        return array_filter((array) ($profiles[$key] ?? []), fn ($v) => is_string($v) && trim($v) !== '');
     }
 
     /**
@@ -73,30 +138,14 @@ class MannequinPromptBuilder
     }
 
     /**
-     * Fotogerçekçilik çapaları + CGI/manken/illüstrasyon negatif çapaları.
-     */
-    private function realism(): string
-    {
-        return 'Shot on a full-frame DSLR camera with an 85mm portrait lens at f/2.8, '
-            . 'soft diffused softbox studio lighting and natural color. '
-            . 'Photorealistic skin showing real pores and fine texture, individual hair strands, '
-            . 'lifelike eyes with natural catchlights, anatomically correct body and realistic hands with five fingers each, '
-            . 'true-to-life human proportions. '
-            . 'It must look like a genuine photograph of a real living person — not a 3D render, not CGI, '
-            . 'not an illustration, not a painting, not a doll and not a store mannequin.';
-    }
-
-    /**
-     * Cinsiyet HARİÇ ek görünüm sıfatları (yaş detayı, vücut, ten, saç).
-     * Cinsiyet özne isminde verildiği için burada tekrarlanmaz. Boşlar atlanır.
+     * Cinsiyet/ten/saç HARİÇ ek görünüm sıfatları (yaş detayı, vücut). Ten ve saç
+     * kimlik duvarında verildiği için burada tekrarlanmaz. Boşlar atlanır.
      */
     private function descriptors(MannequinRequest $request): ?string
     {
         $traits = array_filter([
             $request->ageRange ? sprintf('around %s years old', $request->ageRange) : null,
             $request->bodyType ? sprintf('%s build', $request->bodyType) : null,
-            $request->skinTone ? sprintf('%s skin tone', $request->skinTone) : null,
-            $request->hair ? sprintf('%s hair', $request->hair) : null,
         ]);
 
         $base = $traits === []
@@ -108,19 +157,6 @@ class MannequinPromptBuilder
         }
 
         return $base;
-    }
-
-    /**
-     * Yüz tarifi (kimliğin en belirleyici parçası) — verilmişse vurgular.
-     */
-    private function face(MannequinRequest $request): ?string
-    {
-        $face = trim((string) $request->face);
-        if ($face === '') {
-            return null;
-        }
-
-        return sprintf('Facial features (keep these consistent and distinctive): %s.', $face);
     }
 
     /**
@@ -142,6 +178,25 @@ class MannequinPromptBuilder
         }
 
         return 'Body measurements to reflect in proportions: ' . implode(', ', $parts) . '.';
+    }
+
+    /**
+     * Parçaları "a, b, c and d" biçiminde birleştirir.
+     *
+     * @param  array<int,string>  $parts
+     */
+    private function joinList(array $parts): string
+    {
+        $parts = array_values($parts);
+        $count = count($parts);
+
+        if ($count === 1) {
+            return $parts[0];
+        }
+
+        $last = array_pop($parts);
+
+        return implode(', ', $parts) . ' and ' . $last;
     }
 
     /**
