@@ -10,6 +10,7 @@ use Inertia\Response;
 use Modules\Product\Models\Brand;
 use Modules\Product\Models\Category;
 use Modules\Product\Models\Product;
+use Modules\Product\Services\ProductCatalogPresenter;
 use Modules\Product\Services\ProductDisplayResolver;
 use Modules\Tenant\Models\Tenant;
 use Modules\Tenant\Services\TenantAccessService;
@@ -19,6 +20,7 @@ class PortalCatalogController extends Controller
     public function __construct(
         private TenantAccessService $access,
         private ProductDisplayResolver $display,
+        private ProductCatalogPresenter $presenter,
     ) {}
 
     public function index(Request $request): Response
@@ -32,7 +34,11 @@ class PortalCatalogController extends Controller
         $sort     = (string) $request->query('sort', 'name');
 
         $query = Product::query()
-            ->with(['brand:id,name', 'category:id,name'])
+            ->with([
+                'brand:id,name',
+                'category:id,name',
+                'images' => fn ($q) => $q->orderByDesc('is_cover')->orderBy('sort_order'),
+            ])
             ->accessibleToTenant($tenant->id);
 
         if ($search !== '') {
@@ -67,7 +73,7 @@ class PortalCatalogController extends Controller
                 'category'       => $p->category?->name,
                 'tenant_price'   => $this->access->priceFor($tenant, $p),
                 'purchase_price' => (float) ($p->purchase_price ?? 0),
-                'image'          => "https://picsum.photos/seed/tek-p{$p->id}/300/400",
+                'image'          => optional($p->images->first())->url,
                 'display_source' => $display->source,
             ];
         });
@@ -139,6 +145,8 @@ class PortalCatalogController extends Controller
 
         $product->load(['brand:id,name', 'category:id,name', 'variants']);
         $display = $this->display->for($product, $tenant);
+        $rich    = $this->presenter->richContent($product, $tenant);
+        $images  = $this->presenter->imageUrls($product);
 
         return Inertia::render('Tenant::Portal/CatalogProduct', [
             'tenant'  => $this->tenantPayload($tenant),
@@ -147,11 +155,15 @@ class PortalCatalogController extends Controller
                 'name'           => $display->name,
                 'slug'           => $product->slug,
                 'sku'            => $product->sku,
-                'description'    => $display->description,
+                'description'    => $rich['description'],
+                'features'       => $rich['features'],
+                'specs'          => $rich['specs'],
                 'display_source' => $display->source,
                 'brand'          => $product->brand?->name,
                 'category'       => $product->category?->name,
-                'image'          => "https://picsum.photos/seed/tek-p{$product->id}/600/800",
+                // Gerçek ürün görselleri (kapak önce); görsel yoksa boş dizi → Vue placeholder gösterir.
+                'images'         => $images,
+                'image'          => $images[0] ?? null,
                 'purchase_price' => (float) ($product->purchase_price ?? 0),
                 'tenant_price'   => $this->access->priceFor($tenant, $product),
                 'variants'       => $product->variants->map(fn ($v) => [

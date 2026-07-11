@@ -180,16 +180,12 @@ class ProductCatalogPresenter
         $variantsArr = $this->variantRows($p, $customPriceByProduct, $priceListByVariant);
         $customPrice = $customPriceByProduct[$p->id] ?? null;
 
-        $composition = $this->composition($p);
-
         return [
             'id'           => $p->id,
             'name'         => $p->name,
             'slug'         => $p->slug,
             'sku'          => $p->sku,
-            'images'       => $p->images()
-                ->orderByDesc('is_cover')->orderBy('sort_order')
-                ->pluck('path')->map(fn ($path) => Media::url($path))->filter()->values()->all(),
+            'images'       => $this->imageUrls($p),
             'brand'        => $p->brand?->name ?? '',
             'brandSlug'    => $p->brand?->slug,
             'category'     => $p->category?->name ?? '',
@@ -206,12 +202,42 @@ class ProductCatalogPresenter
             'sizes'        => $this->sizes($p),
             'colors'       => $this->colors($p),
             'variants'     => $variantsArr,
-            'description'  => $this->display->for($p, $tenant)->description ?? '',
-            'features'     => $this->features($p, $composition),
-            'specs'        => $this->specs($p, $composition),
             'reviews'            => [],
             'ratingDistribution' => [],
+        ] + $this->richContent($p, $tenant);
+    }
+
+    /**
+     * Ürünün zengin gösterim içeriği: çözülmüş açıklama, öne çıkan özellikler ve
+     * teknik özellik tablosu. Ana katalog detayı ve portal katalog detayı ortak kullanır.
+     *
+     * @return array{description: string, features: list<string>, specs: array<string,string>}
+     */
+    public function richContent(Product $p, ?Tenant $tenant = null): array
+    {
+        $composition = $this->composition($p);
+
+        return [
+            'description' => $this->display->for($p, $tenant)->description ?? '',
+            'features'    => $this->features($p, $composition),
+            'specs'       => $this->specs($p, $composition),
         ];
+    }
+
+    /**
+     * Ürünün gerçek görsel URL'leri (kapak önce, sonra sort_order). Görsel yoksa boş dizi.
+     *
+     * @return list<string>
+     */
+    public function imageUrls(Product $p): array
+    {
+        return $p->images()
+            ->orderByDesc('is_cover')->orderBy('sort_order')->orderBy('id')
+            ->pluck('path')
+            ->map(fn ($path) => Media::url($path))
+            ->filter()
+            ->values()
+            ->all();
     }
 
     /**

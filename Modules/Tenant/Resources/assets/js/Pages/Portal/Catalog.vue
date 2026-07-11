@@ -38,7 +38,7 @@
 				:href="`/catalog/${p.slug}`"
 				class="product-card"
 			>
-				<div class="product-img" :style="`background-image: url('${p.image}')`"></div>
+				<div class="product-img" :style="`background-image: url('${p.image || '/images/product-placeholder.svg'}')`"></div>
 				<div class="product-info">
 					<div class="brand">{{ p.brand ?? '—' }}</div>
 					<div class="name">{{ p.name }}</div>
