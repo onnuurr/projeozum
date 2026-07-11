@@ -41,7 +41,7 @@ class PortalOrderController extends Controller
     {
         $this->authorize('view', $order);
 
-        $order->load('items');
+        $order->load('items', 'carrier:id,code,name');
 
         return Inertia::render('Tenant::Portal/OrderDetail', [
             'tenant'   => $this->tenantPayload($request->attributes->get('tenant')),
@@ -55,6 +55,8 @@ class PortalOrderController extends Controller
                 'shipping_fee'   => (float) $order->shipping_fee,
                 'total'          => (float) $order->total,
                 'shipping_info'  => $order->shipping_info,
+                'carrier'             => $order->carrier?->name,
+                'cargo_customer_code' => $order->cargo_customer_code,
                 'payment_method' => $order->payment_method,
                 'note'           => $order->note,
                 'created_at'     => optional($order->created_at)->toIso8601String(),

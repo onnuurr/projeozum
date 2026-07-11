@@ -83,6 +83,9 @@ class CheckoutService
                 'user_id'         => $userId,
                 'tenant_id'       => $tenant->id,
                 'order_type'      => Order::TYPE_DROPSHIP,
+                // Kargo firması + bayinin anlaşmalı kargo müşteri kodu (checkout'ta zorunlu).
+                'carrier_id'          => $data['carrier_id'] ?? null,
+                'cargo_customer_code' => $data['cargo_customer_code'] ?? null,
                 'shipping_info'   => [
                     'address'         => $data['address'] ?? null,
                     'shipping_method' => $shippingMethod,

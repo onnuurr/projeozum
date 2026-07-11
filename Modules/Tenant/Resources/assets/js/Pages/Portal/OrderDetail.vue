@@ -37,6 +37,12 @@
 			<div class="grand"><span>Toplam:</span><span class="mono">{{ formatMoney(order.total) }}</span></div>
 		</div>
 
+		<div class="card" v-if="order.carrier || order.cargo_customer_code">
+			<h2 class="card-title">Kargo</h2>
+			<div><span>Firma:</span><span>{{ order.carrier ?? '—' }}</span></div>
+			<div><span>Müşteri Kodu:</span><span class="mono">{{ order.cargo_customer_code ?? '—' }}</span></div>
+		</div>
+
 		<div class="card" v-if="order.shipping_info">
 			<h2 class="card-title">Teslimat</h2>
 			<pre class="json-view">{{ JSON.stringify(order.shipping_info, null, 2) }}</pre>

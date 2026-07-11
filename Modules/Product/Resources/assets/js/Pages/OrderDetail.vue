@@ -70,6 +70,12 @@
 					</div>
 				</div>
 
+				<div v-if="order.carrier || order.cargo_customer_code" class="card">
+					<div class="card-title">Kargo</div>
+					<div class="total-row"><span>Firma</span><span>{{ order.carrier ?? '—' }}</span></div>
+					<div class="total-row"><span>Müşteri Kodu</span><span class="mono">{{ order.cargo_customer_code ?? '—' }}</span></div>
+				</div>
+
 				<div v-if="ledger.length" class="card">
 					<div class="card-title">Kredi Hareketleri</div>
 					<table class="data-table">

@@ -55,6 +55,27 @@
 						<input v-model="form.shipping_method" type="radio" :value="m.id" />
 						<span>{{ m.label }} <em class="muted">— {{ m.description }}</em></span>
 					</label>
+
+					<div class="row-2 carrier-row">
+						<div class="row">
+							<label>Kargo Firması <span class="req">*</span></label>
+							<select v-model="form.carrier_id" required>
+								<option :value="null" disabled>Seçiniz…</option>
+								<option v-for="c in carriers" :key="c.id" :value="c.id">{{ c.name }}</option>
+							</select>
+						</div>
+						<div class="row">
+							<label>Kargo Müşteri Kodu <span class="req">*</span></label>
+							<input
+								v-model="form.cargo_customer_code"
+								type="text"
+								maxlength="64"
+								required
+								placeholder="Anlaşmalı kargo kodunuz"
+							/>
+						</div>
+					</div>
+					<p class="muted hint">Gönderi, seçtiğiniz firmanın anlaşmalı müşteri kodunuzla çıkarılır.</p>
 				</section>
 
 				<section class="card">
@@ -67,7 +88,7 @@
 					<span>Şartları kabul ediyorum.</span>
 				</label>
 
-				<button class="btn-primary" :disabled="submitting || belowMinOrder" type="submit">
+				<button class="btn-primary" :disabled="submitting || belowMinOrder || cargoIncomplete" type="submit">
 					{{ submitting ? 'Gönderiliyor...' : 'Siparişi Tamamla' }}
 				</button>
 			</form>
@@ -130,6 +151,7 @@ const props = defineProps({
 	totals: { type: Object, required: true },
 	credit: { type: Object, required: true },
 	shippingMethods: { type: Array, default: () => [] },
+	carriers: { type: Array, default: () => [] },
 })
 
 const showToast = inject('showToast', null)
@@ -137,6 +159,8 @@ const showToast = inject('showToast', null)
 const form = reactive({
 	billing_to: 'us',
 	shipping_method: props.shippingMethods[0]?.id ?? 'cargo',
+	carrier_id: null,
+	cargo_customer_code: '',
 	note: '',
 	terms_accepted: false,
 	address: {
@@ -154,6 +178,8 @@ const submitting = ref(false)
 const belowMinOrder = computed(() =>
 	props.tenant.min_order_total != null && Number(props.totals.subtotal) < Number(props.tenant.min_order_total),
 )
+
+const cargoIncomplete = computed(() => !form.carrier_id || !form.cargo_customer_code.trim())
 
 const dueDateLabel = computed(() => {
 	const days = Number(props.tenant.payment_term_days ?? 0)
@@ -205,6 +231,8 @@ function submit() {
 .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
 .radio { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 13px; cursor: pointer; }
+.carrier-row { margin-top: 10px; }
+.hint { margin-top: 6px; }
 .muted { color: #888; font-style: normal; font-size: 12px; }
 .terms { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 6px 0; cursor: pointer; }
 .btn-primary { padding: 12px 24px; background: #4338ca; color: #fff; border: none; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; }
