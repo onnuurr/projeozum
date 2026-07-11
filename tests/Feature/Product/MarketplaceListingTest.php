@@ -5,7 +5,7 @@ namespace Tests\Feature\Product;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Modules\Product\Models\Category;
-use Modules\Product\Models\Marketplace;
+use Modules\Marketplace\Models\Marketplace;
 use Modules\Product\Models\Product;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;

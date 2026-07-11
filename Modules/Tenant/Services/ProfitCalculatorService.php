@@ -4,7 +4,7 @@ namespace Modules\Tenant\Services;
 
 use Modules\Product\Models\Product;
 use Modules\Product\Models\ProductVariant;
-use Modules\Tenant\Models\MarketplaceCommissionRate;
+use Modules\Marketplace\Models\MarketplaceCommissionRate;
 use Modules\Tenant\Models\Tenant;
 use Modules\Tenant\Services\DTOs\ProfitBreakdown;
 

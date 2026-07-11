@@ -215,8 +215,8 @@ import { Head, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import CustomSelect from '@/Components/CustomSelect.vue'
-import MarketplaceConnectDrawer from '@/Components/MarketplaceConnectDrawer.vue'
-import MarketplaceCategoryPickerModal from '@/Components/MarketplaceCategoryPickerModal.vue'
+import MarketplaceConnectDrawer from '@Modules/Marketplace/Resources/assets/js/Components/MarketplaceConnectDrawer.vue'
+import MarketplaceCategoryPickerModal from '@Modules/Marketplace/Resources/assets/js/Components/MarketplaceCategoryPickerModal.vue'
 import CategoryFormDrawer from '@/Components/CategoryFormDrawer.vue'
 
 defineOptions({ layout: AppLayout })

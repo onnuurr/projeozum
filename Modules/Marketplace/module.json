@@ -1,0 +1,11 @@
+{
+    "name": "Marketplace",
+    "alias": "marketplace",
+    "description": "Pazaryeri entegrasyonu: Trendyol/Hepsiburada/N11/Çiçeksepeti bağlantıları, ürün listeleme, sipariş/satış senkronizasyonu, komisyon ve webhook yönetimi.",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\Marketplace\\Providers\\MarketplaceServiceProvider"
+    ],
+    "files": []
+}

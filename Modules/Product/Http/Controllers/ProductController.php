@@ -13,7 +13,7 @@ use Modules\Product\Http\Requests\StoreProductRequest;
 use Modules\Product\Http\Requests\UpdateProductRequest;
 use Modules\Product\Models\Brand;
 use Modules\Product\Models\Category;
-use Modules\Product\Models\Marketplace;
+use Modules\Marketplace\Models\Marketplace;
 use Modules\Product\Models\Product;
 use Modules\Product\Models\ProductFavorite;
 use Modules\Product\Services\ProductCatalogPresenter;

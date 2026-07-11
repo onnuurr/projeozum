@@ -10,8 +10,8 @@ use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Product\Models\Category;
-use Modules\Product\Models\CategoryMarketplaceMapping;
-use Modules\Product\Models\Marketplace;
+use Modules\Marketplace\Models\CategoryMarketplaceMapping;
+use Modules\Marketplace\Models\Marketplace;
 
 class CategoryController extends Controller
 {

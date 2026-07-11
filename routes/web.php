@@ -19,6 +19,13 @@ if ($portalDomain) {
         ->middleware(['auth', 'verified', 'active', 'tenant.subdomain', 'can:portal.access'])
         ->name('portal.')
         ->group(base_path('Modules/Tenant/routes/portal.php'));
+
+    // Pazaryeri portal rotaları (Marketplace modülü) — aynı subdomain, aynı 'portal.'
+    // name prefix ve aynı middleware yığını altında yüklenir.
+    Route::domain('{slug}.'.$portalDomain)
+        ->middleware(['auth', 'verified', 'active', 'tenant.subdomain', 'can:portal.access'])
+        ->name('portal.')
+        ->group(base_path('Modules/Marketplace/routes/portal.php'));
 }
 
 Route::get('/', function () {

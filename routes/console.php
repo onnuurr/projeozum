@@ -11,7 +11,7 @@ use Modules\Product\Models\PriceList;
 use Modules\Product\Models\ProductImage;
 use Modules\Product\Models\Stock;
 use Modules\Product\Models\StockMovement;
-use Modules\Tenant\Models\MarketplaceSyncLog;
+use Modules\Marketplace\Models\MarketplaceSyncLog;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());

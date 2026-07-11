@@ -285,7 +285,7 @@ import { Head, Link, router, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import CustomSelect from '@/Components/CustomSelect.vue'
-import MarketplaceListingDrawer from '../Components/MarketplaceListingDrawer.vue'
+import MarketplaceListingDrawer from '@Modules/Marketplace/Resources/assets/js/Components/MarketplaceListingDrawer.vue'
 
 defineOptions({ layout: AppLayout })
 

@@ -47,6 +47,7 @@ class RolePermissionSeeder extends Seeder
         $this->call([
             \Modules\Product\database\seeders\ProductPermissionSeeder::class,
             \Modules\Tenant\database\seeders\TenantPermissionSeeder::class,
+            \Modules\Marketplace\database\seeders\MarketplacePermissionSeeder::class,
             \Modules\Creative\database\seeders\CreativePermissionSeeder::class,
             \Modules\Atelier\database\seeders\AtelierPermissionSeeder::class,
             \Modules\Superadmin\Database\Seeders\SuperadminPermissionSeeder::class,

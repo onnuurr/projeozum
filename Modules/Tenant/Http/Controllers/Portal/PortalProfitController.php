@@ -10,7 +10,7 @@ use Inertia\Response;
 use Modules\Product\Models\Product;
 use Modules\Product\Models\ProductVariant;
 use Modules\Tenant\Models\Tenant;
-use Modules\Tenant\Models\TenantMarketplaceCredential;
+use Modules\Marketplace\Models\TenantMarketplaceCredential;
 use Modules\Tenant\Services\ProfitCalculatorService;
 
 class PortalProfitController extends Controller

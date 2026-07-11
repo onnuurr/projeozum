@@ -16,7 +16,6 @@ class TenantPermissionSeeder extends Seeder
             'tenant-type.manage'       => 'Tenant Tipi Yönet',
             'tenant-access.manage'     => 'Tenant Erişimi Yönet',
             'tenant.product.customize' => 'Tenant\'a Özel Ürün Metni Yaz',
-            'marketplace.manage'       => 'Pazaryeri Bağlantı Yönet',
             'portal.users.manage'      => 'Portal — Kullanıcı Yönet',
         ];
 
@@ -27,8 +26,6 @@ class TenantPermissionSeeder extends Seeder
             'portal.credit.view'    => 'Portal — Kredi Hareketleri',
             'portal.catalog.view'   => 'Portal — Katalog Görüntüle',
             'portal.checkout'       => 'Portal — Dropship Sipariş Aç',
-            'marketplace.sync'      => 'Portal — Pazaryeri Senkronizasyon',
-            'marketplace.view-sales'=> 'Portal — Pazaryeri Satışları Görüntüle',
             'portal.financials.view'=> 'Portal — Kâr/Zarar Dashboard',
             'portal.calculator.use' => 'Portal — Kâr Hesabı Kullan',
             'portal.feed.access'    => 'Portal — XML Feed URL Erişimi',
@@ -51,19 +48,18 @@ class TenantPermissionSeeder extends Seeder
             $superadmin->givePermissionTo($allCreated);
         }
 
-        // Tenant rolü kendi portal işlerini ve pazaryeri credential'larını yönetebilsin.
+        // Tenant rolü kendi portal işlerini yönetebilsin.
+        // (Pazaryeri izinleri — marketplace.* — Marketplace modülünün
+        //  MarketplacePermissionSeeder'ında tanımlanır ve bu role atanır.)
         $tenantRole = Role::where('name', 'tenant')->where('guard_name', 'web')->first();
         if ($tenantRole) {
             $tenantRole->givePermissionTo([
-                'marketplace.manage',
                 'portal.access',
                 'portal.orders.view',
                 'portal.invoices.view',
                 'portal.credit.view',
                 'portal.catalog.view',
                 'portal.checkout',
-                'marketplace.sync',
-                'marketplace.view-sales',
                 'portal.financials.view',
                 'portal.calculator.use',
                 'portal.feed.access',

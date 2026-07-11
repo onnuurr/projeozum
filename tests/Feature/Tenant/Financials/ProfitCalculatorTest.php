@@ -5,7 +5,7 @@ namespace Tests\Feature\Tenant\Financials;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Modules\Product\Models\Product;
-use Modules\Tenant\Models\MarketplaceCommissionRate;
+use Modules\Marketplace\Models\MarketplaceCommissionRate;
 use Modules\Tenant\Models\Tenant;
 use Modules\Tenant\Services\ProfitCalculatorService;
 use Tests\TestCase;

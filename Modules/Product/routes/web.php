@@ -76,11 +76,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // ─── Ürün-Pazaryeri Listeleme ────────────────────────────────────────
     Route::get('/products/{product:id}/marketplaces/{marketplace}/listing',
-        [\Modules\Product\Http\Controllers\ProductMarketplaceListingController::class, 'show'])
+        [\Modules\Marketplace\Http\Controllers\ProductMarketplaceListingController::class, 'show'])
         ->whereNumber('product')
         ->name('products.listings.show');
     Route::put('/products/{product:id}/marketplaces/{marketplace}/listing',
-        [\Modules\Product\Http\Controllers\ProductMarketplaceListingController::class, 'upsert'])
+        [\Modules\Marketplace\Http\Controllers\ProductMarketplaceListingController::class, 'upsert'])
         ->whereNumber('product')
         ->middleware('can:product.add')
         ->name('products.listings.upsert');
