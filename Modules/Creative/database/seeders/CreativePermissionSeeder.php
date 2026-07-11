@@ -17,6 +17,7 @@ class CreativePermissionSeeder extends Seeder
             'creative.asset.manage'    => 'Creative Manken/Poz/Tryon Yönet',
             'creative.template.manage' => 'Creative Şablon Yönet',
             'creative.brandkit.manage' => 'Creative Marka Kiti Yönet',
+            'creative.rejection-reasons.manage' => 'Creative Ret Seçim Maddeleri Yönet',
         ];
 
         $created = [];

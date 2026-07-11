@@ -96,10 +96,28 @@ return [
             // Try-on (giydirme) için kullanılan görsel modeli — Nano Banana 2.
             // Erişime göre '-preview' eki gerekebilir (gemini-3.1-flash-image-preview).
             'tryon_model' => env('GEMINI_TRYON_MODEL', 'gemini-3.1-flash-image'),
+            // Manken KİMLİK görseli için ayrı model. Yüzün doğduğu aşama olduğu için
+            // burada daha güçlü modele geçmek (try-on ile aynı 3.1) yüz/vücut
+            // gerçekçiliğini artırır. Varsayılan davranış değişmesin diye 'model'e
+            // (2.5) düşer; GEMINI_MANNEQUIN_MODEL ile 3.1'e yükseltilebilir.
+            'mannequin_model' => env('GEMINI_MANNEQUIN_MODEL', env('GEMINI_IMAGE_MODEL', 'gemini-2.5-flash-image')),
             // Caption gibi salt-metin üretiminde kullanılan model.
             'text_model' => env('GEMINI_TEXT_MODEL', 'gemini-2.5-flash'),
             // Görsel üretiminde her ikisi de zorunlu; yalnız IMAGE → 400.
             'modalities' => ['TEXT', 'IMAGE'],
+
+            // Kimlik (manken) üretiminde generationConfig.imageConfig alanları.
+            // aspectRatio tam boy kadraj için kritik (kare çıktı bacağı kırpar,
+            // yüze piksel bırakmaz); imageConfig alan adları güncel API'ye göre
+            // doğrulanmalı. Boş bırakılırsa GÖNDERİLMEZ (davranış değişmez) —
+            // bir model alanı reddederse ilgili env'i boşaltmak yeter.
+            'image' => [
+                // Tam boy portre için 3:4 (veya 9:16). Boş → gönderilmez.
+                'aspect_ratio' => env('GEMINI_IMAGE_ASPECT_RATIO', '3:4'),
+                // 3.x modellerde "1K" | "2K" | "4K". 2.5'te desteklenmeyebilir;
+                // bu yüzden varsayılan boş (env ile açılır).
+                'size'         => env('GEMINI_IMAGE_SIZE', ''),
+            ],
         ],
 
         'fal' => [
@@ -109,6 +127,47 @@ return [
             // Queue poll: deneme sayısı ve aralık (saniye).
             'poll_tries'    => (int) env('FAL_POLL_TRIES', 40),
             'poll_interval' => (int) env('FAL_POLL_INTERVAL', 3),
+        ],
+
+        /*
+        |----------------------------------------------------------------------
+        | Prompt mimarisi (kimlik duvarı + gerçekçilik/kamera)
+        |----------------------------------------------------------------------
+        | Manken kimlik ve try-on prompt'larının SABİT bölümleri. Amaç: yapay
+        | zeka "cilasını" (plastik/3D görünüm) kırmak ve etnik kaymayı önleyip
+        | tutarlı bir kimlik çapası vermek. Yaş/cinsiyet/poz/ürün DİNAMİK kalır.
+        |
+        | identity_profiles: yapısal (parça bazlı) çapa. Varsayılan Türk
+        | (Anadolu/buğday) profili; bir manken alanı (skin_tone/hair/face)
+        | verilirse o parça kullanıcı değeriyle EZİLİR (çift-talimat önlenir).
+        */
+        'prompt' => [
+            'default_identity_profile' => env('CREATIVE_IDENTITY_PROFILE', 'turkish_anatolian'),
+
+            'identity_profiles' => [
+                'turkish_anatolian' => [
+                    'face_structure' => 'a softly oval face with naturally rounded friendly cheeks and distinct, authentic Anatolian Turkish (Alp-Mediterranean) facial characteristics',
+                    'skin'           => 'a realistic, warm-wheat "buğday" complexion with natural sun-kissed undertones, strictly avoiding any overly dark, flat olive or orange tones',
+                    'eyes'           => 'expressive, medium-sized, dark brown, almond-shaped ("badem göz") eyes',
+                    'hair'           => 'natural dark brown hair with a soft wavy texture and realistic individual loose strands catching the light',
+                ],
+                // Çapasız: yalnız kullanıcı alanları belirleyicidir.
+                'none' => [],
+            ],
+
+            // Difüzyon-tarzı (Flux/MJ/SD3) "photorealistic" kelime yasağı.
+            // Gemini bu kelimeye farklı tepki verdiği için varsayılan KAPALI;
+            // CREATIVE_BAN_PHOTOREALISTIC=true ile A/B test edilebilir.
+            'ban_photorealistic_wording' => (bool) env('CREATIVE_BAN_PHOTOREALISTIC', false),
+
+            // Sabit ışık/kamera metadata dili (raw studio + Hasselblad).
+            'camera_directive' => env(
+                'CREATIVE_CAMERA_DIRECTIVE',
+                'Shot on a medium format Hasselblad H6D camera with an 85mm lens at f/4.0, '
+                . 'lit by soft, directional natural window daylight from the side, on a neutral, '
+                . 'warm-toned minimalist photo studio background with a shallow depth of field and '
+                . 'a subtle, organic film grain.',
+            ),
         ],
     ],
 

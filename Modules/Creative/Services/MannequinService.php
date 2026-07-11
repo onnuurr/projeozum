@@ -8,6 +8,7 @@ use Modules\Creative\Services\Ai\Contracts\MannequinComposerContract;
 use Modules\Creative\Services\Ai\Drivers\Gemini\MannequinPromptBuilder;
 use Modules\Creative\Services\Ai\MannequinRequest;
 use Modules\Creative\Services\Ai\Support\ImageFile;
+use Modules\Creative\Services\Enhancement\ImageEnhancerContract;
 use RuntimeException;
 
 /**
@@ -24,6 +25,7 @@ class MannequinService
         private MannequinComposerContract $composer,
         private MannequinPromptBuilder $prompts,
         private ReviewNotifier $notifier,
+        private ImageEnhancerContract $enhancer,
     ) {}
 
     public function generate(Mannequin $mannequin): Mannequin
@@ -33,11 +35,16 @@ class MannequinService
         $prompt  = $this->prompts->build($request);
         $request->promptOverride = $prompt;
 
-        $temp = null;
+        $temp     = null;
+        $enhanced = null;
 
         try {
             $temp = $this->composer->compose($request);
-            $rel  = $this->persist($temp, $mannequin);
+
+            // Kimlik görseline de üretim sonrası iyileştirme (upscale + son dokunuş)
+            // uygulanır — try-on/şablon ile tutarlı. Kapalıysa passthrough ($temp döner).
+            $enhanced = $this->enhancer->enhance($temp);
+            $rel      = $this->persist($enhanced, $mannequin);
 
             $mannequin->fill([
                 'prompt'               => $prompt,
@@ -54,7 +61,8 @@ class MannequinService
 
             return $mannequin;
         } finally {
-            ImageFile::delete([$temp]);
+            // $enhanced === $temp olabilir (passthrough); delete idempotenttir.
+            ImageFile::delete([$temp, $enhanced]);
         }
     }
 

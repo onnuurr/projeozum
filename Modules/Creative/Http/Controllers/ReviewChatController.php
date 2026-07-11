@@ -37,6 +37,7 @@ class ReviewChatController extends Controller
                 ? Storage::disk(config('creative.disk', 'public'))->url($mannequin->reference_image_path)
                 : null,
             reviewNote: $mannequin->review_note,
+            reviewTags: $mannequin->review_tags ?? [],
             chat: $chat,
             subject: $mannequin,
             backUrl: '/creative/mannequins',
@@ -54,6 +55,7 @@ class ReviewChatController extends Controller
             title: $result->product?->name ?? 'Ürün',
             imageUrl: Media::url($result->staged_image_path),
             reviewNote: $result->review_note,
+            reviewTags: $result->review_tags ?? [],
             chat: $chat,
             subject: $result,
             backUrl: '/creative/tryon',
@@ -66,6 +68,7 @@ class ReviewChatController extends Controller
         string $title,
         ?string $imageUrl,
         ?string $reviewNote,
+        array $reviewTags,
         ReviewChatService $chat,
         Mannequin|TryonResult $subject,
         string $backUrl,
@@ -76,6 +79,7 @@ class ReviewChatController extends Controller
             'title'       => $title,
             'imageUrl'    => $imageUrl,
             'reviewNote'  => $reviewNote,
+            'reviewTags'  => $reviewTags,
             'backUrl'     => $backUrl,
             'chats'       => $chat->history($subject)->map(fn ($c) => [
                 'id'         => $c->id,
@@ -125,6 +129,7 @@ class ReviewChatController extends Controller
             'error'         => null,
             'review_status' => null,
             'review_note'   => null,
+            'review_tags'   => null,
             'reviewed_by'   => null,
             'reviewed_at'   => null,
         ]);
@@ -153,6 +158,7 @@ class ReviewChatController extends Controller
             'error'         => null,
             'review_status' => null,
             'review_note'   => null,
+            'review_tags'   => null,
             'reviewed_by'   => null,
             'reviewed_at'   => null,
         ]);
