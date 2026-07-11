@@ -29,3 +29,9 @@ veritabanı şişti (bkz. `php artisan schema:audit`). Tekrarını önlemek içi
 
 > Not: Çalışan veritabanı geçmiş özellik kuşaklarından dolayı repo migration'larıyla tam
 > uyumlu olmayabilir; şema değişikliği yapmadan önce `schema:audit` ile mevcut durumu doğrula.
+
+## Git commit kuralları
+
+- **Commit mesajlarına asla trailer ekleme.** `Co-Authored-By:`, `Claude-Session:` veya
+  benzeri otomatik imza/etiket satırları commit mesajında **yer almaz**. Sadece açıklayıcı
+  başlık + gövde yazılır.
