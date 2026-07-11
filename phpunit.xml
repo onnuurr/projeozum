@@ -33,5 +33,6 @@
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
         <env name="PORTAL_DOMAIN" value="bizimsite.test"/>
+        <env name="PRODUCT_AI_AUTO_SEO_ON_BOM" value="false"/>
     </php>
 </phpunit>

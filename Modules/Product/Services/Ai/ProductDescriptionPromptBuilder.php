@@ -26,13 +26,22 @@ class ProductDescriptionPromptBuilder
             : "Bu metin geniş bayi ağımıza sunulacak varsayılan B2B açıklamadır.";
 
         return <<<PROMPT
-Sen bir moda ürün metin yazarısın. Aşağıdaki ürüne iki farklı tonda Türkçe açıklama üret ve
-YALNIZCA aşağıdaki JSON şemasını döndür — başka hiçbir açıklama, kod bloğu, markdown başlığı ekleme:
+Sen bir moda e-ticaret metin yazarı ve SEO uzmanısın. Aşağıdaki ürüne iki farklı tonda Türkçe
+açıklama VE SEO'ya uygun bir başlık/meta seti üret. YALNIZCA aşağıdaki JSON şemasını döndür —
+başka hiçbir açıklama, kod bloğu, markdown başlığı ekleme:
 
 {
+  "public_name": "…",
   "public_description": "…",
-  "tenant_description": "…"
+  "tenant_description": "…",
+  "meta_title": "…",
+  "meta_description": "…",
+  "meta_keywords": "…"
 }
+
+## public_name
+Storefront'ta görünecek SEO uyumlu ürün başlığı. Marka + ürün tipi + öne çıkan bir özellik içersin.
+Doğal, aranabilir ve çekici olsun. En fazla 60 karakter. Sadece düz metin (markdown yok).
 
 ## public_description
 Son müşteri (B2C storefront) için hikaye anlatan, duyusal ve arzu uyandıran bir metin. 120-180 kelime.
@@ -42,6 +51,16 @@ Markdown kullanabilirsin (**kalın**, *italik*, - liste). Fiyat söyleme, katego
 Bayilerimize (B2B) yönelik spec-forward, satılabilirliği anlatan bir metin. Kompozisyon, gramaj,
 dokuma, bakım, dayanıklılık gibi teknik nitelikleri öne çıkar. 100-150 kelime. Markdown kullan.
 {$tenantLine}
+
+## meta_title
+Arama motoru başlığı (title tag). Marka + ana anahtar kelime. En fazla 60 karakter. Düz metin.
+
+## meta_description
+Arama motoru açıklaması (meta description). Tıklamayı teşvik eden, anahtar kelime içeren tek cümle.
+En fazla 155 karakter. Düz metin.
+
+## meta_keywords
+Virgülle ayrılmış 5-8 alakalı anahtar kelime (marka, ürün tipi, materyal, kullanım). Düz metin.
 
 ## Ürün
 - Ad: {$product->name}
