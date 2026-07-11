@@ -64,4 +64,25 @@ class MenuTreeBuilderTest extends TestCase
 
         $this->assertCount(0, MenuTreeBuilder::forUser(null));
     }
+
+    /**
+     * Regresyon: 'portal.marketplace.index' gibi domain'i {slug} bekleyen bir route
+     * menüye eklenmişse, route(..., [], false) UrlGenerationException fırlatır. Bu
+     * prop HER Inertia sayfasında paylaşıldığı için tek bozuk kayıt tüm uygulamayı
+     * kırardı — resolveTo() artık bunu yakalayıp url'e (varsa) düşer.
+     */
+    public function test_domain_scoped_route_does_not_crash_menu_resolution(): void
+    {
+        Menu::create([
+            'label'      => 'Portal Marketplace',
+            'route_name' => 'portal.marketplace.index',
+            'url'        => '/marketplace-fallback',
+            'sort_order' => 0,
+        ]);
+
+        $tree = MenuTreeBuilder::forUser(null);
+
+        $this->assertCount(1, $tree);
+        $this->assertSame('/marketplace-fallback', $tree[0]['to']);
+    }
 }

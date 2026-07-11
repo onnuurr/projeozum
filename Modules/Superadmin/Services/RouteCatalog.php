@@ -56,6 +56,13 @@ class RouteCatalog
             return false;
         }
 
+        // Domain'i {slug} gibi bir parametre içeren route'lar (portal subdomain grubu)
+        // URI'de parametre taşımasa da route() çağrısı slug olmadan UrlGenerationException
+        // fırlatır — bkz. Menu::resolveTo(). Genel menüye eklenemez.
+        if ($route->getDomain() && Str::contains($route->getDomain(), '{')) {
+            return false;
+        }
+
         $uri = ltrim($route->uri(), '/');
 
         // API ve dahili (debugbar/ignition/sanctum vb.) route'ları ele.
