@@ -65,6 +65,21 @@ class MenuSeeder extends Seeder
                 'is_active'  => true,
             ],
         );
+
+        // Creative ret ekranındaki "düzeltilmesi gereken alan" seçim maddelerinin
+        // yönetimi. Yalnız creative.rejection-reasons.manage izni (superadmin) görür.
+        Menu::firstOrCreate(
+            ['route_name' => 'creative.rejection-reasons.index'],
+            [
+                'parent_id'  => null,
+                'label'      => 'Ret Seçim Maddeleri',
+                'icon'       => 'reports',
+                'url'        => null,
+                'permission' => 'creative.rejection-reasons.manage',
+                'sort_order' => 98,
+                'is_active'  => true,
+            ],
+        );
     }
 
     /**

@@ -6,6 +6,7 @@ use Modules\Creative\Http\Controllers\CreativeStudioController;
 use Modules\Creative\Http\Controllers\CreativeTemplateController;
 use Modules\Creative\Http\Controllers\MannequinController;
 use Modules\Creative\Http\Controllers\PoseController;
+use Modules\Creative\Http\Controllers\RejectionReasonController;
 use Modules\Creative\Http\Controllers\ReviewChatController;
 use Modules\Creative\Http\Controllers\TryonController;
 
@@ -99,6 +100,18 @@ Route::middleware(['auth', 'verified'])
         ->middleware('can:creative.view')->whereNumber('result')->name('tryon.review-chat');
     Route::post('/tryon/{result}/review-chat/apply', [ReviewChatController::class, 'applyTryon'])
         ->middleware('can:creative.view')->whereNumber('result')->name('tryon.review-chat.apply');
+
+    // ─── Ret Seçim Maddeleri (superadmin yönetir) ────────────────────────
+    // Reddetme diyaloğundaki "düzeltilmesi gereken alan" maddeleri. Yalnız
+    // creative.rejection-reasons.manage izni (superadmin) yönetebilir.
+    Route::get('/rejection-reasons', [RejectionReasonController::class, 'index'])
+        ->middleware('can:creative.rejection-reasons.manage')->name('rejection-reasons.index');
+    Route::post('/rejection-reasons', [RejectionReasonController::class, 'store'])
+        ->middleware('can:creative.rejection-reasons.manage')->name('rejection-reasons.store');
+    Route::put('/rejection-reasons/{rejectionReason}', [RejectionReasonController::class, 'update'])
+        ->middleware('can:creative.rejection-reasons.manage')->whereNumber('rejectionReason')->name('rejection-reasons.update');
+    Route::delete('/rejection-reasons/{rejectionReason}', [RejectionReasonController::class, 'destroy'])
+        ->middleware('can:creative.rejection-reasons.manage')->whereNumber('rejectionReason')->name('rejection-reasons.destroy');
 
     // ─── Marka Kiti (Brand Kit) ──────────────────────────────────────────
     Route::get('/brandkits', [BrandKitController::class, 'index'])

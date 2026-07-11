@@ -7,7 +7,12 @@
 				<img v-if="imageUrl" :src="imageUrl" :alt="title" class="context-thumb" />
 				<div class="context-info">
 					<h1 class="context-title">{{ title }}</h1>
-					<p class="context-note">✕ Reddedildi: {{ reviewNote }}</p>
+					<div v-if="reviewTags && reviewTags.length" class="context-tags">
+						<span class="context-tags-label">Düzeltilecek alanlar:</span>
+						<span v-for="t in reviewTags" :key="t" class="context-tag">{{ t }}</span>
+					</div>
+					<p v-if="reviewNote" class="context-note">✕ Reddedildi: {{ reviewNote }}</p>
+					<p v-else-if="reviewTags && reviewTags.length" class="context-note">✕ Reddedildi</p>
 				</div>
 			</div>
 		</div>
@@ -68,6 +73,7 @@ const props = defineProps({
 	title: { type: String, default: '' },
 	imageUrl: { type: String, default: null },
 	reviewNote: { type: String, default: null },
+	reviewTags: { type: Array, default: () => [] },
 	backUrl: { type: String, required: true },
 	chats: { type: Array, default: () => [] },
 	suggestion: { type: String, default: null },
@@ -133,6 +139,9 @@ function apply() {
 .context-body { display: flex; align-items: center; gap: 14px; margin-top: 10px; }
 .context-thumb { width: 56px; height: 56px; border-radius: 10px; object-fit: cover; background: #f5f5f8; }
 .context-title { font-size: 18px; font-weight: 700; color: #1a1a2e; }
+.context-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-top: 5px; }
+.context-tags-label { font-size: 11px; font-weight: 600; color: #888; }
+.context-tag { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
 .context-note { font-size: 12.5px; color: #b91c1c; margin-top: 2px; }
 
 .suggestion-banner { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 16px; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 12px; padding: 12px 16px; margin: 12px 0; }

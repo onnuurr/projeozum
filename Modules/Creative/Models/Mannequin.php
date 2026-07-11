@@ -42,6 +42,7 @@ class Mannequin extends Model
         'created_by',
         'review_status',
         'review_note',
+        'review_tags',
         'reviewed_by',
         'reviewed_at',
     ];
@@ -52,6 +53,7 @@ class Mannequin extends Model
         'waist_cm'    => 'integer',
         'hips_cm'     => 'integer',
         'meta'        => 'array',
+        'review_tags' => 'array',
         'reviewed_at' => 'datetime',
     ];
 

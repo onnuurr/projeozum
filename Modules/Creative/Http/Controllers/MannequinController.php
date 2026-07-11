@@ -47,6 +47,7 @@ class MannequinController extends Controller
                 'creator_name'    => $m->creator?->name,
                 'review_status'   => $m->review_status,
                 'review_note'     => $m->review_note,
+                'review_tags'     => $m->review_tags ?? [],
                 'reviewer_name'   => $m->reviewer?->name,
                 'can_review'      => auth()->user()?->can('creative.approve')
                     && $m->created_by !== auth()->id()
@@ -65,7 +66,8 @@ class MannequinController extends Controller
             ]);
 
         return Inertia::render('Creative::CreativeMannequins', [
-            'mannequins' => $mannequins,
+            'mannequins'       => $mannequins,
+            'rejectionReasons' => $this->rejectionReasonGroups(),
         ]);
     }
 
@@ -88,6 +90,7 @@ class MannequinController extends Controller
             'error'         => null,
             'review_status' => null,
             'review_note'   => null,
+            'review_tags'   => null,
             'reviewed_by'   => null,
             'reviewed_at'   => null,
         ]);
@@ -124,9 +127,12 @@ class MannequinController extends Controller
             return back()->with('error', 'Bu manken onay bekliyor durumda değil.');
         }
 
+        $review = $this->validatedReview($request);
+
         $mannequin->update([
             'review_status' => Mannequin::REVIEW_REJECTED,
-            'review_note'   => $this->validatedReviewNote($request),
+            'review_note'   => $review['note'],
+            'review_tags'   => $review['tags'],
             'reviewed_by'   => auth()->id(),
             'reviewed_at'   => now(),
         ]);

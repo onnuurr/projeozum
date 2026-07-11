@@ -95,6 +95,7 @@ class TryonController extends Controller
                 'creator_name'    => $r->creator?->name,
                 'review_status'   => $r->review_status,
                 'review_note'     => $r->review_note,
+                'review_tags'     => $r->review_tags ?? [],
                 'reviewer_name'   => $r->reviewer?->name,
                 'can_review'      => auth()->user()?->can('creative.approve')
                     && $r->created_by !== auth()->id()
@@ -113,10 +114,11 @@ class TryonController extends Controller
             ]);
 
         return Inertia::render('Creative::CreativeTryon', [
-            'products'   => $products,
-            'mannequins' => $mannequins,
-            'poses'      => $poses,
-            'results'    => $results,
+            'products'         => $products,
+            'mannequins'       => $mannequins,
+            'poses'            => $poses,
+            'results'          => $results,
+            'rejectionReasons' => $this->rejectionReasonGroups(),
         ]);
     }
 
@@ -176,9 +178,12 @@ class TryonController extends Controller
             return back()->with('error', 'Bu sonuç onay bekliyor durumda değil.');
         }
 
+        $review = $this->validatedReview($request);
+
         $result->update([
             'review_status' => TryonResult::REVIEW_REJECTED,
-            'review_note'   => $this->validatedReviewNote($request),
+            'review_note'   => $review['note'],
+            'review_tags'   => $review['tags'],
             'reviewed_by'   => auth()->id(),
             'reviewed_at'   => now(),
         ]);

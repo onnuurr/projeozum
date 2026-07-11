@@ -33,12 +33,14 @@ class TryonResult extends Model
         'created_by',
         'review_status',
         'review_note',
+        'review_tags',
         'reviewed_by',
         'reviewed_at',
     ];
 
     protected $casts = [
         'meta'        => 'array',
+        'review_tags' => 'array',
         'reviewed_at' => 'datetime',
     ];
 
