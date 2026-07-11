@@ -73,6 +73,8 @@ class Order extends Model
         'order_no',
         'user_id',
         'tenant_id',
+        'carrier_id',
+        'cargo_customer_code',
         'shipping_info',
         'payment_method',
         'note',
@@ -109,6 +111,11 @@ class Order extends Model
     public function items(): HasMany
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    public function carrier(): BelongsTo
+    {
+        return $this->belongsTo(Carrier::class);
     }
 
     public function statusHistories(): HasMany

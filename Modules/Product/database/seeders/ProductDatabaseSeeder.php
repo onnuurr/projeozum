@@ -18,6 +18,7 @@ class ProductDatabaseSeeder extends Seeder
             \Modules\Product\database\seeders\ProductSeeder::class,
             \Modules\Product\database\seeders\WarehouseSeeder::class,
             \Modules\Product\database\seeders\StockSeeder::class,
+            \Modules\Product\database\seeders\CarrierSeeder::class,
             \Modules\Product\database\seeders\ProductPermissionSeeder::class,
         ]);
     }

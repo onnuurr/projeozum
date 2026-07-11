@@ -22,6 +22,7 @@ class ProductPermissionSeeder extends Seeder
             'price-list.manage'   => 'Fiyat Listesi Yönet',
             'order.view'          => 'Siparişleri Görüntüle',
             'order.manage'        => 'Sipariş Durumu Yönet',
+            'carrier.manage'      => 'Kargo Firmalarını Yönet',
         ];
 
         $created = [];
