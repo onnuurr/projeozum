@@ -1,8 +1,8 @@
 {
     "name": "Product",
     "alias": "product",
-    "description": "",
-    "keywords": [],
+    "description": "Ürün kataloğu, stok, sipariş, sepet ve pazaryeri çekirdeği (B2B tenant kataloğu + ödeme).",
+    "keywords": ["catalog", "product", "stock", "order", "cart", "marketplace"],
     "priority": 0,
     "providers": [
         "Modules\\Product\\Providers\\ProductServiceProvider"
