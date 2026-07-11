@@ -55,6 +55,27 @@
 						<input v-model="form.shipping_method" type="radio" :value="m.id" />
 						<span>{{ m.label }} <em class="muted">— {{ m.description }}</em></span>
 					</label>
+
+					<div class="row-2 carrier-row">
+						<div class="row">
+							<label>Kargo Firması <span class="req">*</span></label>
+							<select v-model="form.carrier_id" required>
+								<option :value="null" disabled>Seçiniz…</option>
+								<option v-for="c in carriers" :key="c.id" :value="c.id">{{ c.name }}</option>
+							</select>
+						</div>
+						<div class="row">
+							<label>Kargo Müşteri Kodu <span class="req">*</span></label>
+							<input
+								v-model="form.cargo_customer_code"
+								type="text"
+								maxlength="64"
+								required
+								placeholder="Anlaşmalı kargo kodunuz"
+							/>
+						</div>
+					</div>
+					<p class="muted hint">Gönderi, seçtiğiniz firmanın anlaşmalı müşteri kodunuzla çıkarılır.</p>
 				</section>
 
 				<section class="card">
@@ -67,7 +88,7 @@
 					<span>Şartları kabul ediyorum.</span>
 				</label>
 
-				<button class="btn-primary" :disabled="submitting || belowMinOrder" type="submit">
+				<button class="btn-primary" :disabled="submitting || belowMinOrder || cargoIncomplete" type="submit">
 					{{ submitting ? 'Gönderiliyor...' : 'Siparişi Tamamla' }}
 				</button>
 			</form>
@@ -76,9 +97,21 @@
 				<section class="card">
 					<h2 class="card-title">Sepet ({{ items.length }} kalem)</h2>
 					<ul class="item-list">
-						<li v-for="i in items" :key="i.id">
-							<span class="name">{{ i.product_name ?? 'Ürün' }}</span>
-							<span class="qty mono">{{ i.qty }} x {{ formatMoney(i.price) }}</span>
+						<li v-for="i in items" :key="i.id" class="cart-line">
+							<div class="cart-line-head">
+								<span class="name">{{ i.product_name ?? 'Ürün' }}</span>
+								<button type="button" class="remove-btn" :disabled="busyId === i.id" @click="removeItem(i)" aria-label="Kaldır">✕</button>
+							</div>
+							<div v-if="i.color || i.size" class="variant-label">{{ [i.size, i.color].filter(Boolean).join(' / ') }}</div>
+							<div class="cart-line-foot">
+								<div class="qty-stepper">
+									<button type="button" :disabled="busyId === i.id || i.qty <= minQty(i)" @click="changeQty(i, -1)" aria-label="Azalt">−</button>
+									<span class="qty-value mono">{{ i.qty }}</span>
+									<button type="button" :disabled="busyId === i.id || i.qty >= 99" @click="changeQty(i, 1)" aria-label="Artır">+</button>
+								</div>
+								<span class="line-total mono">{{ formatMoney(i.qty * i.price) }}</span>
+							</div>
+							<div class="unit-price mono">{{ formatMoney(i.price) }} / adet</div>
 						</li>
 					</ul>
 				</section>
@@ -130,6 +163,7 @@ const props = defineProps({
 	totals: { type: Object, required: true },
 	credit: { type: Object, required: true },
 	shippingMethods: { type: Array, default: () => [] },
+	carriers: { type: Array, default: () => [] },
 })
 
 const showToast = inject('showToast', null)
@@ -137,6 +171,8 @@ const showToast = inject('showToast', null)
 const form = reactive({
 	billing_to: 'us',
 	shipping_method: props.shippingMethods[0]?.id ?? 'cargo',
+	carrier_id: null,
+	cargo_customer_code: '',
 	note: '',
 	terms_accepted: false,
 	address: {
@@ -150,10 +186,44 @@ const form = reactive({
 })
 
 const submitting = ref(false)
+const busyId = ref(null)
+
+// Adet adımı/alt sınırı B2B kurallarına göre: koli katı varsa o kadar adımlar,
+// minimum sipariş adedi altına inilemez. Böylece tenant kuralları sepette düzeltebilir.
+function stepFor(i) {
+	return Number(i.order_multiple) > 0 ? Number(i.order_multiple) : 1
+}
+function minQty(i) {
+	return Number(i.min_order_qty) > 0 ? Number(i.min_order_qty) : 1
+}
+
+function changeQty(i, dir) {
+	let next = Number(i.qty) + dir * stepFor(i)
+	next = Math.max(minQty(i), Math.min(99, next))
+	if (next === Number(i.qty)) return
+
+	busyId.value = i.id
+	router.put(`/cart/${i.id}`, { qty: next }, {
+		preserveScroll: true,
+		onError: (errs) => showToast?.({ type: 'error', title: 'Güncellenemedi', message: Object.values(errs)[0] || 'Adet güncellenemedi.' }),
+		onFinish: () => { busyId.value = null },
+	})
+}
+
+function removeItem(i) {
+	busyId.value = i.id
+	router.delete(`/cart/${i.id}`, {
+		preserveScroll: true,
+		onError: () => showToast?.({ type: 'error', title: 'Kaldırılamadı', message: i.product_name ?? 'Ürün' }),
+		onFinish: () => { busyId.value = null },
+	})
+}
 
 const belowMinOrder = computed(() =>
 	props.tenant.min_order_total != null && Number(props.totals.subtotal) < Number(props.tenant.min_order_total),
 )
+
+const cargoIncomplete = computed(() => !form.carrier_id || !form.cargo_customer_code.trim())
 
 const dueDateLabel = computed(() => {
 	const days = Number(props.tenant.payment_term_days ?? 0)
@@ -205,14 +275,29 @@ function submit() {
 .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
 .radio { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 13px; cursor: pointer; }
+.carrier-row { margin-top: 10px; }
+.hint { margin-top: 6px; }
 .muted { color: #888; font-style: normal; font-size: 12px; }
 .terms { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 6px 0; cursor: pointer; }
 .btn-primary { padding: 12px 24px; background: #4338ca; color: #fff; border: none; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-.item-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
-.item-list li { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0; border-bottom: 1px solid #f5f5f8; }
-.name { color: #1a1a2e; }
-.qty { color: #555; }
+.item-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.cart-line { padding: 8px 0; border-bottom: 1px solid #f5f5f8; display: flex; flex-direction: column; gap: 6px; }
+.cart-line:last-child { border-bottom: none; }
+.cart-line-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.name { color: #1a1a2e; font-size: 13px; font-weight: 600; }
+.remove-btn { background: none; border: none; color: #aaa; cursor: pointer; font-size: 13px; line-height: 1; padding: 2px 4px; border-radius: 4px; }
+.remove-btn:hover:not(:disabled) { color: #dc2626; background: #fef2f2; }
+.remove-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.variant-label { font-size: 11px; color: #888; }
+.cart-line-foot { display: flex; justify-content: space-between; align-items: center; }
+.qty-stepper { display: inline-flex; align-items: center; border: 1px solid #ebebf0; border-radius: 8px; overflow: hidden; }
+.qty-stepper button { width: 28px; height: 28px; border: none; background: #fff; font-size: 15px; color: #444; cursor: pointer; }
+.qty-stepper button:hover:not(:disabled) { background: #f5f5f8; }
+.qty-stepper button:disabled { color: #ccc; cursor: not-allowed; }
+.qty-value { min-width: 32px; text-align: center; font-size: 13px; font-weight: 700; color: #1a1a2e; }
+.line-total { font-size: 13px; font-weight: 700; color: #1a1a2e; }
+.unit-price { font-size: 11px; color: #888; }
 .mono { font-family: 'SF Mono', Menlo, Consolas, monospace; }
 .totals div { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; }
 .totals .discount { color: #16a34a; }

@@ -4,12 +4,15 @@ namespace Tests\Unit\Creative;
 
 use Modules\Creative\Services\Ai\Drivers\Gemini\MannequinPromptBuilder;
 use Modules\Creative\Services\Ai\MannequinRequest;
-use PHPUnit\Framework\TestCase;
+use Tests\TestCase;
 
 /**
  * Sanal manken kimlik prompt'unun cinsiyet/yaş/karakter yönlendirmelerini
- * GÜÇLÜ biçimde (özne ismine gömerek) ürettiğini ve gerçekçilik çapaları
- * taşıdığını doğrular. Saf birim test — DB gerektirmez.
+ * GÜÇLÜ biçimde (özne ismine gömerek) ürettiğini, yapılandırılabilir Türk kimlik
+ * çapasını uyguladığını ve gerçekçilik/anti-AI çapaları taşıdığını doğrular.
+ *
+ * config() eriştiği için (kimlik profili + toggle) Laravel uygulamasını boot eden
+ * TestCase kullanılır; DB gerekmez (RefreshDatabase yok).
  */
 class MannequinPromptBuilderTest extends TestCase
 {
@@ -98,5 +101,70 @@ class MannequinPromptBuilderTest extends TestCase
         $this->assertStringContainsString('medium skin tone', $prompt);
         $this->assertStringContainsString('long straight brown', $prompt);
         $this->assertStringContainsString('oval face, brown eyes', $prompt);
+    }
+
+    // ── Kimlik profili (yapılandırılabilir Türk çapası) ──────────────────
+
+    public function test_default_profile_injects_turkish_identity_anchors(): void
+    {
+        $r = new MannequinRequest(name: 'X', gender: 'female', ageRange: '25-35');
+        $prompt = strtolower($this->build($r));
+
+        $this->assertStringContainsString('anatolian turkish', $prompt);
+        $this->assertStringContainsString('buğday', $prompt);
+        $this->assertStringContainsString('badem', $prompt);
+    }
+
+    public function test_explicit_skin_tone_overrides_profile_complexion(): void
+    {
+        $r = new MannequinRequest(name: 'X', gender: 'female', ageRange: '25-35', skinTone: 'dark');
+        $prompt = strtolower($this->build($r));
+
+        // Kullanıcı tonu çapayı ezer — çift-talimat (buğday + dark) oluşmamalı.
+        $this->assertStringContainsString('a dark skin tone', $prompt);
+        $this->assertStringNotContainsString('buğday', $prompt);
+    }
+
+    public function test_none_profile_yields_no_turkish_anchor(): void
+    {
+        config(['creative.ai.prompt.default_identity_profile' => 'none']);
+
+        $r = new MannequinRequest(name: 'X', gender: 'female', ageRange: '25-35');
+        $prompt = strtolower($this->build($r));
+
+        $this->assertStringNotContainsString('buğday', $prompt);
+        $this->assertStringNotContainsString('anatolian turkish', $prompt);
+    }
+
+    // ── İfade: çocuk/genç güler, yetişkin zorlanmaz ──────────────────────
+
+    public function test_child_smiles_but_adult_is_not_forced_to(): void
+    {
+        $child = strtolower($this->build(new MannequinRequest(name: 'X', gender: 'female', ageRange: '6-9')));
+        $adult = strtolower($this->build(new MannequinRequest(name: 'X', gender: 'female', ageRange: '25-35')));
+
+        $this->assertStringContainsString('smile', $child);
+        $this->assertStringNotContainsString('smile', $adult);
+    }
+
+    // ── 'photorealistic' kelime-yasağı toggle'ı ──────────────────────────
+
+    public function test_photorealistic_word_present_by_default(): void
+    {
+        $r = new MannequinRequest(name: 'X', gender: 'female', ageRange: '25-35');
+
+        $this->assertStringContainsString('photorealistic', strtolower($this->build($r)));
+    }
+
+    public function test_photorealistic_word_removed_when_ban_enabled(): void
+    {
+        config(['creative.ai.prompt.ban_photorealistic_wording' => true]);
+
+        $r = new MannequinRequest(name: 'X', gender: 'female', ageRange: '25-35');
+        $prompt = strtolower($this->build($r));
+
+        $this->assertStringNotContainsString('photorealistic', $prompt);
+        // Kamera/raw-studio dili yine de gerçekçiliği taşır.
+        $this->assertStringContainsString('raw studio photography', $prompt);
     }
 }

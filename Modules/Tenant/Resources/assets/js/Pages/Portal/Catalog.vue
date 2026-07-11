@@ -4,10 +4,28 @@
 		<header class="page-header">
 			<h1 class="page-title">Katalog</h1>
 			<div class="search-box">
-				<input v-model="searchQuery" type="text" placeholder="Ürün ara (isim, SKU)..." @keyup.enter="applySearch" />
-				<button class="btn-ghost" @click="applySearch">Ara</button>
+				<input v-model="searchQuery" type="text" placeholder="Ürün ara (isim, SKU, barkod)..." @keyup.enter="applyFilters" />
+				<button class="btn-ghost" @click="applyFilters">Ara</button>
 			</div>
 		</header>
+
+		<div class="filter-bar">
+			<select v-model="selectedCategory" class="filter-select" @change="applyFilters">
+				<option :value="null">Tüm Kategoriler</option>
+				<option v-for="c in filterOptions.categories" :key="c.id" :value="c.id">{{ c.name }}</option>
+			</select>
+			<select v-model="selectedBrand" class="filter-select" @change="applyFilters">
+				<option :value="null">Tüm Markalar</option>
+				<option v-for="b in filterOptions.brands" :key="b.id" :value="b.id">{{ b.name }}</option>
+			</select>
+			<select v-model="selectedSort" class="filter-select" @change="applyFilters">
+				<option value="name">İsme göre (A-Z)</option>
+				<option value="newest">En yeni</option>
+				<option value="price_asc">Fiyat: artan</option>
+				<option value="price_desc">Fiyat: azalan</option>
+			</select>
+			<button v-if="hasActiveFilters" class="btn-ghost" @click="clearFilters">Filtreleri temizle</button>
+		</div>
 
 		<div v-if="products.data.length === 0" class="empty">
 			Ürün bulunamadı.
@@ -20,7 +38,7 @@
 				:href="`/catalog/${p.slug}`"
 				class="product-card"
 			>
-				<div class="product-img" :style="`background-image: url('${p.image}')`"></div>
+				<div class="product-img" :style="`background-image: url('${p.image || '/images/product-placeholder.svg'}')`"></div>
 				<div class="product-info">
 					<div class="brand">{{ p.brand ?? '—' }}</div>
 					<div class="name">{{ p.name }}</div>
@@ -47,7 +65,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { Head, Link, router } from '@inertiajs/vue3'
 import TenantPortalLayout from '@/Layouts/TenantPortalLayout.vue'
 
@@ -57,12 +75,34 @@ const props = defineProps({
 	tenant: { type: Object, required: true },
 	products: { type: Object, required: true },
 	filters: { type: Object, default: () => ({}) },
+	filterOptions: { type: Object, default: () => ({ categories: [], brands: [] }) },
 })
 
 const searchQuery = ref(props.filters.q ?? '')
+const selectedCategory = ref(props.filters.category ?? null)
+const selectedBrand = ref(props.filters.brand ?? null)
+const selectedSort = ref(props.filters.sort ?? 'name')
 
-function applySearch() {
-	router.get('/catalog', { q: searchQuery.value }, { preserveState: true, preserveScroll: true })
+const hasActiveFilters = computed(() =>
+	!!searchQuery.value || selectedCategory.value !== null || selectedBrand.value !== null || selectedSort.value !== 'name'
+)
+
+function applyFilters() {
+	const params = {}
+	if (searchQuery.value) params.q = searchQuery.value
+	if (selectedCategory.value !== null) params.category = selectedCategory.value
+	if (selectedBrand.value !== null) params.brand = selectedBrand.value
+	if (selectedSort.value !== 'name') params.sort = selectedSort.value
+
+	router.get('/catalog', params, { preserveState: true, preserveScroll: true })
+}
+
+function clearFilters() {
+	searchQuery.value = ''
+	selectedCategory.value = null
+	selectedBrand.value = null
+	selectedSort.value = 'name'
+	applyFilters()
 }
 
 function formatMoney(v) {
@@ -76,6 +116,8 @@ function formatMoney(v) {
 .search-box { display: flex; gap: 8px; }
 .search-box input { padding: 8px 12px; border: 1px solid #ebebf0; border-radius: 8px; font-size: 13px; min-width: 280px; }
 .btn-ghost { padding: 8px 16px; border-radius: 8px; background: #f7f7fb; border: 1px solid #ebebf0; cursor: pointer; font-size: 13px; }
+.filter-bar { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+.filter-select { padding: 8px 12px; border: 1px solid #ebebf0; border-radius: 8px; font-size: 13px; background: #fff; color: #1a1a2e; cursor: pointer; min-width: 160px; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
 .product-card { background: #fff; border-radius: 12px; border: 1px solid #ebebf0; overflow: hidden; text-decoration: none; color: inherit; transition: box-shadow .15s; }
 .product-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,.08); }

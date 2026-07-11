@@ -72,6 +72,13 @@ class PortalCheckoutController extends Controller
                 array_keys(config('product.shipping.methods', [])),
                 array_values(config('product.shipping.methods', [])),
             ),
+            'carriers' => \Modules\Product\Models\Carrier::query()
+                ->where('is_active', true)
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->get(['id', 'code', 'name'])
+                ->map(fn ($c) => ['id' => $c->id, 'code' => $c->code, 'name' => $c->name])
+                ->all(),
             'credit'   => [
                 'available'   => $available,
                 'after_order' => max(0.0, $available - (float) $totals['total']),

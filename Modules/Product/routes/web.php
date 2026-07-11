@@ -139,6 +139,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->whereNumber('priceList')->middleware('can:price-list.manage')
         ->name('products.prices.destroy');
 
+    // ─── Kargo Firmaları (superadmin yönetimli referans) ─────────────────
+    Route::prefix('products/carriers')->name('carriers.')
+        ->middleware('can:carrier.manage')
+        ->group(function () {
+            Route::get('/', [\Modules\Product\Http\Controllers\CarrierController::class, 'index'])->name('index');
+            Route::post('/', [\Modules\Product\Http\Controllers\CarrierController::class, 'store'])->name('store');
+            Route::put('/{carrier}', [\Modules\Product\Http\Controllers\CarrierController::class, 'update'])
+                ->whereNumber('carrier')->name('update');
+            Route::delete('/{carrier}', [\Modules\Product\Http\Controllers\CarrierController::class, 'destroy'])
+                ->whereNumber('carrier')->name('destroy');
+        });
+
     // ─── Admin Sipariş Yönetimi (Faz 2) ──────────────────────────────────
     // Ana domain. Portal /orders subdomain'de ayrı (PortalOrderController,
     // salt-okuma) tanımlıdır; subdomain routing çakışma yaratmaz.

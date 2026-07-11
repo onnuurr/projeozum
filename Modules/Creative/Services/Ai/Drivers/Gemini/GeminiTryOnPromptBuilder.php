@@ -22,7 +22,12 @@ class GeminiTryOnPromptBuilder
             'Replace the person\'s current base clothing with the product from the second image so it is naturally worn on the correct body region (top, bottom, dress, outerwear, etc.).',
             'Preserve the product\'s real cut, silhouette, colors, fabric, texture, patterns, prints, logos, branding and any text EXACTLY as in the second image — do not redesign, recolor, restyle or invent a different product.',
             'Make the garment fit, drape and fold realistically on the body with correct shadows and contact, matching the first image\'s lighting.',
-            'Single person, full body visible from head to feet, centered, photorealistic, sharp focus, correct anatomy, hands and proportions, no text or watermark added.',
+            // Kumaş mühendisliği: giysinin "yapıştırılmış" durmasını önler (ambient occlusion).
+            PromptDirectives::fabric(),
+            // Anti-AI gerçekçilik çapası (config toggle'a duyarlı).
+            PromptDirectives::realism(),
+            'Add soft, accurate contact shadows beneath the footwear that ground the model to the floor.',
+            'Single person, full body visible from head to feet, centered, sharp focus, correct anatomy, hands and proportions, no text or watermark added.',
         ];
 
         return implode(' ', $lines);

@@ -77,6 +77,7 @@ class OrderController extends Controller
     {
         $order->load([
             'tenant:id,code,name',
+            'carrier:id,code,name',
             'items',
             'statusHistories' => fn ($q) => $q->with('user:id,name')->orderBy('id'),
         ]);
@@ -104,6 +105,8 @@ class OrderController extends Controller
                 'shipping_fee'   => (float) $order->shipping_fee,
                 'total'          => (float) $order->total,
                 'shipping_info'  => $order->shipping_info,
+                'carrier'             => $order->carrier?->name,
+                'cargo_customer_code' => $order->cargo_customer_code,
                 'payment_method' => $order->payment_method,
                 'note'           => $order->note,
                 'created_at'     => optional($order->created_at)->toIso8601String(),

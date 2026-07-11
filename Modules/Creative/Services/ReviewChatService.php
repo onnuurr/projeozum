@@ -86,9 +86,12 @@ class ReviewChatService
             ->map(fn (ReviewChat $c) => ($c->role === ReviewChat::ROLE_USER ? 'Kullanıcı' : 'Asistan') . ': ' . $c->content)
             ->implode("\n");
 
+        $rejection = $this->rejectionSummary($subject);
+
         return <<<PROMPT
             Sen bir görsel üretim prompt mühendisisin. Bir yönetici, üretilen bir {$type} görselini
-            şu gerekçeyle REDDETTİ: "{$subject->review_note}".
+            REDDETTİ. Ret bilgisi:
+            {$rejection}
 
             Orijinal üretim parametreleri:
             {$context}
@@ -98,6 +101,10 @@ class ReviewChatService
             İngilizce, kısa ve somut bir düzeltme talimatı üretmek. Bu talimat mevcut yapıyı (kimlik,
             ölçü, ürün, poz) BOZMAMALI — sadece ret gerekçesindeki sorunu (ışık, detay, açı, giydirme
             doğruluğu vb.) hedeflemeli. Yanıtların Türkçe, ürettiğin talimat İngilizce olsun.
+
+            ÖNEMLİ: Yönetici "düzeltilmesi gereken alan" olarak yukarıda listelenen maddeleri zaten
+            İŞARETLEDİ. Bu seçimleri hazır bilgi say — kullanıcıya bunları tekrar sordurma; doğrudan
+            en olası ve en somut düzeltmeyi bu alanlar üzerinden öner.
 
             Her yanıtının EN SONUNA, ayrı bir satırda, o ana kadarki bilgiye göre en iyi düzeltme
             talimatını şu formatta ekle (yeterli bilgi yoksa bu satırı hiç yazma):
@@ -109,6 +116,25 @@ class ReviewChatService
             Kullanıcı: {$newMessage}
             Asistan:
             PROMPT;
+    }
+
+    /**
+     * Ret gerekçesini (serbest açıklama + işaretlenen "düzeltilmesi gereken alan"
+     * maddeleri) tek metne dökerek prompt'a hazır bilgi olarak verir.
+     */
+    private function rejectionSummary(Mannequin|TryonResult $subject): string
+    {
+        $lines = [];
+
+        $tags = array_filter((array) ($subject->review_tags ?? []));
+        if ($tags !== []) {
+            $lines[] = '- Düzeltilmesi gereken alanlar (yönetici seçimi): ' . implode(', ', $tags);
+        }
+
+        $note = trim((string) $subject->review_note);
+        $lines[] = '- Açıklama: ' . ($note !== '' ? $note : '—');
+
+        return implode("\n", $lines);
     }
 
     private function mannequinContext(Mannequin $m): string

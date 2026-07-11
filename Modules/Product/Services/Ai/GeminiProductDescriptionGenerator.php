@@ -42,11 +42,30 @@ class GeminiProductDescriptionGenerator implements ProductDescriptionGenerator
             );
         }
 
+        // SEO alanları opsiyoneldir: model üretmezse null bırakılır (mevcut akış bozulmaz).
         return new ProductDescriptionResult(
             publicDescription: $public,
             tenantDescription: $tenantDesc,
             model: (string) config('creative.ai.gemini.text_model', 'gemini-2.5-flash'),
+            publicName: $this->cleanOrNull($parsed['public_name'] ?? null, 60),
+            metaTitle: $this->cleanOrNull($parsed['meta_title'] ?? null, 60),
+            metaDescription: $this->cleanOrNull($parsed['meta_description'] ?? null, 155),
+            metaKeywords: $this->cleanOrNull($parsed['meta_keywords'] ?? null, 255),
         );
+    }
+
+    /**
+     * Boş/whitespace ise null; aksi halde trim'lenip $max karaktere kırpılır.
+     * SEO alanlarının veritabanı kolon sınırlarını aşmamasını garantiler.
+     */
+    private function cleanOrNull(mixed $value, int $max): ?string
+    {
+        $text = trim((string) ($value ?? ''));
+        if ($text === '') {
+            return null;
+        }
+
+        return mb_substr($text, 0, $max);
     }
 
     /**

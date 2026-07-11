@@ -28,8 +28,27 @@ class StoreDropshipOrderRequest extends FormRequest
 
             // D6: kargo `cargo` (sabit ücret, eşik üstü ücretsiz) veya `pickup` (depodan teslim).
             'shipping_method'         => ['required', Rule::in(['cargo', 'pickup'])],
+
+            // Her siparişte ZORUNLU: kargo firması + bayinin anlaşmalı kargo müşteri kodu.
+            // Firma aktif ve silinmemiş olmalı.
+            'carrier_id'              => [
+                'required',
+                'integer',
+                Rule::exists('carriers', 'id')->where('is_active', true)->whereNull('deleted_at'),
+            ],
+            'cargo_customer_code'     => ['required', 'string', 'max:64'],
+
             'note'                    => ['nullable', 'string', 'max:500'],
             'terms_accepted'          => ['accepted'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'carrier_id.required'          => 'Kargo firması seçmek zorunludur.',
+            'carrier_id.exists'            => 'Seçilen kargo firması geçerli değil.',
+            'cargo_customer_code.required' => 'Kargo müşteri kodu zorunludur.',
         ];
     }
 }

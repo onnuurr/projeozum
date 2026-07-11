@@ -37,7 +37,8 @@ class MannequinPosePromptBuilder
 
         $lines[] = 'Full-body framing, the entire body visible from head to feet, single person centered.';
         $lines[] = 'Plain seamless light-gray studio background with soft even lighting, no props, no text or watermark.';
-        $lines[] = 'Photorealistic, sharp focus, natural anatomy, correct hands and proportions.';
+        // Anti-AI gerçekçilik çapası (config toggle'a duyarlı) — üç aşamada tutarlı.
+        $lines[] = PromptDirectives::realism();
 
         return implode(' ', $lines);
     }

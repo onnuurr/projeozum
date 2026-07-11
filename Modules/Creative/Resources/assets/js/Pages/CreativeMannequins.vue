@@ -128,6 +128,9 @@
 							<span class="mannequin-traits">{{ traitLine(m) || '—' }}</span>
 							<span v-if="measureLine(m)" class="mannequin-measures">{{ measureLine(m) }}</span>
 							<span v-if="m.creator_name" class="mannequin-creator">Üreten: {{ m.creator_name }}{{ m.is_own ? ' (siz)' : '' }}</span>
+							<div v-if="m.review_tags && m.review_tags.length" class="review-tags">
+								<span v-for="t in m.review_tags" :key="t" class="review-tag">{{ t }}</span>
+							</div>
 							<p v-if="m.error" class="mannequin-error" :title="m.error">⚠ {{ m.error }}</p>
 						</div>
 						<div v-if="m.can_review" class="mannequin-review-actions">
@@ -178,11 +181,13 @@ import { Head, Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import CreativeNav from '../Components/CreativeNav.vue'
+import { openRejectDialog } from '../support/rejectDialog'
 
 defineOptions({ layout: AppLayout })
 
 const props = defineProps({
 	mannequins: { type: Array, default: () => [] },
+	rejectionReasons: { type: Array, default: () => [] },
 })
 
 const showToast = inject('showToast', null)
@@ -236,21 +241,11 @@ function approve(m) {
 }
 
 async function reject(m) {
-	const r = await $swal.fire({
-		icon: 'question',
-		title: 'Reddetme Gerekçesi',
-		input: 'textarea',
-		inputPlaceholder: 'Işık, detay, açı, kimlik tutarlılığı vb. neyin düzeltilmesi gerektiğini somut yazın…',
-		showCancelButton: true,
-		confirmButtonText: 'Reddet',
-		cancelButtonText: 'Vazgeç',
-		customClass: { confirmButton: 'btn btn-danger', cancelButton: 'btn btn-ghost' },
-		inputValidator: (v) => (!v || v.trim().length < 10) ? 'En az 10 karakter yazın.' : undefined,
-	})
-	if (!r.isConfirmed) return
+	const result = await openRejectDialog($swal, props.rejectionReasons)
+	if (!result) return
 
 	busyReview.value = m.id
-	router.post(`/creative/mannequins/${m.id}/reject`, { reason: r.value }, {
+	router.post(`/creative/mannequins/${m.id}/reject`, { reason: result.reason, tags: result.tags }, {
 		preserveScroll: true,
 		preserveState: false,
 		onError: (errs) => showToast?.({ type: 'error', title: 'Reddedilemedi', message: Object.values(errs)[0] || 'Sunucu hatası.' }),
@@ -380,6 +375,8 @@ onUnmounted(() => {
 .mannequin-traits { font-size: 11px; color: #888; }
 .mannequin-measures { font-size: 11px; color: rgb(var(--color-primary)); font-weight: 600; margin-top: 2px; }
 .mannequin-creator { font-size: 10.5px; color: #aaa; }
+.review-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.review-tag { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 10px; background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
 .mannequin-error { font-size: 11px; color: #dc2626; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mannequin-review-actions { display: flex; gap: 8px; padding: 0 12px 10px; }
 .act-btn { flex: 1; border: none; cursor: pointer; font-size: 12px; font-weight: 600; padding: 7px 6px; border-radius: 8px; font-family: inherit; transition: all .15s; }

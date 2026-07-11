@@ -19,4 +19,16 @@ return [
             'pickup' => ['label' => 'Depodan Teslim', 'description' => 'Siparişi depodan teslim al (ücretsiz)'],
         ],
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | AI içerik otomasyonu
+    |--------------------------------------------------------------------------
+    | auto_seo_on_bom: Bir ürüne reçete (BOM) kaydedilince, AI ile SEO uyumlu
+    | başlık (public_name) + açıklamalar + meta alanları üretip ürüne yazan
+    | GenerateProductSeoContentJob'u kuyruğa alır. Testlerde kapalı tutulur.
+    */
+    'ai' => [
+        'auto_seo_on_bom' => env('PRODUCT_AI_AUTO_SEO_ON_BOM', true),
+    ],
 ];
