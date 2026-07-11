@@ -3,9 +3,12 @@
 namespace Modules\Tenant\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use Modules\Product\Models\Brand;
+use Modules\Product\Models\Category;
 use Modules\Product\Models\Product;
 use Modules\Product\Services\ProductDisplayResolver;
 use Modules\Tenant\Models\Tenant;
@@ -23,7 +26,10 @@ class PortalCatalogController extends Controller
         /** @var Tenant $tenant */
         $tenant = $request->attributes->get('tenant');
 
-        $search = trim((string) $request->query('q', ''));
+        $search   = trim((string) $request->query('q', ''));
+        $category = $request->integer('category') ?: null;
+        $brand    = $request->integer('brand') ?: null;
+        $sort     = (string) $request->query('sort', 'name');
 
         $query = Product::query()
             ->with(['brand:id,name', 'category:id,name'])
@@ -32,11 +38,23 @@ class PortalCatalogController extends Controller
         if ($search !== '') {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('sku', 'like', "%{$search}%");
+                    ->orWhere('sku', 'like', "%{$search}%")
+                    ->orWhere('barcode', 'like', "%{$search}%");
             });
         }
 
-        $products = $query->orderBy('name')->paginate(24);
+        if ($category !== null) {
+            $query->where('category_id', $category);
+        }
+
+        if ($brand !== null) {
+            $query->where('brand_id', $brand);
+        }
+
+        $this->applySort($query, $sort);
+
+        // Filtre + arama query string'i sayfalar arası korunur.
+        $products = $query->paginate(24)->withQueryString();
 
         $products->through(function (Product $p) use ($tenant) {
             $display = $this->display->for($p, $tenant);
@@ -55,10 +73,60 @@ class PortalCatalogController extends Controller
         });
 
         return Inertia::render('Tenant::Portal/Catalog', [
-            'tenant'   => $this->tenantPayload($tenant),
-            'products' => $products,
-            'filters'  => ['q' => $search],
+            'tenant'        => $this->tenantPayload($tenant),
+            'products'      => $products,
+            'filters'       => [
+                'q'        => $search,
+                'category' => $category,
+                'brand'    => $brand,
+                'sort'     => $sort,
+            ],
+            'filterOptions' => $this->filterOptions($tenant),
         ]);
+    }
+
+    /**
+     * Sıralamayı whitelist üzerinden uygular. Fiyat sıralaması liste fiyatı
+     * (products.price) üzerindendir; tenant'a özel fiyat gösterimde çözülür.
+     */
+    private function applySort(Builder $query, string $sort): void
+    {
+        match ($sort) {
+            'price_asc'  => $query->orderBy('price')->orderBy('name'),
+            'price_desc' => $query->orderByDesc('price')->orderBy('name'),
+            'newest'     => $query->orderByDesc('id'),
+            default      => $query->orderBy('name'),
+        };
+    }
+
+    /**
+     * Filtre panelinde gösterilecek kategori/marka seçenekleri — yalnızca tenant'ın
+     * erişebildiği ürünlerde geçen değerler (boş/erişilemez seçenek gösterilmez).
+     *
+     * @return array{categories: list<array{id:int,name:string}>, brands: list<array{id:int,name:string}>}
+     */
+    private function filterOptions(Tenant $tenant): array
+    {
+        $categoryIds = Product::query()->accessibleToTenant($tenant->id)
+            ->distinct()->pluck('category_id')->filter()->all();
+        $brandIds = Product::query()->accessibleToTenant($tenant->id)
+            ->distinct()->pluck('brand_id')->filter()->all();
+
+        $categories = Category::query()
+            ->whereIn('id', $categoryIds)
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (Category $c) => ['id' => $c->id, 'name' => $c->name])
+            ->all();
+
+        $brands = Brand::query()
+            ->whereIn('id', $brandIds)
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (Brand $b) => ['id' => $b->id, 'name' => $b->name])
+            ->all();
+
+        return ['categories' => $categories, 'brands' => $brands];
     }
 
     public function show(Request $request, Product $product): Response
