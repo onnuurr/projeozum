@@ -2,6 +2,8 @@
 
 namespace Modules\Marketplace\Providers;
 
+use Modules\Marketplace\Services\Contracts\MarketplaceFinancialsContract;
+use Modules\Marketplace\Services\MarketplaceFinancialsService;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 
 class MarketplaceServiceProvider extends ModuleServiceProvider
@@ -14,6 +16,13 @@ class MarketplaceServiceProvider extends ModuleServiceProvider
         EventServiceProvider::class,
         RouteServiceProvider::class,
     ];
+
+    public function register(): void
+    {
+        parent::register();
+
+        $this->app->bind(MarketplaceFinancialsContract::class, MarketplaceFinancialsService::class);
+    }
 
     public function boot(): void
     {

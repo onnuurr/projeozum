@@ -5,7 +5,6 @@ namespace Modules\Marketplace\Services;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Modules\Product\Models\Product;
-use Modules\Marketplace\Models\MarketplaceCommissionRate;
 use Modules\Marketplace\Models\MarketplaceExpense;
 use Modules\Marketplace\Models\MarketplaceSale;
 use Modules\Marketplace\Models\MarketplaceSyncLog;
@@ -140,40 +139,12 @@ abstract class AbstractMarketplaceService implements MarketplaceClient
     }
 
     /**
-     * Komisyon ve kargo oranı lookup'ı: önce kategori-spesifik kayıt, yoksa default (category_id NULL).
+     * Komisyon ve kargo oranı lookup'ı — tek kaynak: CommissionRateLookup.
      *
      * @return array{0:float,1:float} [commission_rate, shipping_rate]
      */
     protected function lookupRates(string $marketplace, int $categoryId): array
     {
-        $today = now()->toDateString();
-
-        $row = MarketplaceCommissionRate::query()
-            ->where('marketplace', $marketplace)
-            ->where('category_id', $categoryId)
-            ->where('valid_from', '<=', $today)
-            ->where(function ($q) use ($today) {
-                $q->whereNull('valid_until')->orWhere('valid_until', '>=', $today);
-            })
-            ->orderByDesc('valid_from')
-            ->first();
-
-        if (! $row) {
-            $row = MarketplaceCommissionRate::query()
-                ->where('marketplace', $marketplace)
-                ->whereNull('category_id')
-                ->where('valid_from', '<=', $today)
-                ->where(function ($q) use ($today) {
-                    $q->whereNull('valid_until')->orWhere('valid_until', '>=', $today);
-                })
-                ->orderByDesc('valid_from')
-                ->first();
-        }
-
-        if (! $row) {
-            return [0.0, 0.0];
-        }
-
-        return [(float) $row->commission_rate, (float) $row->shipping_rate];
+        return app(CommissionRateLookup::class)->rates($marketplace, $categoryId);
     }
 }
