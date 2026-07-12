@@ -2,6 +2,8 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\Marketplace\Http\Controllers\CategoryMappingController;
+use Modules\Marketplace\Http\Controllers\ProductListingsController;
+use Modules\Marketplace\Http\Controllers\ProductMarketplaceListingController;
 use Modules\Marketplace\Http\Controllers\TenantMarketplaceController;
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -31,5 +33,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->middleware('can:marketplace.catalog.manage')->name('mappings.store');
         Route::delete('/{category}/marketplaces/{marketplace}', [CategoryMappingController::class, 'destroyMapping'])
             ->middleware('can:marketplace.catalog.manage')->name('mappings.destroy');
+    });
+
+    // ─── İç Katalog: Ürün ↔ Pazaryeri Listeleme ──────────────────────────
+    // Product'ın Ürünler sayfasından taşındı — iç/admin-only, marketplace.catalog.manage.
+    Route::prefix('marketplace/products')->name('marketplace.products.')->group(function () {
+        Route::get('/', [ProductListingsController::class, 'index'])->name('index');
+        Route::get('/search', [ProductListingsController::class, 'search'])->name('search');
+        Route::get('/{product:id}/{marketplace}/listing', [ProductMarketplaceListingController::class, 'show'])
+            ->whereNumber('product')->name('listings.show');
+        Route::put('/{product:id}/{marketplace}/listing', [ProductMarketplaceListingController::class, 'upsert'])
+            ->whereNumber('product')->middleware('can:marketplace.catalog.manage')->name('listings.upsert');
     });
 });

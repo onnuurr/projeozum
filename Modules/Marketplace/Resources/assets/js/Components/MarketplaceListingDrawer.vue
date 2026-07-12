@@ -197,7 +197,7 @@ async function load() {
 	loading.value = true
 	form.value = null
 	try {
-		const { data } = await axios.get(`/products/${props.productId}/marketplaces/${props.marketplace.key}/listing`)
+		const { data } = await axios.get(`/marketplace/products/${props.productId}/${props.marketplace.key}/listing`)
 		product.value = data.product
 		variantsMeta.value = data.variants
 		form.value = data.listing
@@ -214,7 +214,7 @@ async function save() {
 	saving.value = true
 	try {
 		const { data } = await axios.put(
-			`/products/${props.productId}/marketplaces/${props.marketplace.key}/listing`,
+			`/marketplace/products/${props.productId}/${props.marketplace.key}/listing`,
 			form.value,
 		)
 		showToast?.({ type: 'success', title: 'Kaydedildi', message: `${props.marketplace.name} listelemesi güncellendi.` })

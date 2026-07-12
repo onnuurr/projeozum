@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests\Feature\Product;
+namespace Tests\Feature\Marketplace;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -10,7 +10,7 @@ use Modules\Product\Models\Product;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
-class MarketplaceListingTest extends TestCase
+class ProductListingTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -51,7 +51,7 @@ class MarketplaceListingTest extends TestCase
         Marketplace::create(['key' => 'n11', 'name' => 'N11', 'logo_text' => 'n11', 'color' => '#f5a623']);
 
         $this->actingAs($this->admin)
-            ->getJson("/products/{$product->id}/marketplaces/n11/listing")
+            ->getJson("/marketplace/products/{$product->id}/n11/listing")
             ->assertOk()
             ->assertJsonPath('listing.is_sent', false)
             ->assertJsonPath('listing.approval_status', 'not_sent')
@@ -65,7 +65,7 @@ class MarketplaceListingTest extends TestCase
         $product = $this->makeProduct();
 
         $this->actingAs($this->admin)
-            ->getJson("/products/{$product->id}/marketplaces/bilinmeyen/listing")
+            ->getJson("/marketplace/products/{$product->id}/bilinmeyen/listing")
             ->assertNotFound();
     }
 
@@ -76,7 +76,7 @@ class MarketplaceListingTest extends TestCase
         $variantId = $product->variants->first()->id;
 
         $this->actingAs($this->admin)
-            ->putJson("/products/{$product->id}/marketplaces/n11/listing", [
+            ->putJson("/marketplace/products/{$product->id}/n11/listing", [
                 'product_status' => 'active',
                 'store_name' => '#1 - TEST MAĞAZA',
                 'model_code' => 'P3946S523',
@@ -102,7 +102,7 @@ class MarketplaceListingTest extends TestCase
         ]);
     }
 
-    public function test_upsert_requires_permission(): void
+    public function test_upsert_requires_catalog_manage_permission(): void
     {
         $product = $this->makeProduct();
         Marketplace::create(['key' => 'n11', 'name' => 'N11', 'logo_text' => 'n11', 'color' => '#f5a623']);
@@ -110,7 +110,7 @@ class MarketplaceListingTest extends TestCase
         $plainUser = User::factory()->create(); // rolsüz → yetkisiz
 
         $this->actingAs($plainUser)
-            ->putJson("/products/{$product->id}/marketplaces/n11/listing", [
+            ->putJson("/marketplace/products/{$product->id}/n11/listing", [
                 'product_status' => 'active', 'title' => 'X', 'price' => 10, 'shipping_time' => 1,
             ])
             ->assertForbidden();
