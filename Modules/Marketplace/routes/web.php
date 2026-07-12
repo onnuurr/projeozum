@@ -25,24 +25,28 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // ─── İç Katalog: Kategori ↔ Pazaryeri Eşleme ─────────────────────────
     // Product'ın Kategoriler sayfasından taşındı — iç/admin-only, marketplace.catalog.manage.
-    Route::prefix('marketplace/categories')->name('marketplace.categories.')->group(function () {
-        Route::get('/', [CategoryMappingController::class, 'index'])->name('index');
-        Route::post('/marketplaces/{marketplace}/connect', [CategoryMappingController::class, 'connect'])
-            ->middleware('can:marketplace.catalog.manage')->name('connect');
-        Route::post('/{category}/marketplaces/{marketplace}', [CategoryMappingController::class, 'storeMapping'])
-            ->middleware('can:marketplace.catalog.manage')->name('mappings.store');
-        Route::delete('/{category}/marketplaces/{marketplace}', [CategoryMappingController::class, 'destroyMapping'])
-            ->middleware('can:marketplace.catalog.manage')->name('mappings.destroy');
-    });
+    Route::prefix('marketplace/categories')->name('marketplace.categories.')
+        ->middleware('can:marketplace.catalog.manage')
+        ->group(function () {
+            Route::get('/', [CategoryMappingController::class, 'index'])->name('index');
+            Route::post('/marketplaces/{marketplace}/connect', [CategoryMappingController::class, 'connect'])
+                ->name('connect');
+            Route::post('/{category}/marketplaces/{marketplace}', [CategoryMappingController::class, 'storeMapping'])
+                ->name('mappings.store');
+            Route::delete('/{category}/marketplaces/{marketplace}', [CategoryMappingController::class, 'destroyMapping'])
+                ->name('mappings.destroy');
+        });
 
     // ─── İç Katalog: Ürün ↔ Pazaryeri Listeleme ──────────────────────────
     // Product'ın Ürünler sayfasından taşındı — iç/admin-only, marketplace.catalog.manage.
-    Route::prefix('marketplace/products')->name('marketplace.products.')->group(function () {
-        Route::get('/', [ProductListingsController::class, 'index'])->name('index');
-        Route::get('/search', [ProductListingsController::class, 'search'])->name('search');
-        Route::get('/{product:id}/{marketplace}/listing', [ProductMarketplaceListingController::class, 'show'])
-            ->whereNumber('product')->name('listings.show');
-        Route::put('/{product:id}/{marketplace}/listing', [ProductMarketplaceListingController::class, 'upsert'])
-            ->whereNumber('product')->middleware('can:marketplace.catalog.manage')->name('listings.upsert');
-    });
+    Route::prefix('marketplace/products')->name('marketplace.products.')
+        ->middleware('can:marketplace.catalog.manage')
+        ->group(function () {
+            Route::get('/', [ProductListingsController::class, 'index'])->name('index');
+            Route::get('/search', [ProductListingsController::class, 'search'])->name('search');
+            Route::get('/{product:id}/{marketplace}/listing', [ProductMarketplaceListingController::class, 'show'])
+                ->whereNumber('product')->name('listings.show');
+            Route::put('/{product:id}/{marketplace}/listing', [ProductMarketplaceListingController::class, 'upsert'])
+                ->whereNumber('product')->name('listings.upsert');
+        });
 });
