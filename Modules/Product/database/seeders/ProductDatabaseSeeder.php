@@ -11,8 +11,8 @@ class ProductDatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // NOT: Pazaryeri kataloğu (MarketplaceSeeder) Marketplace modülüne taşındı:
-        // Modules\Marketplace\database\seeders\MarketplaceDatabaseSeeder.
+        // NOT: Pazaryeri kataloğu seeding'i MarketplaceDatabaseSeeder tarafından
+        // Marketplace modülüne taşındı.
         $this->call([
             \Modules\Product\database\seeders\BrandSeeder::class,
             \Modules\Product\database\seeders\CategorySeeder::class,
