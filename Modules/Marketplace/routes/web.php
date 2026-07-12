@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\Marketplace\Http\Controllers\CategoryMappingController;
 use Modules\Marketplace\Http\Controllers\TenantMarketplaceController;
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -19,4 +20,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::delete('/{credential}', [TenantMarketplaceController::class, 'destroy'])
                 ->whereNumber('credential')->name('destroy');
         });
+
+    // ─── İç Katalog: Kategori ↔ Pazaryeri Eşleme ─────────────────────────
+    // Product'ın Kategoriler sayfasından taşındı — iç/admin-only, marketplace.catalog.manage.
+    Route::prefix('marketplace/categories')->name('marketplace.categories.')->group(function () {
+        Route::get('/', [CategoryMappingController::class, 'index'])->name('index');
+        Route::post('/marketplaces/{marketplace}/connect', [CategoryMappingController::class, 'connect'])
+            ->middleware('can:marketplace.catalog.manage')->name('connect');
+        Route::post('/{category}/marketplaces/{marketplace}', [CategoryMappingController::class, 'storeMapping'])
+            ->middleware('can:marketplace.catalog.manage')->name('mappings.store');
+        Route::delete('/{category}/marketplaces/{marketplace}', [CategoryMappingController::class, 'destroyMapping'])
+            ->middleware('can:marketplace.catalog.manage')->name('mappings.destroy');
+    });
 });
