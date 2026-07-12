@@ -100,19 +100,6 @@ class ProductCatalogPresenter
             'purchasePrice'     => $p->purchase_price !== null ? (float) $p->purchase_price : null,
             'barcode'           => $p->barcode,
             'desi'              => $p->desi !== null ? (float) $p->desi : null,
-            'marketplaces'      => optional($p->category)->marketplaceMappings
-                ?->map(fn ($m) => [
-                    'key'      => $m->marketplace?->key,
-                    'name'     => $m->marketplace?->name,
-                    'color'    => $m->marketplace?->color,
-                    'logoText' => $m->marketplace?->logo_text,
-                ])->filter(fn ($x) => $x['key'])->values()->all() ?? [],
-            'listings'          => $p->listings->mapWithKeys(fn ($l) => [
-                $l->marketplace->key => [
-                    'price'  => $l->price !== null ? (float) $l->price : null,
-                    'isSent' => (bool) $l->is_sent,
-                ],
-            ])->all(),
             'stock'             => (int) ($p->variants_total_stock ?? 0),
             'rating'            => (float) $p->rating,
             'reviewCount'       => $p->review_count,

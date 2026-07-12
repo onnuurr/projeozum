@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Modules\Marketplace\Models\CategoryMarketplaceMapping;
 
 class Category extends Model
 {
@@ -45,11 +44,6 @@ class Category extends Model
     public function children(): HasMany
     {
         return $this->hasMany(self::class, 'parent_id');
-    }
-
-    public function marketplaceMappings(): HasMany
-    {
-        return $this->hasMany(CategoryMarketplaceMapping::class);
     }
 
     public function products(): HasMany

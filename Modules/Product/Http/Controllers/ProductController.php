@@ -13,7 +13,6 @@ use Modules\Product\Http\Requests\StoreProductRequest;
 use Modules\Product\Http\Requests\UpdateProductRequest;
 use Modules\Product\Models\Brand;
 use Modules\Product\Models\Category;
-use Modules\Marketplace\Models\Marketplace;
 use Modules\Product\Models\Product;
 use Modules\Product\Models\ProductFavorite;
 use Modules\Product\Services\ProductCatalogPresenter;
@@ -36,12 +35,9 @@ class ProductController extends Controller
             ->accessibleToTenant($tenant?->id)
             ->with([
                 'category:id,name,slug',
-                'category.marketplaceMappings:id,category_id,marketplace_id',
-                'category.marketplaceMappings.marketplace:id,key,name,color,logo_text',
                 'brand:id,slug,name',
                 'variants',
                 'images' => fn ($q) => $q->orderByDesc('is_cover')->orderBy('sort_order'),
-                'listings.marketplace:id,key',
             ])
             ->withSum('variants as variants_total_stock', 'stock')
             ->orderByDesc('is_new')
@@ -61,23 +57,11 @@ class ProductController extends Controller
             ->pluck('product_id')
             ->all();
 
-        // Tüm pazaryeri listesi (eşleşmesi olmayan üründe de ikon göstermek için).
-        $marketplaces = Marketplace::query()
-            ->orderBy('sort_order')
-            ->get(['key', 'name', 'color', 'logo_text'])
-            ->map(fn (Marketplace $m) => [
-                'key'      => $m->key,
-                'name'     => $m->name,
-                'color'    => $m->color,
-                'logoText' => $m->logo_text,
-            ]);
-
         return Inertia::render('Product::Products', [
-            'products'     => $products,
-            'categories'   => $categories,
-            'brands'       => $brands,
-            'favoriteIds'  => $favoriteIds,
-            'marketplaces' => $marketplaces,
+            'products'    => $products,
+            'categories'  => $categories,
+            'brands'      => $brands,
+            'favoriteIds' => $favoriteIds,
         ]);
     }
 
