@@ -153,7 +153,6 @@
 						<th class="col-img">Görsel</th>
 						<th class="col-name">Ürün Adı</th>
 						<th class="col-price">Site Fiyatı</th>
-						<th class="col-mp">Pazaryeri</th>
 						<th class="col-stock">Stok</th>
 						<th class="col-actions">İşlemler</th>
 					</tr>
@@ -196,30 +195,6 @@
 								<span v-if="p.marketPrice != null" class="price-pa">P: {{ formatPrice(p.marketPrice) }}</span>
 								<span v-if="p.purchasePrice != null" class="price-pa">A: {{ formatPrice(p.purchasePrice) }}</span>
 							</div>
-						</td>
-						<td class="col-mp">
-							<div v-if="marketplacesFor(p).length" class="mp-list">
-								<button
-									v-for="mp in marketplacesFor(p)"
-									:key="mp.key"
-									type="button"
-									class="mp-item"
-									:class="{ sent: listingSummary(p, mp)?.isSent }"
-									:title="mp.name"
-									@click="openListing(p, mp)"
-								>
-									<img
-										v-if="!logoFailed[mp.key]"
-										class="mp-logo-img"
-										:src="`/images/marketplaces/${mp.key}.svg`"
-										:alt="mp.name"
-										@error="onLogoError(mp.key)"
-									/>
-									<span v-else class="mp-badge" :style="{ background: mp.color || '#888' }">{{ mp.logoText }}</span>
-									<span class="mp-price">{{ mpPrice(p, mp) }}</span>
-								</button>
-							</div>
-							<span v-else class="mp-empty">—</span>
 						</td>
 						<td class="col-stock">
 							<span v-if="p.stock === 0" class="stock-pill stock-out">Tükendi</span>
@@ -269,23 +244,15 @@
 			</div>
 		</div>
 
-		<MarketplaceListingDrawer
-			:open="listingOpen"
-			:product-id="activeProduct?.id"
-			:marketplace="activeMarketplace"
-			@close="listingOpen = false"
-			@saved="onListingSaved"
-		/>
 	</div>
 </template>
 
 <script setup>
-import { ref, computed, watch, inject, reactive } from 'vue'
+import { ref, computed, watch, inject } from 'vue'
 import { Head, Link, router, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import CustomSelect from '@/Components/CustomSelect.vue'
-import MarketplaceListingDrawer from '@Modules/Marketplace/Resources/assets/js/Components/MarketplaceListingDrawer.vue'
 
 defineOptions({ layout: AppLayout })
 
@@ -294,7 +261,6 @@ const props = defineProps({
 	categories: { type: Array, default: () => [] },
 	brands: { type: Array, default: () => [] },
 	favoriteIds: { type: Array, default: () => [] },
-	marketplaces: { type: Array, default: () => [] },
 })
 
 const showToast = inject('showToast')
@@ -355,57 +321,6 @@ const itemsPerPage = 15
 /* ── Yardımcılar ── */
 function formatPrice(value) {
 	return '₺' + Number(value ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
-
-/* ── Pazaryeri rozetleri ──
- * Ürünün kategorisine eşlenmiş pazaryerleri varsa onları kullan; yoksa
- * (yapım aşaması) test amaçlı tüm pazaryerlerini göster. */
-function marketplacesFor(p) {
-	return (p.marketplaces && p.marketplaces.length) ? p.marketplaces : props.marketplaces
-}
-
-/* ── Pazaryeri listeleme drawer ── */
-const listingOpen = ref(false)
-const activeProduct = ref(null)
-const activeMarketplace = ref(null)
-const listingOverlay = reactive({}) // `${productId}:${key}` -> { price, isSent }
-
-function listingSummary(p, mp) {
-	return listingOverlay[`${p.id}:${mp.key}`] ?? p.listings?.[mp.key] ?? null
-}
-function mpPrice(p, mp) {
-	const s = listingSummary(p, mp)
-	return s && s.price != null ? formatPrice(s.price) : platformPrice(p, mp)
-}
-function openListing(p, mp) {
-	activeProduct.value = p
-	activeMarketplace.value = mp
-	listingOpen.value = true
-}
-function onListingSaved(payload) {
-	if (!activeProduct.value) return
-	listingOverlay[`${activeProduct.value.id}:${payload.marketplaceKey}`] = {
-		price: payload.price,
-		isSent: payload.isSent,
-	}
-}
-
-// Logo görseli yüklenemezse renkli text rozet'e düş.
-const logoFailed = ref({})
-function onLogoError(key) { logoFailed.value[key] = true }
-
-// Platforma özel fiyat henüz yok; test için site fiyatından deterministik
-// bir placeholder üret (her pazaryeri için sabit çarpan).
-const MP_PRICE_FACTOR = {
-	trendyol: 1.00,
-	hepsiburada: 1.05,
-	amazon: 1.08,
-	n11: 1.03,
-	gittigidiyor: 1.02,
-}
-function platformPrice(p, mp) {
-	const factor = MP_PRICE_FACTOR[mp.key] ?? 1
-	return formatPrice((p.price ?? 0) * factor)
 }
 
 /* ── Filtre işlemi ── */
@@ -772,7 +687,6 @@ async function bulkDelete() {
 .col-img { width: 60px; }
 .col-name { width: 180px; }
 .col-price { width: 120px; }
-.col-mp { width: 360px; }
 .col-stock { width: 80px; }
 .col-actions { width: 120px; }
 
@@ -800,25 +714,6 @@ async function bulkDelete() {
 .status-dot.off { color: #cbd5e1; }
 .price-val { font-weight: 800; color: #1a1a2e; font-size: 13.5px; }
 .price-pa { font-size: 11px; color: #888; }
-
-.mp-list {
-	display: flex; flex-wrap: nowrap; gap: 8px;
-	overflow-x: auto; padding-bottom: 2px;
-}
-.mp-list::-webkit-scrollbar { height: 4px; }
-.mp-list::-webkit-scrollbar-thumb { background: #ddd; border-radius: 4px; }
-.mp-item { display: flex; flex-direction: column; align-items: center; gap: 3px; flex: 0 0 auto; background: none; border: none; cursor: pointer; padding: 2px; opacity: .55; transition: opacity .12s; }
-.mp-item:hover { opacity: 1; }
-.mp-item.sent { opacity: 1; }
-.mp-badge {
-	display: inline-flex; align-items: center; justify-content: center;
-	width: 26px; height: 26px;
-	color: #fff; font-size: 10px; font-weight: 800;
-	border-radius: 7px; letter-spacing: 0.02em;
-}
-.mp-logo-img { width: 26px; height: 26px; display: block; border-radius: 7px; }
-.mp-price { font-size: 11px; font-weight: 600; color: #555; white-space: nowrap; }
-.mp-empty { color: #ccc; }
 
 .stock-pill {
 	display: inline-flex; align-items: center;
@@ -879,6 +774,6 @@ async function bulkDelete() {
 .pagination-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 @media (max-width: 760px) {
-	.col-mp, .col-id { display: none; }
+	.col-id { display: none; }
 }
 </style>
