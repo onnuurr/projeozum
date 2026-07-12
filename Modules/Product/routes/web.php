@@ -64,15 +64,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->middleware('can:category.manage')->name('destroy');
         Route::post('/bulk-destroy', [CategoryController::class, 'bulkDestroy'])
             ->middleware('can:category.manage')->name('bulk-destroy');
-
-        Route::post('/{category}/marketplaces/{marketplace}', [CategoryController::class, 'storeMapping'])
-            ->middleware('can:category.manage')->name('marketplaces.store');
-        Route::delete('/{category}/marketplaces/{marketplace}', [CategoryController::class, 'destroyMapping'])
-            ->middleware('can:category.manage')->name('marketplaces.destroy');
     });
-
-    Route::post('/products/marketplaces/{marketplace}/connect', [CategoryController::class, 'connectMarketplace'])
-        ->middleware('can:category.manage')->name('products.marketplaces.connect');
 
     // ─── Ürün-Pazaryeri Listeleme ────────────────────────────────────────
     Route::get('/products/{product:id}/marketplaces/{marketplace}/listing',
