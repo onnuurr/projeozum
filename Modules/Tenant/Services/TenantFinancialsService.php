@@ -4,25 +4,22 @@ namespace Modules\Tenant\Services;
 
 use DateTimeInterface;
 use Illuminate\Support\Facades\DB;
+use Modules\Marketplace\Services\Contracts\MarketplaceFinancialsContract;
 use Modules\Tenant\Models\Tenant;
 
 /**
  * Pazaryeri satışları + giderleri + faturalar üzerinden tenant'ın P&L tablosu.
- * Driver-aware (pgsql/mysql/sqlite) month aggregator.
+ * Pazaryeri verisi MarketplaceFinancialsContract üzerinden okunur — bu servis
+ * Marketplace'in tablolarını/modellerini doğrudan bilmez.
  */
 class TenantFinancialsService
 {
+    public function __construct(private MarketplaceFinancialsContract $marketplace) {}
+
     public function summary(Tenant $tenant, DateTimeInterface $from, DateTimeInterface $to): array
     {
-        $sales = (float) DB::table('marketplace_sales')
-            ->where('tenant_id', $tenant->id)
-            ->whereBetween('sold_at', [$from, $to])
-            ->sum(DB::raw('sold_price * qty'));
-
-        $expenses = (float) DB::table('marketplace_expenses')
-            ->where('tenant_id', $tenant->id)
-            ->whereBetween('occurred_at', [$from, $to])
-            ->sum('amount');
+        $sales    = $this->marketplace->salesTotal($tenant->id, $from, $to);
+        $expenses = $this->marketplace->expensesTotal($tenant->id, $from, $to);
 
         $invoiced = (float) DB::table('tenant_invoices')
             ->where('tenant_id', $tenant->id)
@@ -43,52 +40,11 @@ class TenantFinancialsService
 
     public function byMarketplace(Tenant $tenant, DateTimeInterface $from, DateTimeInterface $to): array
     {
-        return DB::table('marketplace_sales')
-            ->where('tenant_id', $tenant->id)
-            ->whereBetween('sold_at', [$from, $to])
-            ->select(
-                'marketplace',
-                DB::raw('SUM(sold_price * qty) as revenue'),
-                DB::raw('SUM(commission) as commission'),
-                DB::raw('SUM(net_revenue) as net'),
-            )
-            ->groupBy('marketplace')
-            ->get()
-            ->map(fn ($r) => [
-                'marketplace' => $r->marketplace,
-                'revenue'     => (float) $r->revenue,
-                'commission'  => (float) $r->commission,
-                'net'         => (float) $r->net,
-            ])
-            ->all();
+        return $this->marketplace->salesByMarketplace($tenant->id, $from, $to);
     }
 
     public function byMonth(Tenant $tenant, int $months = 12): array
     {
-        $since = now()->subMonths($months)->startOfMonth();
-        $driver = DB::connection()->getDriverName();
-        $monthExpr = match ($driver) {
-            'pgsql'             => "to_char(sold_at, 'YYYY-MM')",
-            'mysql', 'mariadb'  => "DATE_FORMAT(sold_at, '%Y-%m')",
-            default             => "strftime('%Y-%m', sold_at)",
-        };
-
-        return DB::table('marketplace_sales')
-            ->where('tenant_id', $tenant->id)
-            ->where('sold_at', '>=', $since)
-            ->select(
-                DB::raw("$monthExpr as month"),
-                DB::raw('SUM(sold_price * qty) as revenue'),
-                DB::raw('SUM(net_revenue) as net'),
-            )
-            ->groupBy(DB::raw($monthExpr))
-            ->orderBy('month')
-            ->get()
-            ->map(fn ($r) => [
-                'month'   => (string) $r->month,
-                'revenue' => (float) $r->revenue,
-                'net'     => (float) $r->net,
-            ])
-            ->all();
+        return $this->marketplace->salesByMonth($tenant->id, $months);
     }
 }
