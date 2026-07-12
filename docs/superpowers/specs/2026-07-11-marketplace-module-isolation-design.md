@@ -1,7 +1,7 @@
 # Marketplace Modül İzolasyonu — Tasarım
 
 **Tarih:** 2026-07-11
-**Durum:** Onaylandı, uygulama planı bekleniyor
+**Durum:** Uygulandı (2026-07-11)
 
 ## Bağlam
 
