@@ -66,17 +66,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->middleware('can:category.manage')->name('bulk-destroy');
     });
 
-    // ─── Ürün-Pazaryeri Listeleme ────────────────────────────────────────
-    Route::get('/products/{product:id}/marketplaces/{marketplace}/listing',
-        [\Modules\Marketplace\Http\Controllers\ProductMarketplaceListingController::class, 'show'])
-        ->whereNumber('product')
-        ->name('products.listings.show');
-    Route::put('/products/{product:id}/marketplaces/{marketplace}/listing',
-        [\Modules\Marketplace\Http\Controllers\ProductMarketplaceListingController::class, 'upsert'])
-        ->whereNumber('product')
-        ->middleware('can:product.add')
-        ->name('products.listings.upsert');
-
     // ─── Markalar ────────────────────────────────────────────────────────
     Route::prefix('products/brands')->name('products.brands.')->group(function () {
         Route::get('/', [BrandController::class, 'index'])->name('index');
