@@ -9,13 +9,14 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Middleware\RateLimited;
 use Illuminate\Queue\SerializesModels;
+use Modules\Tenant\Jobs\Marketplace\RunsMarketplaceSyncLog;
 use Modules\Tenant\Models\Tenant;
-use Modules\Tenant\Services\Marketplace\MarketplaceServiceResolver;
-use Throwable;
+use Modules\Tenant\Services\Marketplace\MarketplaceClientGateway;
+use Modules\Tenant\Services\Marketplace\TenantMarketplaceSyncService;
 
 class PullTrendyolOrdersJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, RunsMarketplaceSyncLog;
 
     public int $tries = 3;
     public int $timeout = 300;
@@ -28,27 +29,24 @@ class PullTrendyolOrdersJob implements ShouldQueue
         return [(new RateLimited('marketplace-trendyol'))];
     }
 
-    public function handle(MarketplaceServiceResolver $resolver): void
+    public function handle(MarketplaceClientGateway $gateway, TenantMarketplaceSyncService $sync): void
     {
-        $tenant  = Tenant::findOrFail($this->tenantId);
-        $service = $resolver->for($tenant, 'trendyol');
-        $log     = $service->startSyncLog('pull_orders');
+        $tenant = Tenant::findOrFail($this->tenantId);
+        $client = $gateway->resolveClient($tenant, 'trendyol');
 
-        try {
-            $since = $this->sinceIso ? new DateTimeImmutable($this->sinceIso) : new DateTimeImmutable('-1 hour');
-            $orders = $service->fetchOrders($since);
+        $this->runSync($sync, $tenant, 'trendyol', 'pull_orders', function () use ($client, $sync, $tenant) {
+            $since  = $this->sinceIso ? new DateTimeImmutable($this->sinceIso) : new DateTimeImmutable('-1 hour');
+            $orders = $client->fetchOrders($since);
 
             $items = 0;
             foreach ($orders as $order) {
                 foreach ($order->lines as $line) {
-                    $service->recordSale($order, $line);
+                    $sync->recordSale($tenant, $order, $line);
                     $items++;
                 }
             }
-            $service->finishSyncLog($log, ['items_processed' => $items]);
-        } catch (Throwable $e) {
-            $service->failSyncLog($log, $e->getMessage());
-            throw $e;
-        }
+
+            return ['items_processed' => $items];
+        });
     }
 }

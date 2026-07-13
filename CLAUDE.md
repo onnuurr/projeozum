@@ -29,3 +29,19 @@ veritabanı şişti (bkz. `php artisan schema:audit`). Tekrarını önlemek içi
 
 > Not: Çalışan veritabanı geçmiş özellik kuşaklarından dolayı repo migration'larıyla tam
 > uyumlu olmayabilir; şema değişikliği yapmadan önce `schema:audit` ile mevcut durumu doğrula.
+
+## DTO kullanım istisnaları
+
+Projenin genel kuralı (`laravel-service` skill): **DTO kullanılmaz**, servisler doğrudan
+Eloquent model/Collection döner. Bunun iki sanctioned istisnası var — her ikisi de bir dış
+sınırda (dış API entegratörü / bağımsız modül) Eloquent model sızdırmamak için:
+
+1. `Modules/Finance/DTO/EInvoiceSendResult.php` — e-Fatura entegratörü dönüş değeri.
+2. `Modules/Marketplace/DTOs/*` (`MarketplaceCredentials`, `ProductPushDTO`,
+   `ProductVariantPushDTO`, `MarketplaceOrderDTO`, `MarketplaceOrderLineDTO`, `PushResult`,
+   `ReportResult`) — `Modules/Marketplace` hiçbir modüle (Tenant/Product dahil) bağımlı
+   olmaması gerektiği için (bkz. modülün `module.json` açıklaması) Eloquent model yerine
+   bu DTO'ları kullanır; `Modules/Tenant` bunları besleyen taraf.
+
+Yeni bir modül sınırında benzer bir izolasyon ihtiyacı doğarsa aynı desen kullanılabilir —
+ama yine bu listeye eklenmeli. Bunların dışında yeni DTO eklemeden önce bu dosya güncellenir.

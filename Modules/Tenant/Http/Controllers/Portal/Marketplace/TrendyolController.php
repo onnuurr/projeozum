@@ -94,7 +94,7 @@ class TrendyolController extends Controller
         // Trendyol kategori autocomplete — Phase 3 sonraki iterasyonda TrendyolCategoryClient
         // ile gerçek API'dan çekilir; stub mode'da boş döner.
         return response()->json([
-            'data' => config('tenant.marketplace.driver') === 'stub'
+            'data' => config('marketplace.driver') === 'stub'
                 ? [['id' => 411, 'name' => 'Giyim > Üst Giyim > Bluz']]
                 : [],
         ]);

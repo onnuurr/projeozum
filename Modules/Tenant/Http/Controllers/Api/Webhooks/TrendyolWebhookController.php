@@ -7,11 +7,11 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Modules\Tenant\Jobs\Marketplace\Trendyol\ProcessTrendyolWebhookJob;
 use Modules\Tenant\Models\TenantMarketplaceCredential;
-use Modules\Tenant\Services\Marketplace\MarketplaceServiceResolver;
+use Modules\Tenant\Services\Marketplace\MarketplaceClientGateway;
 
 class TrendyolWebhookController extends Controller
 {
-    public function __construct(private MarketplaceServiceResolver $resolver) {}
+    public function __construct(private MarketplaceClientGateway $gateway) {}
 
     public function handle(Request $request): Response
     {
@@ -33,8 +33,8 @@ class TrendyolWebhookController extends Controller
             return response('Tanınmayan supplier', 404);
         }
 
-        $service = $this->resolver->for($cred->tenant, 'trendyol');
-        if (! $service->verifyWebhook($request)) {
+        $client = $this->gateway->makeFromCredential($cred);
+        if (! $client->verifyWebhook($request)) {
             return response('İmza doğrulanamadı', 401);
         }
 

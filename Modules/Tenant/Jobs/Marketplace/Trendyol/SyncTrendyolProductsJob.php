@@ -9,13 +9,15 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Middleware\RateLimited;
 use Illuminate\Queue\SerializesModels;
 use Modules\Product\Models\Product;
+use Modules\Tenant\Jobs\Marketplace\RunsMarketplaceSyncLog;
 use Modules\Tenant\Models\Tenant;
-use Modules\Tenant\Services\Marketplace\MarketplaceServiceResolver;
-use Throwable;
+use Modules\Tenant\Services\Marketplace\MarketplaceClientGateway;
+use Modules\Tenant\Services\Marketplace\TenantMarketplaceSyncService;
+use Modules\Tenant\Services\Marketplace\TrendyolProductPayloadBuilder;
 
 class SyncTrendyolProductsJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, RunsMarketplaceSyncLog;
 
     public int $tries = 3;
     public int $timeout = 300;
@@ -29,22 +31,22 @@ class SyncTrendyolProductsJob implements ShouldQueue
         return [(new RateLimited('marketplace-trendyol'))];
     }
 
-    public function handle(MarketplaceServiceResolver $resolver): void
-    {
+    public function handle(
+        MarketplaceClientGateway $gateway,
+        TenantMarketplaceSyncService $sync,
+        TrendyolProductPayloadBuilder $payloadBuilder,
+    ): void {
         $tenant = Tenant::findOrFail($this->tenantId);
-        $service = $resolver->for($tenant, 'trendyol');
-        $log = $service->startSyncLog('push_product');
+        $client = $gateway->resolveClient($tenant, 'trendyol');
 
-        try {
+        $this->runSync($sync, $tenant, 'trendyol', 'push_product', function () use ($client, $payloadBuilder) {
             $pushed = 0;
             foreach (Product::query()->whereIn('id', $this->productIds)->cursor() as $product) {
-                $service->pushProduct($product);
+                $client->pushProduct($payloadBuilder->build($product));
                 $pushed++;
             }
-            $service->finishSyncLog($log, ['items_processed' => $pushed]);
-        } catch (Throwable $e) {
-            $service->failSyncLog($log, $e->getMessage());
-            throw $e;
-        }
+
+            return ['items_processed' => $pushed];
+        });
     }
 }

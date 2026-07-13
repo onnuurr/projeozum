@@ -4,5 +4,6 @@
     "Product": true,
     "Tenant": true,
     "Creative": true,
-    "Finance": true
+    "Finance": true,
+    "Marketplace": true
 }

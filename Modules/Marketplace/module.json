@@ -1,0 +1,18 @@
+{
+    "name": "Marketplace",
+    "alias": "marketplace",
+    "description": "Pazaryeri (Trendyol/Hepsiburada/N11/Çiçeksepeti) API entegrasyon motoru. Bağımsız: Eloquent modeli yok, sadece DTO alır/döner. Tenant modülü bu modüle bağımlıdır.",
+    "keywords": [
+        "marketplace",
+        "trendyol",
+        "hepsiburada",
+        "n11",
+        "ciceksepeti",
+        "integration"
+    ],
+    "priority": 0,
+    "providers": [
+        "Modules\\Marketplace\\Providers\\MarketplaceServiceProvider"
+    ],
+    "files": []
+}

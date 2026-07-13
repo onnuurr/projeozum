@@ -4,9 +4,12 @@ namespace Tests\Feature\Tenant\Marketplace;
 
 use DateTimeImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Modules\Marketplace\DTOs\MarketplaceCredentials;
+use Modules\Marketplace\Services\Trendyol\TrendyolService;
+use Modules\Marketplace\Services\Trendyol\TrendyolStubService;
 use Modules\Tenant\Models\Tenant;
 use Modules\Tenant\Models\TenantMarketplaceCredential;
-use Modules\Tenant\Services\Marketplace\Trendyol\TrendyolStubService;
+use Modules\Tenant\Services\Marketplace\MarketplaceClientGateway;
 use Tests\TestCase;
 
 class TrendyolStubServiceTest extends TestCase
@@ -15,15 +18,8 @@ class TrendyolStubServiceTest extends TestCase
 
     public function test_stub_fetch_orders_returns_fixture_dtos(): void
     {
-        $tenant = Tenant::factory()->create();
-        $cred = TenantMarketplaceCredential::create([
-            'tenant_id'   => $tenant->id,
-            'marketplace' => 'trendyol',
-            'supplier_id' => 'SUP-1',
-            'is_active'   => true,
-        ]);
-
-        $service = new TrendyolStubService($cred);
+        $credentials = new MarketplaceCredentials('trendyol', 'SUP-1', null, null);
+        $service = new TrendyolStubService($credentials);
         $orders = $service->fetchOrders(new DateTimeImmutable('-1 day'));
 
         $this->assertCount(2, $orders);
@@ -32,9 +28,9 @@ class TrendyolStubServiceTest extends TestCase
         $this->assertEquals(149.90, $orders[0]->lines[0]->soldPrice);
     }
 
-    public function test_resolver_returns_stub_in_stub_driver(): void
+    public function test_gateway_returns_stub_in_stub_driver(): void
     {
-        config(['tenant.marketplace.driver' => 'stub']);
+        config(['marketplace.driver' => 'stub']);
 
         $tenant = Tenant::factory()->create();
         TenantMarketplaceCredential::create([
@@ -43,16 +39,16 @@ class TrendyolStubServiceTest extends TestCase
             'is_active'   => true,
         ]);
 
-        $resolver = app(\Modules\Tenant\Services\Marketplace\MarketplaceServiceResolver::class);
-        $service = $resolver->for($tenant, 'trendyol');
+        $gateway = app(MarketplaceClientGateway::class);
+        $client = $gateway->resolveClient($tenant, 'trendyol');
 
-        $this->assertInstanceOf(TrendyolStubService::class, $service);
-        $this->assertSame('trendyol', $service->code());
+        $this->assertInstanceOf(TrendyolStubService::class, $client);
+        $this->assertSame('trendyol', $client->code());
     }
 
-    public function test_resolver_returns_live_service_in_live_driver(): void
+    public function test_gateway_returns_live_service_in_live_driver(): void
     {
-        config(['tenant.marketplace.driver' => 'live']);
+        config(['marketplace.driver' => 'live']);
 
         $tenant = Tenant::factory()->create();
         TenantMarketplaceCredential::create([
@@ -61,9 +57,9 @@ class TrendyolStubServiceTest extends TestCase
             'is_active'   => true,
         ]);
 
-        $resolver = app(\Modules\Tenant\Services\Marketplace\MarketplaceServiceResolver::class);
-        $service = $resolver->for($tenant, 'trendyol');
+        $gateway = app(MarketplaceClientGateway::class);
+        $client = $gateway->resolveClient($tenant, 'trendyol');
 
-        $this->assertInstanceOf(\Modules\Tenant\Services\Marketplace\Trendyol\TrendyolService::class, $service);
+        $this->assertInstanceOf(TrendyolService::class, $client);
     }
 }
