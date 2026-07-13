@@ -1,4 +1,7 @@
 {
+  "worktree": {
+    "baseRef": "head"
+  },
   "permissions": {
     "allow": [
       "WebFetch(domain:downloads.php.net)",
@@ -59,7 +62,10 @@
       "Bash(git ls-remote *)",
       "Bash(gh auth *)",
       "Bash(git merge *)",
-      "Bash(echo \"EXIT: $?\")"
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(grep -n \"marketplace-module-isolation\\\\|Marketplace Mod\" \"$\\(git rev-parse --show-toplevel\\)/.superpowers/sdd/progress.md\")",
+      "Bash(git rev-list *)",
+      "Skill(update-config)"
     ]
   }
 }
