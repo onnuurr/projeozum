@@ -3,8 +3,8 @@
 namespace Tests\Feature\Tenant\Financials;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Modules\Tenant\Models\MarketplaceExpense;
-use Modules\Tenant\Models\MarketplaceSale;
+use Modules\Marketplace\Models\MarketplaceExpense;
+use Modules\Marketplace\Models\MarketplaceSale;
 use Modules\Tenant\Models\Tenant;
 use Modules\Tenant\Models\TenantInvoice;
 use Modules\Tenant\Services\TenantFinancialsService;

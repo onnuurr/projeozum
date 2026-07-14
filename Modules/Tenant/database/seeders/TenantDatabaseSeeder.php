@@ -11,7 +11,9 @@ class TenantDatabaseSeeder extends Seeder
         $this->call([
             TenantTypeSeeder::class,
             TenantPermissionSeeder::class,
-            MarketplaceCommissionSeeder::class,
         ]);
+
+        // NOT: Pazaryeri komisyon oranları (MarketplaceCommissionSeeder) Marketplace
+        // modülüne taşındı: Modules\Marketplace\database\seeders\MarketplaceDatabaseSeeder.
     }
 }

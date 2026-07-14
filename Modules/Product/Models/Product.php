@@ -105,11 +105,6 @@ class Product extends Model
         return $this->hasMany(ProductImage::class)->orderBy('sort_order');
     }
 
-    public function listings(): HasMany
-    {
-        return $this->hasMany(ProductMarketplaceListing::class);
-    }
-
     public function favorites(): HasMany
     {
         return $this->hasMany(ProductFavorite::class);

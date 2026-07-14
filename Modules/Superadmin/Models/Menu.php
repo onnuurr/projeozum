@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Routing\Exceptions\UrlGenerationException;
 use Illuminate\Support\Facades\Route;
 
 class Menu extends Model
@@ -68,7 +69,15 @@ class Menu extends Model
     public function resolveTo(): ?string
     {
         if ($this->route_name && Route::has($this->route_name)) {
-            return route($this->route_name, [], false);
+            // route_name domain-parametreli (ör. portal.* subdomain grubu {slug} bekler)
+            // bir rotaya işaret ediyorsa route() burada patlar. Bu prop HER Inertia
+            // sayfasında (auth kullanıcılar için) paylaşılan menü ağacında çözülüyor,
+            // yani tek bozuk kayıt tüm uygulamayı 500'e düşürür — sessizce url'e düş.
+            try {
+                return route($this->route_name, [], false);
+            } catch (UrlGenerationException) {
+                return $this->url ?: null;
+            }
         }
         return $this->url ?: null;
     }
