@@ -488,4 +488,9 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
 .main-content::-webkit-scrollbar-track { background: transparent; margin: 14px 0; }
 .main-content::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.12); border-radius: 4px; }
 .main-content::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.22); }
+
+/* ── Dar ekran (telefon): iç boşlukları daralt — içerik alanını büyüt ── */
+@media (max-width: 640px) {
+	.main-content { padding: 14px 12px; border-radius: 10px; }
+}
 </style>

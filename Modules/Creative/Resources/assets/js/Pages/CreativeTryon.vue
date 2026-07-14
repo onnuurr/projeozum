@@ -386,4 +386,22 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
 .is-cover-note { font-size: 11px; color: #16a34a; font-weight: 600; }
 .chat-link { display: block; text-align: center; padding: 8px 12px; margin: 0 12px 12px; background: #eef2ff; color: #4338ca; border-radius: 8px; font-size: 12px; font-weight: 600; text-decoration: none; }
 .chat-link:hover { background: #e0e7ff; }
+
+/* ── Dar ekran (telefon) ── */
+@media (max-width: 640px) {
+	.page-header { flex-wrap: wrap; }
+	.page-header .btn { width: 100%; justify-content: center; }
+
+	.card-header { flex-wrap: wrap; row-gap: 6px; }
+	.card-header .hint { margin-left: 0; }
+	.card-search { margin-left: 0; min-width: 0; width: 100%; order: 3; }
+
+	.product-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
+	.pose-grid { grid-template-columns: repeat(auto-fill, minmax(95px, 1fr)); gap: 8px; }
+	.result-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+
+	.action-bar { flex-wrap: wrap; }
+	.selection-summary { width: 100%; }
+	.action-bar .btn { width: 100%; justify-content: center; }
+}
 </style>

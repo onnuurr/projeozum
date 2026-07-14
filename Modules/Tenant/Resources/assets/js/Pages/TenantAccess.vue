@@ -35,6 +35,7 @@
 				</button>
 			</div>
 
+			<div class="table-scroll">
 			<table class="data-table">
 				<thead>
 					<tr>
@@ -66,6 +67,7 @@
 					</tr>
 				</tbody>
 			</table>
+			</div>
 		</div>
 
 		<!-- ─── Ürün Override'ları ────────────────────────────────────── -->
@@ -81,6 +83,7 @@
 				</button>
 			</div>
 
+			<div class="table-scroll">
 			<table class="data-table">
 				<thead>
 					<tr>
@@ -126,6 +129,7 @@
 					</tr>
 				</tbody>
 			</table>
+			</div>
 		</div>
 
 		<!-- ─── Kural Modal ───────────────────────────────────────────── -->

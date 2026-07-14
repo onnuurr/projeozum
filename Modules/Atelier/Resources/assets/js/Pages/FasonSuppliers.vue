@@ -71,6 +71,7 @@
 			<div class="card-header">
 				<h3>Fasoncu Listesi</h3>
 			</div>
+			<div class="table-scroll">
 			<table class="data-table">
 				<thead>
 					<tr>
@@ -114,6 +115,7 @@
 					</tr>
 				</tbody>
 			</table>
+			</div>
 		</div>
 	</div>
 </template>

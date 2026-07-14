@@ -354,6 +354,12 @@ const activitySummary = computed(() => {
 	max-width: calc(100vw - 24px);
 }
 
+@media (max-width: 900px) {
+	.user-drawer {
+		width: 100vw;
+	}
+}
+
 /* Geniş drawer'da bilgi bölümlerini iki sütuna al */
 .detail-grid {
 	display: grid;

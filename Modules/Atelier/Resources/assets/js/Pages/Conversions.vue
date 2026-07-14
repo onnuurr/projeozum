@@ -348,6 +348,11 @@ function retry(j) { router.post(`/atelier/conversions/${j.id}/retry`, {}, { pres
 	.rb-pdf embed { min-height: 260px; }
 }
 
+@media (max-width: 640px) {
+	.page-header { flex-wrap: wrap; }
+	.job-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+}
+
 /* Çıkarım özeti (job-card içi) */
 .jc-extraction { display: flex; flex-direction: column; gap: 4px; border-top: 1px solid #f5f5f8; padding-top: 8px; }
 .jcx-row { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; font-size: 11.5px; color: #444; }

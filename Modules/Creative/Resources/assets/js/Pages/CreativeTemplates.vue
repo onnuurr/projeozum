@@ -381,7 +381,7 @@ watch(() => props.templates, () => {
 .designer-body { display: grid; grid-template-columns: 1fr 240px; gap: 18px; padding: 18px; }
 .empty-block { text-align: center; color: #aaa; padding: 28px 0; font-style: italic; font-size: 13px; }
 
-.stage-wrap { min-width: 0; }
+.stage-wrap { min-width: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .stage { position: relative; background: #f5f5f8 repeating-conic-gradient(#eee 0% 25%, #f8f8fb 0% 50%) 0 / 20px 20px; border: 1px solid #e8e8f0; border-radius: 10px; overflow: hidden; touch-action: none; user-select: none; }
 .stage-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
 .slot-box { position: absolute; border: 2px solid rgb(var(--color-primary) / .7); background: rgb(var(--color-primary) / .08); cursor: move; box-sizing: border-box; }
@@ -410,4 +410,21 @@ watch(() => props.templates, () => {
 
 .designer-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-top: 1px solid #f0f0f5; padding: 14px 18px; }
 .hint { font-size: 11.5px; color: #aaa; }
+
+@media (max-width: 900px) {
+	.tpl-layout { grid-template-columns: 1fr; }
+	.designer-body { grid-template-columns: 1fr; }
+	.props { border-left: none; padding-left: 0; border-top: 1px solid #f0f0f5; padding-top: 16px; }
+}
+@media (max-width: 640px) {
+	.page-header { flex-wrap: wrap; }
+	.page-header .btn { width: 100%; justify-content: center; }
+	.card-header { flex-wrap: wrap; row-gap: 8px; }
+	.header-actions { width: 100%; justify-content: space-between; }
+	.designer-footer { flex-wrap: wrap; }
+	.designer-footer .btn { width: 100%; justify-content: center; }
+}
+@media (max-width: 480px) {
+	.grid2 { grid-template-columns: 1fr; }
+}
 </style>

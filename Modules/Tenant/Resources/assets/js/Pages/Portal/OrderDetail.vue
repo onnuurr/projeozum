@@ -12,6 +12,7 @@
 
 		<div class="card">
 			<h2 class="card-title">Ürünler</h2>
+			<div class="table-scroll">
 			<table class="data-table">
 				<thead>
 					<tr><th>Ürün</th><th>Beden / Renk</th><th>Adet</th><th>Birim Fiyat</th><th>Toplam</th></tr>
@@ -29,6 +30,7 @@
 					</tr>
 				</tbody>
 			</table>
+			</div>
 		</div>
 
 		<div class="card totals">

@@ -1188,6 +1188,10 @@ const cancelOtp = () => {
         border: none;
         padding: 20px;
     }
+    .toast-container {
+        width: min(312px, calc(100vw - 16px));
+        right: 8px;
+    }
 }
 
 /* Scrollbar */

@@ -71,4 +71,13 @@ function isActive(path) {
 .portal-logout { width: 100%; padding: 9px 12px; border-radius: 8px; background: transparent; border: 1px solid #2a2a44; color: #c0c0d8; font-size: 13px; cursor: pointer; }
 .portal-logout:hover { background: #2a2a44; color: #fff; }
 .portal-main { padding: 24px 32px; }
+
+@media (max-width: 768px) {
+	.portal-shell { grid-template-columns: 1fr; }
+	.portal-sidebar { flex-direction: row; flex-wrap: wrap; align-items: center; padding: 10px 12px; gap: 10px; }
+	.portal-brand { padding-bottom: 0; border-bottom: none; }
+	.portal-nav { flex-direction: row; flex-wrap: wrap; gap: 4px; }
+	.portal-footer { margin-top: 0; }
+	.portal-main { padding: 16px; }
+}
 </style>

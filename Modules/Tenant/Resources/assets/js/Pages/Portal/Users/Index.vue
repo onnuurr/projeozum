@@ -10,6 +10,7 @@
 		</header>
 
 		<section class="card">
+			<div class="table-scroll">
 			<table class="data-table">
 				<thead>
 					<tr><th>Ad</th><th>E-posta</th><th>Rol</th><th>Durum</th><th>İzin</th><th></th></tr>
@@ -37,6 +38,7 @@
 					</tr>
 				</tbody>
 			</table>
+			</div>
 		</section>
 
 		<!-- Oluştur / Düzenle drawer -->

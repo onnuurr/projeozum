@@ -36,4 +36,10 @@ const tabs = [
 .fn-tab { display: flex; align-items: center; padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; color: #888; text-decoration: none; transition: all .15s; }
 .fn-tab:hover { background: rgb(var(--color-primary-soft)); color: #555; }
 .fn-tab.active { background: rgb(var(--color-primary)); color: #fff; }
+
+/* ── Dar ekran (telefon): uzun sekme etiketleri çok satıra taşmasın diye sıkılaştır ── */
+@media (max-width: 640px) {
+	.finance-nav { gap: 2px; margin-bottom: 12px; padding: 4px; }
+	.fn-tab { padding: 6px 9px; font-size: 12px; }
+}
 </style>

@@ -374,4 +374,13 @@ function goTo(url) {
 .lb-hashtags { font-size: 12px; color: rgb(var(--color-primary)); font-family: 'SF Mono', Menlo, Consolas, monospace; line-height: 1.5; }
 .lb-download { margin-top: auto; justify-content: center; }
 @media (max-width: 820px) { .lb-box { flex-direction: column; } .lb-img-wrap img { max-width: 86vw; max-height: 50vh; } .lb-side { width: auto; } }
+
+/* ── Dar ekran (telefon) ── */
+@media (max-width: 640px) {
+	.page-header { flex-wrap: wrap; }
+	.header-btns { width: 100%; flex-wrap: wrap; }
+	.header-btns .btn { flex: 1 1 auto; justify-content: center; }
+	.stat-templates { min-width: 0; max-width: none; width: 100%; margin-left: 0; }
+	.asset-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+}
 </style>

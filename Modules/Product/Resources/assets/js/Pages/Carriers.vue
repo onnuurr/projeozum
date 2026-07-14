@@ -26,6 +26,7 @@
 			<div class="card-header">
 				<h3>Firma Listesi</h3>
 			</div>
+			<div class="table-scroll">
 			<table class="data-table">
 				<thead>
 					<tr>
@@ -62,6 +63,7 @@
 					</tr>
 				</tbody>
 			</table>
+			</div>
 		</div>
 
 		<AppModal v-model="formOpen" :title="editing ? 'Firmayı Düzenle' : 'Yeni Kargo Firması'" size="md" variant="info">
@@ -260,4 +262,8 @@ async function confirmDelete(c) {
 .btn-primary:hover { background: #4f46e5; }
 .btn-ghost { background: #f3f4f6; color: #374151; }
 .btn-with-icon { display: inline-flex; align-items: center; gap: 6px; }
+
+@media (max-width: 560px) {
+	.form-row-2 { grid-template-columns: 1fr; }
+}
 </style>

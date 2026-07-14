@@ -211,4 +211,25 @@ function onChange(evt) {
     color: #dc2626;
     border-color: #fecaca;
 }
+
+@media (max-width: 640px) {
+    .mt-children {
+        margin-left: 12px;
+        padding-left: 6px;
+    }
+    .mt-row {
+        gap: 6px;
+        padding: 6px 8px;
+    }
+    .mt-badge {
+        display: none;
+    }
+    .mt-actions {
+        gap: 2px;
+    }
+    .mt-actions button {
+        width: 24px;
+        height: 24px;
+    }
+}
 </style>

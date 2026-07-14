@@ -118,6 +118,11 @@ function hideTooltip() {
 	border-radius: 50%;
 }
 .sb-spacer { flex: 1; }
+
+@media (max-width: 640px) {
+	.left-sidebar { width: 40px; }
+	.sb-btn { width: 30px; height: 30px; }
+}
 </style>
 
 <style>

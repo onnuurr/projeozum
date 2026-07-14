@@ -501,4 +501,11 @@ onBeforeUnmount(() => {
 }
 .quick-title { font-size: 14px; font-weight: 600; color: var(--text-strong, #1a1a2e); }
 .quick-sub { font-size: 12px; color: var(--text-muted, #6b7280); margin-top: 2px; }
+
+@media (max-width: 640px) {
+	.header-actions { width: 100%; flex-wrap: wrap; }
+	.counter-grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+	.metric-grid { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
+	.quick-grid { grid-template-columns: 1fr; }
+}
 </style>

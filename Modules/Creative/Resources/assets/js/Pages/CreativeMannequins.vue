@@ -406,4 +406,14 @@ onUnmounted(() => {
 @media (max-width: 820px) { .lb-box { flex-direction: column; } .lb-img-wrap img { max-width: 86vw; max-height: 50vh; } .lb-side { width: auto; } }
 .chat-link { display: block; text-align: center; padding: 8px 12px; margin: 0 12px 12px; background: #eef2ff; color: #4338ca; border-radius: 8px; font-size: 12px; font-weight: 600; text-decoration: none; }
 .chat-link:hover { background: #e0e7ff; }
+
+/* ── Dar ekran (telefon) ── */
+@media (max-width: 640px) {
+	.page-header { flex-wrap: wrap; }
+	.page-header .btn { width: 100%; justify-content: center; }
+	.card-header { flex-wrap: wrap; row-gap: 6px; }
+	.card-header .hint { margin-left: 0; }
+	.form-grid { grid-template-columns: 1fr; }
+	.mannequin-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+}
 </style>

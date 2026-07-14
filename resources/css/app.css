@@ -49,6 +49,7 @@ html, body {
 body {
 	background: rgb(var(--color-bg));
 	height: 100vh;
+	height: 100dvh;
 	overflow: hidden;
 }
 
@@ -58,8 +59,18 @@ body {
 	grid-template-columns: 48px 1fr;
 	grid-template-rows: auto 1fr;
 	height: 100vh;
+	height: 100dvh;
 	padding: 12px;
 	gap: 8px;
+}
+
+/* Dar ekranlarda (telefon) kenar boşluklarını daralt — içerik alanını büyüt */
+@media (max-width: 640px) {
+	.layout-root {
+		grid-template-columns: 40px 1fr;
+		padding: 6px;
+		gap: 6px;
+	}
 }
 
 /* ── Genel buton temel sınıfı ── */
@@ -186,6 +197,12 @@ body {
 .status-scheduled { background: #fef9c3; color: #ca8a04; }
 .status-active { background: #fee2e2; color: #dc2626; }
 .status-progress { background: #dbeafe; color: #2563eb; }
+
+/* ── Tablo yatay kaydırma sarmalayıcı (dar ekranda taşan tabloları scroll'a al) ── */
+.table-scroll {
+	overflow-x: auto;
+	-webkit-overflow-scrolling: touch;
+}
 
 /* ============================================================
    SweetAlert2 — design system override (tek-swal)

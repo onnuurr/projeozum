@@ -429,4 +429,10 @@ textarea.form-input { resize: vertical; }
 	.studio-grid { grid-template-columns: 1fr; }
 	.composer { position: static; }
 }
+
+@media (max-width: 640px) {
+	.page-header { flex-wrap: wrap; }
+	.count-pills { flex-wrap: wrap; }
+	.concept-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+}
 </style>

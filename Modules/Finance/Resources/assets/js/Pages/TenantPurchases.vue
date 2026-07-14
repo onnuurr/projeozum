@@ -30,6 +30,7 @@
 				</div>
 			</div>
 
+			<div class="table-scroll">
 			<table class="data-table">
 				<thead>
 					<tr>
@@ -57,6 +58,7 @@
 					</tr>
 				</tbody>
 			</table>
+			</div>
 		</div>
 	</div>
 </template>

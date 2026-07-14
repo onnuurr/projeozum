@@ -178,7 +178,7 @@ onBeforeUnmount(() => document.removeEventListener('click', handleOutside))
 	border-radius: 14px;
 	box-shadow: 0 4px 16px rgba(0, 0, 0, .07), 0 16px 40px rgba(0, 0, 0, .09);
 	padding: 14px;
-	width: 260px;
+	width: min(260px, calc(100vw - 16px));
 	z-index: 6000;
 	opacity: 0; pointer-events: none;
 	transform: translateY(-6px) scale(.97);

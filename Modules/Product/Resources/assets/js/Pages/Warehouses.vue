@@ -312,4 +312,10 @@ async function confirmDelete(w) {
 .form-hint { font-size: 11px; color: #888; }
 .form-error { font-size: 11.5px; color: #ef4444; }
 .form-check { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: #1a1a2e; }
+
+/* ── Dar ekran (telefon) ── */
+@media (max-width: 640px) {
+	.page-header { flex-wrap: wrap; }
+	.page-header .btn { width: 100%; justify-content: center; }
+}
 </style>

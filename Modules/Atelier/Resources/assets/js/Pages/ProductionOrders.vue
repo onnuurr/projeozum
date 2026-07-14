@@ -24,6 +24,7 @@
 			<div class="card-header">
 				<h3>İş Emri Listesi</h3>
 			</div>
+			<div class="table-scroll">
 			<table class="data-table">
 				<thead>
 					<tr>
@@ -61,6 +62,7 @@
 					</tr>
 				</tbody>
 			</table>
+			</div>
 		</div>
 
 		<!-- Wizard Modal -->
@@ -284,4 +286,8 @@ function submit() {
 .step-loc { flex: 1; }
 .step-cost { flex: 1; }
 .step-remove { flex-shrink: 0; }
+
+@media (max-width: 640px) {
+	.wizard-grid { grid-template-columns: repeat(2, 1fr); }
+}
 </style>

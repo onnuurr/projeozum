@@ -16,20 +16,22 @@
 
 		<section class="card">
 			<h2 class="card-title">Son Senkronizasyonlar</h2>
-			<table class="data-table" v-if="recentLogs.length">
-				<thead>
-					<tr><th>Tarih</th><th>İşlem</th><th>Durum</th><th>Adet</th><th>Hata</th></tr>
-				</thead>
-				<tbody>
-					<tr v-for="l in recentLogs" :key="l.id">
-						<td>{{ l.started_at?.slice(0, 19).replace('T', ' ') }}</td>
-						<td>{{ l.operation }}</td>
-						<td><span :class="['pill', l.status]">{{ l.status }}</span></td>
-						<td class="mono">{{ l.items_processed }}</td>
-						<td class="dim">{{ l.error_message || '—' }}</td>
-					</tr>
-				</tbody>
-			</table>
+			<div class="table-scroll" v-if="recentLogs.length">
+				<table class="data-table">
+					<thead>
+						<tr><th>Tarih</th><th>İşlem</th><th>Durum</th><th>Adet</th><th>Hata</th></tr>
+					</thead>
+					<tbody>
+						<tr v-for="l in recentLogs" :key="l.id">
+							<td>{{ l.started_at?.slice(0, 19).replace('T', ' ') }}</td>
+							<td>{{ l.operation }}</td>
+							<td><span :class="['pill', l.status]">{{ l.status }}</span></td>
+							<td class="mono">{{ l.items_processed }}</td>
+							<td class="dim">{{ l.error_message || '—' }}</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
 			<p v-else class="empty">Henüz senkronizasyon kaydı yok.</p>
 		</section>
 	</div>

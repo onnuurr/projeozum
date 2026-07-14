@@ -91,6 +91,7 @@
 
 						<div class="lst-variants">
 							<div class="lst-variants-head">Listeleme Varyant Bilgileri</div>
+							<div class="table-scroll">
 							<table class="lst-table">
 								<thead>
 									<tr>
@@ -112,6 +113,7 @@
 									</tr>
 								</tbody>
 							</table>
+							</div>
 						</div>
 					</div>
 
@@ -275,4 +277,9 @@ watch(() => props.open, (v) => { if (v) load() })
 .lst-summary-card b { color: #1a1a2e; }
 .lst-summary-img { width: 100%; height: 180px; object-fit: cover; border-radius: 9px; margin-bottom: 6px; }
 .lst-edit-link { color: rgb(var(--color-primary)); font-weight: 600; margin-top: 6px; text-decoration: none; }
+
+@media (max-width: 560px) {
+	.form-grid-2 { grid-template-columns: 1fr; }
+	.form-grid-3 { grid-template-columns: 1fr; }
+}
 </style>

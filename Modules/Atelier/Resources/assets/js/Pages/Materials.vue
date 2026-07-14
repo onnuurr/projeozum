@@ -71,6 +71,7 @@
 			<div class="card-header">
 				<h3>Hammadde Listesi</h3>
 			</div>
+			<div class="table-scroll">
 			<table class="data-table">
 				<thead>
 					<tr>
@@ -107,6 +108,7 @@
 					</tr>
 				</tbody>
 			</table>
+			</div>
 		</div>
 
 		<!-- Materyal Özellikleri Modal (AI için) -->

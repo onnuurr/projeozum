@@ -224,4 +224,8 @@ watch(
 .form-group.full { grid-column: 1 / -1; }
 .required { color: #ef4444; margin-left: 2px; }
 .form-error { color: #dc2626; font-size: 11px; margin-top: 2px; }
+
+@media (max-width: 560px) {
+	.form-grid-2 { grid-template-columns: 1fr; }
+}
 </style>

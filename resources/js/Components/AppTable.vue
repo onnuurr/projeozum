@@ -1,5 +1,6 @@
 <template>
   <div class="data-table-container">
+    <div class="table-scroll">
     <table class="data-table">
       <thead>
         <tr>
@@ -68,6 +69,7 @@
         </tr>
       </tbody>
     </table>
+    </div>
 
     <div class="pagination" v-if="pagination">
       <div class="pagination-info">

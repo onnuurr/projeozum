@@ -264,4 +264,21 @@ async function destroy(item) {
 .mini-btn.save { background: rgb(var(--color-primary)); color: #fff; border-color: transparent; }
 .mini-btn.danger { color: #dc2626; }
 .mini-btn.danger:hover { background: #fef2f2; }
+
+/* ── Dar ekran (telefon) ── */
+@media (max-width: 700px) {
+	.page-header { flex-wrap: wrap; }
+	.card-header { flex-wrap: wrap; row-gap: 6px; }
+	.card-header .hint { margin-left: 0; }
+
+	.row { flex-wrap: wrap; }
+	.row-label { min-width: 0; width: 100%; }
+	.row-hint { width: 100%; white-space: normal; }
+	.row-order { order: 1; }
+	.row-toggle { order: 2; }
+	.row-actions { order: 3; width: 100%; justify-content: flex-end; }
+	.row-input { flex: 1 1 100px; min-width: 0; }
+	.row-input.flex { flex-basis: 100%; }
+	.row-input.narrow { max-width: none; flex: 1 1 70px; }
+}
 </style>

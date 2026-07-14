@@ -310,4 +310,24 @@ defineProps({
 	font-size: 11.5px; font-weight: 600; color: #888;
 }
 .col-spacer { width: 28px; flex-shrink: 0; }
+
+/* ── Dar ekran (telefon): sütunlar sarmaz, yatay kaydırmaya al ── */
+@media (max-width: 640px) {
+	.workflow-header { flex-wrap: wrap; row-gap: 8px; }
+	.wf-actions { margin-left: auto; }
+
+	.wf-columns-wrapper {
+		overflow-x: auto;
+		-webkit-overflow-scrolling: touch;
+		padding-bottom: 4px;
+	}
+	.wf-col { min-width: 200px; }
+
+	/* Etiket satırı sütunlarla aynı genişlikleri kullanır; kendi scroll-bar'ı
+	   ile yatayda kaydırılabilir kalır (üstteki sütun kaydırmasıyla birlikte
+	   kullanılır — bağımsız ama aynı genişlik referansı). */
+	.col-labels { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+	.col-label { min-width: 200px; flex: none; }
+	.col-spacer { min-width: 28px; }
+}
 </style>

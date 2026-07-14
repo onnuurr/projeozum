@@ -133,4 +133,10 @@ function formatMoney(v) {
 .page-link { padding: 6px 10px; border-radius: 6px; font-size: 12px; color: #555; text-decoration: none; background: #fff; border: 1px solid #ebebf0; }
 .page-link.active { background: #4338ca; color: #fff; border-color: #4338ca; }
 .page-link.disabled { color: #ccc; pointer-events: none; }
+
+@media (max-width: 640px) {
+	.search-box { width: 100%; }
+	.search-box input { min-width: 0; flex: 1; }
+	.filter-select { min-width: 0; flex: 1 1 140px; }
+}
 </style>

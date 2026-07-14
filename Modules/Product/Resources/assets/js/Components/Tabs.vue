@@ -84,4 +84,14 @@ defineEmits(['update:modelValue'])
 .tab-btn.active .tab-badge { background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary)); }
 
 .tab-panel { padding-top: 16px; }
+
+/* ── Dar ekran (telefon): çok sayıda sekme yatayda kaydırılsın ── */
+@media (max-width: 640px) {
+	.tab-bar {
+		overflow-x: auto;
+		-webkit-overflow-scrolling: touch;
+		flex-wrap: nowrap;
+	}
+	.tab-btn { flex-shrink: 0; }
+}
 </style>

@@ -1248,11 +1248,12 @@ onMounted(() => {
 	color: #888; font-size: 12.5px; text-align: center;
 }
 
-.variant-table { display: flex; flex-direction: column; gap: 6px; }
+.variant-table { display: flex; flex-direction: column; gap: 6px; overflow-x: auto; }
 .variant-thead, .variant-row {
 	display: grid;
 	grid-template-columns: 1.4fr 60px 1.6fr 1fr 1fr 0.9fr 28px;
 	align-items: center; gap: 8px;
+	min-width: 560px;
 }
 .variant-thead {
 	padding: 0 10px 4px;

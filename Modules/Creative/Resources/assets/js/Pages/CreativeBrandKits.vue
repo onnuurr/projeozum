@@ -477,4 +477,26 @@ async function remove() {
 .font-children { padding: 8px 0 4px 22px; border-left: 2px solid #ece9f6; margin: 4px 0 4px 16px; display: flex; flex-direction: column; gap: 6px; }
 
 .editor-actions { display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #f0f0f5; padding-top: 16px; margin-top: 18px; }
+
+@media (max-width: 900px) {
+	.bk-layout { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+	.page-header { flex-wrap: wrap; }
+	.page-header .btn { width: 100%; justify-content: center; }
+	.card-header { flex-wrap: wrap; row-gap: 8px; }
+
+	.token-row { flex-wrap: wrap; }
+	.token-key { width: auto; flex: 1 1 90px; }
+	.token-hex { width: auto; flex: 1 1 80px; }
+	.token-num { width: auto; flex: 1 1 70px; }
+	.token-path { flex: 1 1 140px; min-width: 0; }
+	.font-children .token-key { width: auto !important; flex: 1 1 100px; }
+
+	.editor-actions { flex-wrap: wrap; }
+	.editor-actions .btn { flex: 1 1 auto; }
+}
+@media (max-width: 480px) {
+	.grid2 { grid-template-columns: 1fr; }
+}
 </style>

@@ -34,6 +34,7 @@
 				<span class="card-sub">{{ credentials.length }} / {{ marketplaces.length }} pazaryeri tanımlı</span>
 			</div>
 
+			<div class="table-scroll">
 			<table class="data-table">
 				<thead>
 					<tr>
@@ -84,6 +85,7 @@
 					</tr>
 				</tbody>
 			</table>
+			</div>
 		</div>
 
 		<div v-if="anyError" class="error-list">

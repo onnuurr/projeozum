@@ -3208,4 +3208,25 @@ onBeforeUnmount(stopSystemPolling)
 	padding: 1px 5px;
 	border-radius: 4px;
 }
+
+@media (max-width: 640px) {
+	.header-actions { width: 100%; flex-wrap: wrap; }
+	.header-actions .btn { flex: 1; justify-content: center; }
+
+	.sa-section { padding: 16px 14px 18px; }
+
+	/* İki kolonlu span'lar (SMTP Host, Fatura Öneki vb.) dar ekranda tek kolona insin */
+	.field-row { grid-template-columns: 1fr; }
+	.flex-2 { grid-column: auto; }
+
+	.role-section-head { flex-wrap: wrap; }
+	.role-view-toggle { flex-wrap: wrap; width: 100%; }
+	.rv-btn { flex: 1 1 auto; justify-content: center; }
+
+	.test-block { flex-wrap: wrap; gap: 10px; }
+	.test-block .btn { width: 100%; justify-content: center; }
+
+	.copy-input { flex-wrap: wrap; }
+	.copy-input .form-input { width: 100%; }
+}
 </style>

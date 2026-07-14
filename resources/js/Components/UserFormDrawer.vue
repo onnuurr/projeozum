@@ -363,4 +363,9 @@ watch(
 	color: #888;
 	line-height: 1.4;
 }
+
+@media (max-width: 560px) {
+	.form-grid-2 { grid-template-columns: 1fr; }
+	.permission-grid { grid-template-columns: 1fr; }
+}
 </style>

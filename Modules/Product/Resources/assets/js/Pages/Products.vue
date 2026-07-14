@@ -141,6 +141,7 @@
 
 		<!-- Tablo -->
 		<div v-else class="table-wrap">
+			<div class="table-scroll">
 			<table class="product-table">
 				<thead>
 					<tr>
@@ -249,6 +250,7 @@
 					</tr>
 				</tbody>
 			</table>
+			</div>
 		</div>
 
 		<!-- Sayfalama -->

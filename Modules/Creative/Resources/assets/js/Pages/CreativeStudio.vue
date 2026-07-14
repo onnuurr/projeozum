@@ -286,4 +286,30 @@ function generate() {
 .ai-toggle.on .ai-dot::after { transform: translateX(14px); }
 .ai-label { font-size: 12px; font-weight: 600; color: #555; white-space: nowrap; }
 .ai-toggle.on .ai-label { color: rgb(var(--color-primary)); }
+
+/* ── Dar ekran (telefon) ── */
+@media (max-width: 640px) {
+	.page-header { flex-wrap: wrap; }
+	.page-header .btn { width: 100%; justify-content: center; }
+
+	.card-header { flex-wrap: wrap; row-gap: 8px; }
+	.card-header .hint { margin-left: 0; }
+	.card-search { margin-left: 0; min-width: 0; width: 100%; order: 3; }
+	.link-btn { margin-left: auto; }
+
+	.template-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+	.product-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
+
+	.action-bar {
+		position: static;
+		flex-wrap: wrap;
+		gap: 10px;
+		padding: 14px;
+	}
+	.selection-summary { width: 100%; margin-right: 0; order: 1; }
+	.format-select, .pose-select { flex: 1 1 140px; order: 2; }
+	.format-select select, .pose-select select { max-width: none; flex: 1; width: 0; }
+	.ai-toggle { order: 3; width: 100%; justify-content: center; }
+	.action-bar .btn.btn-primary { order: 4; width: 100%; justify-content: center; }
+}
 </style>

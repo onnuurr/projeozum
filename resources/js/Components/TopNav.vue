@@ -64,7 +64,7 @@
 				<kbd class="nav-search-kbd">Ctrl K</kbd>
 			</div>
 
-			<button class="nav-icon-btn" title="Mesajlar">
+			<button class="nav-icon-btn nav-icon-message" title="Mesajlar">
 				<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
 					<path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
 				</svg>
@@ -573,7 +573,7 @@ onBeforeUnmount(() => {
 	border: 1px solid #e8e8f0;
 	border-radius: 14px;
 	box-shadow: 0 4px 16px rgba(0, 0, 0, .07), 0 16px 40px rgba(0, 0, 0, .08);
-	width: 220px; padding: 6px;
+	width: min(220px, calc(100vw - 16px)); padding: 6px;
 	opacity: 0; pointer-events: none;
 	transform: translateY(-6px) scale(.97);
 	transition: opacity .15s, transform .15s;
@@ -637,7 +637,7 @@ onBeforeUnmount(() => {
 	border: 1px solid #e8e8f0;
 	border-radius: 16px;
 	box-shadow: 0 4px 16px rgba(0, 0, 0, .07), 0 16px 40px rgba(0, 0, 0, .08);
-	width: 340px;
+	width: min(340px, calc(100vw - 16px));
 	opacity: 0; pointer-events: none;
 	transform: translateY(-6px) scale(.97);
 	transition: opacity .15s, transform .15s;
@@ -708,4 +708,21 @@ onBeforeUnmount(() => {
 	transition: color .15s;
 }
 .notif-panel-footer button:hover { color: rgb(var(--color-primary-hover)); }
+
+/* ── Dar ekran (telefon): sağ taraftaki ikon/arama/kullanıcı grubu ekrandan taşmasın ── */
+@media (max-width: 640px) {
+	.top-nav { padding: 0 10px; }
+	.logo { margin-right: 10px; }
+	.nav-actions { gap: 4px; }
+	.nav-search { padding: 5px; }
+	.nav-search-placeholder,
+	.nav-search-kbd { display: none; }
+	.nav-user-name,
+	.nav-user-chevron { display: none; }
+	.nav-user { padding-right: 6px; }
+}
+
+@media (max-width: 400px) {
+	.nav-icon-message { display: none; }
+}
 </style>

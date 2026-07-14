@@ -39,6 +39,7 @@
 			<div class="card-header">
 				<h3>Devam Eden İş Emirleri</h3>
 			</div>
+			<div class="table-scroll">
 			<table class="data-table">
 				<thead>
 					<tr>
@@ -71,6 +72,7 @@
 					</tr>
 				</tbody>
 			</table>
+			</div>
 		</div>
 	</div>
 </template>
@@ -124,4 +126,8 @@ const STATUS = { planned: 'Planlandı', in_progress: 'Üretimde' }
 
 .table-action-btn { background: #f3f4f6; border: none; cursor: pointer; font-size: 12px; padding: 5px 12px; border-radius: 6px; color: #6b7280; font-weight: 600; transition: all .15s; }
 .table-action-btn:hover { background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary)); }
+
+@media (max-width: 640px) {
+	.stat-row { grid-template-columns: repeat(2, 1fr); }
+}
 </style>

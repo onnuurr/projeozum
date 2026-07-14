@@ -168,4 +168,12 @@ function apply() {
 .chat-input-bar { position: sticky; bottom: 0; display: flex; gap: 10px; align-items: flex-end; background: #fff; border-top: 1px solid #f0f0f5; padding: 12px 0; }
 .chat-input-bar textarea { flex: 1; resize: none; border: 1px solid #e8e8f0; border-radius: 10px; padding: 10px 12px; font-family: inherit; font-size: 13.5px; outline: none; max-height: 160px; }
 .chat-input-bar textarea:focus { border-color: rgb(var(--color-primary)); }
+
+/* ── Dar ekran (telefon) ── */
+@media (max-width: 640px) {
+	.chat-page { height: calc(100vh - 48px); }
+	.suggestion-banner { flex-wrap: wrap; }
+	.suggestion-banner .btn { width: 100%; justify-content: center; }
+	.chat-row { max-width: 92%; }
+}
 </style>

@@ -116,6 +116,7 @@
 
 		<!-- ── Sistem Hareketleri sekmesi ── -->
 		<div v-if="activeTab === 'activity'" class="card">
+			<div class="table-scroll">
 			<table class="data-table">
 				<thead>
 					<tr>
@@ -169,11 +170,13 @@
 					</template>
 				</tbody>
 			</table>
+			</div>
 			<PaginationLinks :links="activity.links" />
 		</div>
 
 		<!-- ── Hata Logları sekmesi ── -->
 		<div v-if="activeTab === 'errors'" class="card">
+			<div class="table-scroll">
 			<table class="data-table">
 				<thead>
 					<tr>
@@ -258,6 +261,7 @@
 					</template>
 				</tbody>
 			</table>
+			</div>
 			<PaginationLinks :links="errors.links" />
 		</div>
 	</div>
@@ -503,4 +507,11 @@ function levelPillClass(level) {
 .page-link:hover:not(.disabled) { border-color: rgb(var(--color-primary)); color: rgb(var(--color-primary)); }
 .page-link.active { background: rgb(var(--color-primary)); border-color: rgb(var(--color-primary)); color: #fff; }
 .page-link.disabled { color: #ccc; cursor: default; }
+
+@media (max-width: 640px) {
+	.page-header { flex-wrap: wrap; }
+	.tabs-bar { flex-wrap: wrap; }
+	.filter-actions { width: 100%; }
+	.filter-actions .btn { flex: 1; }
+}
 </style>

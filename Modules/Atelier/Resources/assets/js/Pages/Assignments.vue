@@ -300,4 +300,10 @@ textarea.form-input { resize: vertical; }
 
 @media (max-width: 900px) { .lanes { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 560px) { .lanes { grid-template-columns: 1fr; } .form-2 { grid-template-columns: 1fr; } }
+
+@media (max-width: 640px) {
+	.page-header { flex-wrap: wrap; }
+	.head-actions { width: 100%; }
+	.toggle-mine, .head-actions .btn { flex: 1; text-align: center; }
+}
 </style>

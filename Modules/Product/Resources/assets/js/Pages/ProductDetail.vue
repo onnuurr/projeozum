@@ -279,14 +279,16 @@
 
 				<!-- Özellikler -->
 				<div v-else-if="activeTab === 'specs'" class="tab-pane">
-					<table v-if="Object.keys(product.specs).length" class="specs-table">
-						<tbody>
-							<tr v-for="(value, key) in product.specs" :key="key">
-								<th>{{ key }}</th>
-								<td>{{ value }}</td>
-							</tr>
-						</tbody>
-					</table>
+					<div v-if="Object.keys(product.specs).length" class="table-scroll">
+						<table class="specs-table">
+							<tbody>
+								<tr v-for="(value, key) in product.specs" :key="key">
+									<th>{{ key }}</th>
+									<td>{{ value }}</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
 					<p v-else class="empty-text">Özellik bilgisi yok.</p>
 				</div>
 
@@ -1220,5 +1222,9 @@ function scrollToTabs() {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
 	gap: 16px;
+}
+
+@media (max-width: 640px) {
+	.thumbs { grid-template-columns: repeat(4, 1fr); }
 }
 </style>

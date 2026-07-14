@@ -88,6 +88,7 @@
 				</div>
 				<button class="btn btn-ghost btn-sm btn-danger-ghost" @click="remove(b)">Sil</button>
 			</div>
+			<div class="table-scroll">
 			<table class="data-table">
 				<thead>
 					<tr>
@@ -104,6 +105,7 @@
 					</tr>
 				</tbody>
 			</table>
+			</div>
 		</div>
 	</div>
 </template>

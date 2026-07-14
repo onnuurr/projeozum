@@ -37,16 +37,18 @@
 		<div class="two-col">
 			<section class="card">
 				<h2 class="card-title">En Çok Aldığım Ürünler (Son 6 Ay)</h2>
-				<table class="data-table" v-if="topProducts.length">
-					<thead><tr><th>Ürün</th><th>Adet</th><th>Tutar</th></tr></thead>
-					<tbody>
-						<tr v-for="p in topProducts" :key="p.product_id ?? p.product_name">
-							<td>{{ p.product_name }}</td>
-							<td class="mono">{{ p.total_qty }}</td>
-							<td class="mono">{{ formatMoney(p.total_revenue) }}</td>
-						</tr>
-					</tbody>
-				</table>
+				<div class="table-scroll" v-if="topProducts.length">
+					<table class="data-table">
+						<thead><tr><th>Ürün</th><th>Adet</th><th>Tutar</th></tr></thead>
+						<tbody>
+							<tr v-for="p in topProducts" :key="p.product_id ?? p.product_name">
+								<td>{{ p.product_name }}</td>
+								<td class="mono">{{ p.total_qty }}</td>
+								<td class="mono">{{ formatMoney(p.total_revenue) }}</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
 				<p v-else class="empty">Henüz sipariş yok.</p>
 			</section>
 
@@ -145,4 +147,11 @@ watch(() => props.monthlyTrend, renderChart, { deep: true })
 .invoice-status.pending { background: #fef3c7; color: #b45309; }
 .invoice-status.cancelled { background: #fee2e2; color: #b91c1c; }
 .invoice-date { font-size: 11px; color: #888; }
+
+@media (max-width: 700px) {
+	.two-col { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+	.credit-grid { grid-template-columns: repeat(2, 1fr); }
+}
 </style>

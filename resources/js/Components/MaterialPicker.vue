@@ -199,4 +199,11 @@ watch(rows, (val) => {
 .mp-type { font-size: 10.5px; color: #666; }
 .mp-picked { font-size: 10.5px; color: #16a34a; font-weight: 600; }
 .mp-noresult { padding: 10px; text-align: center; font-size: 12px; color: #888; }
+
+@media (max-width: 640px) {
+	.mp-row { grid-template-columns: 100px 1fr 28px; gap: 6px; }
+	.mp-result { grid-template-columns: 1fr auto; row-gap: 2px; }
+	.mp-result .mp-type { grid-column: 2; justify-self: end; }
+	.mp-result .mp-picked { grid-column: 1 / -1; }
+}
 </style>

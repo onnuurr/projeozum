@@ -64,6 +64,7 @@
 			<div class="card-header">
 				<h3>İçe Aktarma Geçmişi</h3>
 			</div>
+			<div class="table-scroll">
 			<table class="data-table">
 				<thead>
 					<tr>
@@ -92,12 +93,14 @@
 					</tr>
 				</tbody>
 			</table>
+			</div>
 		</div>
 
 		<div class="card">
 			<div class="card-header">
 				<h3>Mutabakat Bekleyen İşlemler</h3>
 			</div>
+			<div class="table-scroll">
 			<table class="data-table">
 				<thead>
 					<tr>
@@ -138,6 +141,7 @@
 					</tr>
 				</tbody>
 			</table>
+			</div>
 		</div>
 	</div>
 </template>

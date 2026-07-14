@@ -307,4 +307,12 @@ function submit() {
 .credit-preview.over { background: #fee2e2; border-color: #fca5a5; }
 .credit-preview div { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; }
 .warn { font-size: 12px; color: #b91c1c; margin: 4px 0; }
+
+@media (max-width: 900px) {
+	.grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 480px) {
+	.row-2 { grid-template-columns: 1fr; }
+	.row-3 { grid-template-columns: 1fr; }
+}
 </style>

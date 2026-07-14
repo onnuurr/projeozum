@@ -27,6 +27,7 @@
 			<div class="card-header">
 				<h3>Tip Listesi</h3>
 			</div>
+			<div class="table-scroll">
 			<table class="data-table">
 				<thead>
 					<tr>
@@ -62,6 +63,7 @@
 					</tr>
 				</tbody>
 			</table>
+			</div>
 		</div>
 
 		<AppModal v-model="formOpen" :title="editing ? 'Tipi Düzenle' : 'Yeni Tenant Tipi'" size="md" variant="info">
@@ -283,4 +285,8 @@ async function confirmDelete(t) {
 .form-input:focus { border-color: rgb(var(--color-primary)); }
 .form-error { font-size: 11.5px; color: #ef4444; }
 .form-check { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: #1a1a2e; }
+
+@media (max-width: 560px) {
+	.form-row-2 { grid-template-columns: 1fr; }
+}
 </style>

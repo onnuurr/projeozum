@@ -189,4 +189,17 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
 .link-btn { background: none; border: none; color: rgb(var(--color-primary)); font-size: 11px; font-weight: 600; cursor: pointer; font-family: inherit; padding: 0; white-space: nowrap; }
 .link-btn.danger { color: #dc2626; }
 .pose-error { font-size: 10px; color: #dc2626; padding: 0 10px 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── Dar ekran (telefon) ── */
+@media (max-width: 640px) {
+	.page-header { flex-wrap: wrap; }
+	.header-actions { width: 100%; flex-wrap: wrap; }
+	.header-actions .btn { flex: 1 1 auto; justify-content: center; }
+
+	.add-row { flex-wrap: wrap; }
+	.field, .field-grow { width: 100%; }
+	.add-row .btn { width: 100%; }
+
+	.pose-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+}
 </style>

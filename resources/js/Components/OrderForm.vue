@@ -383,4 +383,8 @@ function onClear() {
 	padding: 14px 18px; border-top: 1px solid #f0f0f5;
 	justify-content: flex-end;
 }
+
+@media (max-width: 560px) {
+	.form-grid { grid-template-columns: 1fr; }
+}
 </style>

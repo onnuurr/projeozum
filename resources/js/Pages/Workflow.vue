@@ -218,4 +218,8 @@ function submitFabric(close) {
 	display: block;
 	margin-bottom: 5px;
 }
+
+@media (max-width: 900px) {
+	.bottom-grid { grid-template-columns: 1fr; }
+}
 </style>

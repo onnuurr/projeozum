@@ -90,4 +90,9 @@ const tabs = [
 .an-tab:hover { background: rgb(var(--color-primary-soft)); color: #555; }
 .an-tab.active { background: rgb(var(--color-primary)); color: #fff; }
 .an-icon { display: inline-flex; }
+
+@media (max-width: 640px) {
+	.atelier-nav { gap: 3px; padding: 4px; }
+	.an-tab { padding: 6px 10px; font-size: 12px; gap: 5px; }
+}
 </style>

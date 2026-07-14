@@ -245,4 +245,9 @@ function submit() {
 @keyframes spin {
 	to { transform: rotate(360deg); }
 }
+
+@media (max-width: 640px) {
+	.unlock-wrap { padding-top: 20px; }
+	.unlock-card { padding: 24px 18px; }
+}
 </style>

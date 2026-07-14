@@ -81,4 +81,8 @@ watch(local, (val) => {
 	background: #fff; outline: none; transition: border-color .15s;
 }
 .form-input:focus { border-color: rgb(var(--color-primary)); }
+
+@media (max-width: 560px) {
+	.specs-grid { grid-template-columns: 1fr; }
+}
 </style>

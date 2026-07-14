@@ -10,6 +10,7 @@
 		</div>
 
 		<div class="card">
+			<div class="table-scroll">
 			<table class="data-table">
 				<thead>
 					<tr><th>Tarih</th><th>Tip</th><th>Tutar</th><th>Sebep</th><th>Bakiye Sonrası</th><th>İlişkili</th></tr>
@@ -32,6 +33,7 @@
 					</tr>
 				</tbody>
 			</table>
+			</div>
 		</div>
 	</div>
 </template>
@@ -72,4 +74,8 @@ function formatMoney(v) {
 .link { color: #4338ca; text-decoration: none; }
 .link:hover { text-decoration: underline; }
 .dim { color: #aaa; }
+
+@media (max-width: 640px) {
+	.snapshot-grid { grid-template-columns: repeat(2, 1fr); }
+}
 </style>

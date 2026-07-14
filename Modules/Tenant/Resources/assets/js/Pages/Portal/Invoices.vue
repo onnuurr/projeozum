@@ -5,6 +5,7 @@
 		<p class="page-subtitle">{{ invoices.total }} fatura kayıtlı</p>
 
 		<div class="card">
+			<div class="table-scroll">
 			<table class="data-table">
 				<thead>
 					<tr>
@@ -30,6 +31,7 @@
 					</tr>
 				</tbody>
 			</table>
+			</div>
 		</div>
 	</div>
 </template>

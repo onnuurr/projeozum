@@ -5,6 +5,7 @@
 		<p class="page-subtitle">{{ orders.total }} sipariş kayıtlı</p>
 
 		<div class="card">
+			<div class="table-scroll">
 			<table class="data-table">
 				<thead>
 					<tr>
@@ -32,6 +33,7 @@
 					</tr>
 				</tbody>
 			</table>
+			</div>
 		</div>
 
 		<nav class="pagination" v-if="orders.last_page > 1">

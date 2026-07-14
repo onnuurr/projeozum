@@ -125,4 +125,13 @@ a.breadcrumb-item:hover svg {
 	flex-shrink: 0;
 	margin: 0 1px;
 }
+
+/* ── Dar ekran (telefon): uzun breadcrumb zincirini sarmak yerine kaydır ── */
+@media (max-width: 640px) {
+	.breadcrumb {
+		max-width: 100%;
+		overflow-x: auto;
+		-webkit-overflow-scrolling: touch;
+	}
+}
 </style>

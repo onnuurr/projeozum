@@ -253,4 +253,8 @@ async function removeMenu(menu) {
 .mp-icon-picker { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; }
 .mp-icon { width: 100%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border: 1px solid #e8e8f0; border-radius: 8px; background: #fff; color: #666; cursor: pointer; }
 .mp-icon.active { border-color: rgb(var(--color-primary)); color: rgb(var(--color-primary)); background: rgb(var(--color-primary-soft)); }
+
+@media (max-width: 640px) {
+	.mp-icon-picker { grid-template-columns: repeat(5, 1fr); }
+}
 </style>

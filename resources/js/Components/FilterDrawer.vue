@@ -180,6 +180,7 @@ watch(
 	position: fixed;
 	top: 12px; right: 12px; bottom: 12px;
 	width: 360px;
+	max-width: calc(100vw - 24px);
 	background: #fff;
 	border-radius: 18px;
 	box-shadow:
@@ -256,5 +257,9 @@ watch(
 	font-size: 11px; font-weight: 600;
 	border-radius: 999px; padding: 1px 7px;
 	margin-left: 6px; line-height: 1.6;
+}
+
+@media (max-width: 480px) {
+	.drawer { top: 0; right: 0; bottom: 0; width: 100vw; max-width: 100vw; border-radius: 0; }
 }
 </style>

@@ -113,6 +113,15 @@ onBeforeUnmount(() => {
 	height: 80vh;
 	max-height: 80vh;
 }
+
+@media (max-width: 900px) {
+	.modal.modal-lg {
+		width: 100%;
+		max-width: calc(100vw - 40px);
+		height: 100%;
+		max-height: calc(100vh - 40px);
+	}
+}
 .modal.modal-lg .modal-body {
 	flex: 1;
 	overflow-y: auto;

@@ -130,4 +130,8 @@ watch(() => props.items, () => nextTick(buildCharts), { deep: true })
 	text-align: center;
 	line-height: 1.3;
 }
+
+@media (max-width: 640px) {
+	.chart-area { flex-wrap: wrap; gap: 14px; }
+}
 </style>

@@ -114,4 +114,9 @@ function cloneRoute(route) {
 	font-family: ui-monospace, monospace;
 	max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+
+@media (max-width: 640px) {
+	.rc { padding: 10px; }
+	.rc-uri { display: none; }
+}
 </style>

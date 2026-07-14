@@ -110,4 +110,8 @@ watch([() => props.byMarketplace, () => props.byMonth], renderCharts, { deep: tr
 .value.loss { color: #b91c1c; }
 .card { background: #fff; border-radius: 12px; border: 1px solid #ebebf0; padding: 18px 20px; margin-bottom: 14px; }
 .card-title { font-size: 13px; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 12px; }
+
+@media (max-width: 640px) {
+	.summary-grid { grid-template-columns: repeat(2, 1fr); }
+}
 </style>

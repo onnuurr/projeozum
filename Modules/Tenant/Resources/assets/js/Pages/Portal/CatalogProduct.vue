@@ -123,4 +123,8 @@ function addToCart() {
 .btn-primary { padding: 12px 24px; background: #4338ca; color: #fff; border: none; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-primary:hover:not(:disabled) { background: #3730a3; }
+
+@media (max-width: 700px) {
+	.grid { grid-template-columns: 1fr; }
+}
 </style>

@@ -183,4 +183,11 @@ function formatMoney(v) {
 .mono { font-family: 'SF Mono', Menlo, Consolas, monospace; }
 .dim { color: #888; font-size: 11px; }
 .placeholder p { color: #888; font-size: 13px; text-align: center; padding: 32px; }
+
+@media (max-width: 700px) {
+	.grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 480px) {
+	.row-2 { grid-template-columns: 1fr; }
+}
 </style>

@@ -237,6 +237,7 @@
 							<span class="section-sub">son 5 hareket</span>
 						</div>
 						<div class="orders-card">
+							<div class="table-scroll">
 							<table class="orders-table">
 								<thead>
 									<tr>
@@ -259,6 +260,7 @@
 									</tr>
 								</tbody>
 							</table>
+							</div>
 						</div>
 					</section>
 
@@ -667,4 +669,8 @@ const recentOrders = computed(() => {
 
 .drawer-footer { display: flex; gap: 8px; }
 .drawer-footer .btn { flex: 1; justify-content: center; }
+
+@media (max-width: 560px) {
+	.info-list-grid { grid-template-columns: 1fr; }
+}
 </style>

@@ -252,4 +252,8 @@ async function cancel() {
 .step-fields .form-row { min-width: 90px; max-width: 120px; }
 .step-save { display: flex; align-items: flex-end; flex-shrink: 0; padding-bottom: 0; }
 .empty-steps { padding: 32px; text-align: center; color: #aaa; font-style: italic; font-size: 13px; }
+
+@media (max-width: 640px) {
+	.stat-row { grid-template-columns: repeat(2, 1fr); }
+}
 </style>

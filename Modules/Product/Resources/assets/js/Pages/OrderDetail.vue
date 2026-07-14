@@ -35,6 +35,7 @@
 			<div class="col-main">
 				<div class="card">
 					<div class="card-title">Kalemler</div>
+					<div class="table-scroll">
 					<table class="data-table">
 						<thead>
 							<tr>
@@ -63,6 +64,7 @@
 							</tr>
 						</tbody>
 					</table>
+					</div>
 					<div class="totals">
 						<div class="total-row"><span>Ara Toplam</span><span class="mono">{{ formatMoney(order.subtotal) }}</span></div>
 						<div class="total-row"><span>Kargo</span><span class="mono">{{ formatMoney(order.shipping_fee) }}</span></div>
@@ -78,6 +80,7 @@
 
 				<div v-if="ledger.length" class="card">
 					<div class="card-title">Kredi Hareketleri</div>
+					<div class="table-scroll">
 					<table class="data-table">
 						<thead><tr><th>Tarih</th><th>Tür</th><th>Sebep</th><th>Tutar</th><th>Bakiye</th></tr></thead>
 						<tbody>
@@ -90,6 +93,7 @@
 							</tr>
 						</tbody>
 					</table>
+					</div>
 				</div>
 			</div>
 

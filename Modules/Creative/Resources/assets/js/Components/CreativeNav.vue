@@ -67,9 +67,9 @@ const tabs = [
 </script>
 
 <style scoped>
-.creative-nav { display: flex; gap: 4px; margin-bottom: 18px; background: #fff; border: 1px solid #ebebf0; border-radius: 12px; padding: 5px; box-shadow: 0 1px 4px rgba(0,0,0,.04); }
-.cn-tab { display: flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; color: #888; text-decoration: none; transition: all .15s; }
+.creative-nav { display: flex; gap: 4px; margin-bottom: 18px; background: #fff; border: 1px solid #ebebf0; border-radius: 12px; padding: 5px; box-shadow: 0 1px 4px rgba(0,0,0,.04); overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.cn-tab { display: flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; color: #888; text-decoration: none; transition: all .15s; flex-shrink: 0; white-space: nowrap; }
 .cn-tab:hover { background: rgb(var(--color-primary-soft)); color: #555; }
 .cn-tab.active { background: rgb(var(--color-primary)); color: #fff; }
-.cn-icon { display: inline-flex; }
+.cn-icon { display: inline-flex; flex-shrink: 0; }
 </style>

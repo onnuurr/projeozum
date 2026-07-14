@@ -5,6 +5,7 @@
 		<h1 class="page-title">Satışlar</h1>
 
 		<div class="card">
+			<div class="table-scroll">
 			<table class="data-table">
 				<thead>
 					<tr><th>Tarih</th><th>Sipariş No</th><th>Ürün</th><th>Adet</th><th>Birim</th><th>Komisyon</th><th>Net</th><th>Durum</th></tr>
@@ -25,6 +26,7 @@
 					</tr>
 				</tbody>
 			</table>
+			</div>
 		</div>
 	</div>
 </template>

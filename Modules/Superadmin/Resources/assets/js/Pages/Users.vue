@@ -39,6 +39,7 @@
 				</select>
 			</div>
 
+			<div class="table-scroll">
 			<table class="data-table">
 				<thead>
 					<tr>
@@ -88,6 +89,7 @@
 					</tr>
 				</tbody>
 			</table>
+			</div>
 		</div>
 
 		<AppModal v-model="formOpen" :title="editing ? 'Kullanıcı Düzenle' : 'Yeni Kullanıcı'" size="md" variant="info">
@@ -328,4 +330,8 @@ async function confirmDelete(u) {
 .form-input:disabled { background: #f5f5f8; color: #999; }
 .form-error { font-size: 11.5px; color: #ef4444; }
 .form-hint { font-size: 11px; color: #aaa; }
+
+@media (max-width: 560px) {
+	.form-row-2 { grid-template-columns: 1fr; }
+}
 </style>
