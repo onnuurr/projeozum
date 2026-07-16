@@ -8,6 +8,7 @@ use Modules\Creative\Http\Controllers\MannequinController;
 use Modules\Creative\Http\Controllers\PoseController;
 use Modules\Creative\Http\Controllers\RejectionReasonController;
 use Modules\Creative\Http\Controllers\ReviewChatController;
+use Modules\Creative\Http\Controllers\ReviewReportController;
 use Modules\Creative\Http\Controllers\TryonController;
 
 // Yetkiler hibrit granülerdir (bkz. CreativePermissionSeeder): okuma için creative.view,
@@ -112,6 +113,12 @@ Route::middleware(['auth', 'verified'])
         ->middleware('can:creative.rejection-reasons.manage')->whereNumber('rejectionReason')->name('rejection-reasons.update');
     Route::delete('/rejection-reasons/{rejectionReason}', [RejectionReasonController::class, 'destroy'])
         ->middleware('can:creative.rejection-reasons.manage')->whereNumber('rejectionReason')->name('rejection-reasons.destroy');
+
+    // ─── Ret Analiz Raporları (creative:review-report çıktısı, superadmin görür) ─
+    Route::get('/review-reports', [ReviewReportController::class, 'index'])
+        ->middleware('can:creative.review-reports.view')->name('review-reports.index');
+    Route::get('/review-reports/{file}', [ReviewReportController::class, 'show'])
+        ->middleware('can:creative.review-reports.view')->name('review-reports.show');
 
     // ─── Marka Kiti (Brand Kit) ──────────────────────────────────────────
     Route::get('/brandkits', [BrandKitController::class, 'index'])

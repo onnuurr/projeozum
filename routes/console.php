@@ -61,3 +61,15 @@ Schedule::command('finance:expire-proformas')->daily();
 
 // 30 günden eski terk edilmiş sepet kalemleri (UX hijyeni — stok/fiyat place()'te çözülür).
 Schedule::command('product:prune-stale-carts')->daily()->onOneServer();
+
+/*
+|--------------------------------------------------------------------------
+| AI görsel üretimi — kalite geri bildirim raporu
+|--------------------------------------------------------------------------
+| Son 7 günde reddedilen manken/giydirme görsellerini ret etiketi + AI sürücü/
+| model kırılımında raporlar (salt-okuma, storage/app/creative-review-reports/
+| altına dosya + creative.approve'a bildirim). Amaç: prompt/kod iyileştirmesi
+| gereken tekrarlayan hata modlarını veriyle görmek (bkz. Modules/Creative
+| CreativeReviewReportCommand).
+*/
+Schedule::command('creative:review-report')->weekly()->onOneServer();

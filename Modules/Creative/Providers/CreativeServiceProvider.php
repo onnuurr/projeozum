@@ -3,6 +3,7 @@
 namespace Modules\Creative\Providers;
 
 use Nwidart\Modules\Support\ModuleServiceProvider;
+use Modules\Creative\Console\Commands\CreativeReviewReportCommand;
 use Modules\Creative\Services\Ai\Contracts\CaptionGeneratorContract;
 use Modules\Creative\Services\Ai\Contracts\GarmentTryOnContract;
 use Modules\Creative\Services\Ai\Contracts\MannequinComposerContract;
@@ -36,6 +37,10 @@ class CreativeServiceProvider extends ModuleServiceProvider
 
     protected array $providers = [
         RouteServiceProvider::class,
+    ];
+
+    protected array $commands = [
+        CreativeReviewReportCommand::class,
     ];
 
     public function register(): void

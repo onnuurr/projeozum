@@ -18,6 +18,7 @@ class CreativePermissionSeeder extends Seeder
             'creative.template.manage' => 'Creative Şablon Yönet',
             'creative.brandkit.manage' => 'Creative Marka Kiti Yönet',
             'creative.rejection-reasons.manage' => 'Creative Ret Seçim Maddeleri Yönet',
+            'creative.review-reports.view'      => 'Creative Ret Analiz Raporlarını Görüntüle',
         ];
 
         $created = [];
