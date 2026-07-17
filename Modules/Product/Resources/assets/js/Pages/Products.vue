@@ -338,7 +338,7 @@ const brandOptions = computed(() => [
 ])
 
 /* ── Filtre state ── */
-const filtersOpen = ref(true)
+const filtersOpen = ref(false)
 const searchQuery = ref('')
 const searchField = ref('name')
 const selectedCategory = ref('')
