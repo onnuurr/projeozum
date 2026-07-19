@@ -1,24 +1,45 @@
 <template>
-	<nav class="atelier-nav">
-		<Link
-			v-for="tab in tabs"
-			:key="tab.href"
-			:href="tab.href"
-			class="an-tab"
-			:class="{ active: current === tab.key }"
+	<div class="atelier-nav-wrap">
+		<button
+			type="button"
+			class="an-mobile-toggle"
+			:class="{ open: mobileNavOpen }"
+			@click="mobileNavOpen = !mobileNavOpen"
 		>
-			<span class="an-icon" v-html="tab.icon"></span>
-			{{ tab.label }}
-		</Link>
-	</nav>
+			<span class="an-icon" v-html="activeTab.icon"></span>
+			<span class="an-mobile-toggle-label">{{ activeTab.label }}</span>
+			<svg class="an-burger" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+				<line x1="3" y1="6" x2="21" y2="6"/>
+				<line x1="3" y1="12" x2="21" y2="12"/>
+				<line x1="3" y1="18" x2="21" y2="18"/>
+			</svg>
+		</button>
+		<div v-if="mobileNavOpen" class="an-mobile-backdrop" @click="mobileNavOpen = false"></div>
+		<nav class="atelier-nav" :class="{ 'an-mobile-open': mobileNavOpen }">
+			<Link
+				v-for="tab in tabs"
+				:key="tab.href"
+				:href="tab.href"
+				class="an-tab"
+				:class="{ active: current === tab.key }"
+				@click="mobileNavOpen = false"
+			>
+				<span class="an-icon" v-html="tab.icon"></span>
+				{{ tab.label }}
+			</Link>
+		</nav>
+	</div>
 </template>
 
 <script setup>
+import { computed, ref } from 'vue'
 import { Link } from '@inertiajs/vue3'
 
-defineProps({
+const props = defineProps({
 	current: { type: String, required: true },
 })
+
+const mobileNavOpen = ref(false)
 
 const tabs = [
 	{
@@ -82,17 +103,63 @@ const tabs = [
 		icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>',
 	},
 ]
+
+const activeTab = computed(() => tabs.find((tab) => tab.key === props.current) ?? tabs[0])
 </script>
 
 <style scoped>
+.atelier-nav-wrap { position: relative; }
 .atelier-nav { display: flex; gap: 4px; margin-bottom: 18px; background: #fff; border: 1px solid #ebebf0; border-radius: 12px; padding: 5px; box-shadow: 0 1px 4px rgba(0,0,0,.04); flex-wrap: wrap; }
 .an-tab { display: flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; color: #888; text-decoration: none; transition: all .15s; }
 .an-tab:hover { background: rgb(var(--color-primary-soft)); color: #555; }
 .an-tab.active { background: rgb(var(--color-primary)); color: #fff; }
 .an-icon { display: inline-flex; }
+.an-mobile-toggle { display: none; }
+.an-mobile-backdrop { display: none; }
 
 @media (max-width: 640px) {
-	.atelier-nav { gap: 3px; padding: 4px; }
-	.an-tab { padding: 6px 10px; font-size: 12px; gap: 5px; }
+	.an-mobile-toggle {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		width: 100%;
+		padding: 8px 12px;
+		border-radius: 10px;
+		border: 1px solid #ebebf0;
+		background: #fff;
+		font-size: 13px;
+		font-weight: 600;
+		color: #444;
+		box-shadow: 0 1px 4px rgba(0,0,0,.04);
+		margin-bottom: 18px;
+	}
+	.an-mobile-toggle-label { flex: 1; text-align: left; }
+	.an-burger { flex-shrink: 0; transition: transform .15s; }
+	.an-mobile-toggle.open .an-burger { transform: rotate(90deg); }
+
+	.an-mobile-backdrop {
+		display: block;
+		position: fixed;
+		inset: 0;
+		background: rgba(0,0,0,.25);
+		z-index: 30;
+	}
+
+	.atelier-nav {
+		display: none;
+		flex-direction: column;
+		flex-wrap: nowrap;
+		position: absolute;
+		top: 100%;
+		left: 0;
+		right: 0;
+		margin-top: -14px;
+		z-index: 40;
+		box-shadow: 0 8px 24px rgba(0,0,0,.14);
+		gap: 3px;
+		padding: 4px;
+	}
+	.atelier-nav.an-mobile-open { display: flex; }
+	.an-tab { padding: 8px 12px; font-size: 13px; gap: 8px; justify-content: flex-start; }
 }
 </style>

@@ -2,6 +2,7 @@
 	<div class="layout-root">
 		<TopNav
 			:nav-items="navItems"
+			:sidebar-items="sidebarTop"
 			:notifications="visibleNotifications"
 			:user="currentUser"
 			:user-menu="userMenu"
@@ -109,7 +110,7 @@ const navItems = computed(() => {
 		name: child.label,
 		to: child.to || undefined,
 		active: urlMatches(child.to),
-		children: (child.children || []).map((g) => ({ label: g.label, to: g.to || undefined })),
+		children: (child.children || []).map((g) => ({ label: g.label, to: firstLink(g) || undefined })),
 	}))
 })
 
@@ -489,8 +490,10 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
 .main-content::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.12); border-radius: 4px; }
 .main-content::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.22); }
 
-/* ── Dar ekran (telefon): iç boşlukları daralt — içerik alanını büyüt ── */
+/* ── Dar ekran (telefon): iç boşlukları daralt — içerik alanını büyüt.
+   Alt boşluk, TopNav.vue'daki sabit mobil sekme çubuğunun (.mobile-tab-bar)
+   içeriğin üzerine binmemesi için genişletilir. ── */
 @media (max-width: 640px) {
-	.main-content { padding: 14px 12px; border-radius: 10px; }
+	.main-content { grid-column: 1; padding: 14px 12px calc(64px + env(safe-area-inset-bottom)); border-radius: 10px; }
 }
 </style>

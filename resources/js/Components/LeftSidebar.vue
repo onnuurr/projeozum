@@ -119,9 +119,10 @@ function hideTooltip() {
 }
 .sb-spacer { flex: 1; }
 
+/* Dar ekran (telefon): sol dikey sidebar kaldırılır — kök menüler artık
+   TopNav.vue'daki alt sabit sekme çubuğunda (.mobile-tab-bar) gösterilir. */
 @media (max-width: 640px) {
-	.left-sidebar { width: 40px; }
-	.sb-btn { width: 30px; height: 30px; }
+	.left-sidebar { display: none; }
 }
 </style>
 

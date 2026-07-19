@@ -400,8 +400,18 @@ const cancelOtp = () => {
     height: 100vh;
 }
 
+/*
+ * Bu blok global (scoped değil) çünkü BrandPanel gibi alt component'lerin
+ * iç şablonuna Vue'nun scoped CSS mekanizması ulaşamıyor. Bunun yerine tüm
+ * kurallar `.login-page` ata seçicisiyle sınırlandırılıyor; aksi halde bu
+ * sayfaya özgü .btn/.btn-primary/.form-input/.toast gibi genel isimli
+ * kurallar, login sayfası SPA içinde unmount olduktan sonra bile aynı
+ * class isimlerini kullanan paylaşılan component'lere (FormButton,
+ * ToastContainer vb.) sızıyordu.
+ */
+
 /* ─────────────────────────── LEFT: Brand panel ─────────────────────────── */
-.brand-panel {
+.login-page .brand-panel {
     position: relative;
     background:
         radial-gradient(
@@ -426,7 +436,7 @@ const cancelOtp = () => {
     color: #fff;
     min-width: 0;
 }
-.brand-panel::before {
+.login-page .brand-panel::before {
     content: "";
     position: absolute;
     inset: 0;
@@ -444,14 +454,14 @@ const cancelOtp = () => {
     pointer-events: none;
 }
 
-.brand-top {
+.login-page .brand-top {
     display: flex;
     align-items: center;
     justify-content: space-between;
     position: relative;
     z-index: 2;
 }
-.brand-logo {
+.login-page .brand-logo {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -460,10 +470,10 @@ const cancelOtp = () => {
     color: #fff;
     white-space: nowrap;
 }
-.brand-logo strong {
+.login-page .brand-logo strong {
     font-weight: 800;
 }
-.brand-logo-icon {
+.login-page .brand-logo-icon {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -477,7 +487,7 @@ const cancelOtp = () => {
     color: #fff;
     font-size: 15px;
 }
-.brand-back {
+.login-page .brand-back {
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -493,18 +503,18 @@ const cancelOtp = () => {
     -webkit-backdrop-filter: blur(8px);
     transition: all 0.15s;
 }
-.brand-back:hover {
+.login-page .brand-back:hover {
     background: rgba(255, 255, 255, 0.12);
     color: #fff;
 }
 
-.brand-hero {
+.login-page .brand-hero {
     position: relative;
     z-index: 2;
     max-width: 480px;
     min-width: 0;
 }
-.brand-eyebrow {
+.login-page .brand-eyebrow {
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -521,14 +531,14 @@ const cancelOtp = () => {
     -webkit-backdrop-filter: blur(10px);
     margin-bottom: 20px;
 }
-.brand-eyebrow .dot {
+.login-page .brand-eyebrow .dot {
     width: 6px;
     height: 6px;
     border-radius: 50%;
     background: #4ade80;
     box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.25);
 }
-.brand-headline {
+.login-page .brand-headline {
     font-size: clamp(22px, 2.6vw, 38px);
     line-height: 1.12;
     font-weight: 700;
@@ -536,14 +546,14 @@ const cancelOtp = () => {
     margin-bottom: 14px;
     overflow-wrap: break-word;
 }
-.brand-headline em {
+.login-page .brand-headline em {
     font-style: normal;
     background: linear-gradient(135deg, #c7d2fe 0%, rgb(var(--color-primary) / .5) 100%);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
 }
-.brand-sub {
+.login-page .brand-sub {
     font-size: clamp(12px, 1vw, 14px);
     line-height: 1.6;
     color: rgba(255, 255, 255, 0.72);
@@ -551,7 +561,7 @@ const cancelOtp = () => {
 }
 
 /* Glass cards (decoration) */
-.glass-stack {
+.login-page .glass-stack {
     position: absolute;
     right: -40px;
     top: 50%;
@@ -563,7 +573,7 @@ const cancelOtp = () => {
     z-index: 1;
     pointer-events: none;
 }
-.glass-card {
+.login-page .glass-card {
     background: rgba(255, 255, 255, 0.08);
     border: 1px solid rgba(255, 255, 255, 0.14);
     border-radius: 14px;
@@ -572,21 +582,21 @@ const cancelOtp = () => {
     padding: 14px 16px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
 }
-.glass-card.gc-1 {
+.login-page .glass-card.gc-1 {
     transform: translateX(-30px) rotate(-3deg);
 }
-.glass-card.gc-2 {
+.login-page .glass-card.gc-2 {
     transform: translateX(20px) rotate(2deg);
 }
-.glass-card.gc-3 {
+.login-page .glass-card.gc-3 {
     transform: translateX(-10px) rotate(-1.5deg);
 }
-.gc-row {
+.login-page .gc-row {
     display: flex;
     align-items: center;
     gap: 12px;
 }
-.gc-icon {
+.login-page .gc-icon {
     width: 36px;
     height: 36px;
     border-radius: 10px;
@@ -596,42 +606,42 @@ const cancelOtp = () => {
     flex-shrink: 0;
     color: #fff;
 }
-.gc-icon.b1 {
+.login-page .gc-icon.b1 {
     background: linear-gradient(135deg, rgb(var(--color-primary)), rgb(var(--color-primary)));
 }
-.gc-icon.b2 {
+.login-page .gc-icon.b2 {
     background: linear-gradient(135deg, #22c55e, #14b8a6);
 }
-.gc-icon.b3 {
+.login-page .gc-icon.b3 {
     background: linear-gradient(135deg, #f59e0b, #ef4444);
 }
-.gc-text {
+.login-page .gc-text {
     flex: 1;
     min-width: 0;
 }
-.gc-title {
+.login-page .gc-title {
     font-size: 12.5px;
     font-weight: 600;
     color: #fff;
     margin-bottom: 2px;
 }
-.gc-meta {
+.login-page .gc-meta {
     font-size: 11px;
     color: rgba(255, 255, 255, 0.65);
 }
-.gc-value {
+.login-page .gc-value {
     font-size: 13px;
     font-weight: 700;
     color: #fff;
 }
-.gc-bar {
+.login-page .gc-bar {
     margin-top: 10px;
     height: 4px;
     background: rgba(255, 255, 255, 0.1);
     border-radius: 999px;
     overflow: hidden;
 }
-.gc-bar > span {
+.login-page .gc-bar > span {
     display: block;
     height: 100%;
     width: 72%;
@@ -640,7 +650,7 @@ const cancelOtp = () => {
 }
 
 /* Bottom features */
-.brand-foot {
+.login-page .brand-foot {
     position: relative;
     z-index: 2;
     display: grid;
@@ -648,7 +658,7 @@ const cancelOtp = () => {
     gap: 12px;
     max-width: 520px;
 }
-.feature {
+.login-page .feature {
     display: flex;
     flex-direction: column;
     gap: 4px;
@@ -659,23 +669,23 @@ const cancelOtp = () => {
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
 }
-.feature-num {
+.login-page .feature-num {
     font-size: 18px;
     font-weight: 800;
     color: #fff;
     letter-spacing: -0.02em;
 }
-.feature-num span {
+.login-page .feature-num span {
     color: rgb(var(--color-primary) / .5);
 }
-.feature-label {
+.login-page .feature-label {
     font-size: 11.5px;
     font-weight: 500;
     color: rgba(255, 255, 255, 0.65);
 }
 
 /* ─────────────────────────── RIGHT: Form panel ─────────────────────────── */
-.form-panel {
+.login-page .form-panel {
     background: #fff;
     border-radius: 14px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
@@ -686,13 +696,13 @@ const cancelOtp = () => {
     overflow-y: auto;
 }
 
-.form-top {
+.login-page .form-top {
     display: flex;
     align-items: center;
     justify-content: space-between;
     margin-bottom: auto;
 }
-.lang-select {
+.login-page .lang-select {
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -706,11 +716,11 @@ const cancelOtp = () => {
     cursor: pointer;
     transition: all 0.15s;
 }
-.lang-select:hover {
+.login-page .lang-select:hover {
     background: #f5f5fb;
     color: #1a1a2e;
 }
-.lang-flag {
+.login-page .lang-flag {
     width: 16px;
     height: 16px;
     border-radius: 50%;
@@ -718,34 +728,34 @@ const cancelOtp = () => {
     flex-shrink: 0;
 }
 
-.form-wrap {
+.login-page .form-wrap {
     width: 100%;
     max-width: 380px;
     margin: 0 auto;
     padding: 32px 0;
 }
 
-.form-heading {
+.login-page .form-heading {
     margin-bottom: 28px;
 }
-.form-heading h1 {
+.login-page .form-heading h1 {
     font-size: 26px;
     font-weight: 700;
     color: #1a1a2e;
     letter-spacing: -0.01em;
     margin-bottom: 6px;
 }
-.form-heading p {
+.login-page .form-heading p {
     font-size: 13.5px;
     color: #666;
     line-height: 1.55;
 }
 
 /* Input field */
-.field {
+.login-page .field {
     margin-bottom: 14px;
 }
-.field-label {
+.login-page .field-label {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -754,20 +764,20 @@ const cancelOtp = () => {
     color: #555;
     margin-bottom: 6px;
 }
-.field-link {
+.login-page .field-link {
     font-size: 12px;
     font-weight: 500;
     color: rgb(var(--color-primary));
     text-decoration: none;
     transition: color 0.15s;
 }
-.field-link:hover {
+.login-page .field-link:hover {
     color: rgb(var(--color-primary-hover));
 }
-.input-wrap {
+.login-page .input-wrap {
     position: relative;
 }
-.input-icon {
+.login-page .input-icon {
     position: absolute;
     left: 12px;
     top: 50%;
@@ -777,7 +787,7 @@ const cancelOtp = () => {
     display: flex;
     align-items: center;
 }
-.input-trail {
+.login-page .input-trail {
     position: absolute;
     right: 8px;
     top: 50%;
@@ -794,11 +804,11 @@ const cancelOtp = () => {
         color 0.15s,
         background 0.15s;
 }
-.input-trail:hover {
+.login-page .input-trail:hover {
     color: #1a1a2e;
     background: #f5f5fb;
 }
-.form-input {
+.login-page .form-input {
     height: 44px;
     width: 100%;
     padding: 0 14px 0 40px;
@@ -814,25 +824,25 @@ const cancelOtp = () => {
         box-shadow 0.15s,
         background 0.15s;
 }
-.form-input.has-trail {
+.login-page .form-input.has-trail {
     padding-right: 42px;
 }
-.form-input:focus {
+.login-page .form-input:focus {
     border-color: rgb(var(--color-primary));
     box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.12);
     background: #fff;
 }
-.form-input::placeholder {
+.login-page .form-input::placeholder {
     color: #bbb;
 }
-.field.has-error .form-input {
+.login-page .field.has-error .form-input {
     border-color: #ef4444;
     background: #fef2f2;
 }
-.field.has-error .form-input:focus {
+.login-page .field.has-error .form-input:focus {
     box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
 }
-.field-error {
+.login-page .field-error {
     display: none; /* Controlled by Vue :class */
     margin-top: 6px;
     font-size: 12px;
@@ -840,12 +850,12 @@ const cancelOtp = () => {
     align-items: center;
     gap: 5px;
 }
-.field.has-error .field-error {
+.login-page .field.has-error .field-error {
     display: flex;
 }
 
 /* OTP step */
-.otp-back {
+.login-page .otp-back {
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -860,16 +870,16 @@ const cancelOtp = () => {
     color: #666;
     transition: color 0.15s;
 }
-.otp-back:hover {
+.login-page .otp-back:hover {
     color: #1a1a2e;
 }
-.otp-hint {
+.login-page .otp-hint {
     margin: 16px 0 18px;
     font-size: 12.5px;
     color: #666;
     text-align: center;
 }
-.otp-resend {
+.login-page .otp-resend {
     background: none;
     border: none;
     padding: 0;
@@ -880,27 +890,27 @@ const cancelOtp = () => {
     cursor: pointer;
     transition: color 0.15s;
 }
-.otp-resend:hover:not(:disabled) {
+.login-page .otp-resend:hover:not(:disabled) {
     color: rgb(var(--color-primary-hover));
 }
-.otp-resend:disabled {
+.login-page .otp-resend:disabled {
     opacity: 0.5;
     cursor: not-allowed;
 }
-.otp-hint-note {
+.login-page .otp-hint-note {
     color: #9898b0;
     font-size: 11.5px;
     margin-left: 4px;
 }
 
 /* Remember me */
-.form-row {
+.login-page .form-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
     margin: 4px 0 18px;
 }
-.form-check {
+.login-page .form-check {
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -909,10 +919,10 @@ const cancelOtp = () => {
     font-size: 12.5px;
     color: #555;
 }
-.form-check input {
+.login-page .form-check input {
     display: none;
 }
-.form-check-box {
+.login-page .form-check-box {
     width: 16px;
     height: 16px;
     border-radius: 4px;
@@ -924,11 +934,11 @@ const cancelOtp = () => {
     flex-shrink: 0;
     transition: all 0.15s;
 }
-.form-check input:checked + .form-check-box {
+.login-page .form-check input:checked + .form-check-box {
     background: #1a1a2e;
     border-color: #1a1a2e;
 }
-.form-check input:checked + .form-check-box::after {
+.login-page .form-check input:checked + .form-check-box::after {
     content: "";
     width: 4px;
     height: 7px;
@@ -938,7 +948,7 @@ const cancelOtp = () => {
 }
 
 /* Buttons */
-.btn {
+.login-page .btn {
     height: 44px;
     width: 100%;
     border: none;
@@ -953,36 +963,36 @@ const cancelOtp = () => {
     justify-content: center;
     gap: 8px;
 }
-.btn-primary {
+.login-page .btn-primary {
     background: #1a1a2e;
     color: #fff;
     box-shadow: 0 4px 14px rgba(26, 26, 46, 0.18);
 }
-.btn-primary:hover {
+.login-page .btn-primary:hover {
     background: #2a2a4e;
     transform: translateY(-1px);
     box-shadow: 0 6px 18px rgba(26, 26, 46, 0.24);
 }
-.btn-primary:active {
+.login-page .btn-primary:active {
     transform: translateY(0);
 }
-.btn-primary[disabled] {
+.login-page .btn-primary[disabled] {
     opacity: 0.7;
     cursor: not-allowed;
     transform: none;
 }
-.btn-secondary {
+.login-page .btn-secondary {
     background: #fff;
     color: #333;
     border: 1.5px solid #e8e8f0;
 }
-.btn-secondary:hover {
+.login-page .btn-secondary:hover {
     background: #f5f5fb;
     border-color: #d8d8e0;
 }
 
 /* Spinner */
-.spinner {
+.login-page .spinner {
     width: 16px;
     height: 16px;
     border: 2px solid rgba(255, 255, 255, 0.3);
@@ -991,10 +1001,10 @@ const cancelOtp = () => {
     animation: spin 0.7s linear infinite;
     display: none;
 }
-.btn.is-loading .spinner {
+.login-page .btn.is-loading .spinner {
     display: block;
 }
-.btn.is-loading .btn-label {
+.login-page .btn.is-loading .btn-label {
     opacity: 0.85;
 }
 @keyframes spin {
@@ -1004,7 +1014,7 @@ const cancelOtp = () => {
 }
 
 /* Divider */
-.divider {
+.login-page .divider {
     display: flex;
     align-items: center;
     gap: 12px;
@@ -1015,8 +1025,8 @@ const cancelOtp = () => {
     text-transform: uppercase;
     letter-spacing: 0.08em;
 }
-.divider::before,
-.divider::after {
+.login-page .divider::before,
+.login-page .divider::after {
     content: "";
     flex: 1;
     height: 1px;
@@ -1024,12 +1034,12 @@ const cancelOtp = () => {
 }
 
 /* Social */
-.social-row {
+.login-page .social-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 8px;
 }
-.btn-social {
+.login-page .btn-social {
     height: 42px;
     background: #fff;
     border: 1.5px solid #e8e8f0;
@@ -1045,14 +1055,14 @@ const cancelOtp = () => {
     gap: 8px;
     transition: all 0.15s;
 }
-.btn-social:hover {
+.login-page .btn-social:hover {
     background: #fafafe;
     border-color: #d8d8e0;
     transform: translateY(-1px);
 }
 
 /* Bottom signup */
-.form-bottom {
+.login-page .form-bottom {
     margin-top: auto;
     display: flex;
     align-items: center;
@@ -1061,28 +1071,28 @@ const cancelOtp = () => {
     font-size: 12.5px;
     color: #666;
 }
-.form-bottom a {
+.login-page .form-bottom a {
     color: #1a1a2e;
     font-weight: 600;
     text-decoration: none;
     transition: color 0.15s;
 }
-.form-bottom a:hover {
+.login-page .form-bottom a:hover {
     color: rgb(var(--color-primary));
 }
-.form-bottom .legal {
+.login-page .form-bottom .legal {
     display: flex;
     gap: 14px;
     color: #9898b0;
     font-size: 11.5px;
 }
-.form-bottom .legal a {
+.login-page .form-bottom .legal a {
     color: #9898b0;
     font-weight: 500;
 }
 
 /* Toast */
-.toast-container {
+.login-page .toast-container {
     position: fixed;
     top: 20px;
     right: 20px;
@@ -1093,7 +1103,7 @@ const cancelOtp = () => {
     gap: 8px;
     pointer-events: none;
 }
-.toast {
+.login-page .toast {
     position: relative;
     background: #fff;
     border-radius: 14px;
@@ -1113,11 +1123,11 @@ const cancelOtp = () => {
     pointer-events: auto;
     overflow: hidden;
 }
-.toast.show {
+.login-page .toast.show {
     transform: translateX(0) scale(1);
     opacity: 1;
 }
-.toast::after {
+.login-page .toast::after {
     content: "";
     position: absolute;
     top: 12px;
@@ -1127,10 +1137,10 @@ const cancelOtp = () => {
     border-radius: 0 3px 3px 0;
     background: rgb(var(--color-primary));
 }
-.toast.error::after {
+.login-page .toast.error::after {
     background: #ef4444;
 }
-.toast-icon {
+.login-page .toast-icon {
     width: 22px;
     height: 22px;
     border-radius: 6px;
@@ -1141,21 +1151,21 @@ const cancelOtp = () => {
     background: rgb(var(--color-primary-soft));
     color: rgb(var(--color-primary));
 }
-.toast.error .toast-icon {
+.login-page .toast.error .toast-icon {
     background: #fef2f2;
     color: #ef4444;
 }
-.toast-body {
+.login-page .toast-body {
     flex: 1;
     min-width: 0;
 }
-.toast-title {
+.login-page .toast-title {
     font-size: 13px;
     font-weight: 600;
     color: #1a1a2e;
     margin-bottom: 2px;
 }
-.toast-msg {
+.login-page .toast-msg {
     font-size: 12px;
     color: #666;
     line-height: 1.45;
@@ -1163,7 +1173,7 @@ const cancelOtp = () => {
 
 /* Responsive */
 @media (max-width: 1380px) {
-    .glass-stack {
+.login-page .glass-stack {
         display: none;
     }
 }
@@ -1172,7 +1182,7 @@ const cancelOtp = () => {
     .login-page {
         grid-template-columns: 1fr;
     }
-    .brand-panel {
+.login-page .brand-panel {
         display: none;
     }
 }
@@ -1182,26 +1192,29 @@ const cancelOtp = () => {
         padding: 0;
         gap: 0;
     }
-    .form-panel {
+.login-page .form-panel {
         border-radius: 0;
         box-shadow: none;
         border: none;
         padding: 20px;
     }
-    .toast-container {
+.login-page .toast-container {
         width: min(312px, calc(100vw - 16px));
         right: 8px;
     }
 }
 
 /* Scrollbar */
-::-webkit-scrollbar {
+.login-page::-webkit-scrollbar,
+.login-page ::-webkit-scrollbar {
     width: 4px;
 }
-::-webkit-scrollbar-track {
+.login-page::-webkit-scrollbar-track,
+.login-page ::-webkit-scrollbar-track {
     background: transparent;
 }
-::-webkit-scrollbar-thumb {
+.login-page::-webkit-scrollbar-thumb,
+.login-page ::-webkit-scrollbar-thumb {
     background: rgba(0, 0, 0, 0.12);
     border-radius: 4px;
 }

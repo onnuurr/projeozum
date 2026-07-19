@@ -89,35 +89,8 @@
 					<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
 						<path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" />
 					</svg>
-					<span v-if="unreadCount > 0" class="badge">{{ unreadCount }}</span>
+					<span v-if="unreadCount > 0" class="badge pulse">{{ unreadCount }}</span>
 				</button>
-
-				<div class="notif-panel" :class="{ open: notifOpen }" :style="notifPanelStyle">
-					<div class="notif-panel-header">
-						<h4>Bildirimler</h4>
-						<button class="notif-mark-read" @click="$emit('mark-all-read')">Tümünü okundu işaretle</button>
-					</div>
-					<div class="notif-list">
-						<template v-for="(group, gIdx) in groupedNotifications" :key="group.label">
-							<div class="notif-section-label">{{ group.label }}</div>
-							<template v-for="(n, idx) in group.items" :key="n.id">
-								<div class="notif-item" :class="{ unread: !n.read }" @click="onNotifClick(n)">
-									<div class="notif-icon" :class="`notif-icon-${n.iconType}`">{{ n.icon }}</div>
-									<div class="notif-body">
-										<div class="notif-title">{{ n.title }}</div>
-										<div class="notif-desc">{{ n.desc }}</div>
-										<div class="notif-time">{{ n.time }}</div>
-									</div>
-									<div v-if="!n.read" class="notif-unread-dot"></div>
-								</div>
-								<hr v-if="idx < group.items.length - 1 || gIdx < groupedNotifications.length - 1" class="notif-divider" />
-							</template>
-						</template>
-					</div>
-					<div class="notif-panel-footer">
-						<button>Tüm bildirimleri gör</button>
-					</div>
-				</div>
 			</div>
 
 			<div class="nav-user-wrap" ref="userWrap">
@@ -128,32 +101,132 @@
 						<path d="M6 9l6 6 6-6" />
 					</svg>
 				</div>
-
-				<div class="user-dropdown" :class="{ open: userOpen }" :style="userDropdownStyle">
-					<div class="ud-header">
-						<div class="ud-avatar-lg">{{ userInitials }}</div>
-						<div>
-							<div class="ud-name">{{ user.name }}</div>
-							<div class="ud-email">{{ user.email }}</div>
-						</div>
-					</div>
-					<template
-						v-for="(item, idx) in userMenu"
-						:key="idx"
-					>
-						<hr v-if="item.divider" class="ud-divider" />
-						<div v-else-if="item.heading" class="ud-heading">{{ item.heading }}</div>
-						<div
-							v-else
-							class="ud-item"
-							:class="{ danger: item.danger, 'demo-active': item.activeDemoRole }"
-							@click="handleUserAction(item)"
-							v-html="userMenuHtml(item)"
-						></div>
-					</template>
-				</div>
 			</div>
 		</div>
+
+		<!-- Bildirim ve kullanıcı panelleri body'ye teleport edilir: böylece .nav-actions
+		     mobilde display:none olduğunda (bkz. alt sabit menü) panel DOM'dan kaybolmaz. -->
+		<Teleport to="body">
+			<div class="notif-panel" :class="{ open: notifOpen }" :style="notifPanelStyle">
+				<div class="notif-panel-header">
+					<h4>Bildirimler</h4>
+					<button class="notif-mark-read" @click="$emit('mark-all-read')">Tümünü okundu işaretle</button>
+				</div>
+				<div class="notif-list">
+					<template v-for="(group, gIdx) in groupedNotifications" :key="group.label">
+						<div class="notif-section-label">{{ group.label }}</div>
+						<template v-for="(n, idx) in group.items" :key="n.id">
+							<div class="notif-item" :class="{ unread: !n.read }" @click="onNotifClick(n)">
+								<div class="notif-icon" :class="`notif-icon-${n.iconType}`">{{ n.icon }}</div>
+								<div class="notif-body">
+									<div class="notif-title">{{ n.title }}</div>
+									<div class="notif-desc">{{ n.desc }}</div>
+									<div class="notif-time">{{ n.time }}</div>
+								</div>
+								<div v-if="!n.read" class="notif-unread-dot"></div>
+							</div>
+							<hr v-if="idx < group.items.length - 1 || gIdx < groupedNotifications.length - 1" class="notif-divider" />
+						</template>
+					</template>
+				</div>
+				<div class="notif-panel-footer">
+					<button>Tüm bildirimleri gör</button>
+				</div>
+			</div>
+		</Teleport>
+
+		<Teleport to="body">
+			<div class="user-dropdown" :class="{ open: userOpen }" :style="userDropdownStyle">
+				<div class="ud-header">
+					<div class="ud-avatar-lg">{{ userInitials }}</div>
+					<div>
+						<div class="ud-name">{{ user.name }}</div>
+						<div class="ud-email">{{ user.email }}</div>
+					</div>
+				</div>
+				<template
+					v-for="(item, idx) in userMenu"
+					:key="idx"
+				>
+					<hr v-if="item.divider" class="ud-divider" />
+					<div v-else-if="item.heading" class="ud-heading">{{ item.heading }}</div>
+					<div
+						v-else
+						class="ud-item"
+						:class="{ danger: item.danger, 'demo-active': item.activeDemoRole }"
+						@click="handleUserAction(item)"
+						v-html="userMenuHtml(item)"
+					></div>
+				</template>
+			</div>
+		</Teleport>
+
+		<!-- Mobil (telefon): sağ üstteki ikon grubu yerine, mobil uygulama mantığında
+		     alt sabit sekme çubuğu. Sekmeler artık sol sidebar'ın kök menüleridir
+		     (sidebarItems); eskiden burada duran Ara/Sepet/Bildirim/Hesabım "Menü"
+		     hamburger'ının açtığı alt panele (.mtb-sheet) taşındı. Görünürlük CSS
+		     media query ile kontrol edilir. -->
+		<Teleport to="body">
+			<nav class="mobile-tab-bar" @click.stop>
+				<div class="mtb-scroll">
+					<component
+						:is="item.to ? Link : 'button'"
+						v-for="item in sidebarItems"
+						:key="item.label"
+						:href="item.to || undefined"
+						class="mtb-btn"
+						:class="{ active: item.active }"
+					>
+						<span class="mtb-icon-wrap" v-html="item.icon"></span>
+						<span>{{ item.label }}</span>
+					</component>
+				</div>
+
+				<button class="mtb-btn mtb-more" title="Menü" :class="{ active: moreOpen }" @click="toggleMore">
+					<span class="mtb-icon-wrap">
+						<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+							<line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
+						</svg>
+						<span v-if="unreadCount > 0 || cartItemCount > 0" class="mtb-more-dot" :class="{ pulse: unreadCount > 0 }"></span>
+					</span>
+					<span>Menü</span>
+				</button>
+			</nav>
+
+			<div v-if="moreOpen" class="mtb-sheet-backdrop" @click="moreOpen = false"></div>
+
+			<div class="mtb-sheet" :class="{ open: moreOpen }" @click.stop>
+				<button class="mtb-sheet-item" @click="onMoreAction('search')">
+					<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+						<circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
+					</svg>
+					<span>Ara</span>
+				</button>
+
+				<button class="mtb-sheet-item" @click="onMoreAction('cart')">
+					<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+						<circle cx="9" cy="21" r="1" />
+						<circle cx="20" cy="21" r="1" />
+						<path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6" />
+					</svg>
+					<span>Sepet</span>
+					<span v-if="cartItemCount > 0" class="mtb-sheet-badge">{{ cartItemCount > 99 ? '99+' : cartItemCount }}</span>
+				</button>
+
+				<button class="mtb-sheet-item" @click="onMoreAction('notif')">
+					<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+						<path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" />
+					</svg>
+					<span>Bildirimler</span>
+					<span v-if="unreadCount > 0" class="mtb-sheet-badge pulse">{{ unreadCount }}</span>
+				</button>
+
+				<button class="mtb-sheet-item" @click="onMoreAction('user')">
+					<span class="mtb-avatar">{{ userInitials }}</span>
+					<span>{{ user.shortName }}</span>
+				</button>
+			</div>
+		</Teleport>
 	</nav>
 </template>
 
@@ -163,6 +236,7 @@ import { Link } from '@inertiajs/vue3'
 
 const props = defineProps({
 	navItems: { type: Array, required: true },
+	sidebarItems: { type: Array, default: () => [] },
 	notifications: { type: Array, required: true },
 	user: { type: Object, required: true },
 	userMenu: { type: Array, required: true },
@@ -199,6 +273,7 @@ const scrollAtStart = ref(true)
 const scrollAtEnd = ref(false)
 const notifOpen = ref(false)
 const userOpen = ref(false)
+const moreOpen = ref(false)
 const activeDropdown = ref(null)
 const dropdownPositions = ref({})
 const notifPanelStyle = ref({})
@@ -295,10 +370,17 @@ function cancelClose() {
 function toggleNotif() {
 	notifOpen.value = !notifOpen.value
 	userOpen.value = false
+	moreOpen.value = false
 	if (notifOpen.value) positionNotif()
 }
 
 function positionNotif() {
+	// Mobilde panel CSS ile alt sabit menünün üstünde "bottom sheet" olarak açılır;
+	// masaüstündeki (gizli) tetikleyici buton konumu mobilde anlamsız olur.
+	if (window.innerWidth <= 640) {
+		notifPanelStyle.value = {}
+		return
+	}
 	const trigger = notifWrap.value?.querySelector('.nav-icon-btn')
 	if (!trigger) return
 	const r = trigger.getBoundingClientRect()
@@ -312,10 +394,29 @@ function positionNotif() {
 function toggleUser() {
 	userOpen.value = !userOpen.value
 	notifOpen.value = false
+	moreOpen.value = false
 	if (userOpen.value) positionUser()
 }
 
+function toggleMore() {
+	moreOpen.value = !moreOpen.value
+	notifOpen.value = false
+	userOpen.value = false
+}
+
+function onMoreAction(action) {
+	moreOpen.value = false
+	if (action === 'search') emit('open-search')
+	else if (action === 'cart') emit('open-cart')
+	else if (action === 'notif') toggleNotif()
+	else if (action === 'user') toggleUser()
+}
+
 function positionUser() {
+	if (window.innerWidth <= 640) {
+		userDropdownStyle.value = {}
+		return
+	}
 	const trigger = userWrap.value?.querySelector('.nav-user')
 	if (!trigger) return
 	const r = trigger.getBoundingClientRect()
@@ -327,8 +428,11 @@ function positionUser() {
 }
 
 function handleGlobalClick(e) {
-	if (!e.target.closest('.notif-wrap')) notifOpen.value = false
-	if (!e.target.closest('.nav-user-wrap')) userOpen.value = false
+	// Paneller body'ye teleport edildiği için tetikleyici (.notif-wrap/.nav-user-wrap)
+	// ile aynı DOM dalında değiller; panelin kendi sınıfı da ayrıca kontrol edilir.
+	if (!e.target.closest('.notif-wrap') && !e.target.closest('.notif-panel')) notifOpen.value = false
+	if (!e.target.closest('.nav-user-wrap') && !e.target.closest('.user-dropdown')) userOpen.value = false
+	if (!e.target.closest('.mobile-tab-bar') && !e.target.closest('.mtb-sheet')) moreOpen.value = false
 }
 
 onMounted(() => {
@@ -527,6 +631,17 @@ onBeforeUnmount(() => {
 	border: 2px solid #fff;
 }
 
+/* Okunmamış bildirim rozeti: dikkat çekmesi için sürekli yumuşak nabız.
+   Kullanıcı okundu olarak işaretleyince (unreadCount 0'a düşünce) v-if kaldırıp durur. */
+@keyframes notif-pulse {
+	0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(240, 90, 90, .55); }
+	50%      { transform: scale(1.18); box-shadow: 0 0 0 3px rgba(240, 90, 90, 0); }
+}
+.badge.pulse,
+.mtb-sheet-badge.pulse {
+	animation: notif-pulse 1.7s ease-in-out infinite;
+}
+
 .cart-btn .cart-badge {
 	background: rgb(var(--color-primary));
 	min-width: 16px;
@@ -709,20 +824,168 @@ onBeforeUnmount(() => {
 }
 .notif-panel-footer button:hover { color: rgb(var(--color-primary-hover)); }
 
-/* ── Dar ekran (telefon): sağ taraftaki ikon/arama/kullanıcı grubu ekrandan taşmasın ── */
+/* ── Mobil alt sabit sekme çubuğu (uygulama tarzı) ── */
+.mobile-tab-bar {
+	display: none;
+}
+.mtb-scroll {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	gap: 2px;
+	overflow-x: auto;
+	scrollbar-width: none;
+}
+.mtb-scroll::-webkit-scrollbar { display: none; }
+.mtb-btn {
+	/* flex:0 0 auto — buton içeriği kadar geniş olur, elastik daraltma metni
+	   komşu butona taşırıp "iç içe" görünmesine yol açıyordu. */
+	flex: 0 0 auto;
+	min-width: 52px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 2px;
+	background: none;
+	border: none;
+	cursor: pointer;
+	color: #888;
+	font-size: 9.5px;
+	font-weight: 600;
+	padding: 6px 8px 4px;
+	border-radius: 10px;
+	transition: color 0.15s, background 0.15s;
+	position: relative;
+	text-decoration: none;
+	white-space: nowrap;
+}
+.mtb-btn svg { flex-shrink: 0; width: 18px; height: 18px; }
+.mtb-btn.active,
+.mtb-btn:active { color: rgb(var(--color-primary)); background: rgb(var(--color-primary-soft)); }
+.mtb-btn span:last-child {
+	max-width: 68px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.mtb-more { flex: 0 0 auto; }
+.mtb-icon-wrap { position: relative; display: inline-flex; }
+.mtb-icon-wrap .badge:not(.cart-badge) {
+	position: absolute;
+	top: -4px; right: -6px;
+	background: #f05a5a; color: #fff;
+	font-size: 8px; font-weight: 700;
+	min-width: 14px; height: 14px; padding: 0 3px;
+	border-radius: 999px;
+	display: flex; align-items: center; justify-content: center;
+	border: 2px solid #fff;
+}
+.mtb-more-dot {
+	position: absolute;
+	top: -2px; right: -2px;
+	width: 8px; height: 8px; border-radius: 50%;
+	background: #f05a5a;
+	border: 2px solid #fff;
+}
+.mtb-more-dot.pulse {
+	animation: notif-pulse 1.7s ease-in-out infinite;
+}
+.mtb-avatar {
+	width: 20px; height: 20px; border-radius: 50%;
+	background: linear-gradient(135deg, rgb(var(--color-primary)), rgb(var(--color-primary-hover)));
+	display: flex; align-items: center; justify-content: center;
+	font-size: 9px; font-weight: 700; color: #fff;
+}
+
+/* Hamburger "Menü" panelinin açtığı alt panel: eski mobil sekme çubuğunda
+   duran Ara/Sepet/Bildirim/Hesabım artık burada. */
+.mtb-sheet-backdrop {
+	display: none;
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.25);
+	z-index: 9989;
+}
+.mtb-sheet {
+	display: none;
+	position: fixed;
+	left: 8px; right: 8px;
+	bottom: calc(56px + env(safe-area-inset-bottom) + 8px);
+	background: #fff;
+	border: 1px solid #e8e8f0;
+	border-radius: 16px;
+	box-shadow: 0 4px 16px rgba(0, 0, 0, .07), 0 16px 40px rgba(0, 0, 0, .08);
+	padding: 6px;
+	z-index: 9990;
+	opacity: 0;
+	pointer-events: none;
+	transform: translateY(8px) scale(.98);
+	transition: opacity .15s, transform .15s;
+}
+.mtb-sheet.open { opacity: 1; pointer-events: all; transform: translateY(0) scale(1); }
+.mtb-sheet-item {
+	width: 100%;
+	display: flex; align-items: center; gap: 10px;
+	background: none; border: none; cursor: pointer;
+	padding: 10px 10px; border-radius: 10px;
+	font-size: 13px; font-weight: 600; color: #444;
+	transition: background .12s, color .12s;
+}
+.mtb-sheet-item svg { flex-shrink: 0; color: #aaa; transition: color .12s; }
+.mtb-sheet-item:hover,
+.mtb-sheet-item:active { background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary)); }
+.mtb-sheet-item:hover svg,
+.mtb-sheet-item:active svg { color: rgb(var(--color-primary)); }
+.mtb-sheet-badge {
+	margin-left: auto;
+	background: #f05a5a; color: #fff;
+	font-size: 10px; font-weight: 700;
+	min-width: 18px; height: 18px; padding: 0 5px;
+	border-radius: 999px;
+	display: flex; align-items: center; justify-content: center;
+}
+/* ── Dar ekran (telefon): sağ üstteki ikon grubu (arama/mesaj/sepet/bildirim/kullanıcı)
+     header'dan kaldırılır, yerine mobil uygulama mantığında alt sabit sekme çubuğu gelir.
+     Üstteki modül dropdown menüsü (.nav-scroll-wrapper) de gizlenir — kökleri zaten
+     alt sekme çubuğunda (sidebarItems) tekrar gösteriliyor; gizlenmezse grid item olan
+     .top-nav kendi min-content genişliğine göre büyüyüp tüm sayfayı yatay taşırıyordu. ── */
 @media (max-width: 640px) {
 	.top-nav { padding: 0 10px; }
 	.logo { margin-right: 10px; }
-	.nav-actions { gap: 4px; }
-	.nav-search { padding: 5px; }
-	.nav-search-placeholder,
-	.nav-search-kbd { display: none; }
-	.nav-user-name,
-	.nav-user-chevron { display: none; }
-	.nav-user { padding-right: 6px; }
-}
+	.nav-scroll-wrapper { display: none; }
+	.nav-actions { display: none; }
 
-@media (max-width: 400px) {
-	.nav-icon-message { display: none; }
+	.mobile-tab-bar {
+		display: flex;
+		position: fixed;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background: #fff;
+		border-top: 1px solid #ebebf0;
+		box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
+		padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
+		z-index: 9990;
+		justify-content: space-around;
+	}
+
+	.mtb-sheet-backdrop { display: block; }
+	.mtb-sheet { display: block; }
+
+	/* Bildirim/kullanıcı panelleri mobilde alt sekme çubuğunun üstünde tam genişlik
+	   "bottom sheet" olarak açılır; masaüstü konumlandırması (top/right) geçersiz kılınır. */
+	.notif-panel,
+	.user-dropdown {
+		left: 8px !important;
+		right: 8px !important;
+		bottom: calc(56px + env(safe-area-inset-bottom)) !important;
+		top: auto !important;
+		width: auto !important;
+		transform: translateY(8px) scale(0.98) !important;
+	}
+	.notif-panel.open,
+	.user-dropdown.open {
+		transform: translateY(0) scale(1) !important;
+	}
 }
 </style>
