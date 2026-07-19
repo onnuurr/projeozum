@@ -48,16 +48,16 @@ function formatMoney(v) {
 </script>
 
 <style scoped>
-.back-link { font-size: 12px; color: #4338ca; text-decoration: none; }
-.page-title { font-size: 22px; font-weight: 700; margin: 8px 0 16px; }
-.card { background: #fff; border-radius: 12px; border: 1px solid #ebebf0; overflow: hidden; }
+.back-link { font-size: 12px; color: rgb(var(--portal-accent)); text-decoration: none; }
+.page-title { font-size: 22px; font-weight: 700; margin: 8px 0 16px; color: rgb(var(--portal-ink)); }
+.card { background: #fff; border-radius: 12px; border: 1px solid rgb(var(--portal-border)); overflow: hidden; }
 .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.data-table th, .data-table td { padding: 9px 12px; text-align: left; border-bottom: 1px solid #f5f5f8; }
-.data-table th { font-size: 11px; text-transform: uppercase; color: #888; background: #f8f8fc; }
-.empty { text-align: center; color: #aaa; padding: 32px; font-style: italic; }
+.data-table th, .data-table td { padding: 9px 12px; text-align: left; border-bottom: 1px solid rgb(var(--portal-bg-soft)); }
+.data-table th { font-size: 11px; text-transform: uppercase; color: rgb(var(--portal-text-muted)); background: rgb(var(--portal-bg-soft)); }
+.empty { text-align: center; color: rgb(var(--portal-text-muted)); padding: 32px; font-style: italic; }
 .mono { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; }
-.dim { color: #888; }
-.pill { padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; background: #e0e7ff; color: #4338ca; }
-.pill.delivered { background: #dcfce7; color: #15803d; }
-.pill.cancelled, .pill.returned { background: #fee2e2; color: #b91c1c; }
+.dim { color: rgb(var(--portal-text-muted)); }
+.pill { padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; background: rgb(var(--portal-accent-soft-2)); color: rgb(var(--portal-accent)); }
+.pill.delivered { background: rgb(var(--color-success) / .12); color: rgb(var(--color-success)); }
+.pill.cancelled, .pill.returned { background: rgb(var(--color-danger) / .1); color: rgb(var(--color-danger)); }
 </style>

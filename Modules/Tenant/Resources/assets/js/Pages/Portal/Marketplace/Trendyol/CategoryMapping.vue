@@ -25,10 +25,10 @@ defineProps({
 </script>
 
 <style scoped>
-.back-link { font-size: 12px; color: #4338ca; text-decoration: none; }
-.page-title { font-size: 22px; font-weight: 700; margin: 8px 0 6px; }
-.page-subtitle { font-size: 13px; color: #888; margin-bottom: 16px; }
-.card { background: #fff; border-radius: 12px; border: 1px solid #ebebf0; padding: 18px; }
-.placeholder p { font-size: 13px; color: #555; line-height: 1.5; }
-.placeholder code { background: #f7f7fb; padding: 2px 6px; border-radius: 4px; font-size: 11px; }
+.back-link { font-size: 12px; color: rgb(var(--portal-accent)); text-decoration: none; }
+.page-title { font-size: 22px; font-weight: 700; margin: 8px 0 6px; color: rgb(var(--portal-ink)); }
+.page-subtitle { font-size: 13px; color: rgb(var(--portal-text-muted)); margin-bottom: 16px; }
+.card { background: #fff; border-radius: 12px; border: 1px solid rgb(var(--portal-border)); padding: 18px; }
+.placeholder p { font-size: 13px; color: rgb(var(--portal-text-secondary)); line-height: 1.5; }
+.placeholder code { background: rgb(var(--portal-bg)); padding: 2px 6px; border-radius: 4px; font-size: 11px; }
 </style>

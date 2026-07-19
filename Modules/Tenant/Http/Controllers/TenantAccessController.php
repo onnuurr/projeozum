@@ -123,7 +123,8 @@ class TenantAccessController extends Controller
             ],
         );
 
-        return back()->with('success', 'Erişim kuralı eklendi.');
+        // Flash basılmıyor — TenantAccess.vue onSuccess'te kendi toast'unu gösteriyor.
+        return back();
     }
 
     public function destroyRule(Tenant $tenant, TenantAccessRule $rule): RedirectResponse
@@ -132,7 +133,7 @@ class TenantAccessController extends Controller
 
         $rule->delete();
 
-        return back()->with('success', 'Erişim kuralı silindi.');
+        return back();
     }
 
     public function storeOverride(Request $request, Tenant $tenant): RedirectResponse
@@ -156,7 +157,7 @@ class TenantAccessController extends Controller
             ],
         );
 
-        return back()->with('success', 'Ürün override\'ı kaydedildi.');
+        return back();
     }
 
     public function updateOverride(Request $request, Tenant $tenant, TenantProductAccess $access): RedirectResponse
@@ -175,7 +176,7 @@ class TenantAccessController extends Controller
             'notes'        => array_key_exists('notes', $data) ? $data['notes'] : $access->notes,
         ]);
 
-        return back()->with('success', 'Override güncellendi.');
+        return back();
     }
 
     /**
@@ -196,7 +197,7 @@ class TenantAccessController extends Controller
             'custom_description' => $data['custom_description'] ?: null,
         ]);
 
-        return back()->with('success', 'Bayiye özel metin güncellendi.');
+        return back();
     }
 
     public function destroyOverride(Tenant $tenant, TenantProductAccess $access): RedirectResponse
@@ -205,7 +206,7 @@ class TenantAccessController extends Controller
 
         $access->delete();
 
-        return back()->with('success', 'Override silindi.');
+        return back();
     }
 
     /**

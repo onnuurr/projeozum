@@ -72,7 +72,7 @@ function renderCharts() {
 			data: {
 				labels: props.byMarketplace.map(m => m.marketplace),
 				datasets: [
-					{ label: 'Gelir', data: props.byMarketplace.map(m => m.revenue), backgroundColor: '#6366f1' },
+					{ label: 'Gelir', data: props.byMarketplace.map(m => m.revenue), backgroundColor: '#4f46e5' },
 					{ label: 'Net', data: props.byMarketplace.map(m => m.net), backgroundColor: '#10b981' },
 				],
 			},
@@ -86,7 +86,7 @@ function renderCharts() {
 			data: {
 				labels: props.byMonth.map(m => m.month),
 				datasets: [
-					{ label: 'Gelir', data: props.byMonth.map(m => m.revenue), borderColor: '#6366f1', tension: 0.3 },
+					{ label: 'Gelir', data: props.byMonth.map(m => m.revenue), borderColor: '#4f46e5', tension: 0.3 },
 					{ label: 'Net', data: props.byMonth.map(m => m.net), borderColor: '#10b981', tension: 0.3 },
 				],
 			},
@@ -100,16 +100,16 @@ watch([() => props.byMarketplace, () => props.byMonth], renderCharts, { deep: tr
 </script>
 
 <style scoped>
-.page-title { font-size: 22px; font-weight: 700; color: #1a1a2e; margin-bottom: 16px; }
+.page-title { font-size: 22px; font-weight: 700; color: rgb(var(--portal-ink)); margin-bottom: 16px; }
 .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
-.kpi { background: #fff; border: 1px solid #ebebf0; border-radius: 12px; padding: 14px 18px; display: flex; flex-direction: column; gap: 4px; }
-.kpi.highlight { background: linear-gradient(135deg, #eef2ff, #e0e7ff); border-color: #c7d2fe; }
-.label { font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
-.value { font-size: 22px; font-weight: 700; font-family: 'SF Mono', Menlo, Consolas, monospace; color: #1a1a2e; }
-.value.profit { color: #15803d; }
-.value.loss { color: #b91c1c; }
-.card { background: #fff; border-radius: 12px; border: 1px solid #ebebf0; padding: 18px 20px; margin-bottom: 14px; }
-.card-title { font-size: 13px; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 12px; }
+.kpi { background: #fff; border: 1px solid rgb(var(--portal-border)); border-radius: 12px; padding: 14px 18px; display: flex; flex-direction: column; gap: 4px; }
+.kpi.highlight { background: linear-gradient(135deg, rgb(var(--portal-accent-soft)), rgb(var(--portal-accent-soft-2))); border-color: rgb(var(--portal-accent-soft-border)); }
+.label { font-size: 11px; color: rgb(var(--portal-text-muted)); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+.value { font-size: 22px; font-weight: 700; font-family: 'SF Mono', Menlo, Consolas, monospace; color: rgb(var(--portal-ink)); }
+.value.profit { color: rgb(var(--color-success)); }
+.value.loss { color: rgb(var(--color-danger)); }
+.card { background: #fff; border-radius: 12px; border: 1px solid rgb(var(--portal-border)); padding: 18px 20px; margin-bottom: 14px; }
+.card-title { font-size: 13px; font-weight: 700; color: rgb(var(--portal-text-secondary)); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 12px; }
 
 @media (max-width: 640px) {
 	.summary-grid { grid-template-columns: repeat(2, 1fr); }

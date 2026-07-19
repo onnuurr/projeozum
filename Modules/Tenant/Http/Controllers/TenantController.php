@@ -19,7 +19,7 @@ class TenantController extends Controller
     public function index(Request $request): Response
     {
         $query = Tenant::query()
-            ->with('type:id,code,name')
+            ->with(['type:id,code,name', 'owner:id,tenant_id,name,email'])
             ->withCount('users');
 
         if ($search = trim((string) $request->query('q', ''))) {
@@ -52,6 +52,11 @@ class TenantController extends Controller
                     'id'   => $t->type->id,
                     'code' => $t->type->code,
                     'name' => $t->type->name,
+                ] : null,
+                'owner'             => $t->owner ? [
+                    'id'    => $t->owner->id,
+                    'name'  => $t->owner->name,
+                    'email' => $t->owner->email,
                 ] : null,
                 'tax_number'        => $t->tax_number,
                 'tax_office'        => $t->tax_office,
@@ -96,16 +101,15 @@ class TenantController extends Controller
     {
         $this->service->create($this->validateTenant($request));
 
-        return redirect()->route('tenants.index')
-            ->with('success', 'Tenant eklendi.');
+        // Flash basılmıyor — Tenants.vue onSuccess'te kendi toast'unu gösteriyor.
+        return redirect()->route('tenants.index');
     }
 
     public function update(Request $request, Tenant $tenant): RedirectResponse
     {
-        $this->service->update($tenant, $this->validateTenant($request, $tenant->id));
+        $this->service->update($tenant, $this->validateTenant($request, $tenant));
 
-        return redirect()->route('tenants.index')
-            ->with('success', 'Tenant güncellendi.');
+        return redirect()->route('tenants.index');
     }
 
     public function toggleActive(Tenant $tenant): RedirectResponse
@@ -115,10 +119,7 @@ class TenantController extends Controller
             'activated_at' => $tenant->is_active ? $tenant->activated_at : now(),
         ]);
 
-        return back()->with(
-            'success',
-            $tenant->is_active ? 'Tenant aktifleştirildi.' : 'Tenant pasifleştirildi.',
-        );
+        return back();
     }
 
     public function destroy(Tenant $tenant): RedirectResponse
@@ -131,21 +132,29 @@ class TenantController extends Controller
 
         $tenant->delete();
 
-        return redirect()->route('tenants.index')
-            ->with('success', 'Tenant silindi.');
+        return redirect()->route('tenants.index');
     }
 
-    private function validateTenant(Request $request, ?int $ignoreId = null): array
+    private function validateTenant(Request $request, ?Tenant $tenant = null): array
     {
+        // Owner hesabı oluştururken zorunlu; düzenlemede 'sometimes' — alanlar dolu
+        // gelirse (bkz. Tenants.vue) mevcut owner kullanıcısı güncellenir
+        // (bkz. TenantService::update, TenantUserService::updateOwner).
+        $isCreate = $tenant === null;
+        $ownerId  = $tenant?->owner?->id;
+
         return $request->validate([
             'code' => [
                 'required',
                 'string',
                 'max:32',
                 'regex:/^[A-Z0-9_-]+$/',
-                Rule::unique('tenants', 'code')->ignore($ignoreId),
+                Rule::unique('tenants', 'code')->ignore($tenant?->id),
             ],
             'name'              => ['required', 'string', 'max:191'],
+            'owner_name'        => [$isCreate ? 'required' : 'sometimes', 'string', 'max:191'],
+            'owner_email'       => [$isCreate ? 'required' : 'sometimes', 'email', 'max:191', Rule::unique('users', 'email')->ignore($ownerId)],
+            'owner_password'    => [$isCreate ? 'required' : 'sometimes', 'string', 'min:8', 'confirmed'],
             'legal_name'        => ['nullable', 'string', 'max:255'],
             'tenant_type_id'    => ['nullable', 'integer', 'exists:tenant_types,id'],
             'tax_number'        => ['nullable', 'string', 'max:32'],
@@ -165,7 +174,8 @@ class TenantController extends Controller
             'is_active'         => ['nullable', 'boolean'],
             'notes'             => ['nullable', 'string', 'max:2000'],
         ], [
-            'code.regex' => 'Tenant kodu yalnızca büyük harf, rakam, tire ve alt çizgi içerebilir.',
+            'code.regex'        => 'Tenant kodu yalnızca büyük harf, rakam, tire ve alt çizgi içerebilir.',
+            'owner_email.unique'=> 'Bu e-posta adresiyle zaten bir kullanıcı hesabı var.',
         ]);
     }
 }

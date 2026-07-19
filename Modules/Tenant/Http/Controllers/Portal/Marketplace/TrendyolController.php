@@ -67,9 +67,8 @@ class TrendyolController extends Controller
             now()->subDay()->toIso8601String(),
         );
 
-        return back()->with('flash', [
-            'toast' => ['type' => 'success', 'title' => 'Sipariş çekme kuyruğa alındı', 'message' => 'Son 24 saat'],
-        ]);
+        // Flash basılmıyor — Dashboard.vue onSuccess'te kendi toast'unu gösteriyor.
+        return back();
     }
 
     public function listings(Request $request): Response

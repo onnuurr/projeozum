@@ -103,7 +103,6 @@
 						<td>
 							<div class="table-actions">
 								<button v-if="canAccess" class="table-action-btn access" @click="openAccess(t)" title="Erişim Yönet">🔐</button>
-								<button v-if="canMarketplace" class="table-action-btn marketplace" @click="openMarketplace(t)" title="Pazaryeri Bağlantıları">🛍️</button>
 								<button v-if="canManage" class="table-action-btn view" @click="edit(t)" title="Düzenle">✏️</button>
 								<button v-if="canManage" class="table-action-btn toggle" @click="toggle(t)" :title="t.is_active ? 'Pasifleştir' : 'Aktifleştir'">
 									{{ t.is_active ? '⏸️' : '▶️' }}
@@ -149,6 +148,42 @@
 							<span v-if="errors.legal_name" class="form-error">{{ errors.legal_name }}</span>
 						</div>
 					</div>
+				</div>
+
+				<div v-if="!editing || ownerExists" class="form-section">
+					<h4 class="form-section-title">Portal Giriş Hesabı</h4>
+					<p class="form-section-hint">
+						{{ editing
+							? 'Tenant portalına giriş yapan yetkili hesap. Şifreyi yalnızca değiştirmek istiyorsanız doldurun.'
+							: 'Tenant subdomain portalına giriş yapacak ilk (yetkili) kullanıcı — sonradan tenant kendi alt kullanıcılarını portaldan ekleyebilir.' }}
+					</p>
+					<div class="form-row-2">
+						<div class="form-row">
+							<label class="form-label">Yetkili Adı <span class="req">*</span></label>
+							<input v-model="form.owner_name" type="text" class="form-input" placeholder="Ahmet Yılmaz" autocomplete="off" />
+							<span v-if="errors.owner_name" class="form-error">{{ errors.owner_name }}</span>
+						</div>
+						<div class="form-row">
+							<label class="form-label">Giriş E-postası <span class="req">*</span></label>
+							<input v-model="form.owner_email" type="email" class="form-input" placeholder="yetkili@firma.com" autocomplete="off" />
+							<span v-if="errors.owner_email" class="form-error">{{ errors.owner_email }}</span>
+						</div>
+					</div>
+					<div class="form-row-2">
+						<div class="form-row">
+							<label class="form-label">Şifre <span v-if="!editing" class="req">*</span></label>
+							<input v-model="form.owner_password" type="password" class="form-input" autocomplete="new-password" :placeholder="editing ? 'Değiştirmek için doldurun' : 'En az 8 karakter'" />
+							<span v-if="errors.owner_password" class="form-error">{{ errors.owner_password }}</span>
+						</div>
+						<div class="form-row">
+							<label class="form-label">Şifre (Tekrar)</label>
+							<input v-model="form.owner_password_confirmation" type="password" class="form-input" autocomplete="new-password" placeholder="Şifreyi tekrar girin" />
+						</div>
+					</div>
+				</div>
+				<div v-else class="form-section">
+					<h4 class="form-section-title">Portal Giriş Hesabı</h4>
+					<p class="form-section-hint">Bu tenant için portal giriş hesabı bulunamadı.</p>
 				</div>
 
 				<div class="form-section">
@@ -282,14 +317,9 @@ const page = usePage()
 
 const canManage = computed(() => (page.props.auth?.permissions ?? []).includes('tenant.manage'))
 const canAccess = computed(() => (page.props.auth?.permissions ?? []).includes('tenant-access.manage'))
-const canMarketplace = computed(() => (page.props.auth?.permissions ?? []).includes('marketplace.manage'))
 
 function openAccess(t) {
 	router.visit(`/tenants/${t.id}/access`)
-}
-
-function openMarketplace(t) {
-	router.visit(`/tenants/${t.id}/marketplace`)
 }
 
 const searchQuery = ref(props.filters.q ?? '')
@@ -331,11 +361,16 @@ const formOpen = ref(false)
 const editing = ref(null)
 const busy = ref(false)
 const errors = ref({})
+const ownerExists = ref(false)
 
 const emptyForm = () => ({
 	code: '',
 	name: '',
 	legal_name: '',
+	owner_name: '',
+	owner_email: '',
+	owner_password: '',
+	owner_password_confirmation: '',
 	tenant_type_id: null,
 	tax_number: '',
 	tax_office: '',
@@ -365,6 +400,7 @@ watch(formOpen, (open) => {
 	if (!open) {
 		setTimeout(() => {
 			editing.value = null
+			ownerExists.value = false
 			errors.value = {}
 			resetForm()
 		}, 250)
@@ -373,6 +409,7 @@ watch(formOpen, (open) => {
 
 function openNew() {
 	editing.value = null
+	ownerExists.value = false
 	errors.value = {}
 	resetForm()
 	formOpen.value = true
@@ -380,11 +417,16 @@ function openNew() {
 
 function edit(t) {
 	editing.value = t
+	ownerExists.value = !!t.owner
 	errors.value = {}
 	Object.assign(form, {
 		code: t.code,
 		name: t.name,
 		legal_name: t.legal_name ?? '',
+		owner_name: t.owner?.name ?? '',
+		owner_email: t.owner?.email ?? '',
+		owner_password: '',
+		owner_password_confirmation: '',
 		tenant_type_id: t.type?.id ?? null,
 		tax_number: t.tax_number ?? '',
 		tax_office: t.tax_office ?? '',
@@ -432,7 +474,19 @@ function submit() {
 		onFinish: () => { busy.value = false },
 	}
 	if (editing.value) {
-		router.put(`/tenants/${editing.value.id}`, { ...form }, opts)
+		const payload = { ...form }
+		if (!ownerExists.value) {
+			// Bu tenant için owner hesabı yok — alanları hiç gönderme.
+			delete payload.owner_name
+			delete payload.owner_email
+			delete payload.owner_password
+			delete payload.owner_password_confirmation
+		} else if (!payload.owner_password) {
+			// Şifre boş bırakıldıysa mevcut şifreye dokunma.
+			delete payload.owner_password
+			delete payload.owner_password_confirmation
+		}
+		router.put(`/tenants/${editing.value.id}`, payload, opts)
 	} else {
 		router.post('/tenants', { ...form }, opts)
 	}
@@ -542,7 +596,6 @@ async function confirmDelete(t) {
 .table-actions { display: flex; gap: 4px; }
 .table-action-btn { background: #f3f4f6; border: none; cursor: pointer; font-size: 13px; padding: 5px 9px; border-radius: 6px; color: #6b7280; transition: all .15s; }
 .table-action-btn.access:hover { background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary)); }
-.table-action-btn.marketplace:hover { background: #fff6e6; color: #d97706; }
 .table-action-btn.view:hover { background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary)); }
 .table-action-btn.toggle:hover { background: #fef3c7; color: #b45309; }
 .table-action-btn.delete:hover { background: #fee2e2; color: #dc2626; }
@@ -551,6 +604,7 @@ async function confirmDelete(t) {
 .form-section { display: flex; flex-direction: column; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid #f5f5f8; }
 .form-section:last-child { border-bottom: none; padding-bottom: 0; }
 .form-section-title { font-size: 12px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+.form-section-hint { font-size: 12px; color: #9ca3af; margin: -6px 0 2px; }
 .form-row { display: flex; flex-direction: column; gap: 6px; }
 .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .form-row-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }

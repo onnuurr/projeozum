@@ -178,20 +178,34 @@ function submitReset() {
 
 <style scoped>
 .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
-.btn-primary { background: #4338ca; color: #fff; border: 0; padding: 8px 14px; border-radius: 8px; cursor: pointer; }
+.page-title { font-size: 22px; font-weight: 700; color: rgb(var(--portal-ink)); }
+.page-subtitle { font-size: 13px; color: rgb(var(--portal-text-muted)); margin-top: 4px; }
+.btn-primary { background: rgb(var(--portal-accent)); color: #fff; border: 0; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-primary:hover:not(:disabled) { background: rgb(var(--portal-accent-hover)); }
 .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
-.data-table { width: 100%; border-collapse: collapse; }
-.data-table th, .data-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #2a2a44; }
-.badge.ok { color: #16a34a; } .badge.off { color: #b91c1c; }
-.row-actions { display: flex; gap: 6px; } .row-actions .danger { color: #b91c1c; }
-.muted { color: #6b7280; }
-.drawer-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: flex; justify-content: flex-end; }
-.drawer { width: 420px; max-width: 90vw; background: #14142a; height: 100%; padding: 20px; overflow-y: auto; }
+.card { background: #fff; border-radius: 16px; border: 1px solid rgb(var(--portal-border)); overflow: hidden; }
+.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.data-table th, .data-table td { text-align: left; padding: 10px 14px; border-bottom: 1px solid rgb(var(--portal-bg-soft)); }
+.data-table th { font-size: 11px; text-transform: uppercase; color: rgb(var(--portal-text-muted)); background: rgb(var(--portal-bg-soft)); }
+.mono { font-family: 'SF Mono', Menlo, Consolas, monospace; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; }
+.badge.ok { background: rgb(var(--color-success) / .12); color: rgb(var(--color-success)); }
+.badge.off { background: rgb(var(--color-danger) / .1); color: rgb(var(--color-danger)); }
+.row-actions { display: flex; gap: 10px; }
+.row-actions button { background: none; border: none; padding: 0; font-size: 12px; color: rgb(var(--portal-accent)); cursor: pointer; }
+.row-actions button:hover { text-decoration: underline; }
+.row-actions .danger { color: rgb(var(--color-danger)); }
+.muted { color: rgb(var(--portal-text-muted)); }
+.drawer-backdrop { position: fixed; inset: 0; background: rgba(17,24,39,.4); display: flex; justify-content: flex-end; z-index: 40; }
+.drawer { width: 420px; max-width: 90vw; background: #fff; height: 100%; padding: 22px; overflow-y: auto; }
+.drawer h2 { font-size: 16px; font-weight: 700; color: rgb(var(--portal-ink)); margin-bottom: 16px; }
 .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
-.field input { padding: 8px; border-radius: 6px; border: 1px solid #2a2a44; background: #0f0f22; color: #fff; }
-.err { color: #f87171; font-size: 12px; }
-.perms { border: 1px solid #2a2a44; border-radius: 8px; padding: 10px; margin-bottom: 12px; }
-.perm-group h4 { margin: 8px 0 4px; font-size: 12px; color: #9ca3af; }
-.perm-check { display: flex; gap: 8px; align-items: center; padding: 3px 0; }
-.drawer-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.field span { font-size: 11px; font-weight: 600; color: rgb(var(--portal-text-secondary)); }
+.field input { padding: 8px 12px; border-radius: 8px; border: 1px solid rgb(var(--portal-border)); background: #fff; color: rgb(var(--portal-ink)); font-size: 13px; }
+.err { color: rgb(var(--color-danger)); font-size: 12px; }
+.perms { border: 1px solid rgb(var(--portal-border)); border-radius: 8px; padding: 10px; margin-bottom: 12px; }
+.perm-group h4 { margin: 8px 0 4px; font-size: 12px; color: rgb(var(--portal-text-muted)); }
+.perm-check { display: flex; gap: 8px; align-items: center; padding: 3px 0; font-size: 13px; color: rgb(var(--portal-ink)); }
+.drawer-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+.drawer-actions button[type="button"] { background: rgb(var(--portal-bg)); border: 1px solid rgb(var(--portal-border)); border-radius: 8px; padding: 8px 14px; font-size: 13px; cursor: pointer; color: rgb(var(--portal-text-secondary)); }
 </style>

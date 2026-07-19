@@ -30,11 +30,11 @@ defineProps({
 </script>
 
 <style scoped>
-.back-link { font-size: 12px; color: #4338ca; text-decoration: none; }
+.back-link { font-size: 12px; color: rgb(var(--portal-accent)); text-decoration: none; }
 .coming { max-width: 640px; }
-.card { background: #fff; border: 1px solid #ebebf0; border-radius: 14px; padding: 28px; margin-top: 12px; text-align: center; }
-.logo { width: 64px; height: 64px; border-radius: 16px; margin: 0 auto 14px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 28px; }
-h1 { font-size: 18px; font-weight: 700; color: #1a1a2e; margin-bottom: 10px; }
-p { font-size: 13px; color: #555; line-height: 1.5; margin: 6px 0; }
-.dim { color: #888; }
+.card { background: #fff; border: 1px solid rgb(var(--portal-border)); border-radius: 14px; padding: 28px; margin-top: 12px; text-align: center; }
+.logo { width: 64px; height: 64px; border-radius: 16px; margin: 0 auto 14px; background: linear-gradient(135deg, rgb(var(--portal-accent)), rgb(var(--portal-accent-hover))); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 28px; }
+h1 { font-size: 18px; font-weight: 700; color: rgb(var(--portal-ink)); margin-bottom: 10px; }
+p { font-size: 13px; color: rgb(var(--portal-text-secondary)); line-height: 1.5; margin: 6px 0; }
+.dim { color: rgb(var(--portal-text-muted)); }
 </style>

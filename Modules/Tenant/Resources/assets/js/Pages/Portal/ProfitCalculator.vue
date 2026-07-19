@@ -158,31 +158,31 @@ function formatMoney(v) {
 </script>
 
 <style scoped>
-.page-title { font-size: 22px; font-weight: 700; color: #1a1a2e; }
-.page-subtitle { font-size: 13px; color: #888; margin: 4px 0 16px; }
+.page-title { font-size: 22px; font-weight: 700; color: rgb(var(--portal-ink)); }
+.page-subtitle { font-size: 13px; color: rgb(var(--portal-text-muted)); margin: 4px 0 16px; }
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.card { background: #fff; border-radius: 12px; border: 1px solid #ebebf0; padding: 18px 20px; }
-.card.profitable { border-color: #86efac; background: linear-gradient(135deg, #f0fdf4, #fff); }
-.card.loss { border-color: #fca5a5; background: linear-gradient(135deg, #fef2f2, #fff); }
-.card-title { font-size: 13px; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 12px; }
+.card { background: #fff; border-radius: 12px; border: 1px solid rgb(var(--portal-border)); padding: 18px 20px; }
+.card.profitable { border-color: rgb(var(--color-success) / .4); background: linear-gradient(135deg, rgb(var(--color-success) / .06), #fff); }
+.card.loss { border-color: rgb(var(--color-danger) / .35); background: linear-gradient(135deg, rgb(var(--color-danger) / .06), #fff); }
+.card-title { font-size: 13px; font-weight: 700; color: rgb(var(--portal-text-secondary)); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 12px; }
 .row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; position: relative; }
-.row label { font-size: 11px; font-weight: 600; color: #555; }
-.row input, .row select { padding: 8px 12px; border: 1px solid #ebebf0; border-radius: 8px; font-size: 13px; }
+.row label { font-size: 11px; font-weight: 600; color: rgb(var(--portal-text-secondary)); }
+.row input, .row select { padding: 8px 12px; border: 1px solid rgb(var(--portal-border)); border-radius: 8px; font-size: 13px; }
 .row-2 { display: grid; grid-template-columns: 2fr 1fr; gap: 10px; }
-.suggest { position: absolute; top: 56px; left: 0; right: 0; background: #fff; border: 1px solid #ebebf0; border-radius: 8px; list-style: none; padding: 4px; margin: 0; z-index: 10; max-height: 220px; overflow-y: auto; }
+.suggest { position: absolute; top: 56px; left: 0; right: 0; background: #fff; border: 1px solid rgb(var(--portal-border)); border-radius: 8px; list-style: none; padding: 4px; margin: 0; z-index: 10; max-height: 220px; overflow-y: auto; }
 .suggest li { padding: 6px 10px; font-size: 12px; cursor: pointer; border-radius: 6px; }
-.suggest li:hover { background: #f7f7fb; }
-.picked { font-size: 11px; color: #4338ca; margin-top: 4px; }
-.btn { padding: 12px 20px; background: #4338ca; color: #fff; border: none; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; }
+.suggest li:hover { background: rgb(var(--portal-bg)); }
+.picked { font-size: 11px; color: rgb(var(--portal-accent)); margin-top: 4px; }
+.btn { padding: 12px 20px; background: rgb(var(--portal-accent)); color: #fff; border: none; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.big { font-size: 36px; font-weight: 800; color: #15803d; font-family: 'SF Mono', Menlo, Consolas, monospace; }
-.card.loss .big { color: #b91c1c; }
-.margin { font-size: 13px; color: #555; margin-bottom: 14px; }
-.rows div { display: flex; justify-content: space-between; padding: 5px 0; font-size: 13px; border-bottom: 1px solid #f5f5f8; }
+.big { font-size: 36px; font-weight: 800; color: rgb(var(--color-success)); font-family: 'SF Mono', Menlo, Consolas, monospace; }
+.card.loss .big { color: rgb(var(--color-danger)); }
+.margin { font-size: 13px; color: rgb(var(--portal-text-secondary)); margin-bottom: 14px; }
+.rows div { display: flex; justify-content: space-between; padding: 5px 0; font-size: 13px; border-bottom: 1px solid rgb(var(--portal-bg-soft)); }
 .rows .grand { font-weight: 700; padding-top: 8px; }
 .mono { font-family: 'SF Mono', Menlo, Consolas, monospace; }
-.dim { color: #888; font-size: 11px; }
-.placeholder p { color: #888; font-size: 13px; text-align: center; padding: 32px; }
+.dim { color: rgb(var(--portal-text-muted)); font-size: 11px; }
+.placeholder p { color: rgb(var(--portal-text-muted)); font-size: 13px; text-align: center; padding: 32px; }
 
 @media (max-width: 700px) {
 	.grid { grid-template-columns: 1fr; }

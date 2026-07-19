@@ -148,7 +148,8 @@ class ProductAccessController extends Controller
             ],
         );
 
-        return back()->with('success', 'Tenant ayarı kaydedildi.');
+        // Flash basılmıyor — ProductTenantAccess.vue onSuccess'te kendi toast'unu gösteriyor.
+        return back();
     }
 
     public function destroy(Product $product, Tenant $tenant): RedirectResponse
@@ -158,6 +159,6 @@ class ProductAccessController extends Controller
             ->where('tenant_id', $tenant->id)
             ->delete();
 
-        return back()->with('success', 'Override silindi — tenant varsayılan kurallara döndü.');
+        return back();
     }
 }

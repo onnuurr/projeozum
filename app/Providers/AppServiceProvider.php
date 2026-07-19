@@ -7,11 +7,13 @@ use App\Listeners\LogLockout;
 use App\Listeners\LogPasswordReset;
 use App\Listeners\LogSuccessfulLogin;
 use App\Listeners\LogSuccessfulLogout;
+use App\Support\PostLoginRedirect;
 use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
 use Illuminate\Auth\Events\PasswordReset;
+use Illuminate\Auth\Middleware\RedirectIfAuthenticated;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
@@ -44,6 +46,13 @@ class AppServiceProvider extends ServiceProvider
         // Superadmin tüm yetenekleri otomatik geçer (eksik/yeni permission'larda kilitlenmeyi önler).
         // `null` döndürmek diğer kullanıcılar için normal yetki kontrolünü sürdürür.
         Gate::before(fn ($user, string $ability) => $user->hasRole('superadmin') ? true : null);
+
+        // Login ekranı tek (subdomain'e göre ayrılmıyor); zaten giriş yapmış
+        // kullanıcı /login'e giderse (guest middleware) de aynı tenant/merkez
+        // ayrımına göre yönlendirilir — bkz. PostLoginRedirect.
+        RedirectIfAuthenticated::redirectUsing(
+            fn ($request) => PostLoginRedirect::for($request->user())
+        );
 
         // ── Auth olay dinleyicileri (KVKK uyumlu aktivite loglama) ───────────
         Event::listen(Login::class, LogSuccessfulLogin::class);

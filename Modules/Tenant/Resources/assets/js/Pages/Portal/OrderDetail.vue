@@ -69,19 +69,19 @@ function formatMoney(v) {
 </script>
 
 <style scoped>
-.back-link { font-size: 12px; color: #4338ca; text-decoration: none; }
+.back-link { font-size: 12px; color: rgb(var(--portal-accent)); text-decoration: none; }
 .back-link:hover { text-decoration: underline; }
-.page-title { font-size: 22px; font-weight: 700; color: #1a1a2e; margin-top: 8px; }
-.meta { display: flex; gap: 18px; margin: 8px 0 16px; font-size: 13px; color: #555; flex-wrap: wrap; }
-.card { background: #fff; border-radius: 16px; padding: 18px 20px; border: 1px solid #ebebf0; margin-bottom: 14px; }
-.card-title { font-size: 14px; font-weight: 700; margin-bottom: 12px; }
+.page-title { font-size: 22px; font-weight: 700; color: rgb(var(--portal-ink)); margin-top: 8px; }
+.meta { display: flex; gap: 18px; margin: 8px 0 16px; font-size: 13px; color: rgb(var(--portal-text-secondary)); flex-wrap: wrap; }
+.card { background: #fff; border-radius: 16px; padding: 18px 20px; border: 1px solid rgb(var(--portal-border)); margin-bottom: 14px; }
+.card-title { font-size: 14px; font-weight: 700; margin-bottom: 12px; color: rgb(var(--portal-ink)); }
 .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.data-table th, .data-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #f5f5f8; }
-.data-table th { color: #888; font-size: 11px; text-transform: uppercase; }
-.dim { color: #888; font-size: 11px; }
+.data-table th, .data-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid rgb(var(--portal-bg-soft)); }
+.data-table th { color: rgb(var(--portal-text-muted)); font-size: 11px; text-transform: uppercase; }
+.dim { color: rgb(var(--portal-text-muted)); font-size: 11px; }
 .mono { font-family: 'SF Mono', Menlo, Consolas, monospace; }
 .totals { display: flex; flex-direction: column; gap: 6px; max-width: 320px; margin-left: auto; }
 .totals div { display: flex; justify-content: space-between; font-size: 13px; }
-.totals .grand { font-weight: 700; font-size: 15px; padding-top: 8px; border-top: 1px solid #ebebf0; }
-.json-view { background: #f7f7fb; padding: 12px; border-radius: 8px; font-size: 11px; overflow-x: auto; }
+.totals .grand { font-weight: 700; font-size: 15px; padding-top: 8px; border-top: 1px solid rgb(var(--portal-border)); }
+.json-view { background: rgb(var(--portal-bg)); padding: 12px; border-radius: 8px; font-size: 11px; overflow-x: auto; }
 </style>

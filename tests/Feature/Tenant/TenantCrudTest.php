@@ -89,6 +89,47 @@ class TenantCrudTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_web_tenant_creation_also_opens_owner_portal_account(): void
+    {
+        Role::firstOrCreate(['name' => 'tenant', 'guard_name' => 'web']);
+
+        $response = $this->actingAs($this->superadmin)
+            ->post('/tenants', [
+                'code'                        => 'OWN01',
+                'name'                        => 'Owner Test Tenant',
+                'owner_name'                  => 'Ahmet Yılmaz',
+                'owner_email'                 => 'ahmet@owner-test.com',
+                'owner_password'              => 'password123',
+                'owner_password_confirmation' => 'password123',
+            ]);
+
+        $response->assertRedirect(route('tenants.index'));
+
+        $tenant = Tenant::where('code', 'OWN01')->firstOrFail();
+
+        $this->assertDatabaseHas('users', [
+            'email'     => 'ahmet@owner-test.com',
+            'tenant_id' => $tenant->id,
+            'is_active' => true,
+        ]);
+
+        $owner = User::where('email', 'ahmet@owner-test.com')->firstOrFail();
+        $this->assertTrue($owner->hasRole('tenant'));
+        $this->assertNotNull($owner->email_verified_at);
+    }
+
+    public function test_web_tenant_creation_requires_owner_account_fields(): void
+    {
+        $response = $this->actingAs($this->superadmin)
+            ->post('/tenants', [
+                'code' => 'NOOWN01',
+                'name' => 'No Owner Tenant',
+            ]);
+
+        $response->assertSessionHasErrors(['owner_name', 'owner_email', 'owner_password']);
+        $this->assertDatabaseMissing('tenants', ['code' => 'NOOWN01']);
+    }
+
     public function test_slug_is_immutable_on_name_update(): void
     {
         $tenant = Tenant::factory()->create([

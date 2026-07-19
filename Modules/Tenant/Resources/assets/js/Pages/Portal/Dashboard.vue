@@ -104,7 +104,8 @@ function renderChart() {
 			datasets: [{
 				label: 'Toplam (₺)',
 				data: props.monthlyTrend.map(m => m.total),
-				backgroundColor: 'rgba(67, 56, 202, 0.8)',
+				backgroundColor: 'rgba(79, 70, 229, 0.85)',
+				borderRadius: 4,
 			}],
 		},
 		options: {
@@ -123,30 +124,30 @@ watch(() => props.monthlyTrend, renderChart, { deep: true })
 <style scoped>
 .portal-dashboard { display: flex; flex-direction: column; gap: 18px; }
 .page-header { display: flex; align-items: flex-start; justify-content: space-between; }
-.page-title { font-size: 22px; font-weight: 700; color: #1a1a2e; }
-.page-subtitle { font-size: 13px; color: #888; margin-top: 4px; }
+.page-title { font-size: 23px; font-weight: 700; color: rgb(var(--portal-ink)); letter-spacing: -0.01em; }
+.page-subtitle { font-size: 13px; color: rgb(var(--portal-text-muted)); margin-top: 4px; }
 .mono { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; }
-.card { background: #fff; border-radius: 16px; padding: 18px 20px; border: 1px solid #ebebf0; box-shadow: 0 1px 4px rgba(0,0,0,.04); }
-.card-title { font-size: 14px; font-weight: 700; color: #1a1a2e; margin-bottom: 12px; }
+.card { background: rgb(var(--portal-surface)); border-radius: 16px; padding: 18px 20px; border: 1px solid rgb(var(--portal-border)); box-shadow: 0 1px 3px rgba(17,24,39,.04); }
+.card-title { font-size: 14px; font-weight: 700; color: rgb(var(--portal-ink)); margin-bottom: 12px; }
 .credit-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-.credit-cell { background: #f7f7fb; border: 1px solid #ebebf0; border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
-.credit-cell.highlight { background: linear-gradient(135deg, #eef2ff, #e0e7ff); border-color: #c7d2fe; }
-.credit-label { font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.04em; }
-.credit-value { font-size: 20px; font-weight: 700; color: #1a1a2e; font-family: 'SF Mono', Menlo, Consolas, monospace; }
+.credit-cell { background: rgb(var(--portal-bg)); border: 1px solid rgb(var(--portal-border)); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
+.credit-cell.highlight { background: linear-gradient(135deg, rgb(var(--portal-accent-soft)), rgb(var(--portal-accent-soft-2))); border-color: rgb(var(--portal-accent-soft-border)); }
+.credit-label { font-size: 11px; font-weight: 600; color: rgb(var(--portal-text-muted)); text-transform: uppercase; letter-spacing: 0.04em; }
+.credit-value { font-size: 20px; font-weight: 700; color: rgb(var(--portal-ink)); font-family: 'SF Mono', Menlo, Consolas, monospace; }
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.data-table th, .data-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #f0f0f5; }
-.data-table th { color: #888; font-size: 11px; text-transform: uppercase; }
-.empty { color: #aaa; font-size: 13px; font-style: italic; }
+.data-table th, .data-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid rgb(var(--portal-bg-soft)); }
+.data-table th { color: rgb(var(--portal-text-muted)); font-size: 11px; text-transform: uppercase; }
+.empty { color: rgb(var(--portal-text-muted)); font-size: 13px; font-style: italic; }
 .invoice-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
-.invoice-link { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; padding: 8px 10px; border-radius: 8px; text-decoration: none; color: #1a1a2e; align-items: center; }
-.invoice-link:hover { background: #f7f7fb; }
+.invoice-link { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; padding: 8px 10px; border-radius: 8px; text-decoration: none; color: rgb(var(--portal-ink)); align-items: center; }
+.invoice-link:hover { background: rgb(var(--portal-bg)); }
 .invoice-amount { font-weight: 600; font-family: 'SF Mono', Menlo, Consolas, monospace; }
 .invoice-status { font-size: 11px; padding: 2px 8px; border-radius: 6px; font-weight: 600; }
-.invoice-status.paid { background: #dcfce7; color: #15803d; }
-.invoice-status.pending { background: #fef3c7; color: #b45309; }
-.invoice-status.cancelled { background: #fee2e2; color: #b91c1c; }
-.invoice-date { font-size: 11px; color: #888; }
+.invoice-status.paid { background: rgb(var(--color-success) / .12); color: rgb(var(--color-success)); }
+.invoice-status.pending { background: rgb(var(--color-warning) / .14); color: rgb(180 83 9); }
+.invoice-status.cancelled { background: rgb(var(--color-danger) / .1); color: rgb(var(--color-danger)); }
+.invoice-date { font-size: 11px; color: rgb(var(--portal-text-muted)); }
 
 @media (max-width: 700px) {
 	.two-col { grid-template-columns: 1fr; }

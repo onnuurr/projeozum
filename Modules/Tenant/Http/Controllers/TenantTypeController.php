@@ -40,16 +40,15 @@ class TenantTypeController extends Controller
     {
         TenantType::create($this->validateType($request));
 
-        return redirect()->route('tenants.types.index')
-            ->with('success', 'Tenant tipi eklendi.');
+        // Flash basılmıyor — TenantTypes.vue onSuccess'te kendi toast'unu gösteriyor.
+        return redirect()->route('tenants.types.index');
     }
 
     public function update(Request $request, TenantType $type): RedirectResponse
     {
         $type->update($this->validateType($request, $type->id));
 
-        return redirect()->route('tenants.types.index')
-            ->with('success', 'Tenant tipi güncellendi.');
+        return redirect()->route('tenants.types.index');
     }
 
     public function destroy(TenantType $type): RedirectResponse
@@ -62,8 +61,7 @@ class TenantTypeController extends Controller
 
         $type->delete();
 
-        return redirect()->route('tenants.types.index')
-            ->with('success', 'Tenant tipi silindi.');
+        return redirect()->route('tenants.types.index');
     }
 
     private function validateType(Request $request, ?int $ignoreId = null): array

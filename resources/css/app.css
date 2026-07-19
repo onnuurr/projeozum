@@ -41,6 +41,35 @@
 	--color-info: 37 99 235;           /* #2563EB */
 }
 
+/* ============================================================
+   Bayi Portalı teması ("İndigo & Graphite") — TEK KAYNAK.
+   Ana panelin turuncu kimliğinden kasıtlı olarak ayrışır (tenant'lar için
+   ayrı bir ürün kimliği); ama semantik renkler (--color-success/warning/
+   danger) ana paletle paylaşılır. Modules/Tenant/.../Pages/Portal/*.vue ve
+   resources/js/Layouts/TenantPortalLayout.vue rgb(var(--portal-*)) olarak kullanır.
+   ============================================================ */
+:root {
+	--portal-sidebar-bg: 17 24 39;           /* #111827 gray-900 */
+	--portal-sidebar-hover: 31 41 55;        /* #1F2937 gray-800 */
+	--portal-sidebar-border: 31 41 55;       /* #1F2937 */
+	--portal-sidebar-text: 209 213 219;      /* #D1D5DB gray-300 */
+	--portal-sidebar-text-dim: 107 114 128;  /* #6B7280 gray-500 */
+
+	--portal-accent: 79 70 229;              /* #4F46E5 indigo-600 */
+	--portal-accent-hover: 67 56 202;        /* #4338CA indigo-700 */
+	--portal-accent-soft: 238 242 255;       /* #EEF2FF indigo-50 */
+	--portal-accent-soft-2: 224 231 255;     /* #E0E7FF indigo-100 */
+	--portal-accent-soft-border: 199 210 254; /* #C7D2FE indigo-200 */
+
+	--portal-ink: 17 24 39;                  /* #111827 */
+	--portal-text-secondary: 75 85 99;       /* #4B5563 gray-600 */
+	--portal-text-muted: 107 114 128;        /* #6B7280 gray-500 */
+	--portal-border: 229 231 235;            /* #E5E7EB gray-200 */
+	--portal-bg: 249 250 251;                /* #F9FAFB gray-50 */
+	--portal-bg-soft: 243 244 246;           /* #F3F4F6 gray-100 */
+	--portal-surface: 255 255 255;           /* kart zemini */
+}
+
 html, body {
 	font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 	color: rgb(var(--color-ink));
@@ -64,10 +93,11 @@ body {
 	gap: 8px;
 }
 
-/* Dar ekranlarda (telefon) kenar boşluklarını daralt — içerik alanını büyüt */
+/* Dar ekranlarda (telefon) kenar boşluklarını daralt — içerik alanını büyüt.
+   Sol sidebar mobilde gizlendiği (bkz. LeftSidebar.vue) için sütun kaldırılır. */
 @media (max-width: 640px) {
 	.layout-root {
-		grid-template-columns: 40px 1fr;
+		grid-template-columns: 1fr;
 		padding: 6px;
 		gap: 6px;
 	}

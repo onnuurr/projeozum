@@ -54,8 +54,17 @@ Route::middleware('can:portal.checkout')->group(function () {
 });
 
 // Pazaryeri hub + provider başına ayrı route group (her birinin kendi controller'ı).
-Route::middleware('can:marketplace.view-sales')->group(function () {
+// KVKK: bağlantı/kimlik bilgileri sadece tenant'a özel — superadmin'in genel portal
+// bypass'ı burada marketplace.tenant-only middleware'i ile ayrıca iptal edilir.
+Route::middleware(['can:marketplace.view-sales', 'marketplace.tenant-only'])->group(function () {
     Route::get('/marketplace', [MarketplaceHubController::class, 'index'])->name('marketplace.index');
+
+    Route::middleware('can:marketplace.manage')->group(function () {
+        Route::post('/marketplace',                    [MarketplaceHubController::class, 'store'])->name('marketplace.store');
+        Route::put('/marketplace/{credential}',         [MarketplaceHubController::class, 'update'])->whereNumber('credential')->name('marketplace.update');
+        Route::post('/marketplace/{credential}/toggle', [MarketplaceHubController::class, 'toggle'])->whereNumber('credential')->name('marketplace.toggle');
+        Route::delete('/marketplace/{credential}',      [MarketplaceHubController::class, 'destroy'])->whereNumber('credential')->name('marketplace.destroy');
+    });
 
     Route::prefix('marketplace/trendyol')->name('marketplace.trendyol.')->group(function () {
         Route::get('/',                  [TrendyolController::class, 'index'])->name('index');

@@ -26,6 +26,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'tenant.subdomain'   => \Modules\Tenant\Http\Middleware\ResolveTenantFromSubdomain::class,
             'tenant.owns'        => \Modules\Tenant\Http\Middleware\EnforceTenantOwnership::class,
             'active'             => \Modules\Tenant\Http\Middleware\EnsureUserActive::class,
+            'marketplace.tenant-only' => \Modules\Tenant\Http\Middleware\BlockSuperadminFromMarketplace::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

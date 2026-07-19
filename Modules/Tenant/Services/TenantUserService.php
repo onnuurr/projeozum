@@ -51,6 +51,49 @@ class TenantUserService
         });
     }
 
+    /**
+     * Tenant oluşturulurken açılan ilk (sahip/yönetici) hesap — 'tenant' rolü alır,
+     * bu rol zaten TenantPermissionSeeder'da tüm portal izinlerine sahiptir; sub-user'ın
+     * aksine granüler permission ataması yapılmaz.
+     */
+    public function createOwner(Tenant $tenant, array $data): User
+    {
+        return DB::transaction(function () use ($tenant, $data) {
+            $user = User::create([
+                'name'      => $data['name'],
+                'email'     => $data['email'],
+                'password'  => $data['password'], // 'hashed' cast otomatik hash'ler
+                'tenant_id' => $tenant->id,
+                'is_active' => true,
+            ]);
+            $user->forceFill(['email_verified_at' => now()])->save();
+
+            $user->assignRole('tenant');
+
+            return $user->fresh();
+        });
+    }
+
+    /**
+     * Tenant düzenleme formundan owner hesabının ad/e-posta/şifresini günceller —
+     * sub-user update()'in aksine izin senkronu yapmaz (owner zaten rol bazlı tam yetkili).
+     * Boş/null gelen alanlar dokunulmadan bırakılır.
+     */
+    public function updateOwner(User $user, array $data): User
+    {
+        $payload = array_filter([
+            'name'     => $data['name']     ?: null,
+            'email'    => $data['email']    ?: null,
+            'password' => $data['password'] ?: null, // 'hashed' cast otomatik hash'ler
+        ]);
+
+        if ($payload) {
+            $user->update($payload);
+        }
+
+        return $user->fresh();
+    }
+
     public function update(User $user, array $data): User
     {
         return DB::transaction(function () use ($user, $data) {

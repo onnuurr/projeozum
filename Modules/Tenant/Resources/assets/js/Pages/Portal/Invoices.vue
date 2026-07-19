@@ -53,18 +53,18 @@ function formatMoney(v) {
 </script>
 
 <style scoped>
-.page-title { font-size: 22px; font-weight: 700; color: #1a1a2e; }
-.page-subtitle { font-size: 13px; color: #888; margin: 4px 0 16px; }
+.page-title { font-size: 22px; font-weight: 700; color: rgb(var(--portal-ink)); }
+.page-subtitle { font-size: 13px; color: rgb(var(--portal-text-muted)); margin: 4px 0 16px; }
 .mono { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; }
-.card { background: #fff; border-radius: 16px; border: 1px solid #ebebf0; overflow: hidden; }
+.card { background: #fff; border-radius: 16px; border: 1px solid rgb(var(--portal-border)); overflow: hidden; }
 .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.data-table th, .data-table td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #f5f5f8; }
-.data-table th { font-size: 11px; text-transform: uppercase; color: #888; background: #f8f8fc; }
-.empty { text-align: center; color: #aaa; padding: 32px; font-style: italic; }
+.data-table th, .data-table td { padding: 10px 14px; text-align: left; border-bottom: 1px solid rgb(var(--portal-bg-soft)); }
+.data-table th { font-size: 11px; text-transform: uppercase; color: rgb(var(--portal-text-muted)); background: rgb(var(--portal-bg-soft)); }
+.empty { text-align: center; color: rgb(var(--portal-text-muted)); padding: 32px; font-style: italic; }
 .status-pill { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; }
-.status-pill.paid { background: #dcfce7; color: #15803d; }
-.status-pill.pending { background: #fef3c7; color: #b45309; }
-.status-pill.cancelled { background: #fee2e2; color: #b91c1c; }
-.btn-ghost { padding: 4px 10px; border-radius: 6px; font-size: 12px; color: #4338ca; text-decoration: none; }
-.btn-ghost:hover { background: #eef2ff; }
+.status-pill.paid { background: rgb(var(--color-success) / .12); color: rgb(var(--color-success)); }
+.status-pill.pending { background: rgb(var(--color-warning) / .14); color: rgb(180 83 9); }
+.status-pill.cancelled { background: rgb(var(--color-danger) / .1); color: rgb(var(--color-danger)); }
+.btn-ghost { padding: 4px 10px; border-radius: 6px; font-size: 12px; color: rgb(var(--portal-accent)); text-decoration: none; }
+.btn-ghost:hover { background: rgb(var(--portal-accent-soft)); }
 </style>

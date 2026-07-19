@@ -263,50 +263,50 @@ function submit() {
 </script>
 
 <style scoped>
-.page-title { font-size: 22px; font-weight: 700; color: #1a1a2e; margin-bottom: 16px; }
+.page-title { font-size: 22px; font-weight: 700; color: rgb(var(--portal-ink)); margin-bottom: 16px; }
 .grid { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
 .left, .right { display: flex; flex-direction: column; gap: 12px; }
-.card { background: #fff; border-radius: 12px; border: 1px solid #ebebf0; padding: 16px 18px; }
-.card-title { font-size: 13px; font-weight: 700; color: #1a1a2e; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
+.card { background: #fff; border-radius: 12px; border: 1px solid rgb(var(--portal-border)); padding: 16px 18px; }
+.card-title { font-size: 13px; font-weight: 700; color: rgb(var(--portal-ink)); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
 .row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
-.row label { font-size: 11px; color: #555; font-weight: 600; }
-.req { color: #ef4444; }
-.row input, .row textarea, .row select, select, textarea { padding: 8px 12px; border: 1px solid #ebebf0; border-radius: 8px; font-size: 13px; font-family: inherit; }
+.row label { font-size: 11px; color: rgb(var(--portal-text-secondary)); font-weight: 600; }
+.req { color: rgb(var(--color-danger)); }
+.row input, .row textarea, .row select, select, textarea { padding: 8px 12px; border: 1px solid rgb(var(--portal-border)); border-radius: 8px; font-size: 13px; font-family: inherit; }
 .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
 .radio { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 13px; cursor: pointer; }
 .carrier-row { margin-top: 10px; }
 .hint { margin-top: 6px; }
-.muted { color: #888; font-style: normal; font-size: 12px; }
+.muted { color: rgb(var(--portal-text-muted)); font-style: normal; font-size: 12px; }
 .terms { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 6px 0; cursor: pointer; }
-.btn-primary { padding: 12px 24px; background: #4338ca; color: #fff; border: none; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; }
+.btn-primary { padding: 12px 24px; background: rgb(var(--portal-accent)); color: #fff; border: none; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .item-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
-.cart-line { padding: 8px 0; border-bottom: 1px solid #f5f5f8; display: flex; flex-direction: column; gap: 6px; }
+.cart-line { padding: 8px 0; border-bottom: 1px solid rgb(var(--portal-bg-soft)); display: flex; flex-direction: column; gap: 6px; }
 .cart-line:last-child { border-bottom: none; }
 .cart-line-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
-.name { color: #1a1a2e; font-size: 13px; font-weight: 600; }
+.name { color: rgb(var(--portal-ink)); font-size: 13px; font-weight: 600; }
 .remove-btn { background: none; border: none; color: #aaa; cursor: pointer; font-size: 13px; line-height: 1; padding: 2px 4px; border-radius: 4px; }
-.remove-btn:hover:not(:disabled) { color: #dc2626; background: #fef2f2; }
+.remove-btn:hover:not(:disabled) { color: rgb(var(--color-danger)); background: rgb(var(--color-danger) / .08); }
 .remove-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.variant-label { font-size: 11px; color: #888; }
+.variant-label { font-size: 11px; color: rgb(var(--portal-text-muted)); }
 .cart-line-foot { display: flex; justify-content: space-between; align-items: center; }
-.qty-stepper { display: inline-flex; align-items: center; border: 1px solid #ebebf0; border-radius: 8px; overflow: hidden; }
+.qty-stepper { display: inline-flex; align-items: center; border: 1px solid rgb(var(--portal-border)); border-radius: 8px; overflow: hidden; }
 .qty-stepper button { width: 28px; height: 28px; border: none; background: #fff; font-size: 15px; color: #444; cursor: pointer; }
-.qty-stepper button:hover:not(:disabled) { background: #f5f5f8; }
+.qty-stepper button:hover:not(:disabled) { background: rgb(var(--portal-bg-soft)); }
 .qty-stepper button:disabled { color: #ccc; cursor: not-allowed; }
-.qty-value { min-width: 32px; text-align: center; font-size: 13px; font-weight: 700; color: #1a1a2e; }
-.line-total { font-size: 13px; font-weight: 700; color: #1a1a2e; }
-.unit-price { font-size: 11px; color: #888; }
+.qty-value { min-width: 32px; text-align: center; font-size: 13px; font-weight: 700; color: rgb(var(--portal-ink)); }
+.line-total { font-size: 13px; font-weight: 700; color: rgb(var(--portal-ink)); }
+.unit-price { font-size: 11px; color: rgb(var(--portal-text-muted)); }
 .mono { font-family: 'SF Mono', Menlo, Consolas, monospace; }
 .totals div { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; }
-.totals .discount { color: #16a34a; }
-.totals .grand { font-weight: 700; font-size: 16px; padding-top: 8px; border-top: 1px solid #ebebf0; margin-top: 4px; }
-.totals .due { color: #b45309; font-size: 12px; }
-.warn-card { background: #fef3c7; border-color: #fcd34d; }
-.credit-preview.over { background: #fee2e2; border-color: #fca5a5; }
+.totals .discount { color: rgb(var(--color-success)); }
+.totals .grand { font-weight: 700; font-size: 16px; padding-top: 8px; border-top: 1px solid rgb(var(--portal-border)); margin-top: 4px; }
+.totals .due { color: rgb(180 83 9); font-size: 12px; }
+.warn-card { background: rgb(var(--color-warning) / .14); border-color: rgb(var(--color-warning) / .4); }
+.credit-preview.over { background: rgb(var(--color-danger) / .08); border-color: rgb(var(--color-danger) / .35); }
 .credit-preview div { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; }
-.warn { font-size: 12px; color: #b91c1c; margin: 4px 0; }
+.warn { font-size: 12px; color: rgb(var(--color-danger)); margin: 4px 0; }
 
 @media (max-width: 900px) {
 	.grid { grid-template-columns: 1fr; }

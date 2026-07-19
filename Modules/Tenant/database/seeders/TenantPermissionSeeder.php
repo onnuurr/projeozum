@@ -1,6 +1,6 @@
 <?php
 
-namespace Modules\Tenant\Database\Seeders;
+namespace Modules\Tenant\database\seeders;
 
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
@@ -16,7 +16,6 @@ class TenantPermissionSeeder extends Seeder
             'tenant-type.manage'       => 'Tenant Tipi Yönet',
             'tenant-access.manage'     => 'Tenant Erişimi Yönet',
             'tenant.product.customize' => 'Tenant\'a Özel Ürün Metni Yaz',
-            'marketplace.manage'       => 'Pazaryeri Bağlantı Yönet',
             'portal.users.manage'      => 'Portal — Kullanıcı Yönet',
         ];
 
@@ -27,6 +26,7 @@ class TenantPermissionSeeder extends Seeder
             'portal.credit.view'    => 'Portal — Kredi Hareketleri',
             'portal.catalog.view'   => 'Portal — Katalog Görüntüle',
             'portal.checkout'       => 'Portal — Dropship Sipariş Aç',
+            'marketplace.manage'    => 'Portal — Pazaryeri Bağlantı Yönet',
             'marketplace.sync'      => 'Portal — Pazaryeri Senkronizasyon',
             'marketplace.view-sales'=> 'Portal — Pazaryeri Satışları Görüntüle',
             'portal.financials.view'=> 'Portal — Kâr/Zarar Dashboard',

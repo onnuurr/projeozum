@@ -4,7 +4,6 @@ use Illuminate\Support\Facades\Route;
 use Modules\Tenant\Http\Controllers\ProductAccessController;
 use Modules\Tenant\Http\Controllers\TenantAccessController;
 use Modules\Tenant\Http\Controllers\TenantController;
-use Modules\Tenant\Http\Controllers\TenantMarketplaceController;
 use Modules\Tenant\Http\Controllers\TenantTypeController;
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -41,22 +40,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('/tenants/access/products/search', [TenantAccessController::class, 'searchProducts'])
         ->middleware('can:tenant-access.manage')->name('tenants.access.products.search');
-
-    // ─── Pazaryeri Bağlantıları ──────────────────────────────────────────
-    // (literal /tenants/{tenant}/marketplace yolları — /tenants/{tenant} catch-all'dan önce)
-    // Permission tek başına yetmez: controller'da scope check (superadmin tümü, tenant kullanıcı kendisi).
-    Route::prefix('tenants/{tenant}/marketplace')->name('tenants.marketplace.')
-        ->middleware('can:marketplace.manage')->whereNumber('tenant')
-        ->group(function () {
-            Route::get('/', [TenantMarketplaceController::class, 'index'])->name('index');
-            Route::post('/', [TenantMarketplaceController::class, 'store'])->name('store');
-            Route::put('/{credential}', [TenantMarketplaceController::class, 'update'])
-                ->whereNumber('credential')->name('update');
-            Route::post('/{credential}/toggle', [TenantMarketplaceController::class, 'toggle'])
-                ->whereNumber('credential')->name('toggle');
-            Route::delete('/{credential}', [TenantMarketplaceController::class, 'destroy'])
-                ->whereNumber('credential')->name('destroy');
-        });
 
     // ─── Ürün-merkezli Tenant Erişim ─────────────────────────────────────
     // (sistem yöneticisi: bir ürün × tüm tenantlar matrisini görür/düzenler)
