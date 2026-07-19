@@ -59,7 +59,12 @@ class StoreProductRequest extends FormRequest
             'shipping_fee'      => ['nullable', 'numeric', 'min:0'],
 
             // Diğer
-            'barcode'           => ['nullable', 'string', 'max:64'],
+            'barcode'           => [
+                'nullable',
+                'string',
+                'max:64',
+                Rule::unique('products', 'barcode')->ignore($ignoreId),
+            ],
             'is_domestic'       => ['nullable', 'boolean'],
             'manufacturer_code' => ['nullable', 'string', 'max:64'],
             'gtip_code'         => ['nullable', 'string', 'max:32'],

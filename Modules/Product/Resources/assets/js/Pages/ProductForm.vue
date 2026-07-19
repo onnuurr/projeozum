@@ -102,12 +102,28 @@
 						<div class="form-grid-2">
 							<CustomSelect label="Cinsiyet" v-model="form.gender" :options="genderOptions" />
 							<div class="form-group">
-								<CustomSelect label="Kategori" v-model="form.category_id" :options="categoryOptions" placeholder="Kategori seçiniz…" />
+								<CustomSelect
+									label="Kategori"
+									v-model="form.category_id"
+									:options="categoryOptions"
+									placeholder="Kategori seçiniz…"
+									:creatable="canCreateCategory"
+									:creating="creatingCategory"
+									@create="handleCreateCategory"
+								/>
 								<span v-if="errors.category_id" class="form-error">{{ errors.category_id }}</span>
 							</div>
 						</div>
 						<div class="form-group">
-							<CustomSelect label="Marka" v-model="form.brand_id" :options="brandOptions" placeholder="— Marka yok —" />
+							<CustomSelect
+								label="Marka"
+								v-model="form.brand_id"
+								:options="brandOptions"
+								placeholder="— Marka yok —"
+								:creatable="canCreateBrand"
+								:creating="creatingBrand"
+								@create="handleCreateBrand"
+							/>
 							<span v-if="errors.brand_id" class="form-error">{{ errors.brand_id }}</span>
 						</div>
 						<label class="toggle-row">
@@ -490,7 +506,12 @@
 						<div class="form-grid-2">
 							<div class="form-group">
 								<label class="form-label">Barkod / GTIN</label>
-								<input v-model="form.barcode" class="form-input" type="text" maxlength="64" placeholder="örn. 8690000000000" />
+								<div class="sku-row">
+									<input v-model="form.barcode" class="form-input" type="text" maxlength="64" placeholder="örn. 8690000000000" />
+									<button type="button" class="btn btn-ghost btn-sm" :disabled="barcodeBusy" @click="generateBarcode" title="Ayarlardaki önek + aralığa göre otomatik üret">
+										{{ barcodeBusy ? 'Üretiliyor…' : '↻ Yeniden Üret' }}
+									</button>
+								</div>
 								<span v-if="errors.barcode" class="form-error">{{ errors.barcode }}</span>
 							</div>
 							<div class="form-group">
@@ -615,6 +636,23 @@ async function generateAiDescription() {
 
 const canUseAi = computed(() => !!(page.props.auth?.user?.permissions?.includes?.('product.ai.generate') ?? true))
 
+/* ── Barkod (GS1) otomatik üretim ── */
+const barcodeBusy = ref(false)
+
+async function generateBarcode() {
+	if (barcodeBusy.value) return
+	barcodeBusy.value = true
+	try {
+		const { data } = await axios.post('/products/barcode/generate')
+		form.barcode = data.barcode
+		showToast?.({ type: 'success', title: 'Barkod üretildi', message: 'Kaydetmeden önce gözden geçirin.' })
+	} catch (e) {
+		showToast?.({ type: 'error', title: 'Barkod üretilemedi', message: e?.response?.data?.message || 'Barkod üretimi başarısız.' })
+	} finally {
+		barcodeBusy.value = false
+	}
+}
+
 /* ── Görseller ── */
 const newImages = ref([])      // { file, preview }
 const existingImages = ref([]) // { id, url, is_cover }
@@ -666,14 +704,58 @@ const genderOptions = [
 	{ value: 'Unisex', label: 'Unisex' },
 ]
 
+// Yerel kopya: yeni eklenen kategori, sayfa yeniden yüklenmeden listeye eklenebilsin diye.
+const localCategories = ref([...props.categories])
 const categoryOptions = computed(() =>
-	props.categories.map((c) => ({ value: c.id, label: c.name ?? c.label })),
+	localCategories.value.map((c) => ({ value: c.id, label: c.name ?? c.label })),
 )
 
+const canCreateCategory = computed(() => page.props.auth?.permissions?.includes?.('category.create') ?? true)
+const canCreateBrand = computed(() => page.props.auth?.permissions?.includes?.('brand.manage') ?? true)
+const creatingCategory = ref(false)
+
+async function handleCreateCategory(name) {
+	if (creatingCategory.value) return
+	creatingCategory.value = true
+	try {
+		const { data } = await axios.post('/products/categories/quick-create', { name })
+		if (!localCategories.value.some((c) => c.id === data.id)) {
+			localCategories.value.push(data)
+		}
+		form.category_id = data.id
+		showToast?.({ type: 'success', title: 'Kategori eklendi', message: `"${data.name}" kategoriye eklendi.` })
+	} catch (e) {
+		showToast?.({ type: 'error', title: 'Kategori eklenemedi', message: e?.response?.data?.message || 'Bir hata oluştu.' })
+	} finally {
+		creatingCategory.value = false
+	}
+}
+
+// Yerel kopya: yeni eklenen marka, sayfa yeniden yüklenmeden listeye eklenebilsin diye.
+const localBrands = ref([...props.brands])
 const brandOptions = computed(() => [
 	{ value: null, label: '— Marka yok —' },
-	...props.brands.map((b) => ({ value: b.id, label: b.name ?? b.label })),
+	...localBrands.value.map((b) => ({ value: b.id, label: b.name ?? b.label })),
 ])
+
+const creatingBrand = ref(false)
+
+async function handleCreateBrand(name) {
+	if (creatingBrand.value) return
+	creatingBrand.value = true
+	try {
+		const { data } = await axios.post('/products/brands/quick-create', { name })
+		if (!localBrands.value.some((b) => b.id === data.id)) {
+			localBrands.value.push(data)
+		}
+		form.brand_id = data.id
+		showToast?.({ type: 'success', title: 'Marka eklendi', message: `"${data.name}" markaya eklendi.` })
+	} catch (e) {
+		showToast?.({ type: 'error', title: 'Marka eklenemedi', message: e?.response?.data?.message || 'Bir hata oluştu.' })
+	} finally {
+		creatingBrand.value = false
+	}
+}
 
 const skuTouched = ref(false)
 const customColor = reactive({ name: '', hex: '#888888' })
@@ -777,7 +859,7 @@ function slugify(str) {
 }
 
 function generateBaseSku() {
-	const brand = props.brands.find((b) => b.id === form.brand_id)
+	const brand = localBrands.value.find((b) => b.id === form.brand_id)
 	const brandFrag = slugFragment(brand?.name ?? brand?.label ?? 'PRD')
 	const nameFrag  = slugFragment(form.name)
 	const rand = String(Math.floor(Math.random() * 900) + 100)

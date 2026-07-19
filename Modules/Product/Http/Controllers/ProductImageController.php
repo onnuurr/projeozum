@@ -64,7 +64,8 @@ class ProductImageController extends Controller
             $image->update($data);
         });
 
-        return back()->with('success', 'Görsel güncellendi.');
+        // Flash basılmıyor — ProductForm.vue setCover() onSuccess'te kendi toast'unu gösteriyor.
+        return back();
     }
 
     public function destroy(ProductImage $image): RedirectResponse
@@ -76,6 +77,7 @@ class ProductImageController extends Controller
 
         $image->delete();
 
-        return back()->with('success', 'Görsel silindi.');
+        // Flash basılmıyor — ProductForm.vue removeExistingImage() onSuccess'te kendi toast'unu gösteriyor.
+        return back();
     }
 }

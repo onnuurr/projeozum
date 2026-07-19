@@ -51,7 +51,7 @@ class CartController extends Controller
 
         $tenant = $tenantId !== null ? Tenant::with('type')->find($tenantId) : null;
 
-        $productName = DB::transaction(function () use ($request, $data, $qty, $tenant) {
+        DB::transaction(function () use ($request, $data, $qty, $tenant) {
             $product = Product::query()->findOrFail($data['product_id']);
             $variant = isset($data['variant_id'])
                 ? ProductVariant::query()
@@ -110,16 +110,10 @@ class CartController extends Controller
                 ]);
             }
 
-            return $product->name;
         });
 
-        return back()->with('flash', [
-            'toast' => [
-                'type'    => 'success',
-                'title'   => 'Sepete eklendi',
-                'message' => $productName,
-            ],
-        ]);
+        // Flash basılmıyor — CatalogProduct.vue onSuccess'te kendi toast'unu gösteriyor.
+        return back();
     }
 
     public function updateQty(UpdateCartItemQtyRequest $request, CartItem $cartItem): RedirectResponse

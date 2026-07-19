@@ -3,7 +3,10 @@
 namespace Modules\Product\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Product\Http\Requests\StoreBrandRequest;
@@ -40,6 +43,44 @@ class BrandController extends Controller
         // Toast'ı frontend (Brands.vue onSuccess) gösterir; backend flash eklemek
         // global flash→toast izleyiciyle çift toast'a yol açar.
         return redirect()->route('products.brands.index');
+    }
+
+    /**
+     * Ürün formundaki marka arama kutusundan tek isimle hızlı ekleme.
+     * Aynı isimde marka zaten varsa yenisini oluşturmadan onu döner.
+     */
+    public function quickStore(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:191'],
+        ]);
+
+        $name = trim($data['name']);
+
+        $brand = Brand::query()
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
+            ->first();
+
+        if (! $brand) {
+            $baseSlug = Str::slug($name) ?: 'marka';
+            $slug = $baseSlug;
+            for ($suffix = 2; Brand::where('slug', $slug)->exists(); $suffix++) {
+                $slug = "{$baseSlug}-{$suffix}";
+            }
+
+            $brand = Brand::create([
+                'name'       => $name,
+                'slug'       => $slug,
+                'sort_order' => (int) Brand::max('sort_order') + 1,
+            ]);
+        }
+
+        return response()->json([
+            'id'    => $brand->id,
+            'slug'  => $brand->slug,
+            'name'  => $brand->name,
+            'label' => $brand->name,
+        ]);
     }
 
     public function update(UpdateBrandRequest $request, Brand $brand): RedirectResponse

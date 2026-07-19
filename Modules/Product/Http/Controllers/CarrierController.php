@@ -39,16 +39,15 @@ class CarrierController extends Controller
     {
         Carrier::create($request->validated());
 
-        return redirect()->route('carriers.index')
-            ->with('success', 'Kargo firması eklendi.');
+        // Flash basılmıyor — Carriers.vue onSuccess'te kendi toast'unu gösteriyor.
+        return redirect()->route('carriers.index');
     }
 
     public function update(UpdateCarrierRequest $request, Carrier $carrier): RedirectResponse
     {
         $carrier->update($request->validated());
 
-        return redirect()->route('carriers.index')
-            ->with('success', 'Kargo firması güncellendi.');
+        return redirect()->route('carriers.index');
     }
 
     public function destroy(Carrier $carrier): RedirectResponse
@@ -62,7 +61,6 @@ class CarrierController extends Controller
 
         $carrier->delete();
 
-        return redirect()->route('carriers.index')
-            ->with('success', 'Kargo firması silindi.');
+        return redirect()->route('carriers.index');
     }
 }

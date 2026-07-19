@@ -40,16 +40,15 @@ class WarehouseController extends Controller
     {
         Warehouse::create($request->validated());
 
-        return redirect()->route('products.warehouses.index')
-            ->with('success', 'Depo eklendi.');
+        // Flash basılmıyor — Warehouses.vue onSuccess'te kendi toast'unu gösteriyor.
+        return redirect()->route('products.warehouses.index');
     }
 
     public function update(UpdateWarehouseRequest $request, Warehouse $warehouse): RedirectResponse
     {
         $warehouse->update($request->validated());
 
-        return redirect()->route('products.warehouses.index')
-            ->with('success', 'Depo güncellendi.');
+        return redirect()->route('products.warehouses.index');
     }
 
     public function destroy(Warehouse $warehouse): RedirectResponse
@@ -62,7 +61,6 @@ class WarehouseController extends Controller
 
         $warehouse->delete();
 
-        return redirect()->route('products.warehouses.index')
-            ->with('success', 'Depo silindi.');
+        return redirect()->route('products.warehouses.index');
     }
 }

@@ -16,6 +16,7 @@ class ProductPermissionSeeder extends Seeder
             'product.delete'      => 'Ürün Sil',
             'product.ai.generate' => 'Ürün AI Açıklama Üret',
             'category.manage'     => 'Kategori & Pazaryeri Eşleme Yönet',
+            'category.create'     => 'Kategori Ekle (Hızlı)',
             'brand.manage'        => 'Marka Yönet',
             'warehouse.manage'    => 'Depo Yönet',
             'stock.manage'        => 'Stok Yönet',

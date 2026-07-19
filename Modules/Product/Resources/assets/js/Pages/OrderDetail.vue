@@ -175,7 +175,7 @@ function submitTransition() {
 			confirmOpen.value = false
 			showToast?.({ type: 'success', title: 'Durum güncellendi' })
 		},
-		onError: () => showToast?.({ type: 'error', title: 'Geçiş başarısız' }),
+		onError: (errs) => showToast?.({ type: 'error', title: 'Geçiş başarısız', message: Object.values(errs)[0] || 'Sunucu hatası.' }),
 		onFinish: () => { busy.value = false },
 	})
 }

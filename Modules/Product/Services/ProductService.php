@@ -5,7 +5,9 @@ namespace Modules\Product\Services;
 use App\Support\Media;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Modules\Product\Exceptions\BarcodeGenerationException;
 use Modules\Product\Models\Product;
+use Modules\Superadmin\Models\Setting;
 
 /**
  * Ürün yazma orkestrasyonu (create/update/delete).
@@ -27,7 +29,18 @@ class ProductService
     public function create(array $data, array $images = []): Product
     {
         $product = DB::transaction(function () use ($data) {
-            $product = Product::create($this->attributesFrom($data));
+            $attributes = $this->attributesFrom($data);
+
+            if (empty($attributes['barcode'])) {
+                try {
+                    $attributes['barcode'] = $this->generateBarcode();
+                } catch (BarcodeGenerationException) {
+                    // Barkod ayarları henüz yapılandırılmamış/hatalı — ürün kaydı engellenmez,
+                    // barkod boş kalır (bkz. plan Karar 5).
+                }
+            }
+
+            $product = Product::create($attributes);
 
             $this->syncVariants($product, $data['variants']);
             $this->materialLinks->syncMaterials($product, $data['description_materials'] ?? []);
@@ -83,6 +96,58 @@ class ProductService
         });
 
         return $count;
+    }
+
+    /**
+     * Superadmin ayarlarındaki (ülke kodu + firma kodu) sabit önek ve seri aralığına göre
+     * benzersiz bir EAN-13/GS1 barkod üretir. Aralıkta rastgele seri no dener, DB'de çakışırsa
+     * 20 kere tekrar dener; bulamazsa rangeExhausted fırlatır. Önek/aralık 12 haneye sığmıyorsa
+     * misconfigured fırlatır.
+     */
+    public function generateBarcode(): string
+    {
+        $settings    = Setting::getGroup('barcode');
+        $countryCode = trim((string) ($settings['countryCode'] ?? ''));
+        $companyCode = trim((string) ($settings['companyCode'] ?? ''));
+        $serialMin   = (int) ($settings['serialMin'] ?? 0);
+        $serialMax   = (int) ($settings['serialMax'] ?? 0);
+
+        $prefix     = $countryCode . $companyCode;
+        $prefixLen  = strlen($prefix);
+        $slotWidth  = 12 - $prefixLen;
+
+        if ($countryCode === '' || $companyCode === '' || $prefixLen > 11 || ! ctype_digit($prefix)) {
+            throw BarcodeGenerationException::misconfigured('ülke/firma kodu tanımlı değil veya sayısal değil.');
+        }
+
+        if ($serialMax < $serialMin || $slotWidth < strlen((string) $serialMax)) {
+            throw BarcodeGenerationException::misconfigured('seri aralığı önekle birlikte 12 haneye sığmıyor.');
+        }
+
+        for ($attempt = 0; $attempt < 20; $attempt++) {
+            $serial    = random_int($serialMin, $serialMax);
+            $twelve    = $prefix . str_pad((string) $serial, $slotWidth, '0', STR_PAD_LEFT);
+            $candidate = $twelve . $this->eanCheckDigit($twelve);
+
+            if (! Product::where('barcode', $candidate)->exists()) {
+                return $candidate;
+            }
+        }
+
+        throw BarcodeGenerationException::rangeExhausted($serialMin, $serialMax);
+    }
+
+    /**
+     * EAN-13 mod-10 kontrol hanesini hesaplar (sağdan sola alternatif 3x/1x ağırlık).
+     */
+    private function eanCheckDigit(string $twelveDigits): int
+    {
+        $sum = 0;
+        foreach (str_split(strrev($twelveDigits)) as $i => $digit) {
+            $sum += (int) $digit * ($i % 2 === 0 ? 3 : 1);
+        }
+
+        return (10 - ($sum % 10)) % 10;
     }
 
     /**

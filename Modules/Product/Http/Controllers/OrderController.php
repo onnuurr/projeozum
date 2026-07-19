@@ -148,9 +148,14 @@ class OrderController extends Controller
                 $request->validated('note'),
             );
         } catch (InvalidOrderTransitionException $e) {
-            return back()->with('error', $e->getMessage());
+            // withErrors() kullanılıyor ki Inertia bunu bir 422 validation hatası gibi
+            // ele alıp frontend'in onError callback'ini tetiklesin — düz back()->with('error', ...)
+            // normal bir redirect olduğu için onSuccess'i tetikliyordu ve OrderDetail.vue
+            // yanlışlıkla "Durum güncellendi" başarı toast'unu da gösteriyordu.
+            return back()->withErrors(['status' => $e->getMessage()]);
         }
 
-        return back()->with('success', 'Sipariş durumu güncellendi.');
+        // Flash basılmıyor — OrderDetail.vue onSuccess'te kendi toast'unu gösteriyor.
+        return back();
     }
 }

@@ -33,14 +33,28 @@
 					<span v-if="opt.dot" class="cs-dot" :style="{ background: opt.dot }"></span>
 					{{ opt.label }}
 				</div>
-				<div v-if="filteredOptions.length === 0" class="cs-empty">Sonuç bulunamadı</div>
+				<template v-if="filteredOptions.length === 0">
+					<button
+						v-if="creatable && query.trim()"
+						type="button"
+						class="cs-create-btn"
+						:disabled="creating"
+						@click.stop="handleCreate"
+					>
+						<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+							<path d="M12 5v14M5 12h14" />
+						</svg>
+						<span>{{ creating ? 'Ekleniyor…' : `“${query.trim()}” ekle` }}</span>
+					</button>
+					<div v-else class="cs-empty">Sonuç bulunamadı</div>
+				</template>
 			</div>
 		</div>
 	</div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 
 const props = defineProps({
 	modelValue: { default: null },
@@ -48,9 +62,13 @@ const props = defineProps({
 	showLabel: { type: Boolean, default: true },
 	placeholder: { type: String, default: 'Seçiniz...' },
 	options: { type: Array, required: true },
+	// Aramada eşleşen seçenek yoksa "ekle" butonu göster; tıklanınca `create` event'i emit edilir.
+	creatable: { type: Boolean, default: false },
+	// Parent async ekleme isteğini yürütürken butonu kilitlemek için.
+	creating: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:modelValue', 'create'])
 
 const open = ref(false)
 const query = ref('')
@@ -75,6 +93,19 @@ function select(opt) {
 	open.value = false
 	query.value = ''
 }
+
+function handleCreate() {
+	if (props.creating) return
+	const value = query.value.trim()
+	if (!value) return
+	emit('create', value)
+}
+
+// Parent yeni oluşturulan değeri seçince (modelValue dışarıdan değişince) dropdown'ı kapat.
+watch(() => props.modelValue, () => {
+	open.value = false
+	query.value = ''
+})
 
 function handleOutside(e) {
 	if (rootEl.value && !rootEl.value.contains(e.target)) {
@@ -135,6 +166,18 @@ onBeforeUnmount(() => document.removeEventListener('click', handleOutside))
 	padding: 10px; text-align: center;
 	font-size: 12px; color: #bbb;
 }
+
+.cs-create-btn {
+	width: 100%; display: flex; align-items: center; gap: 6px;
+	padding: 8px 10px; border: none; border-radius: 7px;
+	background: rgb(var(--color-primary-soft));
+	color: rgb(var(--color-primary));
+	font-family: inherit; font-size: 12.5px; font-weight: 600;
+	cursor: pointer; text-align: left;
+	transition: background .1s, opacity .1s;
+}
+.cs-create-btn:hover:not(:disabled) { background: rgb(var(--color-primary) / 0.18); }
+.cs-create-btn:disabled { cursor: default; opacity: .6; }
 
 .cs-search-wrap {
 	padding: 6px 6px 4px;

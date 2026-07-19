@@ -119,32 +119,30 @@ class ProductController extends Controller
     {
         $this->products->create($request->validated(), $request->file('images') ?? []);
 
-        return redirect()->route('products.index')
-            ->with('success', 'Ürün eklendi.');
+        // Flash basılmıyor — ProductForm.vue onSuccess'te kendi toast'unu gösteriyor.
+        return redirect()->route('products.index');
     }
 
     public function update(UpdateProductRequest $request, Product $product): RedirectResponse
     {
         $this->products->update($product, $request->validated(), $request->file('images') ?? []);
 
-        return redirect()->route('products.index')
-            ->with('success', 'Ürün güncellendi.');
+        return redirect()->route('products.index');
     }
 
     public function destroy(Product $product): RedirectResponse
     {
         $this->products->delete($product);
 
-        return redirect()->route('products.index')
-            ->with('success', 'Ürün silindi.');
+        // Flash basılmıyor — Products.vue onSuccess'te kendi toast'unu gösteriyor.
+        return redirect()->route('products.index');
     }
 
     public function bulkDestroy(BulkDestroyProductRequest $request): RedirectResponse
     {
         $count = $this->products->bulkDelete($request->validated()['ids']);
 
-        return redirect()->route('products.index')
-            ->with('success', "{$count} ürün silindi.");
+        return redirect()->route('products.index');
     }
 
     public function show(Request $request, Product $product): Response

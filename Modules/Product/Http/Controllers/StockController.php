@@ -93,8 +93,8 @@ class StockController extends Controller
             userId: $request->user()?->id,
         );
 
-        return redirect()->route('products.stocks.index')
-            ->with('success', 'Stok hareketi kaydedildi.');
+        // Flash basılmıyor — Stocks.vue onSuccess'te kendi toast'unu gösteriyor.
+        return redirect()->route('products.stocks.index');
     }
 
     public function history(Request $request): Response

@@ -3,9 +3,11 @@
 namespace Modules\Product\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -74,8 +76,49 @@ class CategoryController extends Controller
     {
         Category::create($this->validateCategory($request));
 
-        return redirect()->route('products.categories.index')
-            ->with('success', 'Kategori eklendi.');
+        // Flash basılmıyor — Categories.vue onSuccess'te kendi toast'unu gösteriyor.
+        return redirect()->route('products.categories.index');
+    }
+
+    /**
+     * Ürün formundaki kategori arama kutusundan tek isimle hızlı ekleme.
+     * Aynı isimde kategori zaten varsa yenisini oluşturmadan onu döner.
+     */
+    public function quickStore(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:191'],
+        ]);
+
+        $name = trim($data['name']);
+
+        $category = Category::query()
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
+            ->first();
+
+        if (! $category) {
+            $baseSlug = Str::slug($name) ?: 'kategori';
+            $slug = $baseSlug;
+            for ($suffix = 2; Category::where('slug', $slug)->exists(); $suffix++) {
+                $slug = "{$baseSlug}-{$suffix}";
+            }
+
+            $category = Category::create([
+                'name'       => $name,
+                'slug'       => $slug,
+                'icon'       => '📦',
+                'status'     => 'active',
+                'sort_order' => (int) Category::max('sort_order') + 1,
+            ]);
+        }
+
+        return response()->json([
+            'id'    => $category->id,
+            'slug'  => $category->slug,
+            'name'  => $category->name,
+            'label' => $category->name,
+            'icon'  => $category->icon ?? '📦',
+        ]);
     }
 
     public function update(Request $request, Category $category): RedirectResponse
@@ -88,16 +131,14 @@ class CategoryController extends Controller
 
         $category->update($data);
 
-        return redirect()->route('products.categories.index')
-            ->with('success', 'Kategori güncellendi.');
+        return redirect()->route('products.categories.index');
     }
 
     public function destroy(Category $category): RedirectResponse
     {
         $category->delete();
 
-        return redirect()->route('products.categories.index')
-            ->with('success', 'Kategori silindi.');
+        return redirect()->route('products.categories.index');
     }
 
     /**
@@ -118,16 +159,14 @@ class CategoryController extends Controller
             }
         });
 
-        return redirect()->route('products.categories.index')
-            ->with('success', "{$count} kategori silindi.");
+        return redirect()->route('products.categories.index');
     }
 
     public function connectMarketplace(Marketplace $marketplace): RedirectResponse
     {
         $marketplace->update(['connected' => true]);
 
-        return redirect()->route('products.categories.index')
-            ->with('success', "{$marketplace->name} bağlandı.");
+        return redirect()->route('products.categories.index');
     }
 
     public function storeMapping(Request $request, Category $category, Marketplace $marketplace): RedirectResponse
@@ -146,8 +185,7 @@ class CategoryController extends Controller
             ],
         );
 
-        return redirect()->route('products.categories.index')
-            ->with('success', "{$category->name} → {$marketplace->name} eşleştirildi.");
+        return redirect()->route('products.categories.index');
     }
 
     public function destroyMapping(Category $category, Marketplace $marketplace): RedirectResponse
@@ -157,8 +195,7 @@ class CategoryController extends Controller
             ->where('marketplace_id', $marketplace->id)
             ->delete();
 
-        return redirect()->route('products.categories.index')
-            ->with('success', "{$category->name} → {$marketplace->name} eşleştirmesi kaldırıldı.");
+        return redirect()->route('products.categories.index');
     }
 
     private function validateCategory(Request $request, ?int $ignoreId = null): array

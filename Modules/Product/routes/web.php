@@ -54,10 +54,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('can:product.ai.generate')
         ->name('products.ai-description');
 
+    // Barkod (EAN-13/GS1) otomatik üretimi — hem create hem edit formunda kullanılır,
+    // bu yüzden {product} parametresi almaz.
+    Route::post('/products/barcode/generate',
+        [\Modules\Product\Http\Controllers\ProductBarcodeController::class, 'generate'])
+        ->middleware('can:product.add')
+        ->name('products.barcode.generate');
+
     Route::prefix('products/categories')->name('products.categories.')->group(function () {
         Route::get('/', [CategoryController::class, 'index'])->name('index');
         Route::post('/', [CategoryController::class, 'store'])
             ->middleware('can:category.manage')->name('store');
+        // Ürün formundaki kategori aramasından tek isimle hızlı ekleme (dar yetki).
+        Route::post('/quick-create', [CategoryController::class, 'quickStore'])
+            ->middleware('can:category.create')->name('quick-store');
         Route::put('/{category}', [CategoryController::class, 'update'])
             ->middleware('can:category.manage')->name('update');
         Route::delete('/{category}', [CategoryController::class, 'destroy'])
@@ -90,6 +100,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/', [BrandController::class, 'index'])->name('index');
         Route::post('/', [BrandController::class, 'store'])
             ->middleware('can:brand.manage')->name('store');
+        // Ürün formundaki marka aramasından tek isimle hızlı ekleme.
+        Route::post('/quick-create', [BrandController::class, 'quickStore'])
+            ->middleware('can:brand.manage')->name('quick-store');
         Route::put('/{brand}', [BrandController::class, 'update'])
             ->whereNumber('brand')->middleware('can:brand.manage')->name('update');
         Route::delete('/{brand}', [BrandController::class, 'destroy'])
