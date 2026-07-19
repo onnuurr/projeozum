@@ -27,7 +27,7 @@
 				@remove="removeMenu"
 			/>
 
-			<RouteCatalog :routes="routes" class="mp-catalog" />
+			<RouteCatalog :routes="routes" :disabled="saving" class="mp-catalog" />
 		</div>
 
 		<AppModal
@@ -88,6 +88,7 @@ import { ref, watch, inject } from 'vue'
 import { router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import AppModal from '@/Components/AppModal.vue'
+import { useToast } from '@/composables/useToast.js'
 import { menuIconKeys, renderMenuIcon } from '@/menuIcons.js'
 import MenuTree from '../Components/MenuTree.vue'
 import RouteCatalog from '../Components/RouteCatalog.vue'
@@ -95,6 +96,7 @@ import RouteCatalog from '../Components/RouteCatalog.vue'
 defineOptions({ layout: AppLayout })
 
 const $swal = inject('$swal')
+const { showToast } = useToast()
 
 const props = defineProps({
 	menus: { type: Array, required: true },
@@ -133,6 +135,7 @@ watch(() => props.menus, (val) => {
 })
 
 function resetTree() {
+	clearTimeout(autoSaveTimer)
 	tree.value = toTree(props.menus)
 	dirty.value = false
 }
@@ -146,18 +149,51 @@ function flatten(nodes, parentId, acc) {
 	return acc
 }
 
+// WordPress'in menü editörü gibi: sürükle-bırak sonrası sayfayı yenilemeden,
+// düz axios ile arka planda kaydeder. Inertia'nın router.post + back() akışı
+// her kayıtta tüm sayfayı (route kataloğu taraması + cart/menu/notifications
+// shared prop'ları dahil) yeniden render ettiği için kayıt gözle görülür
+// yavaştı; axios ile sadece bu küçük JSON isteği gider, sayfa hiç yenilenmez.
+let autoSaveTimer = null
+let pendingSave = false
+
 function saveOrder() {
+	clearTimeout(autoSaveTimer)
+	if (saving.value) {
+		pendingSave = true
+		return
+	}
 	saving.value = true
-	router.post(
-		route('superadmin.menus.reorder'),
-		{ items: flatten(tree.value, null, []) },
-		{
-			preserveScroll: true,
-			onSuccess: () => { dirty.value = false },
-			onFinish: () => { saving.value = false },
-		}
-	)
+	const items = flatten(tree.value, null, [])
+	window.axios.post(route('superadmin.menus.reorder'), { items })
+		.then(() => {
+			dirty.value = false
+			showToast({ type: 'success', title: 'Menü sıralaması kaydedildi', duration: 1800 })
+		})
+		.catch((error) => {
+			showToast({
+				type: 'error',
+				title: 'Sıralama kaydedilemedi',
+				message: error.response?.data?.message ?? 'Lütfen tekrar deneyin.',
+			})
+		})
+		.finally(() => {
+			saving.value = false
+			if (pendingSave) {
+				pendingSave = false
+				saveOrder()
+			}
+		})
 }
+
+// Her sürükle-bırakta otomatik kaydet (kısa bir debounce ile, art arda
+// taşımalarda tek istek atılsın diye); "Sıralamayı Kaydet" butonu manuel/anında
+// tetiklemek isteyenler için hâlâ duruyor.
+watch(dirty, (isDirty) => {
+	if (!isDirty) return
+	clearTimeout(autoSaveTimer)
+	autoSaveTimer = setTimeout(saveOrder, 600)
+})
 
 /* ── Form (create/edit) ── */
 const modalOpen = ref(false)
@@ -204,6 +240,9 @@ function submitForm() {
 }
 
 // Sağ panelden ağaca bırakılan route'tan anında menü öğesi oluştur.
+// `saving`, POST + ardından gelen reload tamamlanana kadar true kalmalı;
+// aksi halde reload sürerken başlayan yeni bir sürükleme Inertia'nın tek
+// aktif visit'ini iptal edip ağacı tutarsız/donmuş bir durumda bırakıyordu.
 function onAddRoute({ route: item, parentId, index }) {
 	saving.value = true
 	router.post(route('superadmin.menus.store'), {
@@ -216,8 +255,13 @@ function onAddRoute({ route: item, parentId, index }) {
 		sort_order: index,
 	}, {
 		preserveScroll: true,
-		onSuccess: () => router.reload({ only: ['menus', 'routes'] }),
-		onFinish: () => { saving.value = false },
+		onSuccess: () => {
+			router.reload({
+				only: ['menus', 'routes'],
+				onFinish: () => { saving.value = false },
+			})
+		},
+		onError: () => { saving.value = false },
 	})
 }
 
@@ -238,7 +282,7 @@ async function removeMenu(menu) {
 @media (max-width: 900px) {
 	.mp-body { grid-template-columns: 1fr; }
 }
-.mp-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 18px; gap: 16px; }
+.mp-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 18px; gap: 16px; flex-wrap: wrap; }
 .mp-header h1 { font-size: 20px; font-weight: 700; color: #1a1a2e; }
 .mp-header p { font-size: 13px; color: #888; margin-top: 4px; }
 .mp-header-actions { display: flex; gap: 8px; flex-shrink: 0; }

@@ -18,8 +18,8 @@ class MenuSeederTest extends TestCase
 
         (new MenuSeeder())->run();
 
-        // 10 standart tenant kökü + 1 superadmin kökü (Sistem Logları) + 1 Finans kökü = 12
-        $this->assertSame(12, Menu::roots()->count());
+        // 10 standart tenant kökü + 3 superadmin kökü (Sistem Logları, Ret Seçim Maddeleri, Ret Analiz Raporları) + 1 Finans kökü = 14
+        $this->assertSame(14, Menu::roots()->count());
 
         // Pano kökü ikonlu ve child'lı
         $pano = Menu::where('label', 'Pano')->whereNull('parent_id')->first();
@@ -45,6 +45,6 @@ class MenuSeederTest extends TestCase
         (new MenuSeeder())->run();
         (new MenuSeeder())->run();
 
-        $this->assertSame(12, Menu::roots()->count());
+        $this->assertSame(14, Menu::roots()->count());
     }
 }

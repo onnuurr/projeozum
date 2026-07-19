@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\Superadmin\Http\Controllers\BackupController;
 use Modules\Superadmin\Http\Controllers\LogAccessController;
 use Modules\Superadmin\Http\Controllers\LogViewerController;
 use Modules\Superadmin\Http\Controllers\MenuController;
@@ -20,10 +21,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('can:settings.manage')->name('superadmin.settings');
     Route::post('superadmin/settings', [SettingsController::class, 'update'])
         ->middleware('can:settings.manage')->name('superadmin.settings.update');
+    Route::post('superadmin/settings/cache/purge', [SettingsController::class, 'purgeCache'])
+        ->middleware('can:settings.manage')->name('superadmin.settings.cache.purge');
 
     // Canlı sistem bilgisi (JSON — dashboard ve ayarlar sayfası bunu polling eder)
     Route::get('superadmin/system-info', SystemInfoController::class)
         ->middleware('can:settings.manage')->name('superadmin.system-info');
+
+    // Yedekleme takibi (backup:run çıktısı) — Route::resource('superadmin')'dan ÖNCE tanımlanmalı.
+    Route::get('superadmin/backups', [BackupController::class, 'index'])
+        ->middleware('can:backups.view')->name('superadmin.backups.index');
+    Route::post('superadmin/backups/run', [BackupController::class, 'run'])
+        ->middleware('can:backups.manage')->name('superadmin.backups.run');
 
     // Menüler — Route::resource('superadmin')'dan ÖNCE tanımlanmalı, aksi halde
     // GET superadmin/menus, resource'un superadmin/{superadmin} (show) route'u

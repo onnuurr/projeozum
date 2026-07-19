@@ -7,9 +7,13 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Modules\Superadmin\Models\BackupRun;
 use Modules\Superadmin\Models\Setting;
+use Modules\Superadmin\Services\CloudflarePurgeService;
 use Modules\Superadmin\Services\SystemInfoService;
 use RuntimeException;
 use Spatie\Permission\Models\Permission;
@@ -29,6 +33,7 @@ class SettingsController extends Controller
         'storage',
         'api',
         'performance',
+        'barcode',
     ];
 
     /**
@@ -105,10 +110,69 @@ class SettingsController extends Controller
                 continue;
             }
 
+            // Storage grubundaki lastBackupAt/lastBackupSize backup_runs'tan canlı
+            // hesaplanır (bkz. buildSettingsPayload) — Setting'e statik değer olarak
+            // yazılırsa bir sonraki gerçek yedekten sonra bile eski değeri gösterir.
+            if ($group === 'storage') {
+                unset($values['lastBackupAt'], $values['lastBackupSize']);
+            }
+
+            // Barkod grubu: ülke+firma kodu öneki ile seri aralığının 12 haneye
+            // (EAN-13'ün kontrol hanesi hariç kısmı) sığıp sığmadığını erken doğrula.
+            if ($group === 'barcode') {
+                $prefixLen = strlen((string) ($values['countryCode'] ?? '') . (string) ($values['companyCode'] ?? ''));
+                $slotWidth = 12 - $prefixLen;
+                $max       = (int) ($values['serialMax'] ?? 0);
+
+                if ($prefixLen < 1 || $prefixLen > 11 || $slotWidth < strlen((string) $max)) {
+                    throw ValidationException::withMessages([
+                        'barcode.serialMax' => 'Barkod ön eki (ülke+firma kodu) ile seri aralığı 12 haneye sığmıyor.',
+                    ]);
+                }
+            }
+
             Setting::setGroup($group, $values);
         }
 
-        return back()->with('success', 'Ayarlar kaydedildi.');
+        // Not: burada flash mesajı basılmıyor — Settings.vue'nin save() metodu
+        // Inertia onSuccess'te kendi toast'unu zaten gösteriyor. İkisi birden
+        // olsaydı aynı kayıt için çift toast çıkardı (bkz. AppLayout.vue flash izleyici).
+        return back();
+    }
+
+    /**
+     * Laravel cache'lerini ve/veya Cloudflare CDN önbelleğini temizler.
+     * "all" tipi ikisini birden yapar — dashboard'daki ana "Önbelleği Temizle"
+     * butonu bunu tetikler.
+     */
+    public function purgeCache(Request $request): RedirectResponse
+    {
+        $type = $request->validate([
+            'type' => ['required', Rule::in(['clear', 'config', 'route', 'view', 'all'])],
+        ])['type'];
+
+        $artisanCommand = [
+            'clear'  => 'cache:clear',
+            'config' => 'config:clear',
+            'route'  => 'route:clear',
+            'view'   => 'view:clear',
+            'all'    => 'optimize:clear',
+        ][$type];
+
+        try {
+            Artisan::call($artisanCommand);
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Laravel cache temizlenemedi: ' . $e->getMessage());
+        }
+
+        if ($type !== 'all') {
+            return back()->with('success', 'Laravel: ' . $artisanCommand . ' çalıştırıldı.');
+        }
+
+        $cloudflare = app(CloudflarePurgeService::class)->purgeAll();
+        $message    = 'Laravel önbelleği temizlendi. ' . $cloudflare['message'];
+
+        return back()->with($cloudflare['ok'] ? 'success' : 'warning', $message);
     }
 
     /**
@@ -239,10 +303,43 @@ class SettingsController extends Controller
         unset($payload['security']['logAccessPasswordHash']);
         $payload['security']['logAccessPasswordSet'] = filled($hashValue);
 
+        // Son yedek bilgisi backup_runs tablosundan gelir — "storage" grubunun
+        // düzenlenebilir alanı DEĞİL, yalnızca gösterim amaçlı canlı bir alan.
+        // update()'te bu iki anahtar Setting'e yazılmadan önce ayıklanır (bkz. update()).
+        $payload['storage']['lastBackupAt']   = $this->lastBackupAtLabel();
+        $payload['storage']['lastBackupSize'] = $this->lastBackupSizeLabel();
+
         $payload['roles']  = $this->buildRolesPayload();
         $payload['system'] = $this->buildSystemPayload();
 
         return $payload;
+    }
+
+    private function lastSuccessfulBackup(): ?BackupRun
+    {
+        return BackupRun::query()
+            ->where('status', BackupRun::STATUS_SUCCESS)
+            ->latest('finished_at')
+            ->first();
+    }
+
+    private function lastBackupAtLabel(): ?string
+    {
+        return $this->lastSuccessfulBackup()?->finished_at?->toIso8601String();
+    }
+
+    private function lastBackupSizeLabel(): ?string
+    {
+        $backup = $this->lastSuccessfulBackup();
+        if (! $backup) {
+            return null;
+        }
+
+        $bytes = (int) $backup->db_dump_bytes + (int) $backup->files_bytes;
+        $units = ['B', 'KB', 'MB', 'GB'];
+        $i     = $bytes > 0 ? min((int) floor(log($bytes, 1024)), count($units) - 1) : 0;
+
+        return round($bytes / (1024 ** $i), 1) . ' ' . $units[$i];
     }
 
     /**
@@ -417,6 +514,8 @@ class SettingsController extends Controller
                 'sandboxMode'        => false,
                 'requireApiKey'      => true,
                 'enableSwagger'      => true,
+                'cloudflareZoneId'   => '',
+                'cloudflareApiToken' => '',
             ],
             'performance' => [
                 'cacheDriver'      => 'file',
@@ -428,6 +527,12 @@ class SettingsController extends Controller
                 'logRetentionDays' => 14,
                 'enableDebugBar'   => false,
                 'enableQueryLog'   => false,
+            ],
+            'barcode' => [
+                'countryCode' => '869',
+                'companyCode' => '',
+                'serialMin'   => 1,
+                'serialMax'   => 999999,
             ],
         ];
     }

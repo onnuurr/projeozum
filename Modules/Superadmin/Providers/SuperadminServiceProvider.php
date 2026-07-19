@@ -3,6 +3,7 @@
 namespace Modules\Superadmin\Providers;
 
 use Illuminate\Support\Facades\Schema;
+use Modules\Superadmin\Console\Commands\BackupRunCommand;
 use Modules\Superadmin\Models\Setting;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 use Throwable;
@@ -24,7 +25,9 @@ class SuperadminServiceProvider extends ModuleServiceProvider
      *
      * @var string[]
      */
-    // protected array $commands = [];
+    protected array $commands = [
+        BackupRunCommand::class,
+    ];
 
     /**
      * Provider classes to register.

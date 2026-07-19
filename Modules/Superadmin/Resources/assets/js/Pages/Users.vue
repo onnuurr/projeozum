@@ -283,7 +283,7 @@ async function confirmDelete(u) {
 </script>
 
 <style scoped>
-.page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; gap: 16px; }
+.page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; gap: 16px; flex-wrap: wrap; }
 .page-title { font-size: 22px; font-weight: 700; color: #1a1a2e; line-height: 1.2; }
 .page-subtitle { font-size: 13px; color: #888; margin-top: 4px; }
 

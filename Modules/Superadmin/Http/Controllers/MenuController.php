@@ -3,6 +3,7 @@
 namespace Modules\Superadmin\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -56,7 +57,14 @@ class MenuController extends Controller
         ]);
     }
 
-    public function reorder(ReorderMenuRequest $request): RedirectResponse
+    /**
+     * Sıralama kaydı WordPress'in menü editörü gibi arka planda, sayfayı yenilemeden
+     * çalışır: bu yüzden Inertia visit'i değil düz axios/JSON kullanır. Inertia'nın
+     * back() + redirect akışı her sürükle-bırakta index()'i (tüm route tablosunu tarayan
+     * RouteCatalog::forMenu() + cart/menu/notifications shared prop'ları dahil) yeniden
+     * çalıştırıyor ve bu yüzden kayıt gözle görülür yavaş hissediliyordu.
+     */
+    public function reorder(ReorderMenuRequest $request): JsonResponse
     {
         $items = $request->validated()['items'];
 
@@ -73,9 +81,9 @@ class MenuController extends Controller
             $guard  = 0;
             while ($cursor !== null) {
                 if ($cursor === $item['id'] || ++$guard > 1000) {
-                    return back()->withErrors([
-                        'items' => 'Bir menü kendi alt menüsünün altına taşınamaz (döngü).',
-                    ]);
+                    return response()->json([
+                        'message' => 'Bir menü kendi alt menüsünün altına taşınamaz (döngü).',
+                    ], 422);
                 }
                 $cursor = $resolve($cursor);
             }
@@ -90,8 +98,6 @@ class MenuController extends Controller
             }
         });
 
-        return back()->with('flash', [
-            'toast' => ['type' => 'success', 'title' => 'Menü sıralaması kaydedildi'],
-        ]);
+        return response()->json(['saved' => true]);
     }
 }

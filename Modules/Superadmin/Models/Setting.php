@@ -33,6 +33,7 @@ class Setting extends Model
         'storage.accessKey',
         'storage.secretKey',
         'api.webhookSecret',
+        'api.cloudflareApiToken',
     ];
 
     public static function isSensitive(string $group, string $key): bool

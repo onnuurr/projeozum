@@ -42,14 +42,30 @@
 		</div>
 
 		<div class="sa-layout">
+			<!-- Mobil (telefon): sol nav yerine hamburger buton, tıklayınca nav açılır/kapanır -->
+			<button
+				class="sa-mobile-nav-toggle"
+				:class="{ open: mobileNavOpen }"
+				@click="mobileNavOpen = !mobileNavOpen"
+			>
+				<span class="sa-mobile-nav-current">
+					<span class="sa-nav-icon" v-html="activeSectionObj?.icon"></span>
+					{{ activeSectionObj?.label }}
+				</span>
+				<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.3" viewBox="0 0 24 24">
+					<line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
+				</svg>
+			</button>
+			<div v-if="mobileNavOpen" class="sa-mobile-nav-backdrop" @click="mobileNavOpen = false"></div>
+
 			<!-- Sol nav -->
-			<aside class="sa-nav">
+			<aside class="sa-nav" :class="{ 'sa-nav-mobile-open': mobileNavOpen }">
 				<button
 					v-for="s in sections"
 					:key="s.key"
 					class="sa-nav-item"
 					:class="{ active: activeSection === s.key }"
-					@click="activeSection = s.key"
+					@click="activeSection = s.key; mobileNavOpen = false"
 				>
 					<span class="sa-nav-icon" v-html="s.icon"></span>
 					<div class="sa-nav-text">
@@ -877,13 +893,16 @@
 					<div class="info-row">
 						<div class="ir-block">
 							<div class="ir-label">Son Yedek</div>
-							<div class="ir-value">{{ form.storage.lastBackupAt }}</div>
+							<div class="ir-value">{{ formatBackupDate(form.storage.lastBackupAt) }}</div>
 						</div>
 						<div class="ir-block">
 							<div class="ir-label">Boyut</div>
-							<div class="ir-value">{{ form.storage.lastBackupSize }}</div>
+							<div class="ir-value">{{ form.storage.lastBackupSize ?? '—' }}</div>
 						</div>
-						<button class="btn btn-secondary btn-sm" @click="runBackup">Şimdi Yedekle</button>
+						<a href="/superadmin/backups" class="btn btn-secondary btn-sm">Tüm Geçmiş</a>
+						<button class="btn btn-secondary btn-sm" :disabled="backupBusy" @click="runBackup">
+							{{ backupBusy ? 'Kuyruğa alınıyor…' : 'Şimdi Yedekle' }}
+						</button>
 					</div>
 				</section>
 
@@ -920,6 +939,21 @@
 						<textarea v-model="form.api.allowedOrigins" class="form-textarea mono-input" rows="3"></textarea>
 						<div class="field-help">Her satıra bir origin. * tüm origin'lere izin verir.</div>
 					</div>
+
+					<div class="sa-divider"></div>
+
+					<h3 class="sa-subhead">Cloudflare</h3>
+					<div class="field-row">
+						<div class="field">
+							<label>Zone ID</label>
+							<input v-model="form.api.cloudflareZoneId" type="text" class="form-input mono-input" placeholder="a1b2c3d4e5f6..." />
+						</div>
+						<div class="field">
+							<label>API Token</label>
+							<input v-model="form.api.cloudflareApiToken" type="password" class="form-input mono-input" @focus="clearMask('api', 'cloudflareApiToken')" />
+						</div>
+					</div>
+					<div class="field-help">"Önbelleği Temizle" (Cache & CDN) yetkisine sahip bir Cloudflare API token gerekir. Aşağıdaki "Laravel + Cloudflare Önbelleğini Temizle" butonu bu bilgileri kullanır.</div>
 
 					<div class="sa-divider"></div>
 
@@ -1032,11 +1066,48 @@
 					<div class="sa-divider"></div>
 
 					<div class="cache-actions">
-						<button class="btn btn-secondary btn-sm" @click="cacheAction('clear')">Cache Temizle</button>
-						<button class="btn btn-secondary btn-sm" @click="cacheAction('config')">Config Cache Yenile</button>
-						<button class="btn btn-secondary btn-sm" @click="cacheAction('route')">Route Cache Yenile</button>
-						<button class="btn btn-secondary btn-sm" @click="cacheAction('view')">View Cache Yenile</button>
+						<button class="btn btn-primary btn-sm" :disabled="cacheBusy" @click="cacheAction('all')">
+							{{ cacheBusy === 'all' ? 'Temizleniyor…' : 'Laravel + Cloudflare Önbelleğini Temizle' }}
+						</button>
+						<button class="btn btn-secondary btn-sm" :disabled="cacheBusy" @click="cacheAction('clear')">Cache Temizle</button>
+						<button class="btn btn-secondary btn-sm" :disabled="cacheBusy" @click="cacheAction('config')">Config Cache Yenile</button>
+						<button class="btn btn-secondary btn-sm" :disabled="cacheBusy" @click="cacheAction('route')">Route Cache Yenile</button>
+						<button class="btn btn-secondary btn-sm" :disabled="cacheBusy" @click="cacheAction('view')">View Cache Yenile</button>
 					</div>
+				</section>
+
+				<!-- 9b. BARKOD (GS1) -->
+				<section v-if="activeSection === 'barcode'" class="sa-section">
+					<header class="sa-section-head">
+						<h2>Barkod (GS1)</h2>
+						<p>Ürün barkodu otomatik üretimi için sabit önek ve seri aralığı</p>
+					</header>
+
+					<div class="field-row">
+						<div class="field">
+							<label>Ülke Kodu</label>
+							<input v-model="form.barcode.countryCode" type="text" maxlength="3" class="form-input" placeholder="869" />
+						</div>
+						<div class="field">
+							<label>Firma Kodu</label>
+							<input v-model="form.barcode.companyCode" type="text" maxlength="8" class="form-input" placeholder="GS1'den aldığınız firma kodu" />
+						</div>
+					</div>
+
+					<div class="sa-divider"></div>
+
+					<h3 class="sa-subhead">Seri No Aralığı</h3>
+					<div class="field-row">
+						<div class="field">
+							<label>Min</label>
+							<input v-model.number="form.barcode.serialMin" type="number" min="0" class="form-input" />
+						</div>
+						<div class="field">
+							<label>Max</label>
+							<input v-model.number="form.barcode.serialMax" type="number" min="0" class="form-input" />
+						</div>
+					</div>
+					<p class="sa-hint">Ülke kodu + firma kodu sabit önek olarak kullanılır; barkodun geri kalan haneleri bu aralıktan rastgele seçilen bir seri numarasıyla doldurulur (13. hane GS1 kontrol hanesidir).</p>
 				</section>
 
 				<!-- 10. SİSTEM BİLGİSİ -->
@@ -1376,10 +1447,13 @@ const sections = [
 	{ key: 'storage',        label: 'Depolama & Yedek',     sub: 'S3, CDN, backup',               icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6"/></svg>' },
 	{ key: 'api',            label: 'API & Geliştirici',    sub: 'Rate limit, webhook',           icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>' },
 	{ key: 'performance',    label: 'Performans',           sub: 'Cache, queue, log',             icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>' },
+	{ key: 'barcode',        label: 'Barkod (GS1)',         sub: 'EAN-13 önek ve seri aralığı',   icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="1"/><line x1="7" y1="6" x2="7" y2="18"/><line x1="10" y1="6" x2="10" y2="18"/><line x1="14" y1="6" x2="14" y2="18"/><line x1="17" y1="6" x2="17" y2="18"/></svg>' },
 	{ key: 'system',         label: 'Sistem Bilgisi',       sub: 'Sürümler, metrikler',           icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>' },
 ]
 
 const activeSection = ref('general')
+const activeSectionObj = computed(() => sections.find((s) => s.key === activeSection.value))
+const mobileNavOpen = ref(false)
 const showMailPassword = ref(false)
 const showLogAccessPassword = ref(false)
 
@@ -1393,6 +1467,7 @@ const form = useForm({
 	storage: { ...props.settings.storage },
 	api: { ...props.settings.api },
 	performance: { ...props.settings.performance },
+	barcode: { ...props.settings.barcode },
 })
 
 /* Dirty section tespiti */
@@ -1478,13 +1553,35 @@ function regenerateWebhookSecret() {
 	showToast?.({ type: 'warning', title: 'Yeni Anahtar Üretildi', message: 'Mevcut webhook tüketicilerinin güncellenmesi gerekiyor.' })
 }
 
+const backupBusy = ref(false)
+
 function runBackup() {
-	showToast?.({ type: 'info', title: 'Yedekleme Başlatıldı', message: 'Manuel yedek arka planda işleniyor.' })
+	if (backupBusy.value) return
+	backupBusy.value = true
+	router.post('/superadmin/backups/run', {}, {
+		preserveScroll: true,
+		preserveState: true,
+		onSuccess: () => showToast?.({ type: 'info', title: 'Yedekleme Kuyruğa Alındı', message: 'Kuyruk işçisi çalıştığında başlayacak — ilerlemeyi "Tüm Geçmiş" sayfasından izleyebilirsiniz.' }),
+		onError: () => showToast?.({ type: 'error', title: 'Yedekleme Tetiklenemedi', message: 'Bir hata oluştu, tekrar deneyin.' }),
+		onFinish: () => { backupBusy.value = false },
+	})
 }
 
+function formatBackupDate(iso) {
+	if (!iso) return '—'
+	return new Date(iso).toLocaleString('tr-TR', { dateStyle: 'medium', timeStyle: 'short' })
+}
+
+const cacheBusy = ref(false)
+
 function cacheAction(type) {
-	const labels = { clear: 'Tüm cache temizlendi', config: 'Config cache yenilendi', route: 'Route cache yenilendi', view: 'View cache yenilendi' }
-	showToast?.({ type: 'success', title: 'Tamamlandı', message: labels[type] })
+	if (cacheBusy.value) return
+	cacheBusy.value = type
+	router.post('/superadmin/settings/cache/purge', { type }, {
+		preserveScroll: true,
+		preserveState: true,
+		onFinish: () => { cacheBusy.value = false },
+	})
 }
 
 /* ── Roller & İzinler ── */
@@ -1897,6 +1994,7 @@ onBeforeUnmount(stopSystemPolling)
 
 /* ── Layout ── */
 .sa-layout {
+	position: relative;
 	display: grid;
 	grid-template-columns: 260px 1fr;
 	gap: 16px;
@@ -1904,6 +2002,10 @@ onBeforeUnmount(stopSystemPolling)
 }
 
 @media (max-width: 1000px) { .sa-layout { grid-template-columns: 1fr; } }
+
+/* ── Mobil (telefon) nav hamburger: masaüstünde gizli, sadece dar ekranda görünür ── */
+.sa-mobile-nav-toggle { display: none; }
+.sa-mobile-nav-backdrop { display: none; }
 
 /* ── Sol Nav ── */
 .sa-nav {
@@ -2145,6 +2247,13 @@ onBeforeUnmount(stopSystemPolling)
 	color: #888;
 	margin-top: 3px;
 	line-height: 1.5;
+}
+
+.sa-hint {
+	font-size: 12px;
+	color: #888;
+	margin-top: 10px;
+	line-height: 1.6;
 }
 
 .danger-pill {
@@ -3228,5 +3337,46 @@ onBeforeUnmount(stopSystemPolling)
 
 	.copy-input { flex-wrap: wrap; }
 	.copy-input .form-input { width: 100%; }
+
+	/* Sol nav → hamburger: nav varsayılan gizli, toggle butonu görünür, açılınca dropdown gibi belirir */
+	.sa-mobile-nav-toggle {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		width: 100%;
+		padding: 9px 12px;
+		background: #fff;
+		border: 1px solid #ebebf0;
+		border-radius: 12px;
+		cursor: pointer;
+		font-family: inherit;
+		font-size: 12.5px;
+		font-weight: 600;
+		color: #1a1a2e;
+		margin-bottom: 8px;
+	}
+	.sa-mobile-nav-toggle svg { flex-shrink: 0; color: #888; transition: transform .15s; }
+	.sa-mobile-nav-toggle.open svg { transform: rotate(90deg); }
+	.sa-mobile-nav-current { display: flex; align-items: center; gap: 8px; }
+	.sa-mobile-nav-current .sa-nav-icon { width: 24px; height: 24px; }
+
+	.sa-nav { display: none; }
+	.sa-nav.sa-nav-mobile-open {
+		display: flex;
+		position: absolute;
+		z-index: 40;
+		left: 16px;
+		right: 16px;
+		top: auto;
+		margin-top: 42px;
+		box-shadow: 0 10px 32px rgba(0, 0, 0, 0.14);
+	}
+	.sa-mobile-nav-backdrop {
+		display: block;
+		position: fixed;
+		inset: 0;
+		background: rgba(0, 0, 0, 0.25);
+		z-index: 30;
+	}
 }
 </style>

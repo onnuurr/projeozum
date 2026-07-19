@@ -97,10 +97,12 @@ function toggle(node) {
     node.__collapsed = !node.__collapsed;
 }
 
-// Sağ panelden gelen route klonu bu listeye düşerse (added) yeni öğe yarat;
-// mevcut öğelerin taşınması (moved) sadece "dirty" işaretler.
+// Sağ panelden gelen route klonu bu listeye düşerse (added, __route işaretli)
+// yeni öğe yarat; mevcut bir menü öğesinin başka bir üst menüye taşınması da
+// "added" olarak gelir ama __route yok — bu durumda diğer taşımalar gibi
+// sadece "dirty" işaretlenip normal reorder/autosave akışına bırakılır.
 function onChange(evt) {
-    if (evt.added) {
+    if (evt.added?.element?.__route) {
         emit("add-route", {
             route: evt.added.element.__route,
             parentId: props.parentId,

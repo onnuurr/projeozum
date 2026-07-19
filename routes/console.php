@@ -11,6 +11,7 @@ use Modules\Product\Models\PriceList;
 use Modules\Product\Models\ProductImage;
 use Modules\Product\Models\Stock;
 use Modules\Product\Models\StockMovement;
+use Modules\Superadmin\Models\BackupRun;
 use Modules\Tenant\Models\MarketplaceSyncLog;
 
 Artisan::command('inspire', function () {
@@ -41,6 +42,7 @@ Schedule::command('model:prune', [
         MaterialMovement::class,
         MarketplaceSyncLog::class,
         BankTransaction::class,
+        BackupRun::class,
     ],
 ])->daily()->onOneServer()->runInBackground();
 
@@ -73,3 +75,15 @@ Schedule::command('product:prune-stale-carts')->daily()->onOneServer();
 | CreativeReviewReportCommand).
 */
 Schedule::command('creative:review-report')->weekly()->onOneServer();
+
+/*
+|--------------------------------------------------------------------------
+| Otomatik yedekleme (DB + dosyalar → Google Drive)
+|--------------------------------------------------------------------------
+| pg_dump + proje dosyaları tar'ı alınıp rclone ile gdrive:ServerBackup'a
+| kopyalanır, retention'ı aşan uzak yedekler temizlenir. Her çalışma
+| backup_runs tablosuna işlenir (bkz. Modules\Superadmin\Services\BackupService)
+| ve superadmin panelinden (/superadmin/backups) takip edilir. Başarısız
+| olursa backups.view iznine sahip hesaplara bildirim gider.
+*/
+Schedule::command('backup:run')->dailyAt('02:00')->onOneServer()->runInBackground();

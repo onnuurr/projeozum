@@ -55,7 +55,8 @@ class UserController extends Controller
         ]);
         $user->assignRole($data['role']);
 
-        return back()->with('success', 'Kullanıcı oluşturuldu.');
+        // Flash basılmıyor — Users.vue onSuccess'te kendi toast'unu gösteriyor.
+        return back();
     }
 
     public function update(Request $request, User $user): RedirectResponse
@@ -78,32 +79,37 @@ class UserController extends Controller
             $user->syncRoles([$data['role']]);
         }
 
-        return back()->with('success', 'Kullanıcı güncellendi.');
+        return back();
     }
 
     public function destroy(User $user): RedirectResponse
     {
+        // withErrors() kullanılıyor ki Inertia bunu bir validation hatası gibi ele alıp
+        // frontend'in onError callback'ini tetiklesin — düz back()->with('error', ...)
+        // normal bir redirect olduğu için onSuccess'i tetikleyip Users.vue'de yanlışlıkla
+        // "Kullanıcı silindi" toast'unu da gösteriyordu.
         if ($user->id === auth()->id()) {
-            return back()->with('error', 'Kendi hesabınızı silemezsiniz.');
+            return back()->withErrors(['user' => 'Kendi hesabınızı silemezsiniz.']);
         }
         if ($user->hasRole('superadmin') && User::role('superadmin')->count() <= 1) {
-            return back()->with('error', 'Son superadmin hesabı silinemez.');
+            return back()->withErrors(['user' => 'Son superadmin hesabı silinemez.']);
         }
 
         $user->delete();
 
-        return back()->with('success', 'Kullanıcı silindi.');
+        // Flash basılmıyor — Users.vue onSuccess'te kendi toast'unu gösteriyor.
+        return back();
     }
 
     public function toggleActive(User $user): RedirectResponse
     {
         if ($user->id === auth()->id()) {
-            return back()->with('error', 'Kendi hesabınızı pasifleştiremezsiniz.');
+            return back()->withErrors(['user' => 'Kendi hesabınızı pasifleştiremezsiniz.']);
         }
 
         $user->update(['is_active' => ! $user->is_active]);
 
-        return back()->with('success', $user->is_active ? 'Kullanıcı aktifleştirildi.' : 'Kullanıcı pasifleştirildi.');
+        return back();
     }
 
     /**

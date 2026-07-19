@@ -1,6 +1,6 @@
 <?php
 
-namespace Modules\Superadmin\Database\Seeders;
+namespace Modules\Superadmin\database\seeders;
 
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
@@ -17,6 +17,8 @@ class SuperadminPermissionSeeder extends Seeder
             'rbac.manage'     => 'Rol & İzin Yönet',
             'users.view'      => 'Kullanıcıları Görüntüle',
             'users.manage'    => 'Kullanıcı Yönet',
+            'backups.view'    => 'Yedeklemeleri Görüntüle',
+            'backups.manage'  => 'Yedekleme Tetikle',
         ];
 
         $created = [];

@@ -66,6 +66,21 @@ class MenuSeeder extends Seeder
             ],
         );
 
+        // backup:run komutunun ürettiği yedekleme geçmişi (bkz. BackupController).
+        // Yalnız backups.view iznine sahip hesaplar (superadmin) görür.
+        Menu::firstOrCreate(
+            ['route_name' => 'superadmin.backups.index'],
+            [
+                'parent_id'  => null,
+                'label'      => 'Yedeklemeler',
+                'icon'       => 'reports',
+                'url'        => null,
+                'permission' => 'backups.view',
+                'sort_order' => 96,
+                'is_active'  => true,
+            ],
+        );
+
         // Creative ret ekranındaki "düzeltilmesi gereken alan" seçim maddelerinin
         // yönetimi. Yalnız creative.rejection-reasons.manage izni (superadmin) görür.
         Menu::firstOrCreate(
@@ -77,6 +92,22 @@ class MenuSeeder extends Seeder
                 'url'        => null,
                 'permission' => 'creative.rejection-reasons.manage',
                 'sort_order' => 98,
+                'is_active'  => true,
+            ],
+        );
+
+        // creative:review-report komutunun ürettiği haftalık ret analiz raporları.
+        // Bildirim çanındaki "Haftalık giydirme ret raporu hazır" bildirimi buraya
+        // yönlendirir. Yalnız creative.review-reports.view izni (superadmin) görür.
+        Menu::firstOrCreate(
+            ['route_name' => 'creative.review-reports.index'],
+            [
+                'parent_id'  => null,
+                'label'      => 'Ret Analiz Raporları',
+                'icon'       => 'reports',
+                'url'        => null,
+                'permission' => 'creative.review-reports.view',
+                'sort_order' => 97,
                 'is_active'  => true,
             ],
         );
