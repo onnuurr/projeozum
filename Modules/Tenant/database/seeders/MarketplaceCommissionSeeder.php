@@ -1,6 +1,6 @@
 <?php
 
-namespace Modules\Tenant\Database\Seeders;
+namespace Modules\Tenant\database\seeders;
 
 use Illuminate\Database\Seeder;
 use Modules\Tenant\Models\MarketplaceCommissionRate;
