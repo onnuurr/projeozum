@@ -10,7 +10,7 @@ use Modules\Product\Models\Product;
 use Modules\Product\Models\ProductImage;
 
 /**
- * Bir ürünün, bir manken pozuna idm-vton ile giydirilme sonucu.
+ * Bir ürünün, bir manken pozuna fashn/tryon ile giydirilme sonucu.
  *
  * Nihai görsel Product modülünün product_images tablosuna, ANCAK insan onayından
  * SONRA yazılır (bkz. ProductOnModelService::publish). Üretim biter bitmez çıktı
@@ -25,9 +25,14 @@ class TryonResult extends Model
         'product_id',
         'mannequin_id',
         'pose_id',
+        'garment_image_path',
+        'garment_scan_id',
         'product_image_id',
         'staged_image_path',
         'status',
+        'tryon_driver',
+        'tryon_model',
+        'generation_duration_ms',
         'error',
         'meta',
         'created_by',
@@ -71,6 +76,11 @@ class TryonResult extends Model
     public function productImage(): BelongsTo
     {
         return $this->belongsTo(ProductImage::class, 'product_image_id');
+    }
+
+    public function garmentScan(): BelongsTo
+    {
+        return $this->belongsTo(GarmentScan::class, 'garment_scan_id');
     }
 
     public function creator(): BelongsTo

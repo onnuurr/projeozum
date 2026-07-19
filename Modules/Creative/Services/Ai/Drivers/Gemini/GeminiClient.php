@@ -109,6 +109,50 @@ class GeminiClient
     }
 
     /**
+     * Bir görsel + metin prompt verip düz metin (genelde JSON) üretir — mevcut
+     * generateImage() (görsel girdi, GÖRSEL çıktı) ile generateText() (salt metin
+     * girdi, metin çıktı) arasındaki boşluğu kapatır: GÖRSEL girdi + METİN çıktı.
+     * Giysi parça analizi (renk/desen/doku) ve bütünsel kimlik özeti bu metodu kullanır.
+     */
+    public function analyzeImage(string $prompt, string $imagePath): string
+    {
+        $apiKey = (string) config('creative.ai.gemini.api_key');
+        if ($apiKey === '') {
+            throw new RuntimeException('GEMINI_API_KEY tanımlı değil.');
+        }
+        if (! is_file($imagePath)) {
+            throw new RuntimeException('Analiz edilecek görsel bulunamadı: ' . $imagePath);
+        }
+
+        $parts = [
+            ['text' => $prompt],
+            ['inline_data' => [
+                'mime_type' => ImageFile::mime($imagePath),
+                'data'      => ImageFile::base64($imagePath),
+            ]],
+        ];
+
+        $base  = rtrim((string) config('creative.ai.gemini.base_url'), '/');
+        $model = (string) config('creative.ai.gemini.text_model', config('creative.ai.gemini.model'));
+
+        $response = Http::timeout((int) config('creative.ai.timeout', 240))
+            ->withHeaders(['x-goog-api-key' => $apiKey])
+            ->post("{$base}/models/{$model}:generateContent", [
+                'contents' => [['parts' => $parts]],
+            ]);
+
+        if ($response->failed()) {
+            throw new RuntimeException(sprintf(
+                'Gemini görsel analiz isteği başarısız (HTTP %d): %s',
+                $response->status(),
+                substr($response->body(), 0, 500),
+            ));
+        }
+
+        return $this->extractText($response->json() ?? []);
+    }
+
+    /**
      * generateContent yanıtından tüm metin parçalarını birleştirir.
      *
      * @param  array<string,mixed>  $json

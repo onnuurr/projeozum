@@ -12,7 +12,7 @@ use RuntimeException;
  * AI sahne pipeline orchestrator'ı.
  *
  * İki aşama: 1) compose (Gemini) ile model/sahne kurgusu,
- * 2) try-on (fal idm-vton) ile ürünü modele giydirme.
+ * 2) try-on (fal fashn/tryon) ile ürünü modele giydirme.
  * Sonuç kalıcı diske yazılır; render'a beslenmek üzere yerel mutlak yol döndürülür.
  * Ara çıktılar (geçici dosyalar) her durumda temizlenir.
  */

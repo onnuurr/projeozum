@@ -4,6 +4,7 @@ namespace Modules\Creative\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Support\Media;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -14,9 +15,11 @@ use Inertia\Response;
 use Modules\Creative\Http\Controllers\Concerns\HandlesCreativeReview;
 use Modules\Creative\Http\Requests\GenerateTryonRequest;
 use Modules\Creative\Jobs\GenerateOnModelJob;
+use Modules\Creative\Models\GarmentLabel;
 use Modules\Creative\Models\Mannequin;
 use Modules\Creative\Models\Pose;
 use Modules\Creative\Models\TryonResult;
+use Modules\Creative\Services\Enhancement\GarmentDetailClassifierContract;
 use Modules\Creative\Services\ProductOnModelService;
 use Modules\Creative\Services\ReviewNotifier;
 use Modules\Product\Models\Product;
@@ -74,7 +77,7 @@ class TryonController extends Controller
         $results = TryonResult::query()
             ->with([
                 'product:id,name', 'mannequin:id,name', 'pose:id,label',
-                'productImage:id,url,is_cover', 'creator:id,name', 'reviewer:id,name',
+                'productImage:id,path,is_cover', 'creator:id,name', 'reviewer:id,name',
                 'reviewChats' => fn ($q) => $q->orderBy('created_at')->with('user:id,name'),
             ])
             ->latest()
@@ -83,6 +86,8 @@ class TryonController extends Controller
             ->map(fn (TryonResult $r) => [
                 'id'              => $r->id,
                 'status'          => $r->status,
+                'tryon_driver'    => $r->tryon_driver,
+                'tryon_model'     => $r->tryon_model,
                 'error'           => $r->error,
                 'product_name'    => $r->product?->name,
                 'mannequin_name'  => $r->mannequin?->name,
@@ -127,16 +132,41 @@ class TryonController extends Controller
         $product   = Product::with('images')->findOrFail($request->validated('product_id'));
         $mannequin = Mannequin::findOrFail($request->validated('mannequin_id'));
 
-        // Giydirme, ürünün fotoğrafını giysi olarak kullanır; fotoğrafı olmayan ürün
-        // giydirilemez. Kuyruğa almadan, kullanıcıya net hata döndür.
-        $garment = $product->images->firstWhere('is_cover', true) ?? $product->images->first();
-        if (! $garment) {
-            throw ValidationException::withMessages([
-                'product_id' => 'Bu ürünün giydirilecek bir fotoğrafı yok. Önce ürüne fotoğraf ekleyin.',
-            ]);
+        // Giydirme normalde ürünün kendi fotoğrafını giysi olarak kullanır. Ürünün
+        // fotoğrafı yoksa (ya da kullanıcı farklı bir görsel giydirmek isterse) ekrandan
+        // ayrıca yüklenen görsel devreye girer; bu görsel kalıcı olarak ürüne eklenmez,
+        // sadece bu üretim için kullanılır.
+        $garmentImagePath = null;
+        if ($request->hasFile('garment_image')) {
+            $garmentImagePath = $request->file('garment_image')->store('creative/tryon_garments', config('creative.disk', 'public'));
+        } else {
+            $garment = $product->images->firstWhere('is_cover', true) ?? $product->images->first();
+            if (! $garment) {
+                throw ValidationException::withMessages([
+                    'garment_image' => 'Bu ürünün giydirilecek bir fotoğrafı yok. Önce ürüne fotoğraf ekleyin ya da burada bir görsel yükleyin.',
+                ]);
+            }
         }
 
-        $queued = $service->queue($product, $mannequin, $request->validated('pose_ids'), auth()->id());
+        // Opsiyonel detay görselleri (arkadan/yandan/dikiş vb.) — her biri diske
+        // yazılır, path+label çifti olarak sonuca (meta.garment_extras) taşınır.
+        $garmentExtras = [];
+        foreach ((array) $request->validated('garment_details', []) as $detail) {
+            $file = $detail['image'] ?? null;
+            if (! $file) {
+                continue;
+            }
+            $garmentExtras[] = [
+                'path'            => $file->store('creative/tryon_garments', config('creative.disk', 'public')),
+                'label'           => trim((string) ($detail['label'] ?? '')) ?: null,
+                // Yerel CLIP sınıflandırıcının bu görsel için bulduğu tüm adaylar —
+                // yalnız raporlama/detay sayfası için saklanır, giydirme pipeline'ını
+                // etkilemez (bkz. GeminiTryOnPromptBuilder yalnız 'label'ı kullanır).
+                'detected_labels' => $detail['detected_labels'] ?? [],
+            ];
+        }
+
+        $queued = $service->queue($product, $mannequin, $request->validated('pose_ids'), auth()->id(), $garmentImagePath, $garmentExtras);
 
         if ($queued->isEmpty()) {
             return back()->with('error', 'Seçili pozların hiçbiri hazır değil.');
@@ -147,6 +177,86 @@ class TryonController extends Controller
         }
 
         return back()->with('success', $queued->count() . ' görsel giydirme kuyruğuna alındı.');
+    }
+
+    /**
+     * Kullanıcı bir detay görseli seçer seçmez çağrılır: görselin ne gösterdiğini
+     * (yaka/düğme/kol ucu vb.) yerel bir ML modeliyle tahmin edip ÖNERİ olarak
+     * döndürür. Hiçbir şey kalıcı olarak saklanmaz; sonuç yalnız Vue formundaki
+     * etiket alanını boşsa doldurmak için kullanılır, kullanıcı serbestçe
+     * düzenleyebilir. Sınıflandırma kapalıysa ya da başarısız olursa boş liste
+     * döner — bu uç nokta asla giydirme akışını etkilemez.
+     */
+    public function classifyDetail(Request $request, GarmentDetailClassifierContract $classifier): JsonResponse
+    {
+        $request->validate([
+            'image' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:8192'],
+        ]);
+
+        $path = $request->file('image')->getRealPath();
+        $labels = $classifier->classify([$path])[$path] ?? [];
+
+        return response()->json(['labels' => $labels]);
+    }
+
+    /**
+     * Tek bir giydirme sonucunun detay sayfası: hangi model/sürücüyle ne kadar
+     * sürede üretildiği ve her detay görseli için yerel sınıflandırıcının bulduğu
+     * TÜM aday etiketler (yalnız kullanılan değil) — sistemin geliştirilmesi
+     * (öneri kalitesi/üretim performansı) amacıyla raporlama için.
+     */
+    public function show(TryonResult $result): Response
+    {
+        $result->load(['product:id,name', 'mannequin:id,name', 'pose:id,label', 'productImage:id,path,is_cover', 'creator:id,name', 'reviewer:id,name', 'garmentScan']);
+
+        $garmentExtras = collect((array) ($result->meta['garment_extras'] ?? []))
+            ->map(fn (array $extra) => [
+                'image_url'       => $this->url($extra['path'] ?? null),
+                'label'           => $extra['label'] ?? null,
+                'detected_labels' => $extra['detected_labels'] ?? [],
+            ])
+            ->values();
+
+        // Otomatik parça tespiti (yaka/cep/etek vb. bbox) — raporlama şartı: hangi
+        // model neyi nerede bulmuş göster. Taranmadıysa ya da model henüz eğitilmediyse
+        // (model_version='null') detections boş gelir, Vue tarafı boş-durum gösterir.
+        // Raporlama sayfası TÜM analiz alanlarını (düşük confidence dahil) gösterir —
+        // try-on prompt'una giden filtrelenmiş hale (GarmentIdentityRuleEngine) bakmaz,
+        // burada amaç şeffaflık/QA.
+        $garmentScan = $result->garmentScan;
+        $scanPayload = $garmentScan ? [
+            'id'               => $garmentScan->id,
+            'image_url'        => $this->url($garmentScan->source_path),
+            'model_version'    => $garmentScan->model_version,
+            'status'           => $garmentScan->status,
+            'identity_summary' => $garmentScan->identity_summary,
+            'detections'       => $this->detectionsWithPriority($garmentScan->detections ?? []),
+        ] : null;
+
+        return Inertia::render('Creative::CreativeTryonDetail', [
+            'result' => [
+                'id'                     => $result->id,
+                'status'                 => $result->status,
+                'error'                  => $result->error,
+                'product_name'           => $result->product?->name,
+                'mannequin_name'         => $result->mannequin?->name,
+                'pose_label'             => $result->pose?->label,
+                'tryon_driver'           => $result->tryon_driver,
+                'tryon_model'            => $result->tryon_model,
+                'generation_duration_ms' => $result->generation_duration_ms,
+                'image_url'              => $result->productImage?->url ?? Media::url($result->staged_image_path),
+                'garment_image_url'      => $this->url($result->garment_image_path),
+                'is_cover'               => (bool) $result->productImage?->is_cover,
+                'created_at'             => $result->created_at?->toDateTimeString(),
+                'creator_name'           => $result->creator?->name,
+                'review_status'          => $result->review_status,
+                'review_note'            => $result->review_note,
+                'reviewer_name'          => $result->reviewer?->name,
+                'reviewed_at'            => $result->reviewed_at?->toDateTimeString(),
+            ],
+            'garmentExtras' => $garmentExtras,
+            'garmentScan'   => $scanPayload,
+        ]);
     }
 
     public function approve(TryonResult $result, ProductOnModelService $service, ReviewNotifier $notifier): RedirectResponse
@@ -226,6 +336,36 @@ class TryonController extends Controller
         $service->destroy($result);
 
         return back()->with('success', 'Giydirme sonucu silindi.');
+    }
+
+    /**
+     * Her tespite {@see GarmentLabel}'in taban önceliğini + crop görselinin
+     * URL'ini ekler — Vue tarafı bunları rozet/thumbnail olarak gösterir.
+     *
+     * @param  array<int,array<string,mixed>>  $detections
+     * @return array<int,array<string,mixed>>
+     */
+    private function detectionsWithPriority(array $detections): array
+    {
+        if ($detections === []) {
+            return [];
+        }
+
+        $labelKeys = collect($detections)->pluck('label_key')->filter()->unique();
+        $labelsByKey = GarmentLabel::query()
+            ->whereIn('key', $labelKeys)
+            ->get()
+            ->keyBy('key');
+
+        return collect($detections)
+            ->map(function (array $d) use ($labelsByKey) {
+                $label = $labelsByKey->get($d['label_key'] ?? null);
+                $d['default_priority'] = $label?->default_priority;
+                $d['crop_image_url']   = $this->url($d['crop_path'] ?? null);
+
+                return $d;
+            })
+            ->all();
     }
 
     private function url(?string $path): ?string

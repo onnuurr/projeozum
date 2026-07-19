@@ -67,7 +67,9 @@ class PromptDirectives
             'Shot on a medium format Hasselblad H6D camera with an 85mm lens at f/4.0, '
             . 'lit by soft, directional natural window daylight from the side, on a neutral, '
             . 'warm-toned minimalist photo studio background with a shallow depth of field and '
-            . 'a subtle, organic film grain.',
+            . 'a subtle, organic film grain. Captured in ultra-high resolution with tack-sharp '
+            . 'focus and fine micro-detail throughout — professional commercial product '
+            . 'photography quality, not a soft or low-detail rendering.',
         );
     }
 }

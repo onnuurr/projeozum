@@ -13,8 +13,11 @@ use Modules\Creative\Services\Ai\MannequinRequest;
  *
  * Prompt SABİT/DİNAMİK olarak kurgulanır (bkz. creative.ai.prompt):
  *  - [Kimlik Duvarı] cinsiyet/yaş özne isminde + yapılandırılabilir kimlik profili
- *    (yüz yapısı, ten, göz, saç). Profil varsayılan Türk (Anadolu/buğday); bir
- *    manken alanı verilirse o parça kullanıcı değeriyle EZİLİR.
+ *    (yüz yapısı, burun, göz, ten, saç, saç stili, ayırt edici detay). Profil
+ *    varsayılan Türk (Anadolu/buğday); bir manken alanı verilirse o parça
+ *    kullanıcı değeriyle EZİLİR. Ardından sabit bir "distinctiveness" yönergesi
+ *    gelir — metindeki varyant farkının görsele yeterince yansımasını zorlar
+ *    (aksi halde aynı yaş/cinsiyetteki mankenler "ikiz" gibi çıkabiliyor).
  *  - [Dinamik] yaş/vücut/ölçü/ek tarif.
  *  - [Gerçekçilik + Işık/Kamera] PromptDirectives ile paylaşılan sabit çapalar.
  *
@@ -40,6 +43,7 @@ class MannequinPromptBuilder
                 $subject,
             ),
             $this->identity($request),
+            $this->distinctiveness(),
             $this->expression($request),
             $this->descriptors($request),
             $this->measurements($request, $isChild),
@@ -68,11 +72,14 @@ class MannequinPromptBuilder
         $hair = trim((string) $request->hair);
 
         $parts = array_filter([
-            // Sıra: yüz yapısı → göz → ten → saç.
+            // Sıra: yüz yapısı → burun → göz → ten → saç → saç stili → ayırt edici detay.
             $face !== '' ? $face : ($profile['face_structure'] ?? null),
+            $profile['nose'] ?? null,
             $profile['eyes'] ?? null,
             $skin !== '' ? sprintf('a %s skin tone', $skin) : ($profile['skin'] ?? null),
             $hair !== '' ? sprintf('%s hair', $hair) : ($profile['hair'] ?? null),
+            isset($profile['hairstyle']) ? sprintf('the hair styled %s', $profile['hairstyle']) : null,
+            $profile['distinguishing_feature'] ?? null,
         ]);
 
         if ($parts === []) {
@@ -80,6 +87,21 @@ class MannequinPromptBuilder
         }
 
         return 'The model has ' . $this->joinList($parts) . '.';
+    }
+
+    /**
+     * Aynı yaş/cinsiyetten üretilen mankenlerin "kardeş/ikiz" gibi birbirine
+     * benzemesini önleyen sabit yönerge. identityProfile() zaten her üretimde
+     * farklı varyant seçiyor; bu satır modele o farkı görsel olarak ABARTMASINI
+     * söyler — aksi halde metindeki ince farklar görsele yeterince yansımayabilir.
+     */
+    private function distinctiveness(): string
+    {
+        return 'This is one specific, unique individual: their facial identity, proportions and overall '
+            . 'look must be entirely their own, clearly and visibly distinct from any other generated model. '
+            . 'Do not default to a generic, interchangeable "stock catalog model" appearance — this person must '
+            . 'not look like a twin, sibling or close relative of another model even if age, gender and ethnic '
+            . 'background match.';
     }
 
     /**
@@ -101,14 +123,41 @@ class MannequinPromptBuilder
     /**
      * Aktif kimlik profilinin yapısal parçaları (config). Bilinmeyen profil → boş.
      *
+     * Her parça config'te bir varyant LİSTESİdir; burada her parçadan rastgele
+     * bir varyant seçilir. Bu sayede aynı profildeki mankenler etnik/ten
+     * çapasını korurken birebir aynı yüze ("kardeş" gibi) sahip olmaz.
+     *
      * @return array<string,string>
      */
     private function identityProfile(): array
     {
         $key      = (string) config('creative.ai.prompt.default_identity_profile', 'turkish_anatolian');
         $profiles = (array) config('creative.ai.prompt.identity_profiles', []);
+        $profile  = (array) ($profiles[$key] ?? []);
 
-        return array_filter((array) ($profiles[$key] ?? []), fn ($v) => is_string($v) && trim($v) !== '');
+        return array_filter(
+            array_map(fn ($variants) => $this->pickVariant($variants), $profile),
+            fn ($v) => is_string($v) && trim($v) !== '',
+        );
+    }
+
+    /**
+     * Bir kimlik parçası config'te ya tek bir sabit metin ya da varyant
+     * listesi olabilir; liste ise rastgele bir varyant seçilir.
+     */
+    private function pickVariant(mixed $variants): ?string
+    {
+        if (is_string($variants)) {
+            return trim($variants) !== '' ? $variants : null;
+        }
+
+        if (! is_array($variants) || $variants === []) {
+            return null;
+        }
+
+        $list = array_values(array_filter($variants, fn ($v) => is_string($v) && trim($v) !== ''));
+
+        return $list === [] ? null : $list[array_rand($list)];
     }
 
     /**

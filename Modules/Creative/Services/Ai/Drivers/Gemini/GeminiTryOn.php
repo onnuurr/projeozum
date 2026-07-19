@@ -20,16 +20,23 @@ class GeminiTryOn implements GarmentTryOnContract
         private GeminiTryOnPromptBuilder $prompts,
     ) {}
 
-    public function tryOn(string $modelImagePath, string $garmentImagePath): string
+    public function tryOn(string $modelImagePath, string $garmentImagePath, array $extraGarmentImages = [], ?string $extraInstruction = null, ?string $protectListSentence = null): string
     {
-        $prompt = $this->prompts->build();
+        $prompt = $this->prompts->build($extraGarmentImages, $extraInstruction, $protectListSentence);
+
+        $images = [$modelImagePath, $garmentImagePath, ...array_column($extraGarmentImages, 'path')];
 
         $bytes = $this->client->generateImage(
             $prompt,
-            [$modelImagePath, $garmentImagePath],
+            $images,
             (string) config('creative.ai.gemini.tryon_model') ?: null,
         );
 
         return ImageFile::temp($bytes, 'png');
+    }
+
+    public function modelIdentifier(): string
+    {
+        return (string) config('creative.ai.gemini.tryon_model');
     }
 }

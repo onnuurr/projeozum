@@ -177,6 +177,191 @@ Mevcut Gemini compose + fal idm-vton + ImageFile + job/retry deseni yeniden kull
 
 ---
 
+## ⬜ Faz F — Sahne/Lokasyon Kütüphanesi (ERTELENDİ — kullanıcı talebiyle plana eklendi)
+**Amaç:** Manken giydirme çıktısını sabit stüdyo arka planı yerine dış mekan/lokasyon konseptine
+(sokak, plaj, park, kafe terası, çatı vb.) taşımak — kimlik/poz/kıyafet birebir korunarak.
+
+**Ne zaman başlanacak:** Şimdi değil. Karar: önce mevcut Sanal Manken Stüdyosu akışı (Faz A-E +
+REVİZYON) en iyi hale getirilecek (kalite/gerçekçilik/açık riskler giderilecek), bu faz ancak ondan
+sonra denenecek.
+
+**Bulgu (mevcut mimari neden değiştirilmeden bırakılmalı):** Arka plan şu an 3 yerde stüdyoya kilitli:
+`MannequinPosePromptBuilder` (`'Plain seamless light-gray studio background...'`), `GeminiTryOnPromptBuilder`
+(kişi+sahneyi birebir koru der), ve paylaşılan `PromptDirectives::camera()` (`"...minimalist photo studio
+background"`). Bunları doğrudan değiştirmek, zaten kalibre edilmiş 24 poz × N manken kimlik tutarlılığını
+bozma riski taşır.
+
+**Karar (önerilen yaklaşım):** Sahne, poz'un mankenden bağımsızlaştırılmasıyla AYNI idiom — poz/kimlik/
+try-on'dan TAMAMEN bağımsız, stüdyo giydirme bittikten SONRA uygulanan 3. bir AI adımı (arka plan
+"relight" — Faz 2'deki `AiSceneService`/`GeminiSceneComposer` deseniyle paralel). Orijinal stüdyo görseli
+silinmez, sahne versiyonu ayrı kolonda tutulur (geri dönülebilir).
+
+**Fazlar:**
+- **F1 — Şema+Model+Config:** migration `creative_locations` (Pose'a paralel: `location_key, label,
+  prompt, reference_image_path?, sort_order, status, error, meta`, gerçek `down()`); migration
+  `creative_tryon_results`'a `location_id` (nullable FK) + `scene_image_path` (nullable, `staged_image_path`
+  korunur); Model `Location`; config `creative.scene.locations` kataloğu (golden-hour sokak, park yolu,
+  plaj iskelesi, kafe terası, çatı gün batımı, kırsal yol, şehir ara sokağı...). `schema:audit` temiz.
+- **F2 — Prompt+Compose Driver:** stüdyoya özel `PromptDirectives::camera()` bu adımda KULLANILMAZ,
+  yerine lokasyona göre ortam-spesifik ışık/lens direktifi. `Contracts/LocationComposerContract`,
+  `Ai/LocationRequest.php`, `Drivers/Gemini/LocationPromptBuilder.php`,
+  `Drivers/Gemini/GeminiLocationComposer.php`, `Drivers/Mock/MockLocationComposer.php` (mevcut driver
+  desenlerinin kopyası). **Kritik prompt kuralı:** kimlik/poz/kıyafet birebir sabit, SADECE arka plan +
+  o ortamın ışığı/renk sıcaklığı değişsin (temas gölgesi + ortam ışığının cilt/kumaşa yansıması + doğru
+  alan derinliği) — atlanırsa "yapıştırılmış kesik" (cutout-paste) görünümü çıkar, en büyük risk burası.
+- **F3 — Orchestration:** `Services/SceneChangeService::apply(TryonResult, Location)` — kaynak stüdyo
+  görselini alır, compose eder, `products/{id}/onmodel_scene_{location}_{id}.png` yazar (orijinali
+  silmez); `Jobs/GenerateSceneJob` (tries=3, backoff [10,30]). Sadece `status=done`
+  (tercihen `review_status=approved`) sonuçlara uygulanabilir.
+- **F4 — HTTP+UI:** `TryonController::applyScene()` + route `creative.tryon.scene`; `CreativeTryon.vue`
+  sonuç kartına "Sahne değiştir ▾"; `publish()` seçili versiyonu (stüdyo/sahne) `product_images`'a yazar.
+  Lokasyon CRUD sayfası opsiyonel/ertelenebilir, MVP'de config kataloğu yeterli.
+- **F5 — Doğrulama:** mock uçtan uca (kimlik/kıyafet aynı, arka plan değişti); gerçek `GEMINI_API_KEY`
+  ile birkaç lokasyon deneyip ışık/gölge tutarlılığını gözle kontrol et; `schema:audit` + `npm run build`
+  temiz.
+
+---
+
+## Faz G — Giysi Parça Tespiti (torchvision fine-tune)
+**Amaç:** Yüklenen giysi görselindeki parçaların (yaka, cep, etek, kol ucu vb.) konumunu tespit edip
+veritabanında adlandırılmış olarak saklamak; bu bilgiyi Gemini try-on'a ek referans olarak beslemek
+("yaka kısmı bu, etek kısmı bu"); ve detay sayfasında tespit kutularını raporlama amacıyla görselleştirmek.
+
+**Lisans kararı (kritik, mimariyi belirledi):** Ultralytics YOLOv8 iç/ticari kullanımda bile Enterprise
+lisans gerektirir (AGPL-3.0); DeepFashion2 research-only lisanslı, Fashionpedia'nın kaynak görselleri
+karışık lisanslı. Bunun yerine **torchvision** (BSD, `python/.venv`'de zaten kurulu — CLIP sınıflandırıcı
+için) tabanlı bir dedektör + **bu mağazanın kendi ürün fotoğraflarıyla fine-tune** yaklaşımı seçildi.
+Kullanıcı onayladı: başlangıçta (model eğitilene kadar) parçalar manuel işaretlenir, zamanla model devralır.
+
+- **✅ G.1 — Şema + sözleşme + null sürücü.** Migration'lar: `creative_garment_labels` (kanonik
+  parça/tip sözlüğü, otomatik isimlendirme), `creative_garment_scans` (içerik hash'ine göre dedup,
+  `detections` JSON), `creative_tryon_results.garment_scan_id`. Model'ler `GarmentLabel`, `GarmentScan`.
+  `GarmentPartDetectorContract` + `NullGarmentPartDetector` (`detail_classification` ile aynı
+  graceful-degrade deseni) + `CreativeServiceProvider` binding'i (`is_file(weights_path)` kontrolüyle
+  ağırlık dosyası yokken otomatik Null'a düşer — kod değişikliği gerekmez).
+- **✅ G.2 — Manuel kutu-etiketleme aracı.** `GarmentScanController` + `CreativeGarmentLabeling.vue`
+  (tıkla-sürükle dikdörtgen çizme, autocomplete etiket) + `CreativeGarmentScans.vue` (liste) —
+  `creative.asset.manage` yetkisiyle. Bootstrap veri toplama VE mevcut otomatik tespitleri düzeltme
+  (düzeltilen kutu `source=manual`'a geçer, eğitim verisi kalitesi için güvenilir sayılır).
+- **✅ G.3 — Gerçek tespit sürücüsü + orkestrasyon + raporlama.** `PythonGarmentPartDetector` +
+  `detect_garment_parts.py` (torchvision Faster R-CNN v2/FCOS, kendini betimleyen checkpoint —
+  state_dict + label_map + model_version). `GarmentScanService::scan()` (hash-dedup, kalıcı görsel
+  kopyası `garment-scans/{hash}.ext`, otomatik etiket isimlendirme) + `cropsForTryOn()` (yüksek güvenli
+  parçaları GD ile kırpıp `GarmentTryOnContract`'ın mevcut `garmentExtras` mekanizmasına ekler —
+  `GeminiTryOnPromptBuilder::describeExtras()` HİÇ değişmeden bunu "image #N is the SAME garment,
+  '<parça>' view" diye prompt'a çevirir). `ProductOnModelService::generate()`'a kablolandı.
+  `CreativeTryonDetail.vue`'de SVG bbox overlay kartı; `CreativeReviewReportCommand::summarizeDetections()`
+  + `CreativeReviewReportShow.vue` kartı (sıfır-tespit oranı, parça frekansı, kaynak dağılımı —
+  G.3b'den itibaren manuel/otomatik/zero-shot üç kova).
+  **Not:** Bu oturumda model dosyası (`garment_parts_latest.pt`) HENÜZ YOK — fine-tune
+  sürücüsü bağlanmıyor. `zero_shot.enabled=false` (varsayılan) iken `NullGarmentPartDetector`
+  aktif, tüm taramalar sıfır tespitle döner. G.3b açıldığında bunun yerine bootstrap
+  öneri kutuları üretilir (aşağıya bkz.) — ikisinde de manuel etiketleme aracı devrede.
+- **✅ G.3b — Zero-shot bootstrap dedektörü.** G.3'ün fine-tune sürücüsü ağırlık
+  dosyası olmadan çalışamıyor, ağırlık dosyası da G.4'ün ~40 manuel örnek/etiket
+  eşiğine ulaşana kadar üretilemiyordu — ve tek örnek toplama yolu her seferinde
+  ücretli bir giydirme üretimi tetiklemekti (kullanıcı geri bildirimi: "bu alan
+  karışacak/şişecek"). `PythonZeroShotGarmentPartDetector` +
+  `detect_garment_parts_zeroshot.py` — OWLv2 (`transformers`, Apache-2.0, YOLO'nun
+  aksine ticari kullanımda sorunsuz) ile İngilizce sabit sorgu sözlüğüyle (bkz.
+  `classify_garment_detail.py`'nin CATEGORIES deseni) eğitim verisi olmadan öneri
+  kutuları üretir. Her tespit `source='zeroshot'` damgalanır
+  (`GarmentScanService::normalizeAndNameLabels`) — bu yüzden `cropsForTryOn()`
+  ile `creative:train-garment-detector` (ikisi de `source='manual'`+`'auto'`
+  filtreler, aşağıdaki 2026-07-19 güncellemesine bkz.) tarafından bir insan
+  `/creative/garment-scans/{id}` etiketleme aracında **Onayla**/**Reddet**
+  demeden asla görülmez; Onayla mevcut `updateAnnotation` endpoint'ini aynı
+  bbox/label ile çağırır (backend zaten source'u manual'a çeviriyor, yeni
+  endpoint YOK). `CreativeServiceProvider`
+  binding sırası: fine-tune ağırlığı varsa her zaman o (G.4 koşunca KOD DEĞİŞİKLİĞİ
+  GEREKMEZ garantisi korunur) → yoksa `zero_shot.enabled` ise bu sürücü → yoksa Null.
+  Varsayılan KAPALI (`CREATIVE_GARMENT_ZERO_SHOT_ENABLED=false`) — yeni
+  `transformers` bağımlılığı + ilk çalıştırmada ~1GB model indirmesi ekliyor.
+  **Ölçülen gerçek maliyet (2026-07-19, prod sunucusu, 2 vCPU/GPU yok):**
+  tek görsel çıkarımı 190-230sn arası CPU süresi alıyor (roadmap'te önceden
+  yazılan "birkaç saniye" tahmini YANLIŞ çıktı; sentetik test görselinde
+  189sn, gerçek bir ürün görselinde 229.5sn ölçüldü) — bu yüzden
+  `CREATIVE_GARMENT_ZERO_SHOT_TIMEOUT` varsayılanı (60sn) her taramayı öldürür,
+  güvenli marj için 300sn'ye çıkarıldı (env). `GarmentScanService::scan()`
+  image_hash ile dedup ettiği için bu maliyet benzersiz giysi görseli başına
+  BİR KEZ ödenir (aynı ürünün 20 pozu için değil) ama ilk isabet
+  `GenerateOnModelJob` içinde olur — bu yüzden job `$timeout`'u 300'den 700'e
+  çıkarıldı (worker'ın supervisor `--timeout=350`'sini job-level `$timeout`
+  override ettiği doğrulandı, `Worker::timeoutForJob()`). Gerçek bir ürün
+  görseliyle (`products/1/onmodel_staged_1.png`) uçtan uca doğrulandı: DI
+  container `PythonZeroShotGarmentPartDetector`'ı bağlıyor, 1 tespit döndü
+  (`etek`, confidence 0.1534, `source=zeroshot`).
+  **Bulunan/düzeltilen iki hata (canlı test sırasında, 2026-07-19):**
+  (1) `resolveDriverName()` yalnız `PythonGarmentPartDetector`'ı tanıyordu,
+  `PythonZeroShotGarmentPartDetector` de 'null' olarak damgalanıyordu —
+  `match` ile üç sürücü de (`python`/`zeroshot`/`null`) ayrıştırılacak şekilde
+  düzeltildi. (2) **Daha kritik:** `GarmentScanService::scan()` bir görseli
+  `status=done` ise (image_hash eşleşse) sürücü değişmiş olsa bile SESSİZCE
+  eski kaydı dönüyordu — zero-shot açılmadan ÖNCE (Null sürücüyle) taranmış
+  bir ürün görseli zero-shot açıldıktan SONRA tekrar giydirilse bile hâlâ eski
+  boş tespiti gösteriyordu (kullanıcı canlı testte bunu yakaladı: yeni
+  giydirmeler `/creative/garment-scans`'te tespitsiz görünüyordu). Düzeltme:
+  `driver='null'` + `status=done` olan kayıtlar, o an bağlı sürücü null
+  değilse "stale" sayılıp yeniden taranıyor; gerçek bir sürücüyle (`python`/
+  `zeroshot`) üretilmiş `done` kayıtlar hâlâ olduğu gibi cache'leniyor. Sentetik
+  bir görselle (fake `driver=null` kaydı oluşturup) uçtan uca doğrulandı: aynı
+  satır (`id` değişmedi), yeniden tarandı, `driver` `zeroshot`'a güncellendi.
+  `creative:review-report`'un kaynak dağılımı artık üç kova (`manual`/`auto`/
+  `zeroshot`) raporluyor ki onaysız AI önerileri fine-tune modelin gerçek
+  tespitleriymiş gibi görünmesin.
+  **Kapsam genişletmesi (kullanıcı kararı, 2026-07-19):** `cropsForTryOn()`
+  başlangıçta yalnız `source='auto'` (G.4 fine-tune çıktısı) kabul ediyordu —
+  yani Onayla'nan zero-shot tespitleri (source→'manual') SADECE eğitim
+  verisine giriyordu, try-on üretimine hiç yansımıyordu (canlı testte
+  kullanıcı bunu fark etti: "otomatik tespit edilmedi... giydirirken bu
+  detayları kullanmamış"). Kullanıcı fine-tune'u beklemeden onaylanan
+  tespitlerin try-on kalitesini de iyileştirmesini istedi. Filtre artık
+  `source in ['auto','manual']` kabul ediyor. **Yan etki:** `updateAnnotation`
+  hem elle çizilen hem Onayla'nan zero-shot kutuları aynı `source='manual'`
+  değerine yazdığı için (ayrım yapan ayrı bir alan yok) bu değişiklik
+  G.2'den beri var olan, daha önce try-on'a hiç girmeyen elle-çizilmiş
+  kutuları da artık aktif hale getiriyor — bu kasıtlı ve tutarlı bir
+  genişleme (bir insanın onayladığı/çizdiği kutu = güvenilir), ayrı bir
+  onay mekanizması eklenmedi.
+- **⬜ G.4 — Fine-tune eğitim komutu (ilk koşu bekliyor).** `train_garment_parts.py` (COCO-format export
+  → torchvision transfer learning) + `creative:train-garment-detector` (`min_examples_per_label` eşiği,
+  yetersiz veri varken zarifçe çıkar, crash etmez) yazıldı ama **çalıştırılmadı** — yeterli manuel
+  etiketli örnek (varsayılan eşik: etiket başına 40) birikene kadar admin bunu elle tetiklemeli.
+  Bilinçli olarak zamanlanmadı (routes/console.php'ye eklenmedi) — eğitim CPU'da uzun sürebilir ve
+  model kalitesi admin gözden geçirmesi gerektirir.
+- **✅ G.5 — Garment Identity Preservation (Gemini Vision parça analizi).** Kullanıcı geri bildirimiyle
+  (10 madde, üçü kritik önceliklendirildi) "parça analizi" kapsamı bir kimlik-koruma sistemine
+  dönüştürüldü. `GeminiClient::analyzeImage()` (görsel-girdi+metin-çıktı, ilk kez eklendi).
+  `GarmentPartAnalyzerContract`/`GeminiPartAnalyzer`/`MockPartAnalyzer` — her crop için renk/desen/
+  doku/kumaş/dikiş/donanım **enum tabanlı** (OTHER+raw_text kaçış kapılı), **confidence'lı**,
+  **versioned zarflı** (`analysis_version`/`model`/`prompt_version`/`generated_at`/`data`) analiz.
+  `GarmentIdentitySummarizerContract`/`GeminiIdentitySummarizer` — bütünsel "ayırt edici en fazla 5
+  özellik" çağrısı (`GarmentScan.identity_summary`, ayrı opsiyonel bayrak). `creative_garment_labels`'a
+  `preservation_category`/`default_priority` (migration, seed: `garment_detection.label_defaults`
+  config'i — "logo" HER ZAMAN identity/critical, ürüne göre değişmez). **`GarmentIdentityRuleEngine`**
+  (`Services/GarmentScanService.php` DEĞİL, ayrı saf-PHP servis, hiç AI/DB çağrısı yapmaz) — confidence
+  eşiği altındaki alanları eler, nihai önceliği `max(etiket taban değeri, Gemini'nin örnek-bazlı
+  değerlendirmesi)` ile hesaplar (taban değerin ALTINA asla düşmez), critical/high parçalar için
+  "do not redesign/replace/invent" direktifi + tek bir "protect list" cümlesi üretir — ham analiz JSON'u
+  ASLA doğrudan prompt'a yazılmaz, her zaman bu katmandan geçer. `GarmentScanService::scan()` artık her
+  crop'u KALICI yazar (`garment-scans/{hash}/{detection_id}.png`) + `crop_hash` (sha256) hesaplar +
+  gerekirse bicubic upscale uygular (min 768px kenar — 3 sabit çözünürlük yerine uyarlamalı tek
+  çözünürlük, kullanıcıyla mutabık kalınan tek ayarlama). `GeminiTryOnPromptBuilder::build()` artık
+  `protectListSentence` (prompt'un en başına) + her parça için Rule Engine'in `statement`'ını alır.
+  `CreativeTryonDetail.vue`'ye öncelik rozetleri + enum değerleri + "Ürünü Ayırt Eden Özellikler" şeridi
+  eklendi. Testler: `GarmentIdentityRuleEngineTest` (9 senaryo, tamamı saf/DB'siz) +
+  `GeminiTryOnPromptBuilderTest`e 3 yeni senaryo. **Not:** `analysis.enabled=false` (varsayılan) —
+  Mock sürücüler devrede, sıfır davranış değişikliği (G.1-G.3 ile aynı garanti).
+
+**Devam etmek için:** `CREATIVE_GARMENT_ZERO_SHOT_ENABLED=true` açılıp (G.3b) etiketleme aracında
+Onayla/Reddet ile örnek biriktirme hızlandırılabilir. Yeterli manuel onaylı örnek biriktikten sonra
+`php artisan creative:train-garment-detector --dry-run` ile eşik durumunu kontrol et, ardından
+(dry-run olmadan) çalıştır. Başarılı olursa `garment_parts_latest.pt` oluşur ve
+`CreativeServiceProvider`'daki `is_file()` kontrolü sayesinde KOD DEĞİŞİKLİĞİ GEREKMEDEN fine-tune
+tespit devreye girer (zero-shot'un önüne otomatik geçer).
+
+---
+
 ## Devam etme talimatı (kendime not)
 1. Bu dosyadan sıradaki ⬜ fazı seç.
 2. `TaskCreate` ile o fazın adımlarını çıkar, `in_progress` işaretle.

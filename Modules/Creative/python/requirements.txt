@@ -11,3 +11,30 @@ numpy>=1.26
 # değilse render.py salt-Pillow fallback moduna düşer. Kurulum:
 #   winget install resvg   |   scoop install resvg   |   cargo install resvg
 # ve CREATIVE_RESVG_BIN ile yolu verin.
+
+# Giysi detay görseli otomatik sınıflandırma (classify_garment_detail.py)
+# bağımlılıkları — yerel zero-shot CLIP. AĞIR paketlerdir (torch ~700MB+ CPU
+# wheel). CREATIVE_DETAIL_CLASSIFICATION_ENABLED=true değilse hiç aranmaz;
+# classifier NullGarmentDetailClassifier'a düşer.
+torch>=2.2
+open_clip_torch>=2.24
+
+# Giysi parça tespiti (detect_garment_parts.py) — torchvision'un nesne tespit
+# modelleri (BSD lisanslı; bkz. ROADMAP.md Faz G lisans kararı — Ultralytics
+# YOLO iç kullanımda bile Enterprise lisans gerektirdiğinden tercih edilmedi).
+# torch zaten yukarıda var; torchvision ek paket. CREATIVE_GARMENT_DETECTION_ENABLED
+# değilse ya da fine-tune edilmiş ağırlık dosyası yoksa hiç aranmaz (Null sürücü).
+torchvision>=0.17
+
+# Yalnızca eğitim komutu (creative:train-garment-detector -> train_garment_parts.py)
+# kullanır — COCO-format anotasyon okuma. İnference'ı (detect_garment_parts.py)
+# etkilemez, ilk fine-tune koşusuna kadar kurulmasına gerek yoktur.
+pycocotools>=2.0
+
+# Zero-shot giysi parça tespiti (detect_garment_parts_zeroshot.py, OWLv2) — henüz
+# fine-tune edilmiş bir ağırlık dosyası yokken (Faz G.4 ilk koşusundan önce) etiket
+# başına manuel örnek biriktirmeyi hızlandırmak için gerçek öneri kutuları üretir
+# (bkz. ROADMAP.md Faz G.3b). Apache-2.0 lisanslı (Ultralytics YOLO'nun aksine ticari
+# kullanımda sorunsuz). CREATIVE_GARMENT_ZERO_SHOT_ENABLED=true değilse hiç aranmaz —
+# varsayılan kapalı, çünkü ilk çalıştırmada ~1GB model ağırlığı indirir.
+transformers>=4.40

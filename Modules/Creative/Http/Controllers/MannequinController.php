@@ -41,7 +41,7 @@ class MannequinController extends Controller
                 'hips_cm'         => $m->hips_cm,
                 'status'          => $m->status,
                 'error'           => $m->error,
-                'reference_url'   => $this->url($m->reference_image_path),
+                'reference_url'   => $this->url($m->reference_image_path, $m->updated_at?->timestamp),
                 'created_at'      => $m->created_at?->toDateTimeString(),
                 'created_by'      => $m->created_by,
                 'creator_name'    => $m->creator?->name,
@@ -149,12 +149,17 @@ class MannequinController extends Controller
         return back()->with('success', 'Manken silindi.');
     }
 
-    private function url(?string $path): ?string
+    private function url(?string $path, ?int $version = null): ?string
     {
         if (! $path) {
             return null;
         }
 
-        return Storage::disk(config('creative.disk', 'public'))->url($path);
+        $url = Storage::disk(config('creative.disk', 'public'))->url($path);
+
+        // Nginx bu dosyaları `expires max` ile önbelleğe alıyor; regenerate sonrası
+        // aynı dosya adı (reference.png) üzerine yazıldığı için sürüm parametresi
+        // olmadan tarayıcı/CDN eski görseli göstermeye devam eder.
+        return $version ? "{$url}?v={$version}" : $url;
     }
 }

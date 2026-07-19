@@ -20,6 +20,11 @@
 /storage/*.key
 /storage/pail
 /vendor
+/Modules/Creative/python/.venv
+# Fine-tune edilmiş giysi parça tespit ağırlıkları — deploy/eğitim zamanında
+# üretilir (creative:train-garment-detector), repoya commitlenmez. FSRCNN
+# gibi küçük statik model dosyaları (python/models/*.pb) bundan etkilenmez.
+/Modules/Creative/python/models/garment_parts_*.pt
 _ide_helper.php
 Homestead.json
 Homestead.yaml

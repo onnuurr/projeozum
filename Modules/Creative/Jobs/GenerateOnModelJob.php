@@ -13,7 +13,7 @@ use Modules\Creative\Services\ProductOnModelService;
 use Throwable;
 
 /**
- * Tek bir giydirme sonucunu (ürün × poz) idm-vton ile üretir ve product_images'a
+ * Tek bir giydirme sonucunu (ürün × poz) fashn/tryon ile üretir ve product_images'a
  * yazar (async, granüler retry).
  */
 class GenerateOnModelJob implements ShouldQueue
@@ -25,7 +25,11 @@ class GenerateOnModelJob implements ShouldQueue
 
     public int $tries = 3;
 
-    public int $timeout = 300;
+    // 300'den 700'e çıkarıldı: zero-shot giysi parça taraması (Faz G.3b, OWLv2)
+    // ilk (hash-dedup'siz) taramada bu 2 vCPU'luk sunucuda ölçülen ~190-230sn CPU
+    // çıkarım süresi alıyor (bkz. ROADMAP.md Faz G.3b); kalan bütçe Gemini try-on
+    // çağrısı + enhance için gerekli.
+    public int $timeout = 700;
 
     public function __construct(public int $resultId) {}
 

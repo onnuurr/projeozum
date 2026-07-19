@@ -19,8 +19,29 @@
 			</div>
 		</div>
 
+		<div v-if="reports.length" class="kpi-grid">
+			<div class="kpi-card">
+				<span class="kpi-label">Toplam Rapor</span>
+				<span class="kpi-value">{{ reports.length }}</span>
+				<span class="kpi-hint">Haftalık üretilen tüm raporlar</span>
+			</div>
+			<div class="kpi-card">
+				<span class="kpi-label">Son Rapor Ret Oranı</span>
+				<span class="kpi-value" :class="rateColorClass(latest.rejection_rate)">{{ formatRate(latest.rejection_rate) }}</span>
+				<span class="kpi-hint">{{ latest.total_rejected }}/{{ latest.total_reviewed }} reddedildi</span>
+			</div>
+			<div class="kpi-card">
+				<span class="kpi-label">Son Rapor Tarihi</span>
+				<span class="kpi-value kpi-value-sm">{{ formatDate(latest.generated_at) }}</span>
+				<span class="kpi-hint">Son {{ latest.window_days }} gün penceresi</span>
+			</div>
+		</div>
+
 		<div class="card">
 			<div class="card-header">
+				<svg class="header-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+					<path d="M3 3v18h18M8 17V10M13 17V6M18 17v-4" stroke-linecap="round" stroke-linejoin="round" />
+				</svg>
 				<h3>Raporlar</h3>
 				<span class="hint">{{ reports.length }} rapor</span>
 			</div>
@@ -37,10 +58,8 @@
 					>
 						<span class="row-date">{{ formatDate(r.generated_at) }}</span>
 						<span class="row-window">Son {{ r.window_days }} gün</span>
-						<span class="row-stat">
-							{{ r.total_rejected }}/{{ r.total_reviewed }} reddedildi
-							<template v-if="r.rejection_rate !== null">(%{{ Math.round(r.rejection_rate * 100) }})</template>
-						</span>
+						<span class="row-stat">{{ r.total_rejected }}/{{ r.total_reviewed }} reddedildi</span>
+						<span class="rate-badge" :class="rateColorClass(r.rejection_rate)">{{ formatRate(r.rejection_rate) }}</span>
 						<span class="row-arrow">
 							<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
 								<path d="M9 6l6 6-6 6" />
@@ -54,19 +73,35 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { Head, Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 
 defineOptions({ layout: AppLayout })
 
-defineProps({
+const props = defineProps({
 	reports: { type: Array, default: () => [] },
+})
+
+const latest = computed(() => props.reports[0] ?? {
+	rejection_rate: null, total_rejected: 0, total_reviewed: 0, generated_at: null, window_days: null,
 })
 
 function formatDate(iso) {
 	if (!iso) return '—'
 	return new Date(iso).toLocaleString('tr-TR', { dateStyle: 'medium', timeStyle: 'short' })
+}
+
+function formatRate(rate) {
+	return rate === null || rate === undefined ? 'Veri yok' : `%${Math.round(rate * 100)}`
+}
+
+function rateColorClass(rate) {
+	if (rate === null || rate === undefined) return 'rate-neutral'
+	if (rate < 0.15) return 'rate-good'
+	if (rate < 0.30) return 'rate-warn'
+	return 'rate-bad'
 }
 </script>
 
@@ -76,8 +111,16 @@ function formatDate(iso) {
 .page-subtitle { font-size: 13px; color: #888; margin-top: 4px; max-width: 640px; }
 .page-subtitle code { background: #f5f5f8; border-radius: 4px; padding: 1px 5px; font-size: 12px; }
 
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px; }
+.kpi-card { display: flex; flex-direction: column; gap: 6px; background: #fff; border: 1px solid #ebebf0; border-radius: 16px; padding: 18px; box-shadow: 0 1px 4px rgba(0,0,0,.04); }
+.kpi-label { font-size: 12px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: .04em; }
+.kpi-value { font-size: 24px; font-weight: 800; color: #1a1a2e; }
+.kpi-value-sm { font-size: 15px; font-weight: 700; }
+.kpi-hint { font-size: 12px; color: #999; }
+
 .card { background: #fff; border-radius: 16px; border: 1px solid #ebebf0; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.04); margin-bottom: 18px; }
-.card-header { padding: 14px 18px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #f0f0f5; }
+.card-header { padding: 14px 18px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #f0f0f5; }
+.header-icon { color: rgb(var(--color-primary)); flex-shrink: 0; }
 .card-header h3 { font-size: 15px; font-weight: 700; color: #1a1a2e; }
 .card-header .hint { font-size: 12px; color: #aaa; margin-left: auto; }
 .card-body { padding: 18px; }
@@ -91,6 +134,17 @@ function formatDate(iso) {
 .row-window { font-size: 12px; color: #999; }
 .row-stat { font-size: 12.5px; color: #555; font-weight: 600; margin-left: auto; }
 .row-arrow { display: flex; color: #bbb; }
+
+.rate-badge { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 20px; color: #fff; white-space: nowrap; }
+.rate-badge.rate-good { background: #16a34a; }
+.rate-badge.rate-warn { background: #f59e0b; }
+.rate-badge.rate-bad { background: #dc2626; }
+.rate-badge.rate-neutral { background: #9ca3af; }
+
+.kpi-value.rate-good { color: #16a34a; }
+.kpi-value.rate-warn { color: #f59e0b; }
+.kpi-value.rate-bad { color: #dc2626; }
+.kpi-value.rate-neutral { color: #9ca3af; }
 
 @media (max-width: 700px) {
 	.page-header { flex-wrap: wrap; }

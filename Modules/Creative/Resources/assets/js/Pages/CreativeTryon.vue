@@ -30,7 +30,7 @@
 			<div class="card-body">
 				<div v-if="products.length === 0" class="empty-block">Ürün bulunamadı.</div>
 				<p v-else-if="hasProductsWithoutGarment" class="garment-note">
-					Soluk görünen ürünlerin giydirilecek fotoğrafı yok; önce ürüne fotoğraf ekleyin.
+					Fotoğrafı olmayan ürünleri de seçebilirsiniz — aşağıdan giydirilecek görseli ayrıca yükleyin.
 				</p>
 				<div v-if="products.length > 0" class="product-grid">
 					<button
@@ -38,10 +38,9 @@
 						:key="p.id"
 						type="button"
 						class="product-card"
-						:class="{ selected: selectedProduct === p.id, disabled: !p.has_garment }"
-						:disabled="!p.has_garment"
+						:class="{ selected: selectedProduct === p.id }"
 						:title="p.has_garment ? p.name : `${p.name} — giydirilecek fotoğrafı yok`"
-						@click="p.has_garment && (selectedProduct = p.id)"
+						@click="selectedProduct = p.id"
 					>
 						<div class="product-thumb">
 							<img v-if="p.cover" :src="p.cover" :alt="p.name" />
@@ -50,6 +49,69 @@
 						<span class="product-name">{{ p.name }}</span>
 						<span v-if="!p.has_garment" class="no-garment-badge">Fotoğraf yok</span>
 					</button>
+				</div>
+
+				<div v-if="selectedProduct !== null" class="garment-upload">
+					<div class="garment-upload-head">
+						<strong>{{ selectedProductHasGarment ? 'Farklı bir ürün görseli kullan (opsiyonel)' : 'Ürün görseli yükle' }}</strong>
+						<span v-if="!selectedProductHasGarment" class="hint">Bu ürünün fotoğrafı yok — giydirmek için bir görsel yükleyin.</span>
+					</div>
+					<div class="garment-upload-body">
+						<label class="upload-drop" v-if="!garmentPreview">
+							<input type="file" accept="image/*" @change="onGarmentFileChange" hidden />
+							<span>Görsel seç…</span>
+						</label>
+						<div v-else class="garment-preview">
+							<img :src="garmentPreview" alt="Yüklenen ürün görseli" />
+							<button type="button" class="link-btn danger" @click="clearGarmentFile">Kaldır</button>
+						</div>
+					</div>
+				</div>
+
+				<div v-if="selectedProduct !== null" class="garment-details">
+					<div class="garment-upload-head">
+						<strong>Detay görselleri (opsiyonel)</strong>
+						<span class="hint">Arkadan, yandan, yaka/dikiş, kumaş detayı vb. — AI giydirirken hepsini dikkate alır.</span>
+					</div>
+
+					<div class="detail-presets">
+						<button
+							v-for="preset in detailPresets"
+							:key="preset"
+							type="button"
+							class="preset-chip"
+							@click="addDetailSlot(preset)"
+						>
+							+ {{ preset }}
+						</button>
+						<button type="button" class="preset-chip" @click="addDetailSlot('')">+ Serbest başlıklı</button>
+					</div>
+
+					<div v-if="garmentDetails.length" class="detail-list">
+						<div v-for="d in garmentDetails" :key="d.id" class="detail-item">
+							<label class="detail-thumb" v-if="!d.preview">
+								<input type="file" accept="image/*" @change="onDetailFileChange(d.id, $event)" hidden />
+								<span>Görsel seç…</span>
+							</label>
+							<div v-else class="detail-thumb has-image">
+								<img :src="d.preview" alt="Detay görseli" />
+							</div>
+							<div class="detail-label-wrap">
+								<input
+									v-model="d.label"
+									type="text"
+									class="detail-label-input"
+									:class="{ 'is-suggested': d.suggested }"
+									placeholder="Etiket (ör. Arkadan)"
+									maxlength="60"
+									@input="d.suggested = false"
+								/>
+								<span v-if="d.classifying" class="detail-label-hint">tahmin ediliyor…</span>
+								<span v-else-if="d.suggested" class="detail-label-hint">öneri, %{{ Math.round(d.suggestionScore * 100) }}</span>
+							</div>
+							<button type="button" class="link-btn danger" @click="removeDetailSlot(d.id)">Kaldır</button>
+						</div>
+					</div>
 				</div>
 			</div>
 		</div>
@@ -131,8 +193,9 @@
 				<div v-else class="result-grid">
 					<div v-for="r in results" :key="r.id" class="result-card">
 						<div class="result-thumb">
-							<img v-if="r.image_url" :src="r.image_url" :alt="r.product_name" />
+							<img v-if="r.image_url" class="clickable" :src="r.image_url" :alt="r.product_name" @click="openPreview(r)" />
 							<span v-else class="no-preview">{{ statusLabel(r.status) }}</span>
+							<button v-if="r.image_url" class="zoom-badge" title="Büyük önizleme" @click="openPreview(r)">⤢</button>
 							<span class="status-badge" :class="r.status">{{ statusLabel(r.status) }}</span>
 							<span v-if="r.is_cover" class="cover-badge">★ Kapak</span>
 							<span v-if="r.review_status" class="review-badge" :class="`r-${r.review_status}`">
@@ -143,6 +206,7 @@
 							<span class="result-product">{{ r.product_name }}</span>
 							<span class="result-sub">{{ r.mannequin_name }} · {{ r.pose_label }}</span>
 							<span v-if="r.creator_name" class="result-creator">Üreten: {{ r.creator_name }}{{ r.is_own ? ' (siz)' : '' }}</span>
+							<span v-if="r.tryon_model" class="result-model" :title="r.tryon_model">Model: {{ r.tryon_model }}</span>
 							<div v-if="r.review_tags && r.review_tags.length" class="review-tags">
 								<span v-for="t in r.review_tags" :key="t" class="review-tag">{{ t }}</span>
 							</div>
@@ -159,6 +223,9 @@
 								<button type="button" class="link-btn danger" @click="destroyResult(r)">Sil</button>
 							</div>
 						</div>
+						<Link :href="`/creative/tryon/${r.id}`" class="chat-link">
+							📋 Üretim Detayı
+						</Link>
 						<Link v-if="r.can_chat" :href="`/creative/tryon/${r.id}/review-chat`" class="chat-link">
 							💬 AI ile Konuş <span v-if="r.review_chats?.length">({{ r.review_chats.length }} mesaj)</span>
 						</Link>
@@ -166,11 +233,54 @@
 				</div>
 			</div>
 		</div>
+
+		<!-- Büyük önizleme (lightbox) -->
+		<Teleport to="body">
+			<div v-if="preview" class="lightbox" @click.self="closePreview">
+				<div class="lb-box">
+					<button class="lb-close" @click="closePreview">✕</button>
+					<div
+						class="lb-img-wrap"
+						:class="{ zoomed: zoom.scale > 1, dragging: zoom.dragging }"
+						@wheel.prevent="onWheel"
+						@pointerdown="onPointerDown"
+						@pointermove="onPointerMove"
+						@pointerup="onPointerUp"
+						@pointercancel="onPointerUp"
+						@dblclick="onDblClick"
+						@touchstart.passive="onTouchStart"
+						@touchmove.prevent="onTouchMove"
+					>
+						<img
+							:src="preview.image_url"
+							:alt="preview.product_name"
+							draggable="false"
+							:style="{ transform: `translate(${zoom.x}px, ${zoom.y}px) scale(${zoom.scale})` }"
+						/>
+					</div>
+					<div class="lb-side">
+						<h3 class="lb-title">{{ preview.product_name }}</h3>
+						<div class="lb-tags-meta">
+							<span class="lb-chip">{{ preview.mannequin_name }}</span>
+							<span class="lb-chip ghost">{{ preview.pose_label }}</span>
+							<span v-if="preview.review_status" class="lb-chip" :class="`r-${preview.review_status}`">
+								{{ reviewLabel(preview.review_status) }}
+							</span>
+						</div>
+						<span class="lb-hint">Yakınlaştırmak için fare tekerleği veya pinch, gezinmek için sürükleyin.</span>
+						<a :href="preview.image_url" target="_blank" :download="`tryon-${preview.id}.png`" class="btn btn-primary lb-download">
+							<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
+							İndir
+						</a>
+					</div>
+				</div>
+			</div>
+		</Teleport>
 	</div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, inject, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, watch, inject, onMounted, onUnmounted } from 'vue'
 import { Head, Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
@@ -196,6 +306,73 @@ const busyReview = ref(null)
 const selectedProduct = ref(null)
 const selectedMannequin = ref(null)
 const selectedPoses = reactive(new Set())
+const garmentFile = ref(null)
+const garmentPreview = ref(null)
+
+// Detay görselleri (opsiyonel) — arkadan/yandan/yaka-dikiş/kumaş vb. Her giriş
+// { id, label, file, preview }; sadece 'file' seçili olanlar gönderime dahil edilir.
+const detailPresets = ['Arkadan', 'Yandan', 'Yaka / Dikiş Detayı', 'Kumaş Detayı', 'Yakın Çekim']
+const garmentDetails = reactive([])
+let detailSeq = 0
+
+function addDetailSlot(presetLabel) {
+	if (garmentDetails.length >= 6) return
+	garmentDetails.push({
+		id: ++detailSeq, label: presetLabel, file: null, preview: null,
+		suggested: false, suggestionScore: null, classifying: false, detectedLabels: [],
+	})
+}
+
+function onDetailFileChange(id, e) {
+	const file = e.target.files?.[0] || null
+	const slot = garmentDetails.find(d => d.id === id)
+	if (!slot) return
+	if (slot.preview) URL.revokeObjectURL(slot.preview)
+	slot.file = file
+	slot.preview = file ? URL.createObjectURL(file) : null
+	slot.suggested = false
+	slot.suggestionScore = null
+	slot.detectedLabels = []
+	if (file) classifyDetailSuggestion(slot)
+}
+
+// Detay görseli seçilir seçilmez yerel ML modeliyle (Gemini/bulut çağrısı
+// YOK) ne gösterdiğini tahmin edip etiketi öneri olarak doldurur — kullanıcı
+// zaten bir şey yazdıysa/preset seçtiyse asla ezmez. Sınıflandırma kapalıysa
+// (config('creative.detail_classification.enabled')=false) sunucu boş liste
+// döner, bu durumda hiçbir şey değişmez.
+async function classifyDetailSuggestion(slot) {
+	if (!slot.file) return
+	slot.classifying = true
+	try {
+		const fd = new FormData()
+		fd.append('image', slot.file)
+		const { data } = await window.axios.post('/creative/tryon/classify-detail', fd)
+		slot.detectedLabels = data?.labels || []
+		const top = slot.detectedLabels[0]
+		if (top && !slot.label?.trim()) {
+			slot.label = top.display
+			slot.suggested = true
+			slot.suggestionScore = top.score
+		}
+	} catch {
+		// Öneri opsiyoneldir — sessizce yut, kullanıcı elle etiketlemeye devam edebilir.
+	} finally {
+		slot.classifying = false
+	}
+}
+
+function removeDetailSlot(id) {
+	const idx = garmentDetails.findIndex(d => d.id === id)
+	if (idx === -1) return
+	if (garmentDetails[idx].preview) URL.revokeObjectURL(garmentDetails[idx].preview)
+	garmentDetails.splice(idx, 1)
+}
+
+function clearGarmentDetails() {
+	garmentDetails.forEach(d => { if (d.preview) URL.revokeObjectURL(d.preview) })
+	garmentDetails.splice(0, garmentDetails.length)
+}
 
 const filteredProducts = computed(() => {
 	const q = search.value.trim().toLowerCase()
@@ -205,12 +382,36 @@ const filteredProducts = computed(() => {
 
 const hasProductsWithoutGarment = computed(() => props.products.some(p => !p.has_garment))
 
+const selectedProductHasGarment = computed(() => {
+	const p = props.products.find(p => p.id === selectedProduct.value)
+	return !!p?.has_garment
+})
+
 const allPosesSelected = computed(() =>
 	props.poses.length > 0 && props.poses.every(p => selectedPoses.has(p.id)),
 )
 const canGenerate = computed(() =>
-	selectedProduct.value !== null && selectedMannequin.value !== null && selectedPoses.size > 0,
+	selectedProduct.value !== null
+	&& selectedMannequin.value !== null
+	&& selectedPoses.size > 0
+	&& (selectedProductHasGarment.value || garmentFile.value !== null),
 )
+
+function onGarmentFileChange(e) {
+	const file = e.target.files?.[0] || null
+	garmentFile.value = file
+	if (garmentPreview.value) URL.revokeObjectURL(garmentPreview.value)
+	garmentPreview.value = file ? URL.createObjectURL(file) : null
+}
+
+function clearGarmentFile() {
+	if (garmentPreview.value) URL.revokeObjectURL(garmentPreview.value)
+	garmentFile.value = null
+	garmentPreview.value = null
+}
+
+// Ürün değişince önceki yüklenen görsel(ler) başka bir ürüne taşınmasın.
+watch(selectedProduct, () => { clearGarmentFile(); clearGarmentDetails() })
 const hasPending = computed(() => props.results.some(r => r.status === 'queued' || r.status === 'generating'))
 
 const STATUS_LABELS = { queued: 'Sırada', generating: 'Üretiliyor', done: 'Hazır', failed: 'Başarısız' }
@@ -259,10 +460,16 @@ function generate() {
 		product_id: selectedProduct.value,
 		mannequin_id: selectedMannequin.value,
 		pose_ids: Array.from(selectedPoses),
+		garment_image: garmentFile.value,
+		garment_details: garmentDetails
+			.filter(d => d.file)
+			.map(d => ({ image: d.file, label: d.label?.trim() || null, detected_labels: d.detectedLabels || [] })),
 	}, {
 		preserveScroll: true,
 		onSuccess: () => {
 			selectedPoses.clear()
+			clearGarmentFile()
+			clearGarmentDetails()
 		},
 		onError: (errs) => showToast?.({ type: 'error', title: 'Başlatılamadı', message: Object.values(errs)[0] || 'Doğrulama hatası.' }),
 		onFinish: () => { busy.value = false },
@@ -293,9 +500,115 @@ function refresh() {
 	router.reload({ only: ['results'] })
 }
 
+// Büyük önizleme (lightbox) + zoom/pan
+const preview = ref(null)
+const zoom = reactive({ scale: 1, x: 0, y: 0, dragging: false })
+const MIN_SCALE = 1
+const MAX_SCALE = 5
+
+function resetZoom() {
+	zoom.scale = 1
+	zoom.x = 0
+	zoom.y = 0
+}
+
+function openPreview(r) {
+	if (!r.image_url) return
+	preview.value = r
+	resetZoom()
+}
+
+function closePreview() { preview.value = null }
+
+// img, flex ile wrapper'ın merkezine ortalandığı için CSS transform-origin (img'in kendi
+// merkezi) de wrapper merkeziyle çakışır — imleç noktasını sabit tutmak için scale
+// değişimini bu merkeze göre telafi etmemiz gerekiyor, yoksa zoom her zaman görselin
+// ortasına doğru kayar.
+function zoomAt(cx, cy, rect, targetScale) {
+	const centerX = rect.width / 2
+	const centerY = rect.height / 2
+	const prev = zoom.scale
+	const next = Math.min(MAX_SCALE, Math.max(MIN_SCALE, targetScale))
+	const k = next / prev
+	zoom.x = (1 - k) * (cx - centerX) + k * zoom.x
+	zoom.y = (1 - k) * (cy - centerY) + k * zoom.y
+	zoom.scale = next
+	if (next === MIN_SCALE) { zoom.x = 0; zoom.y = 0 }
+}
+
+function onWheel(e) {
+	const rect = e.currentTarget.getBoundingClientRect()
+	const cx = e.clientX - rect.left
+	const cy = e.clientY - rect.top
+	zoomAt(cx, cy, rect, zoom.scale * (e.deltaY < 0 ? 1.15 : 1 / 1.15))
+}
+
+let dragStart = null
+function onPointerDown(e) {
+	if (zoom.scale <= 1) return
+	e.preventDefault()
+	zoom.dragging = true
+	dragStart = { x: e.clientX - zoom.x, y: e.clientY - zoom.y }
+	e.currentTarget.setPointerCapture(e.pointerId)
+}
+function onPointerMove(e) {
+	if (!zoom.dragging || !dragStart) return
+	zoom.x = e.clientX - dragStart.x
+	zoom.y = e.clientY - dragStart.y
+}
+function onPointerUp(e) {
+	zoom.dragging = false
+	dragStart = null
+	if (e.currentTarget?.hasPointerCapture?.(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
+}
+
+function onDblClick(e) {
+	if (zoom.scale > 1) {
+		resetZoom()
+		return
+	}
+	const rect = e.currentTarget.getBoundingClientRect()
+	zoomAt(e.clientX - rect.left, e.clientY - rect.top, rect, 2)
+}
+
+// Mobil pinch-zoom / tek parmak sürükleme
+let touchStartDist = null
+let touchStartScale = 1
+let touchStartPos = null
+function touchDist(touches) {
+	const [a, b] = touches
+	return Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY)
+}
+function onTouchStart(e) {
+	if (e.touches.length === 2) {
+		touchStartDist = touchDist(e.touches)
+		touchStartScale = zoom.scale
+	} else if (e.touches.length === 1 && zoom.scale > 1) {
+		touchStartPos = { x: e.touches[0].clientX - zoom.x, y: e.touches[0].clientY - zoom.y }
+	}
+}
+function onTouchMove(e) {
+	if (e.touches.length === 2 && touchStartDist) {
+		const next = Math.min(MAX_SCALE, Math.max(MIN_SCALE, touchStartScale * (touchDist(e.touches) / touchStartDist)))
+		zoom.scale = next
+		if (next === MIN_SCALE) { zoom.x = 0; zoom.y = 0 }
+	} else if (e.touches.length === 1 && touchStartPos) {
+		zoom.x = e.touches[0].clientX - touchStartPos.x
+		zoom.y = e.touches[0].clientY - touchStartPos.y
+	}
+}
+
+function onKey(e) { if (e.key === 'Escape') closePreview() }
+
 let timer = null
-onMounted(() => { timer = setInterval(() => { if (hasPending.value) refresh() }, 5000) })
-onUnmounted(() => { if (timer) clearInterval(timer) })
+onMounted(() => {
+	timer = setInterval(() => { if (hasPending.value) refresh() }, 5000)
+	window.addEventListener('keydown', onKey)
+})
+onUnmounted(() => {
+	if (timer) clearInterval(timer)
+	window.removeEventListener('keydown', onKey)
+})
 </script>
 
 <style scoped>
@@ -319,14 +632,38 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
 .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
 .product-card { position: relative; text-align: center; padding: 12px 10px; border: 2px solid #ebebf0; border-radius: 12px; background: #fff; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; font-family: inherit; }
 .product-card.selected { border-color: rgb(var(--color-primary)); background: rgb(var(--color-primary-soft)); }
-.product-card.disabled { opacity: .45; cursor: not-allowed; }
-.product-card.disabled:hover { border-color: #ebebf0; }
 .no-garment-badge { position: absolute; top: 6px; right: 6px; font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 20px; background: #dc2626; color: #fff; }
 .garment-note { font-size: 12px; color: #b45309; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 8px 12px; margin-bottom: 14px; }
 .product-thumb { width: 56px; height: 56px; border-radius: 10px; background: linear-gradient(135deg, rgb(var(--color-primary-soft)), #ddd6fe); display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .product-thumb img { width: 100%; height: 100%; object-fit: cover; }
 .product-thumb .no-preview { color: rgb(var(--color-primary)); font-size: 20px; }
 .product-name { font-size: 12px; font-weight: 600; color: #1a1a2e; line-height: 1.3; }
+
+/* Ürün görseli yükleme */
+.garment-upload { margin-top: 16px; padding-top: 16px; border-top: 1px solid #f0f0f5; }
+.garment-upload-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; margin-bottom: 10px; font-size: 13px; color: #1a1a2e; }
+.garment-upload-head .hint { color: #b45309; }
+.upload-drop { display: inline-flex; align-items: center; justify-content: center; width: 120px; height: 120px; border: 2px dashed #d5d5e0; border-radius: 12px; color: #888; font-size: 12px; font-weight: 600; cursor: pointer; }
+.upload-drop:hover { border-color: rgb(var(--color-primary)); color: rgb(var(--color-primary)); }
+.garment-preview { display: flex; align-items: center; gap: 12px; }
+.garment-preview img { width: 90px; height: 90px; border-radius: 10px; object-fit: cover; border: 1px solid #ebebf0; }
+
+/* Detay görselleri */
+.garment-details { margin-top: 16px; padding-top: 16px; border-top: 1px solid #f0f0f5; }
+.detail-presets { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 14px; }
+.preset-chip { border: 1.5px dashed #d5d5e0; background: #fff; color: #666; font-family: inherit; font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 20px; cursor: pointer; }
+.preset-chip:hover { border-color: rgb(var(--color-primary)); color: rgb(var(--color-primary)); }
+.detail-list { display: flex; flex-direction: column; gap: 10px; }
+.detail-item { display: flex; align-items: center; gap: 10px; }
+.detail-thumb { display: inline-flex; align-items: center; justify-content: center; width: 60px; height: 60px; border: 2px dashed #d5d5e0; border-radius: 10px; color: #888; font-size: 10px; font-weight: 600; cursor: pointer; text-align: center; flex-shrink: 0; overflow: hidden; }
+.detail-thumb:hover { border-color: rgb(var(--color-primary)); color: rgb(var(--color-primary)); }
+.detail-thumb.has-image { border-style: solid; cursor: default; padding: 0; }
+.detail-thumb.has-image img { width: 100%; height: 100%; object-fit: cover; }
+.detail-label-wrap { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+.detail-label-input { width: 100%; height: 38px; padding: 0 12px; border: 1.5px solid #e8e8f0; border-radius: 8px; font-family: inherit; font-size: 13px; color: #1a1a2e; background: #fafafe; outline: none; }
+.detail-label-input:focus { border-color: rgb(var(--color-primary)); background: #fff; }
+.detail-label-input.is-suggested { font-style: italic; color: #555; border-color: rgb(var(--color-primary) / 0.4); }
+.detail-label-hint { font-size: 11px; color: #999; padding-left: 2px; }
 
 /* Mankenler */
 .mannequin-row { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
@@ -355,6 +692,10 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
 .result-card { border: 1px solid #ebebf0; border-radius: 12px; overflow: hidden; background: #fff; }
 .result-thumb { position: relative; aspect-ratio: 3/4; background: #f5f5f8; display: flex; align-items: center; justify-content: center; }
 .result-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.result-thumb img.clickable { cursor: zoom-in; }
+.zoom-badge { position: absolute; bottom: 6px; right: 6px; width: 26px; height: 26px; border: none; border-radius: 8px; background: rgba(26,26,46,.6); color: #fff; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity .15s; z-index: 1; }
+.result-card:hover .zoom-badge { opacity: 1; }
+.zoom-badge:hover { background: rgba(26,26,46,.85); }
 .no-preview { font-size: 11px; color: #bbb; font-weight: 700; }
 .status-badge { position: absolute; top: 6px; left: 6px; font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 20px; color: #fff; text-transform: uppercase; }
 .status-badge.queued { background: #9ca3af; }
@@ -370,6 +711,7 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
 .result-product { font-size: 12px; font-weight: 700; color: #1a1a2e; display: block; }
 .result-sub { font-size: 11px; color: #888; }
 .result-creator { font-size: 10px; color: #aaa; display: block; }
+.result-model { font-size: 10px; color: #aaa; display: block; font-family: monospace; }
 .review-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 .review-tag { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 10px; background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
 .result-error { font-size: 10px; color: #dc2626; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -386,6 +728,28 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
 .is-cover-note { font-size: 11px; color: #16a34a; font-weight: 600; }
 .chat-link { display: block; text-align: center; padding: 8px 12px; margin: 0 12px 12px; background: #eef2ff; color: #4338ca; border-radius: 8px; font-size: 12px; font-weight: 600; text-decoration: none; }
 .chat-link:hover { background: #e0e7ff; }
+
+/* Lightbox */
+.lightbox { position: fixed; inset: 0; z-index: 9999; background: rgba(15,15,25,.82); display: flex; align-items: center; justify-content: center; padding: 32px; backdrop-filter: blur(3px); }
+.lb-box { display: flex; gap: 0; max-width: 1100px; max-height: 90vh; background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,.4); position: relative; }
+.lb-close { position: absolute; top: 12px; right: 12px; z-index: 2; width: 34px; height: 34px; border: none; border-radius: 50%; background: rgba(255,255,255,.9); color: #1a1a2e; font-size: 16px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.2); }
+.lb-close:hover { background: #fff; }
+.lb-img-wrap { background: #11111b repeating-conic-gradient(#1a1a26 0% 25%, #15151f 0% 50%) 0 / 24px 24px; display: flex; align-items: center; justify-content: center; min-width: 0; overflow: hidden; cursor: zoom-in; touch-action: none; }
+.lb-img-wrap.zoomed { cursor: grab; }
+.lb-img-wrap.dragging { cursor: grabbing; }
+.lb-img-wrap img { max-width: 62vw; max-height: 90vh; object-fit: contain; display: block; transition: transform .08s; will-change: transform; -webkit-user-drag: none; user-select: none; }
+.lb-img-wrap.dragging img { transition: none; }
+.lb-side { width: 300px; flex-shrink: 0; padding: 22px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }
+.lb-title { font-size: 17px; font-weight: 700; color: #1a1a2e; }
+.lb-tags-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+.lb-chip { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 6px; background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary-hover)); }
+.lb-chip.ghost { background: #f5f5f8; color: #888; }
+.lb-chip.r-approved { background: #16a34a; color: #fff; }
+.lb-chip.r-rejected { background: #dc2626; color: #fff; }
+.lb-chip.r-pending { background: #f59e0b; color: #fff; }
+.lb-hint { font-size: 11px; color: #aaa; line-height: 1.4; }
+.lb-download { margin-top: auto; justify-content: center; }
+@media (max-width: 820px) { .lb-box { flex-direction: column; } .lb-img-wrap img { max-width: 86vw; max-height: 50vh; } .lb-side { width: auto; } }
 
 /* ── Dar ekran (telefon) ── */
 @media (max-width: 640px) {

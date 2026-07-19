@@ -49,4 +49,35 @@ class GeminiTryOnPromptBuilderTest extends TestCase
         $this->assertStringNotContainsString('photorealistic', $banned);
         $this->assertStringContainsString('raw studio photography', $banned);
     }
+
+    public function test_protect_list_sentence_appears_first(): void
+    {
+        $prompt = (new GeminiTryOnPromptBuilder())->build(
+            [],
+            null,
+            'Critical elements that must NOT be redesigned, replaced, or reinvented: Logo, Pearl buttons.',
+        );
+
+        $this->assertStringStartsWith('Critical elements that must NOT be redesigned', $prompt);
+    }
+
+    public function test_extra_statement_is_included_when_present(): void
+    {
+        $prompt = (new GeminiTryOnPromptBuilder())->build([
+            ['label' => 'Yaka', 'statement' => "For the 'Yaka' part (HIGH — do not redesign, replace, or invent): color: navy blue. Preserve exactly as shown in the reference image."],
+        ]);
+
+        $this->assertStringContainsString('Specific preservation instructions', $prompt);
+        $this->assertStringContainsString('navy blue', $prompt);
+    }
+
+    public function test_extras_without_statement_behave_like_before(): void
+    {
+        $prompt = (new GeminiTryOnPromptBuilder())->build([
+            ['label' => 'Arkadan'],
+        ]);
+
+        $this->assertStringContainsString('"Arkadan" view', $prompt);
+        $this->assertStringNotContainsString('Specific preservation instructions', $prompt);
+    }
 }

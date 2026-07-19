@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Modules\Creative\Http\Controllers\BrandKitController;
 use Modules\Creative\Http\Controllers\CreativeStudioController;
 use Modules\Creative\Http\Controllers\CreativeTemplateController;
+use Modules\Creative\Http\Controllers\GarmentScanController;
 use Modules\Creative\Http\Controllers\MannequinController;
 use Modules\Creative\Http\Controllers\PoseController;
 use Modules\Creative\Http\Controllers\RejectionReasonController;
@@ -79,6 +80,10 @@ Route::middleware(['auth', 'verified'])
         ->middleware('can:creative.view')->name('tryon.index');
     Route::post('/tryon', [TryonController::class, 'store'])
         ->middleware('can:creative.asset.manage')->name('tryon.store');
+    Route::post('/tryon/classify-detail', [TryonController::class, 'classifyDetail'])
+        ->middleware('can:creative.asset.manage')->name('tryon.classify-detail');
+    Route::get('/tryon/{result}', [TryonController::class, 'show'])
+        ->middleware('can:creative.view')->whereNumber('result')->name('tryon.show');
     Route::post('/tryon/{result}/approve', [TryonController::class, 'approve'])
         ->middleware('can:creative.approve')->whereNumber('result')->name('tryon.approve');
     Route::post('/tryon/{result}/reject', [TryonController::class, 'reject'])
@@ -87,6 +92,21 @@ Route::middleware(['auth', 'verified'])
         ->middleware('can:creative.asset.manage')->whereNumber('result')->name('tryon.cover');
     Route::delete('/tryon/{result}', [TryonController::class, 'destroyResult'])
         ->middleware('can:creative.asset.manage')->whereNumber('result')->name('tryon.destroy');
+
+    // ─── Giysi Parça Tespiti — manuel kutu-etiketleme aracı (Faz G.2) ─────
+    // Bootstrap veri toplama + otomatik tespit düzeltme; creative:train-garment-detector
+    // bu kayıtlardan (detections[source=manual]) beslenir. creative.asset.manage ile
+    // aynı yetki seviyesi (manken/poz/tryon yönetimiyle aynı grup — kullanıcı onayı).
+    Route::get('/garment-scans', [GarmentScanController::class, 'index'])
+        ->middleware('can:creative.asset.manage')->name('garment-scans.index');
+    Route::get('/garment-scans/{scan}', [GarmentScanController::class, 'show'])
+        ->middleware('can:creative.asset.manage')->whereNumber('scan')->name('garment-scans.show');
+    Route::post('/garment-scans/{scan}/annotations', [GarmentScanController::class, 'storeAnnotation'])
+        ->middleware('can:creative.asset.manage')->whereNumber('scan')->name('garment-scans.annotations.store');
+    Route::put('/garment-scans/{scan}/annotations/{annotation}', [GarmentScanController::class, 'updateAnnotation'])
+        ->middleware('can:creative.asset.manage')->whereNumber('scan')->name('garment-scans.annotations.update');
+    Route::delete('/garment-scans/{scan}/annotations/{annotation}', [GarmentScanController::class, 'destroyAnnotation'])
+        ->middleware('can:creative.asset.manage')->whereNumber('scan')->name('garment-scans.annotations.destroy');
 
     // ─── Onay sohbet asistanı (reddedilen manken/tryon için) ──────────────
     Route::get('/mannequins/{mannequin}/review-chat', [ReviewChatController::class, 'showMannequin'])

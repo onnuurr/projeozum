@@ -13,7 +13,7 @@ class MockTryOn implements GarmentTryOnContract
 {
     public function __construct(private MockImageFactory $images) {}
 
-    public function tryOn(string $modelImagePath, string $garmentImagePath): string
+    public function tryOn(string $modelImagePath, string $garmentImagePath, array $extraGarmentImages = [], ?string $extraInstruction = null, ?string $protectListSentence = null): string
     {
         // Model görseli okunabiliyorsa onu, değilse yeni bir placeholder döndür.
         if (is_file($modelImagePath)) {
@@ -24,5 +24,10 @@ class MockTryOn implements GarmentTryOnContract
         }
 
         return ImageFile::temp($this->images->make(768, 1024, '#2e3440', 'MOCK TRY-ON'), 'png');
+    }
+
+    public function modelIdentifier(): string
+    {
+        return 'mock';
     }
 }

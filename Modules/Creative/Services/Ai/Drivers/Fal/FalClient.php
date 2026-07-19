@@ -13,7 +13,7 @@ use RuntimeException;
 class FalClient
 {
     /**
-     * @param  array<string,mixed>  $input  Model girdisi (örn. idm-vton human/garment)
+     * @param  array<string,mixed>  $input  Model girdisi (örn. fashn/tryon model_image/garment_image)
      * @return array<string,mixed>  Tamamlanan işin sonuç JSON'u
      */
     public function run(array $input): array
