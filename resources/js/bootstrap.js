@@ -16,33 +16,41 @@ import Pusher from 'pusher-js';
 
 window.Pusher = Pusher;
 
+// Reverb bağlantı bilgileri .env'deki VITE_REVERB_* değerlerinden okunur (yerelde
+// tanımsızsa eski davranış: 127.0.0.1:8080/http). Böylece aynı kod hem yerel geliştirmede
+// hem prodüksiyonda (gerçek domain + wss, nginx'in /app/ location'ı üzerinden Reverb'e
+// proxy'lenir) doğru çalışır.
+const reverbHost   = import.meta.env.VITE_REVERB_HOST || '127.0.0.1';
+const reverbPort   = Number(import.meta.env.VITE_REVERB_PORT) || 8080;
+const reverbScheme = import.meta.env.VITE_REVERB_SCHEME || 'http';
+const reverbTLS    = reverbScheme === 'https';
+
 // Pusher strategy override - wss fallback'i devre dışı bırak
-const OriginalPusher = Pusher;
 Pusher.getGlobalConfig = function() {
     return {
-        wsHost: '127.0.0.1',
-        wsPort: 8080,
-        wssPort: 8080,
-        httpHost: '127.0.0.1',
-        httpPort: 8080,
-        httpsPort: 8080,
-        scheme: 'http',
-        useTLS: false,
+        wsHost: reverbHost,
+        wsPort: reverbPort,
+        wssPort: reverbPort,
+        httpHost: reverbHost,
+        httpPort: reverbPort,
+        httpsPort: reverbPort,
+        scheme: reverbScheme,
+        useTLS: reverbTLS,
         useSockjs: false,
-        enabledTransports: ['ws'],
-        disabledTransports: ['wss', 'sockjs'],
+        enabledTransports: reverbTLS ? ['wss'] : ['ws'],
+        disabledTransports: reverbTLS ? ['ws', 'sockjs'] : ['wss', 'sockjs'],
     };
 };
 
 window.Echo = new Echo({
     broadcaster: 'reverb',
     key: import.meta.env.VITE_REVERB_APP_KEY || 'nmd655cwaniqz6omotn2',
-    wsHost: '127.0.0.1',
-    wsPort: 8080,
-    wssPort: 8080,
-    forceTLS: false,
-    useTLS: false,
-    enabledTransports: ['ws'],
+    wsHost: reverbHost,
+    wsPort: reverbPort,
+    wssPort: reverbPort,
+    forceTLS: reverbTLS,
+    useTLS: reverbTLS,
+    enabledTransports: reverbTLS ? ['wss'] : ['ws'],
     // Varsayılan XHR authorizer YERİNE axios kullanılır — statik <meta csrf-token>
     // yerine axios'un XSRF-TOKEN cookie mekanizması devreye girer.
     // Aksi halde login sonrası session rotasyonunda /broadcasting/auth 419 verir.
