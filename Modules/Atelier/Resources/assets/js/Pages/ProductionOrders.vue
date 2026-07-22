@@ -16,7 +16,7 @@
 				<h1 class="page-title">İş Emirleri</h1>
 				<p class="page-subtitle"><strong>{{ orders.length }}</strong> iş emri</p>
 			</div>
-			<button @click="showWizard = true" class="btn btn-primary">+ Yeni İş Emri</button>
+			<button v-if="can('atelier.production.manage')" @click="showWizard = true" class="btn btn-primary">+ Yeni İş Emri</button>
 		</div>
 
 		<!-- Orders Table -->
@@ -165,8 +165,11 @@ import axios from 'axios'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import AtelierNav from '../Components/AtelierNav.vue'
+import { useCan } from '@/composables/useCan'
 
 defineOptions({ layout: AppLayout })
+
+const { can } = useCan()
 
 const props = defineProps({ orders: Array, products: Array, warehouses: Array, operations: Array })
 

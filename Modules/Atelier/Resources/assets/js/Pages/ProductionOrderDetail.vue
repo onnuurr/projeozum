@@ -24,7 +24,7 @@
 					Depo: {{ order.warehouse }}
 				</p>
 			</div>
-			<div class="header-actions">
+			<div v-if="can('atelier.production.manage')" class="header-actions">
 				<button v-if="order.status === 'draft'" @click="plan" class="btn btn-warning">Planla (Hammadde düş)</button>
 				<button v-if="['planned','in_progress'].includes(order.status)" @click="complete" class="btn btn-success">Tamamla → Stoğa al</button>
 				<button v-if="!['completed','cancelled'].includes(order.status)" @click="cancel" class="btn btn-outline-danger">İptal</button>
@@ -73,7 +73,7 @@
 						<input v-model="itemForms[i.id].scrap_qty" type="number" class="form-input" />
 					</div>
 				</div>
-				<div class="items-footer">
+				<div v-if="can('atelier.production.manage')" class="items-footer">
 					<button @click="saveItems" class="btn btn-primary btn-sm">Üretim Miktarlarını Kaydet</button>
 				</div>
 			</div>
@@ -128,7 +128,7 @@
 							</select>
 						</div>
 					</div>
-					<div class="step-save">
+					<div v-if="can('atelier.production.manage')" class="step-save">
 						<button @click="saveStep(s.id)" class="btn btn-primary btn-sm">Kaydet</button>
 					</div>
 				</div>
@@ -144,9 +144,11 @@ import { Head, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import AtelierNav from '../Components/AtelierNav.vue'
+import { useCan } from '@/composables/useCan'
 
 defineOptions({ layout: AppLayout })
 
+const { can } = useCan()
 const $swal = inject('$swal')
 
 const props = defineProps({ order: Object, fasonSuppliers: Array })

@@ -19,7 +19,7 @@
 		</div>
 
 		<!-- Form Card -->
-		<div class="card" style="margin-bottom: 18px;">
+		<div v-if="can('atelier.operation.manage')" class="card" style="margin-bottom: 18px;">
 			<div class="card-header">
 				<h3>{{ editing ? 'Operasyon Düzenle' : 'Yeni Operasyon' }}</h3>
 			</div>
@@ -93,7 +93,7 @@
 						<td class="num">{{ o.defaultUnitCost }}</td>
 						<td class="num dim">{{ o.sortOrder }}</td>
 						<td>
-							<div class="table-actions">
+							<div v-if="can('atelier.operation.manage')" class="table-actions">
 								<button class="table-action-btn" @click="edit(o)" title="Düzenle">✏️</button>
 								<button class="table-action-btn danger" @click="remove(o)" title="Sil">🗑️</button>
 							</div>
@@ -112,9 +112,11 @@ import { Head, useForm, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import AtelierNav from '../Components/AtelierNav.vue'
+import { useCan } from '@/composables/useCan'
 
 defineOptions({ layout: AppLayout })
 
+const { can } = useCan()
 const $swal = inject('$swal')
 
 const props = defineProps({ operations: Array })

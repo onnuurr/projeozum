@@ -19,7 +19,7 @@
 		</div>
 
 		<!-- Form Card -->
-		<div class="card" style="margin-bottom: 18px;">
+		<div v-if="can('atelier.fason.manage')" class="card" style="margin-bottom: 18px;">
 			<div class="card-header">
 				<h3>{{ editing ? 'Fasoncu Düzenle' : 'Yeni Fasoncu' }}</h3>
 			</div>
@@ -107,7 +107,7 @@
 							</span>
 						</td>
 						<td>
-							<div class="table-actions">
+							<div v-if="can('atelier.fason.manage')" class="table-actions">
 								<button class="table-action-btn" @click="edit(s)" title="Düzenle">✏️</button>
 								<button class="table-action-btn danger" @click="remove(s)" title="Sil">🗑️</button>
 							</div>
@@ -126,9 +126,11 @@ import { Head, useForm, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import AtelierNav from '../Components/AtelierNav.vue'
+import { useCan } from '@/composables/useCan'
 
 defineOptions({ layout: AppLayout })
 
+const { can } = useCan()
 const $swal = inject('$swal')
 
 const props = defineProps({ suppliers: Array })

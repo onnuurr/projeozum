@@ -26,7 +26,7 @@
 
 		<div class="studio-grid">
 			<!-- Sol: Tarif tezgâhı -->
-			<aside class="composer card">
+			<aside v-if="can('atelier.design.manage')" class="composer card">
 				<div class="card-header">
 					<h3>Tarif</h3>
 				</div>
@@ -163,13 +163,16 @@
 							<p v-if="card.prompt" class="concept-prompt">{{ card.prompt }}</p>
 
 							<div class="concept-foot">
-								<button v-if="card.generationStatus === 'failed'" class="btn-link" @click="regenerate(card)">Yeniden dene</button>
-								<span v-else-if="card.generationStatus === 'processing'" class="foot-muted">hazırlanıyor…</span>
-								<span v-else-if="card.pattern" class="matched-link">
-									⟶ {{ card.pattern.name }}
-								</span>
-								<button v-else class="btn-link" @click="openMatch(card)">Kalıba eşle</button>
-								<button class="archive-btn" @click="archive(card)" title="Arşivle">🗑️</button>
+								<template v-if="can('atelier.design.manage')">
+									<button v-if="card.generationStatus === 'failed'" class="btn-link" @click="regenerate(card)">Yeniden dene</button>
+									<span v-else-if="card.generationStatus === 'processing'" class="foot-muted">hazırlanıyor…</span>
+									<span v-else-if="card.pattern" class="matched-link">
+										⟶ {{ card.pattern.name }}
+									</span>
+									<button v-else class="btn-link" @click="openMatch(card)">Kalıba eşle</button>
+									<button class="archive-btn" @click="archive(card)" title="Arşivle">🗑️</button>
+								</template>
+								<span v-else-if="card.pattern" class="matched-link">⟶ {{ card.pattern.name }}</span>
 							</div>
 						</div>
 					</article>
@@ -214,8 +217,11 @@ import { Head, router, useForm } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import AtelierNav from '../Components/AtelierNav.vue'
+import { useCan } from '@/composables/useCan'
 
 defineOptions({ layout: AppLayout })
+
+const { can } = useCan()
 
 const props = defineProps({
 	cards: { type: Array, default: () => [] },

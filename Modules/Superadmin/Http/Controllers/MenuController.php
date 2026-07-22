@@ -24,7 +24,7 @@ class MenuController extends Controller
                 'id', 'parent_id', 'label', 'icon', 'route_name',
                 'url', 'permission', 'sort_order', 'is_active',
             ]),
-            'permissions' => Permission::query()->orderBy('name')->pluck('name'),
+            'permissions' => Permission::query()->orderBy('name')->get(['name', 'display_name']),
             'routes'      => RouteCatalog::forMenu(),
         ]);
     }

@@ -19,7 +19,7 @@
 		</div>
 
 		<!-- Form Card -->
-		<div class="card" style="margin-bottom: 18px;">
+		<div v-if="can('atelier.material.manage')" class="card" style="margin-bottom: 18px;">
 			<div class="card-header">
 				<h3>{{ editing ? 'Hammadde Düzenle' : 'Yeni Hammadde' }}</h3>
 			</div>
@@ -98,7 +98,7 @@
 						<td class="num">{{ m.currentStock }}</td>
 						<td class="num dim">{{ m.unitCost }}</td>
 						<td>
-							<div class="table-actions">
+							<div v-if="can('atelier.material.manage')" class="table-actions">
 								<button class="table-action-btn" @click="openSpecs(m)" title="Özellikler (AI için)">🧵</button>
 									<button class="table-action-btn" @click="openMove(m)" title="Stok Hareketi">⇅</button>
 								<button class="table-action-btn" @click="edit(m)" title="Düzenle">✏️</button>
@@ -175,9 +175,11 @@ import Breadcrumb from '@/Components/Breadcrumb.vue'
 import AtelierNav from '../Components/AtelierNav.vue'
 import MaterialSpecsPanel from '../Components/MaterialSpecsPanel.vue'
 import axios from 'axios'
+import { useCan } from '@/composables/useCan'
 
 defineOptions({ layout: AppLayout })
 
+const { can } = useCan()
 const $swal = inject('$swal')
 
 const props = defineProps({ materials: Array })

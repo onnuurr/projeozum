@@ -377,7 +377,7 @@
 								</svg>
 								<input v-model="roleSearch" type="text" placeholder="Rol ara..." class="role-search-input" />
 							</div>
-							<button class="btn btn-primary btn-sm btn-with-icon" @click="openAddRole">
+							<button v-if="can('rbac.manage')" class="btn btn-primary btn-sm btn-with-icon" @click="openAddRole">
 								<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
 									<line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
 								</svg>
@@ -420,7 +420,7 @@
 										</span>
 									</div>
 								</div>
-								<div class="role-card-actions">
+								<div v-if="can('rbac.manage')" class="role-card-actions">
 									<button class="rc-action" @click="openEditRole(r)" :disabled="r.key === 'superadmin'" :title="r.key === 'superadmin' ? 'Süper Admin rolü düzenlenemez' : 'Düzenle'">
 										<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
 											<path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
@@ -447,7 +447,7 @@
 								</svg>
 								<input v-model="permSearch" type="text" placeholder="İzin ara..." class="role-search-input" />
 							</div>
-							<button class="btn btn-primary btn-sm btn-with-icon" @click="openAddPermission">
+							<button v-if="can('rbac.manage')" class="btn btn-primary btn-sm btn-with-icon" @click="openAddPermission">
 								<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
 									<line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
 								</svg>
@@ -471,7 +471,7 @@
 											<div class="perm-list-name">{{ p.name }}</div>
 											<div class="perm-list-key">{{ p.key }}</div>
 										</div>
-										<div class="perm-list-actions">
+										<div v-if="can('rbac.manage')" class="perm-list-actions">
 											<button class="rc-action" title="Düzenle" @click="openEditPermission(p)">
 												<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
 													<path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
@@ -527,7 +527,7 @@
 													<input
 														type="checkbox"
 														:checked="hasPermission(r, p.key)"
-														:disabled="r.key === 'superadmin'"
+														:disabled="r.key === 'superadmin' || !can('rbac.manage')"
 														@change="togglePermission(r, p.key)"
 													/>
 													<span class="m-checkbox">
@@ -900,7 +900,7 @@
 							<div class="ir-value">{{ form.storage.lastBackupSize ?? '—' }}</div>
 						</div>
 						<a href="/superadmin/backups" class="btn btn-secondary btn-sm">Tüm Geçmiş</a>
-						<button class="btn btn-secondary btn-sm" :disabled="backupBusy" @click="runBackup">
+						<button v-if="can('backups.manage')" class="btn btn-secondary btn-sm" :disabled="backupBusy" @click="runBackup">
 							{{ backupBusy ? 'Kuyruğa alınıyor…' : 'Şimdi Yedekle' }}
 						</button>
 					</div>
@@ -1429,8 +1429,11 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import CustomSelect from '@/Components/CustomSelect.vue'
 import AppModal from '@/Components/AppModal.vue'
+import { useCan } from '@/composables/useCan'
 
 defineOptions({ layout: AppLayout })
+
+const { can } = useCan()
 
 const props = defineProps({
 	settings: { type: Object, required: true },
@@ -1630,7 +1633,7 @@ function reloadRoles(onDone) {
 }
 
 async function togglePermission(role, key) {
-	if (role.key === 'superadmin' || roleBusy.value) return
+	if (role.key === 'superadmin' || roleBusy.value || !can('rbac.manage')) return
 	const next = hasPermission(role, key)
 		? role.permissions.filter((k) => k !== key)
 		: [...(role.permissions || []), key]

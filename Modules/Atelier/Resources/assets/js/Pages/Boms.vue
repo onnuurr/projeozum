@@ -19,7 +19,7 @@
 		</div>
 
 		<!-- New BOM form card -->
-		<div class="card" style="margin-bottom: 18px;">
+		<div v-if="can('atelier.bom.manage')" class="card" style="margin-bottom: 18px;">
 			<div class="card-header">
 				<h3>Yeni Reçete</h3>
 			</div>
@@ -86,7 +86,7 @@
 					<span class="bom-product">{{ b.productName }}</span>
 					<span class="bom-name-badge">{{ b.name }}</span>
 				</div>
-				<button class="btn btn-ghost btn-sm btn-danger-ghost" @click="remove(b)">Sil</button>
+				<button v-if="can('atelier.bom.manage')" class="btn btn-ghost btn-sm btn-danger-ghost" @click="remove(b)">Sil</button>
 			</div>
 			<div class="table-scroll">
 			<table class="data-table">
@@ -116,9 +116,11 @@ import { Head, useForm, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import AtelierNav from '../Components/AtelierNav.vue'
+import { useCan } from '@/composables/useCan'
 
 defineOptions({ layout: AppLayout })
 
+const { can } = useCan()
 const $swal = inject('$swal')
 
 const props = defineProps({ boms: Array, products: Array, materials: Array })

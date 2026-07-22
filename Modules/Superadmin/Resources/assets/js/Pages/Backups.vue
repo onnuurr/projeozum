@@ -17,7 +17,7 @@
 					komutuyla yedeklenip rclone ile Google Drive'a kopyalanır.
 				</p>
 			</div>
-			<button class="btn btn-primary btn-sm" :disabled="busy || hasRunning" @click="runNow">
+			<button v-if="can('backups.manage')" class="btn btn-primary btn-sm" :disabled="busy || hasRunning" @click="runNow">
 				{{ busy ? 'Kuyruğa alınıyor…' : 'Şimdi Çalıştır' }}
 			</button>
 		</div>
@@ -73,8 +73,11 @@ import { computed, ref } from 'vue'
 import { Head, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
+import { useCan } from '@/composables/useCan'
 
 defineOptions({ layout: AppLayout })
+
+const { can } = useCan()
 
 const props = defineProps({
 	runs: { type: Array, default: () => [] },

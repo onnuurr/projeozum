@@ -66,7 +66,7 @@
 				<label>İzin (permission)
 					<select v-model="form.permission">
 						<option :value="null">— Herkese açık —</option>
-						<option v-for="p in permissions" :key="p" :value="p">{{ p }}</option>
+						<option v-for="p in permissions" :key="p.name" :value="p.name">{{ p.display_name ?? p.name }}</option>
 					</select>
 				</label>
 

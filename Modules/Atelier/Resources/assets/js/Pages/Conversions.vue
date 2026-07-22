@@ -186,8 +186,11 @@ import { Head, router, useForm } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import AtelierNav from '../Components/AtelierNav.vue'
+import { useCan } from '@/composables/useCan'
 
 defineOptions({ layout: AppLayout })
+
+const { can } = useCan()
 
 const props = defineProps({
 	jobs: { type: Array, default: () => [] },
@@ -195,7 +198,9 @@ const props = defineProps({
 	counts: { type: Object, default: () => ({}) },
 	driver: { type: String, default: 'mock' },
 })
-const canManage = computed(() => true) // sayfa zaten can:atelier.view ile korunur; aksiyonlar backend'de kapılı
+// Sayfa can:atelier.view ile korunur (salt-okuma yeterli); onayla/reddet/yeniden dene/yükleme
+// aksiyonları backend'de ayrı can:atelier.conversion.manage ister — buton görünürlüğü buna göre.
+const canManage = computed(() => can('atelier.conversion.manage'))
 
 const statuses = [
 	{ key: 'needs_review', label: 'İncelemede' },

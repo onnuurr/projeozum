@@ -9,7 +9,7 @@
 				<p class="page-subtitle">{{ salesCount }} satış kaydı</p>
 			</div>
 			<div class="actions">
-				<button class="btn" :disabled="busy" @click="pullOrders">{{ busy ? '...' : 'Siparişleri Çek' }}</button>
+				<button v-if="can('marketplace.sync')" class="btn" :disabled="busy" @click="pullOrders">{{ busy ? '...' : 'Siparişleri Çek' }}</button>
 				<Link href="/marketplace/trendyol/listings" class="btn outline">Satışlar</Link>
 			</div>
 		</header>
@@ -41,6 +41,7 @@
 import { ref, inject } from 'vue'
 import { Head, Link, router } from '@inertiajs/vue3'
 import TenantPortalLayout from '@/Layouts/TenantPortalLayout.vue'
+import { useCan } from '@/composables/useCan'
 
 defineOptions({ layout: TenantPortalLayout })
 
@@ -50,6 +51,7 @@ defineProps({
 	salesCount: { type: Number, default: 0 },
 })
 
+const { can } = useCan()
 const showToast = inject('showToast', null)
 const busy = ref(false)
 
