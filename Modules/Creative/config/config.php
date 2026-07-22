@@ -45,8 +45,10 @@ return [
         'script'     => base_path('Modules/Creative/python/enhance.py'),
         'model_dir'  => base_path('Modules/Creative/python/models'),
         'model_name' => env('CREATIVE_ENHANCE_MODEL', 'fsrcnn'), // fsrcnn | edsr | lapsrn | espcn
-        'scale'      => (int) env('CREATIVE_ENHANCE_SCALE', 2),
-        'max_side'   => (int) env('CREATIVE_ENHANCE_MAX_SIDE', 2048),
+        // 4x süper-çözünürlük (FSRCNN_x4.pb repoda mevcut) + max_side'a Lanczos
+        // ile geri indirme, doğrudan 2x'ten daha keskin/detaylı sonuç verir.
+        'scale'      => (int) env('CREATIVE_ENHANCE_SCALE', 4),
+        'max_side'   => (int) env('CREATIVE_ENHANCE_MAX_SIDE', 4096),
         'unsharp'    => [
             'radius'    => (float) env('CREATIVE_ENHANCE_UNSHARP_RADIUS', 2.0),
             'percent'   => (int) env('CREATIVE_ENHANCE_UNSHARP_PERCENT', 120),
@@ -290,6 +292,16 @@ return [
         'tryon_driver'   => env('AI_STUDIO_TRYON_DRIVER', 'gemini'),
         // gemini | mock — caption/hashtag üretimi
         'caption_driver' => env('CREATIVE_CAPTION_DRIVER', 'gemini'),
+        // gemini | mock — görsel-üstü metin (headline/sub-headline/CTA) üretimi
+        'copy_driver' => env('CREATIVE_COPY_DRIVER', 'gemini'),
+        'copy' => [
+            'confidence_threshold' => (float) env('CREATIVE_COPY_CONFIDENCE_THRESHOLD', 0.6),
+            // Prompt metni değişince ELLE artırılır (bkz. garment_detection.analysis.prompt_version).
+            'prompt_version' => 1,
+            // Slot genişliği → karakter tavanı heuristiğinde kullanılan kaba glyph
+            // genişlik katsayısı (gerçek font metriği değil, marka fontuna göre ayarlanabilir).
+            'glyph_width_factor' => (float) env('CREATIVE_COPY_GLYPH_WIDTH_FACTOR', 0.55),
+        ],
 
         // AI çağrıları yavaş; pipeline genel zaman aşımı (saniye).
         'timeout' => (int) env('CREATIVE_AI_TIMEOUT', 240),
@@ -322,9 +334,14 @@ return [
             'image' => [
                 // Tam boy portre için 3:4 (veya 9:16). Boş → gönderilmez.
                 'aspect_ratio' => env('GEMINI_IMAGE_ASPECT_RATIO', '3:4'),
-                // 3.x modellerde "1K" | "2K" | "4K". 2.5'te desteklenmeyebilir;
-                // bu yüzden varsayılan boş (env ile açılır).
+                // Kimlik/poz adımları: 3.x modellerde "1K" | "2K" | "4K".
+                // Bu adımlar varsayılan olarak 2.5-flash-image'e düşebildiği ve
+                // 2.5'te desteklenmeyebildiği için varsayılan boş (env ile açılır).
                 'size'         => env('GEMINI_IMAGE_SIZE', ''),
+                // Try-on adımı: tryon_model her zaman 3.1-flash-image (1K/2K/4K
+                // destekler) olduğu için burada güvenle varsayılan 2K açılabilir —
+                // giydirme çıktısının çözünürlüğünü doğrudan yükseltir.
+                'tryon_size'   => env('GEMINI_TRYON_IMAGE_SIZE', '2K'),
             ],
         ],
 
@@ -457,6 +474,59 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | AI Kompozisyon (fal.ai Flux.2 tam-post render path) — Faz J
+    |--------------------------------------------------------------------------
+    | İkinci, opsiyonel bir render motoru: SVG şablonu yerine fal.ai'ye ürün +
+    | (varsa) manken referansı + headline/CTA metnini tek istekte gömüp bitmiş
+    | bir post ister. ROADMAP.md Faz H/J'de belgelenen risk (typo, ürün
+    | sadakati) nedeniyle çıktı ASLA doğrudan kabul edilmez — OCR ile üretilen
+    | metin doğrulanır, safe-margin'e uymayan/eşleşmeyen kompozisyonlar
+    | reddedilip GenerateCreativeJob tarafından (mevcut tries/backoff ile)
+    | yeniden denenir. Anahtar yoksa (veya driver != fal) MockCompositionComposer
+    | devreye girer — bilinen sabit bir konumda headline "yakar", böylece
+    | constraint/OCR ucu anahtarsız uçtan uca test edilebilir.
+    */
+    'composition' => [
+        'driver' => env('CREATIVE_COMPOSITION_DRIVER', 'mock'), // fal | mock
+
+        'fal' => [
+            // NOT — doğrulanmadı: hangi fal.ai model id'sinin çoklu referans
+            // görsel + literal metin talimatını kabul ettiği teyit edilmeden
+            // prod'a alınmamalı (bkz. ROADMAP.md Faz J açık sorular).
+            'model' => env('CREATIVE_COMPOSITION_FAL_MODEL', 'fal-ai/flux-2'),
+        ],
+
+        // Render'dan ÖNCE (metin üretilirken) ve SONRA (OCR ile) uygulanan
+        // ölçülebilir kısıtlar — "öznel brand-similarity skoru DEĞİL" ilkesi.
+        'constraints' => [
+            'headline_max_words'        => (int) env('CREATIVE_COMPOSITION_HEADLINE_MAX_WORDS', 3),
+            'headline_max_lines'        => (int) env('CREATIVE_COMPOSITION_HEADLINE_MAX_LINES', 1),
+            'cta_max_words'              => (int) env('CREATIVE_COMPOSITION_CTA_MAX_WORDS', 3),
+            // Canvas kenarından itibaren metnin girmemesi gereken oran (0.06 = %6).
+            'safe_margin_pct'            => (float) env('CREATIVE_COMPOSITION_SAFE_MARGIN_PCT', 0.06),
+            // OCR metni ile istenen metin arasındaki asgari benzerlik (0-1).
+            // Tek kelimelik başlıklarda ölçüldü (bkz. ROADMAP.md Faz J) — çok
+            // kelimeli/CTA metinlerinde gerçek örneklerle kalibre edilmeli.
+            'text_match_min_similarity' => (float) env('CREATIVE_COMPOSITION_TEXT_SIMILARITY', 0.85),
+        ],
+
+        // Metin doğrulama (OCR). KAPALIYKEN ai_compose motoru HİÇ çalışmaz —
+        // OCR'sız tam-AI render'ı "ham AI çıktısı asla doğrudan kullanılmaz"
+        // disiplinini ihlal eder (bkz. CreativeRenderService::generateAiComposition).
+        'ocr' => [
+            'enabled'        => (bool) env('CREATIVE_OCR_ENABLED', false),
+            'driver'         => env('CREATIVE_OCR_DRIVER', 'python'), // python | null
+            'python_bin'     => env('CREATIVE_OCR_PYTHON_BIN', env('CREATIVE_PYTHON_BIN', 'python3')),
+            'script'         => base_path('Modules/Creative/python/ocr_text.py'),
+            // Türkçe headline/CTA için 'eng+tur' — tesseract-ocr-tur paketi gerekir.
+            'lang'           => env('CREATIVE_OCR_LANG', 'eng'),
+            'min_confidence' => (float) env('CREATIVE_OCR_MIN_CONFIDENCE', 0.4),
+            'timeout'        => (int) env('CREATIVE_OCR_TIMEOUT', 30),
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Marka (Brand Kit) varsayılanları
     |--------------------------------------------------------------------------
     | brand_kits tablosunda varsayılan kit yoksa veya bir token eksikse devreye
@@ -503,6 +573,70 @@ return [
         'instagram_story'    => ['label' => 'Instagram / Story (9:16)',  'width' => 1080, 'height' => 1920, 'aspect' => '9:16 vertical'],
         'facebook_post'      => ['label' => 'Facebook Gönderi',          'width' => 1200, 'height' => 630,  'aspect' => '1.91:1 landscape'],
         'x_post'             => ['label' => 'X (Twitter) Gönderi',       'width' => 1600, 'height' => 900,  'aspect' => '16:9 landscape'],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Marka Kitinden Şablon Üretimi (layout preset'leri)
+    |--------------------------------------------------------------------------
+    | TemplateGeneratorService bu preset'leri kullanarak SVG şablon üretir.
+    | Tüm geometri 0-1 arası ORAN'dır (x/y/w/h genişlik-yüksekliğe, font_size
+    | yüksekliğe oranlanır) — böylece tek preset tanımı 'formats' altındaki
+    | her sosyal boyutta (kare/dikey/yatay) aynı şekilde işler. Renkler
+    | render motorunun çözdüğü "token:<palette_key>" referanslarıdır (bkz.
+    | python/render.py::resolve_color_token) — marka kiti sonradan değişirse
+    | üretilmiş şablonlar da otomatik güncel kalır.
+    */
+    'template_presets' => [
+        'product_full_bleed' => [
+            'label' => 'Ürün Tam Kapak + Alt Karartma',
+            'slots' => [
+                ['key' => 'product_image', 'type' => 'image', 'x' => 0.0, 'y' => 0.0, 'w' => 1.0, 'h' => 1.0, 'fit' => 'cover'],
+                ['key' => 'scrim',         'type' => 'rect',  'x' => 0.0, 'y' => 0.62, 'w' => 1.0, 'h' => 0.38, 'fill' => 'rgba(17,24,39,0.55)'],
+                ['key' => 'logo',          'type' => 'image', 'x' => 0.86, 'y' => 0.04, 'w' => 0.10, 'h' => 0.10, 'fit' => 'contain'],
+                ['key' => 'headline',      'type' => 'text',  'x' => 0.06, 'y' => 0.78, 'font_size' => 0.052, 'align' => 'left', 'bold' => true,  'fill' => 'token:background'],
+                ['key' => 'sub_headline',  'type' => 'text',  'x' => 0.06, 'y' => 0.855, 'font_size' => 0.030, 'align' => 'left', 'bold' => false, 'fill' => 'token:background'],
+                ['key' => 'cta_badge',     'type' => 'rect',  'x' => 0.06, 'y' => 0.895, 'w' => 0.34, 'h' => 0.07, 'fill' => 'token:accent'],
+                ['key' => 'cta_button',    'type' => 'text',  'x' => 0.10, 'y' => 0.938, 'font_size' => 0.026, 'align' => 'left', 'bold' => true,  'fill' => 'token:background'],
+            ],
+        ],
+        'product_bottom_banner' => [
+            'label' => 'Ürün Üstte + Marka Bandı Altta',
+            'slots' => [
+                ['key' => 'product_image', 'type' => 'image', 'x' => 0.0, 'y' => 0.0, 'w' => 1.0, 'h' => 0.70, 'fit' => 'cover'],
+                ['key' => 'band',          'type' => 'rect',  'x' => 0.0, 'y' => 0.70, 'w' => 1.0, 'h' => 0.30, 'fill' => 'token:background'],
+                ['key' => 'logo',          'type' => 'image', 'x' => 0.06, 'y' => 0.735, 'w' => 0.09, 'h' => 0.09, 'fit' => 'contain'],
+                ['key' => 'headline',      'type' => 'text',  'x' => 0.06, 'y' => 0.875, 'font_size' => 0.046, 'align' => 'left', 'bold' => true,  'fill' => 'token:text'],
+                ['key' => 'sub_headline',  'type' => 'text',  'x' => 0.06, 'y' => 0.935, 'font_size' => 0.028, 'align' => 'left', 'bold' => false, 'fill' => 'token:secondary'],
+                ['key' => 'cta_badge',     'type' => 'rect',  'x' => 0.68, 'y' => 0.79, 'w' => 0.26, 'h' => 0.09, 'fill' => 'token:accent'],
+                ['key' => 'cta_button',    'type' => 'text',  'x' => 0.72, 'y' => 0.845, 'font_size' => 0.026, 'align' => 'left', 'bold' => true,  'fill' => 'token:background'],
+            ],
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Layout Geometrisi Kısıtları (Faz N)
+    |--------------------------------------------------------------------------
+    | "composition.constraints" (yukarıda) yalnız ai_compose'un render-SONRASI OCR
+    | kontrolüdür. Bunlar ise render'a HİÇ gerek duymadan, yalnızca
+    | CreativeTemplate.slots geometrisinden hesaplanır (bkz.
+    | LayoutConstraintEngine::checkSlotGeometry) — hem manuel yüklenen hem
+    | TemplateGeneratorService çıktısı şablonlar için aynı şekilde çalışır.
+    | Mevcut composition/ai/garment_detection eşiklerine DOKUNULMADI (env
+    | uyumluluğu) — bu bilerek ayrı, yeni bir ağaç.
+    */
+    'constraints' => [
+        'layout' => [
+            // product_image slotunun tuval alanına oranı bunun altındaysa uyarı.
+            'hero_coverage_min_pct' => (float) env('CREATIVE_CONSTRAINTS_HERO_COVERAGE_MIN', 0.30),
+            // 1 - (toplam slot alanı / tuval alanı) bunun altındaysa uyarı.
+            'whitespace_min_pct'    => (float) env('CREATIVE_CONSTRAINTS_WHITESPACE_MIN', 0.08),
+            // Açılırsa: 'logo' anahtarlı bir slot yoksa uyarı (varsayılan kapalı).
+            'require_logo_slot'     => (bool) env('CREATIVE_CONSTRAINTS_REQUIRE_LOGO', false),
+            // İki slot kutusu bu pikselden fazla kesişirse çakışma sayılır.
+            'overlap_tolerance_px'  => (int) env('CREATIVE_CONSTRAINTS_OVERLAP_TOLERANCE', 4),
+        ],
     ],
 
     /*

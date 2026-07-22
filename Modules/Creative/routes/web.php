@@ -36,12 +36,20 @@ Route::middleware(['auth', 'verified'])
         ->middleware('can:creative.generate')->whereNumber('asset')->name('assets.regenerate');
     Route::put('/assets/{asset}/caption', [CreativeStudioController::class, 'updateCaption'])
         ->middleware('can:creative.generate')->whereNumber('asset')->name('assets.caption.update');
+    Route::get('/assets/{asset}/review-chat', [ReviewChatController::class, 'showAsset'])
+        ->middleware('can:creative.view')->whereNumber('asset')->name('assets.review-chat.show');
+    Route::post('/assets/{asset}/review-chat', [ReviewChatController::class, 'sendAsset'])
+        ->middleware('can:creative.view')->whereNumber('asset')->name('assets.review-chat');
+    Route::post('/assets/{asset}/review-chat/apply', [ReviewChatController::class, 'applyAsset'])
+        ->middleware('can:creative.view')->whereNumber('asset')->name('assets.review-chat.apply');
 
     // ─── Şablonlar ───────────────────────────────────────────────────────
     Route::get('/templates', [CreativeTemplateController::class, 'index'])
         ->middleware('can:creative.view')->name('templates.index');
     Route::post('/templates', [CreativeTemplateController::class, 'store'])
         ->middleware('can:creative.template.manage')->name('templates.store');
+    Route::post('/templates/generate', [CreativeTemplateController::class, 'generateFromBrandKit'])
+        ->middleware('can:creative.template.manage')->name('templates.generate');
     Route::put('/templates/{template}', [CreativeTemplateController::class, 'update'])
         ->middleware('can:creative.template.manage')->whereNumber('template')->name('templates.update');
     Route::put('/templates/{template}/slots', [CreativeTemplateController::class, 'updateSlots'])

@@ -16,12 +16,52 @@
 				<h1 class="page-title">Şablonlar</h1>
 				<p class="page-subtitle">SVG şablon yükleyin, slotları sürükleyerek konumlandırın. Değişiklikler SVG'ye işlenir.</p>
 			</div>
-			<label class="btn btn-primary btn-with-icon" :class="{ disabled: uploading }">
-				<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
-				{{ uploading ? 'Yükleniyor…' : 'SVG Yükle' }}
-				<input type="file" accept=".svg,image/svg+xml" hidden @change="uploadTemplate" />
-			</label>
+			<div v-if="can('creative.template.manage')" class="header-btns">
+				<button type="button" class="btn btn-ghost btn-with-icon" @click="openGenerateModal">
+					<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 2l2.2 6.8H21l-5.6 4.1 2.2 6.8-5.6-4.1-5.6 4.1 2.2-6.8L3 8.8h6.8z" /></svg>
+					Marka Kitinden Üret
+				</button>
+				<label class="btn btn-primary btn-with-icon" :class="{ disabled: uploading }">
+					<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+					{{ uploading ? 'Yükleniyor…' : 'SVG Yükle' }}
+					<input type="file" accept=".svg,image/svg+xml" hidden @change="uploadTemplate" />
+				</label>
+			</div>
 		</div>
+
+		<AppModal v-model="genModalOpen" title="Marka Kitinden Şablon Üret" subtitle="Seçilen marka kiti ve formatlara göre otomatik SVG şablon(lar) oluşturulur." size="md">
+			<div class="field">
+				<label>Marka Kiti</label>
+				<select v-model.number="genForm.brand_kit_id">
+					<option v-for="k in brandKits" :key="k.id" :value="k.id">{{ k.name }}{{ k.is_default ? ' (varsayılan)' : '' }}</option>
+				</select>
+			</div>
+			<div class="field">
+				<label>Tasarım</label>
+				<select v-model="genForm.preset">
+					<option v-for="(label, key) in presets" :key="key" :value="key">{{ label }}</option>
+				</select>
+			</div>
+			<div class="field">
+				<label>Formatlar</label>
+				<div class="format-chips">
+					<label v-for="f in formats" :key="f.key" class="format-chip" :class="{ on: genForm.formats.includes(f.key) }">
+						<input type="checkbox" :value="f.key" v-model="genForm.formats" />
+						{{ f.label }}
+					</label>
+				</div>
+			</div>
+			<template #footer="{ close }">
+				<button class="btn btn-ghost" :disabled="generating" @click="close">İptal</button>
+				<button
+					class="btn btn-primary"
+					:disabled="generating || !genForm.brand_kit_id || !genForm.preset || genForm.formats.length === 0"
+					@click="submitGenerate"
+				>
+					{{ generating ? 'Üretiliyor…' : 'Üret' }}
+				</button>
+			</template>
+		</AppModal>
 
 		<div class="tpl-layout">
 			<!-- Şablon listesi -->
@@ -43,6 +83,9 @@
 						<span class="tpl-list-dim">{{ t.width }}×{{ t.height }} · {{ (t.slots || []).length }} slot</span>
 					</div>
 					<span v-if="!t.is_active" class="tpl-off">pasif</span>
+					<span v-else-if="t.constraints && !t.constraints.passed" class="tpl-warn" :title="t.constraints.violations.join('\n')">
+						⚠ {{ t.constraints.violations.length }}
+					</span>
 				</button>
 			</aside>
 
@@ -50,14 +93,21 @@
 			<section v-if="current" class="tpl-designer">
 				<div class="card">
 					<div class="card-header">
-						<input v-model="nameDraft" class="name-input" type="text" @blur="saveMeta" />
-						<div class="header-actions">
+						<input v-model="nameDraft" class="name-input" type="text" :readonly="!can('creative.template.manage')" @blur="saveMeta" />
+						<div v-if="can('creative.template.manage')" class="header-actions">
 							<label class="active-toggle" :class="{ on: activeDraft }">
 								<input v-model="activeDraft" type="checkbox" @change="saveMeta" />
 								<span class="at-dot"></span> Aktif
 							</label>
 							<button class="link-btn danger" @click="removeTemplate">Sil</button>
 						</div>
+					</div>
+
+					<div v-if="current.constraints && !current.constraints.passed" class="constraint-warnings">
+						<strong>Layout uyarıları:</strong>
+						<ul>
+							<li v-for="(v, i) in current.constraints.violations" :key="i">{{ v }}</li>
+						</ul>
 					</div>
 
 					<div class="card-body designer-body">
@@ -134,6 +184,11 @@
 									<div class="field"><label>Renk (#hex veya token:primary)</label>
 										<input v-model="active.fill" type="text" placeholder="token:text" /></div>
 									<label class="bold-toggle"><input v-model="active.bold" type="checkbox" /> Kalın (bold)</label>
+									<div class="field">
+										<label>Azami genişlik (AI metin kırpma için, opsiyonel)</label>
+										<input v-model.number="active.w" type="number" min="0" placeholder="örn. 400" />
+										<p class="field-hint">Boş/0 bırakılırsa kırpma kontrolü atlanır. Render'ı etkilemez.</p>
+									</div>
 								</template>
 							</template>
 						</div>
@@ -141,7 +196,7 @@
 
 					<div class="designer-footer">
 						<span class="hint">Slotlar SVG'ye yazılır ve şablon yeniden incelenir.</span>
-						<button class="btn btn-primary" :disabled="saving" @click="saveSlots">
+						<button v-if="can('creative.template.manage')" class="btn btn-primary" :disabled="saving" @click="saveSlots">
 							{{ saving ? 'Kaydediliyor…' : 'Slotları Kaydet' }}
 						</button>
 					</div>
@@ -160,18 +215,28 @@ import { ref, reactive, computed, watch, inject } from 'vue'
 import { Head, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
+import AppModal from '@/Components/AppModal.vue'
 import CreativeNav from '../Components/CreativeNav.vue'
+import { useCan } from '@/composables/useCan'
 
 defineOptions({ layout: AppLayout })
 
+const { can } = useCan()
+
 const props = defineProps({
 	templates: { type: Array, default: () => [] },
+	brandKits: { type: Array, default: () => [] },
+	presets: { type: Object, default: () => ({}) },
+	formats: { type: Array, default: () => [] },
 })
 
 const showToast = inject('showToast', null)
 const $swal = inject('$swal')
 const uploading = ref(false)
 const saving = ref(false)
+const genModalOpen = ref(false)
+const generating = ref(false)
+const genForm = reactive({ brand_kit_id: null, preset: null, formats: [] })
 const selectedId = ref(null)
 const slots = reactive([])
 const selectedSlot = ref(null)
@@ -282,7 +347,10 @@ function saveSlots() {
 	const payload = slots.map(s => ({
 		ref: s.ref, key: s.key, type: s.type,
 		x: s.x, y: s.y,
-		w: s.type === 'image' ? s.w : null, h: s.type === 'image' ? s.h : null,
+		// Görsel slotu: gerçek kırpma kutusu genişliği. Metin slotu: opsiyonel AI
+		// metin kırpma tavanı (CreativeCopyRuleEngine) — render'ı etkilemez.
+		w: s.type === 'image' ? s.w : (s.w || null),
+		h: s.type === 'image' ? s.h : null,
 		fit: s.type === 'image' ? s.fit : null,
 		font_size: s.type === 'text' ? s.font_size : null,
 		bold: s.type === 'text' ? s.bold : null,
@@ -321,6 +389,30 @@ function uploadTemplate(e) {
 	})
 }
 
+function openGenerateModal() {
+	const defaultKit = props.brandKits.find(k => k.is_default) || props.brandKits[0] || null
+	genForm.brand_kit_id = defaultKit?.id ?? null
+	genForm.preset = Object.keys(props.presets)[0] ?? null
+	genForm.formats = props.formats[0] ? [props.formats[0].key] : []
+	genModalOpen.value = true
+}
+
+function submitGenerate() {
+	if (generating.value || !genForm.brand_kit_id || !genForm.preset || genForm.formats.length === 0) return
+	generating.value = true
+	router.post('/creative/templates/generate', {
+		brand_kit_id: genForm.brand_kit_id,
+		preset: genForm.preset,
+		formats: genForm.formats,
+	}, {
+		preserveScroll: true,
+		preserveState: false,
+		onSuccess: () => { genModalOpen.value = false },
+		onError: (errs) => showToast?.({ type: 'error', title: 'Üretilemedi', message: Object.values(errs)[0] || 'Hata' }),
+		onFinish: () => { generating.value = false },
+	})
+}
+
 async function removeTemplate() {
 	if (!current.value) return
 	const ok = await $swal.dangerConfirm({ title: 'Şablon silinsin mi?', html: `<b>${current.value.name}</b> kalıcı olarak silinecek.` })
@@ -347,6 +439,12 @@ watch(() => props.templates, () => {
 .page-title { font-size: 22px; font-weight: 700; color: #1a1a2e; line-height: 1.2; }
 .page-subtitle { font-size: 13px; color: #888; margin-top: 4px; max-width: 560px; }
 .btn.disabled { opacity: .6; pointer-events: none; }
+.header-btns { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+
+.format-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.format-chip { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: #666; background: #f5f5f8; border: 1px solid #ebebf0; border-radius: 20px; padding: 6px 12px; cursor: pointer; transition: all .15s; }
+.format-chip.on { color: rgb(var(--color-primary-hover)); background: rgb(var(--color-primary-soft)); border-color: rgb(var(--color-primary) / .35); }
+.format-chip input { display: none; }
 
 .tpl-layout { display: grid; grid-template-columns: 240px 1fr; gap: 18px; align-items: start; }
 .tpl-list { display: flex; flex-direction: column; gap: 8px; }
@@ -361,6 +459,12 @@ watch(() => props.templates, () => {
 .tpl-list-name { font-size: 13px; font-weight: 600; color: #1a1a2e; }
 .tpl-list-dim { font-size: 11px; color: #999; font-family: 'SF Mono', Menlo, Consolas, monospace; }
 .tpl-off { position: absolute; top: 7px; right: 8px; font-size: 9.5px; font-weight: 700; background: #fee2e2; color: #b91c1c; padding: 1px 5px; border-radius: 4px; text-transform: uppercase; }
+.tpl-warn { position: absolute; top: 7px; right: 8px; font-size: 10px; font-weight: 700; background: #fef3c7; color: #92400e; padding: 1px 6px; border-radius: 4px; cursor: help; }
+
+.constraint-warnings { margin: 0 16px 14px; padding: 10px 14px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; font-size: 12px; color: #92400e; }
+.constraint-warnings strong { font-size: 11.5px; }
+.constraint-warnings ul { margin: 4px 0 0; padding-left: 18px; }
+.constraint-warnings li { margin-bottom: 2px; }
 
 .card { background: #fff; border-radius: 16px; border: 1px solid #ebebf0; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.04); }
 .card-header { padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid #f0f0f5; }
@@ -410,6 +514,7 @@ watch(() => props.templates, () => {
 
 .designer-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-top: 1px solid #f0f0f5; padding: 14px 18px; }
 .hint { font-size: 11.5px; color: #aaa; }
+.field-hint { font-size: 11px; color: #aaa; margin-top: 4px; }
 
 @media (max-width: 900px) {
 	.tpl-layout { grid-template-columns: 1fr; }

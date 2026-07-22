@@ -35,6 +35,15 @@ class PythonRenderer implements RendererContract
 
     public function render(CreativeTemplate $template, array $values, array $imagePaths, array $brand = [], ?int $outWidth = null, ?int $outHeight = null): string
     {
+        // Şablon 'logo' slotu tanımlıyorsa ve çağıran taraf ayrıca bir logo
+        // vermediyse, marka kitinin birincil logosu otomatik enjekte edilir.
+        if (! isset($imagePaths['logo'])) {
+            $brandLogo = is_array($brand['logos'] ?? null) ? ($brand['logos']['primary'] ?? null) : null;
+            if (is_string($brandLogo) && $brandLogo !== '') {
+                $imagePaths['logo'] = $brandLogo;
+            }
+        }
+
         // Brand kit fontları (varsa) config fontlarının yerine geçer.
         $brandFonts = is_array($brand['fonts'] ?? null) ? $brand['fonts'] : [];
         $fonts = [

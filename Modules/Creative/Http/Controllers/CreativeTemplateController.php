@@ -9,14 +9,22 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Modules\Creative\Http\Requests\GenerateTemplateRequest;
 use Modules\Creative\Http\Requests\StoreTemplateRequest;
+use Modules\Creative\Models\BrandKit;
 use Modules\Creative\Models\CreativeTemplate;
 use Modules\Creative\Services\CreativeRenderService;
+use Modules\Creative\Services\LayoutConstraintEngine;
+use Modules\Creative\Services\TemplateGeneratorService;
 use Throwable;
 
 class CreativeTemplateController extends Controller
 {
-    public function __construct(private CreativeRenderService $renderService) {}
+    public function __construct(
+        private CreativeRenderService $renderService,
+        private TemplateGeneratorService $templateGenerator,
+        private LayoutConstraintEngine $layoutConstraints,
+    ) {}
 
     public function index(): Response
     {
@@ -32,11 +40,55 @@ class CreativeTemplateController extends Controller
                 'is_active'  => $t->is_active,
                 'svg_url'    => $this->url($t->svg_path),
                 'preview_url' => $this->url($t->thumbnail_path ?: $t->svg_path),
+                'constraints' => $this->layoutConstraints->checkSlotGeometry($t->slots ?? [], (int) $t->width, (int) $t->height),
             ]);
+
+        $brandKits = BrandKit::query()
+            ->orderByDesc('is_default')
+            ->orderByDesc('id')
+            ->get(['id', 'name', 'is_default']);
 
         return Inertia::render('Creative::CreativeTemplates', [
             'templates' => $templates,
+            'brandKits' => $brandKits,
+            'presets'   => $this->templateGenerator->presets(),
+            'formats'   => collect((array) config('creative.formats', []))
+                ->map(fn (array $f, string $key) => ['key' => $key, 'label' => $f['label'] ?? $key])
+                ->values(),
         ]);
+    }
+
+    /**
+     * Seçilen marka kiti + preset'ten, seçilen sosyal format(lar) için
+     * otomatik SVG şablon(lar) üretir (bkz. TemplateGeneratorService).
+     */
+    public function generateFromBrandKit(GenerateTemplateRequest $request): RedirectResponse
+    {
+        $kit    = BrandKit::findOrFail($request->validated('brand_kit_id'));
+        $preset = $request->validated('preset');
+
+        $created = 0;
+        $failed  = 0;
+
+        foreach ($request->validated('formats') as $formatKey) {
+            try {
+                $this->templateGenerator->generate($kit, $preset, $formatKey);
+                $created++;
+            } catch (Throwable $e) {
+                Log::warning('Marka kitinden şablon üretilemedi', ['format' => $formatKey, 'error' => $e->getMessage()]);
+                $failed++;
+            }
+        }
+
+        if ($created === 0) {
+            return back()->with('error', 'Şablon üretilemedi (Python/resvg kurulu mu?).');
+        }
+
+        if ($failed > 0) {
+            return back()->with('warning', sprintf('%d şablon üretildi, %d format başarısız oldu.', $created, $failed));
+        }
+
+        return back()->with('success', sprintf('%d şablon üretildi.', $created));
     }
 
     public function store(StoreTemplateRequest $request): RedirectResponse

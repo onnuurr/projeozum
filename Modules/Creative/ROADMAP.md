@@ -362,6 +362,217 @@ tespit devreye girer (zero-shot'un önüne otomatik geçer).
 
 ---
 
+## ✅ Faz — AI Copywriting (marka standardına uygun görsel-üstü metin)
+**Amaç:** Şablonun `headline`/`sub_headline`/`cta_button` slotları için, admin'in `BrandKit`'e
+yazdığı kalıcı kriterlere (design_brief/tone/cta_phrases/banned_words) uygun metin AI ile üretilsin.
+
+- `brand_kits` tablosuna `design_brief`/`tone`/`cta_phrases`/`banned_words` (migration, gerçek
+  `down()`); `BrandTokenService::tokens()['criteria']` tek doğruluk kaynağı.
+- `Services/Ai/CopyRequest.php` + `Contracts/CopyGeneratorContract.php` + `Drivers/Gemini/
+  GeminiCopyGenerator.php` (`GeminiPartAnalyzer` ile aynı versioned+confidence zarf deseni) +
+  `Drivers/Mock/MockCopyGenerator.php`.
+- `Services/CreativeCopyRuleEngine.php` (saf PHP, `GarmentIdentityRuleEngine` ile aynı disiplin):
+  confidence eşiği, CTA kapalı-sözlük coerce (drop değil), yasaklı kelime taraması (tüm alanı düşürür),
+  slot genişliğine göre kaba karakter tavanı kırpması. Test: `tests/Unit/Creative/
+  CreativeCopyRuleEngineTest.php`.
+- `CreativeRenderService::buildCopy()` — şablonun TANIMLADIĞI her copy slot'unu `values`'a HER ZAMAN
+  yazar (boşsa `''`) — aksi halde `apply_slots.py`'nin placeholder davranışı (`elem.text = slot["key"]`)
+  literal `"headline"` gibi metnin PNG'ye sızmasına yol açar (bu oturumda doğrulanan kritik bulgu).
+  Sonuç `meta.copy`/`meta.copy_ai_raw` (yeni tablo yok — caption/ai_scene presedansı).
+  Sahne üretimi de aynı `design_brief`'i `GeminiPromptBuilder`'a mood ipucu olarak alır.
+- UI: `CreativeStudio.vue`'ye `useAi` ile birebir aynı desende `useCopyAi` toggle'ı ("✍️ AI metin").
+  Denetim şekli bilinçli olarak **sessiz düzeltme/düşürme** — ayrı bir onay gate'i yok, metin
+  Python/SVG motoruyla (font glyph render) basıldığı için yazım hatası riski yapısal olarak yok.
+
+---
+
+## ✅ Faz H — fal.ai FLUX Kontext ile tam AI kompozisyon (ön koşul (b) karşılandı → Faz J)
+Kullanıcının fal.ai'de (Black Forest Labs **FLUX.2**) elle denediği bir tam-kompozisyon post örneği
+(2026-07-21) incelendi: görsel kalitesi yüksek ama CTA metninde somut bir yazım hatası bulundu
+("Şimdi keşbet" — doğrusu "keşfet") ve sahnedeki ürün kullanıcının gerçek ürün fotoğrafı DEĞİLDİ,
+modelin hayal ettiği bir sahneydi. Python/SVG render motorunda bu iki risk yapısal olarak yok
+(glyph render edilir, gerçek ürün fotoğrafı doğrudan kullanılır) — bu yüzden mevcut mimari (yukarıdaki
+faz) bu riski taşımaz.
+
+Araştırıldı: `FLUX.2 [pro] Edit` / `FLUX Kontext [pro]` varyantı referans görsel + metni birlikte
+işleyip "orijinal öğeleri koruyarak" sahne dönüşümü yapabiliyor — yani gerçek ürün fotoğrafını koruma
+teorik olarak mümkün, ama HİÇ test edilmedi. Fiyat: `fal-ai/flux-2` ~$0.012/megapiksel.
+
+**Başlamadan önce gerekli olan iki ön koşul vardı:** (a) gerçek ürün fotoğraflarıyla çoklu örnekte
+ürün sadakati + Türkçe metin doğruluğu ölçülmeli; (b) öznel bir "brand similarity skoru" DEĞİL,
+somut/ölçülebilir bir kontrol (ör. üretilen metni OCR/Gemini-vision ile istenen metinle birebir
+karşılaştırma).
+
+**Güncelleme (2026-07-21, Faz J):** Ön koşul (b) `LayoutConstraintEngine` + OCR gate ile karşılandı
+— aşağıdaki Faz J'ye bakın. Ön koşul (a) hâlâ karşılanmadı (gerçek ürün fotoğraflarıyla ölçüm
+yapılmadı); bu yüzden `composition.driver` varsayılanı `mock` ve `ocr.enabled=false` olarak kalıyor
+— özellik kodda tam ama prod'da kapalı.
+
+---
+
+## 🟡 Faz J — AI Kompozisyon (fal.ai Flux.2) + LayoutConstraintEngine (kod tamam, prod'a kapalı)
+Faz H'nin (b) ön koşulunu karşılamak için, `CreativeCopyRuleEngine` ile aynı disiplinde
+("AI çıktısı asla ham kabul edilmez, üretimden SONRA deterministik kurallara karşı doğrulanır")
+ikinci, opsiyonel bir render path eklendi. Mevcut SVG yolu (varsayılan) hiç değişmedi.
+
+**Yapılanlar:**
+- `CreativeAsset.meta.render_engine` (`svg` varsayılan | `ai_compose`) — `use_ai`/`use_copy_ai`
+  ile birebir aynı toggle mekanizması, `GenerateCreativesRequest`/`CreativeStudioController`/
+  `CreativeStudio.vue`'de uçtan uca bağlandı (toggle yalnızca `composition.driver=fal` VE key
+  varsa görünür; mock'ken sessizce gizli).
+- `Services/Ai/Contracts/CompositionComposerContract` + `Drivers/Fal/FalFluxComposer` (gerçek
+  çağrı) + `Drivers/Mock/MockCompositionComposer` (key'siz uçtan uca test — bilinen sabit pikselde
+  headline "yakar").
+- `Services/Vision/TextRecognizerContract` + `PythonTesseractTextRecognizer` +
+  `NullTextRecognizer` + `python/ocr_text.py` (`pytesseract.image_to_data`).
+- `Services/LayoutConstraintEngine` — `checkIntendedText()` (render'dan önce, ucuz fail-fast:
+  headline/CTA kelime-satır limitleri) + `evaluate()` (OCR sonrası: fuzzy metin eşleşmesi +
+  safe-margin kontrolü). Saf PHP, AI/DB çağrısı yok — `CreativeCopyRuleEngineTest` stiliyle
+  `LayoutConstraintEngineTest` yazıldı (9 test, geçiyor).
+- `Services/Exceptions/CompositionConstraintException` (geçici, `PermanentRenderException`'dan
+  TÜREMEZ) — mevcut `GenerateCreativeJob` retry/backoff mekanizmasına dokunmadan job'ı yeniden
+  dener; tükenirse `status=failed`, `error` alanına ihlal listesi yazılır. Review pipeline'a
+  (`review_status`, `ImagePendingReviewNotification`) sıfır değişiklik — constraint'i geçemeyen
+  asset asla insan reviewer'a ulaşmaz.
+- **Güvenlik kilidi doğrulandı:** `composition.ocr.enabled=false` iken `ai_compose` motoru hiç
+  çalışmıyor, `PermanentRenderException` ile derhal reddediliyor.
+- `Services/CreativeRenderService::generateAiComposition()` orkestrasyonu: referans görselleri
+  topla → `buildAiCopy()` ile headline/CTA üret → fail-fast precheck → OCR kapalıysa hemen reddet
+  → `composer->compose()` → `textRecognizer->recognize()` → `layoutConstraints->evaluate()` →
+  geçerse mevcut `enhancer->enhance()`'den itibaren SVG yoluyla aynı kuyruğa katılır.
+
+**Prod'a açmadan önce kalanlar (bilerek yapılmadı — varsayılanlar kapalı: `driver=mock`,
+`ocr.enabled=false`):**
+1. fal.ai Flux.2 tam endpoint id + istek/yanıt şekli doğrulanmadı (`fal-ai/flux-2` tahmini,
+   çoklu referans görsel + literal metin talimatı kabul ettiği teyit edilmedi).
+2. Sunucuda `tesseract-ocr` CLI + `pytesseract` kurulu değil (`apt install tesseract-ocr
+   tesseract-ocr-tur` + `python/requirements.txt`).
+3. `text_match_min_similarity` (varsayılan 0.85) gerçek Flux.2 çıktılarıyla kalibre edilmedi.
+4. Manken referansının `CompositionRequest`'e bağlanıp bağlanmayacağı netleşmedi (MVP şu an
+   sadece ürün görseliyle çalışıyor).
+5. Faz H'nin (a) ön koşulu — gerçek ürün fotoğraflarıyla (5-10 örnek) çoklu test — yapılmadı;
+   ürün sadakati ve Türkçe CTA/headline doğruluğu manuel gözlemlenmeden `driver=fal`/
+   `ocr.enabled=true` prod'da açılmamalı.
+
+## ⬜ Faz I — Sınırlı "marka analizi" (geçmiş post'lardan stil önerisi, ERTELENDİ)
+Kullanıcı sistemin geçmiş post'lardan otomatik öğrenmesini istedi. Instagram/Facebook'tan otonom
+çoklu-kanal veri çekme (kullanıcının paylaştığı bir vizyon dokümanındaki "Brand Analyzer" kavramı)
+araştırma-seviyesi güvenilirlik riski taşıyor (subjektif "minimalism score" gibi metrikler bir vision
+LLM'den tutarlı çıkmaz) ve ayrı bir entegrasyon/ToS konusu — bu haliyle YAPILMAYACAK.
+
+Daha dar, gerçekçi bir versiyon: admin birkaç **temsili referans post** görseli yükler (harici
+scraping yok) → `GeminiPartAnalyzer` ile birebir aynı desende (versioned+confidence zarf, Gemini
+Vision görsel-girdi/metin-çıktı) bir stil analizi yapılır → sonuç ASLA otomatik uygulanmaz, admin'e
+"öneri" olarak gösterilir, kabul ederse `design_brief`/`tone` alanlarına elle/onaylı şekilde yansır.
+Faz H gibi bu da ayrı bir oturumda kapsamı netleştirilip planlanmalı.
+
+---
+
+## 🆕 Vizyon — "Render-Centric'ten Creative-Centric'e" (kullanıcı önerisi, mimari değerlendirme, 2026-07-22)
+Kullanıcı, sistemin `BrandKit → Template → Render → Review` zincirinin ötesine geçip bir
+"AI Creative Operating System" olmasını istedi: CreativeBrief, BrandBrain, Layout Intelligence,
+Scene Graph, genişletilmiş Constraint Engine, Brand Similarity Score, Learning System, otomatik
+layout üretimi. **Teşhis doğru** — sistem bugün gerçekten render-merkezli. Ama önerilen 12
+kavramın çoğu SIFIRDAN değil: modül üç yıldır aynı disiplini ("AI çıktısı asla ham kabul edilmez,
+deterministik bir kural motorundan geçer" — bkz. `GarmentIdentityRuleEngine`,
+`CreativeCopyRuleEngine`, `LayoutConstraintEngine`) tekrar tekrar uyguluyor. Aşağıda her kavram
+mevcut karşılığına bağlanıyor, gerçekten yeni olan ayrılıyor, ve **Faz I'de zaten reddedilmiş bir
+tuzak** işaretleniyor.
+
+### Zaten var / bugün genişledi — yeniden adlandırma, sıfırdan inşa değil
+| Kullanıcının önerisi | Mevcut karşılığı |
+|---|---|
+| Layout Definition (JSON) → SVG üretilsin | **Bugün eklendi:** `config('creative.template_presets')` = Layout Definition; `TemplateGeneratorService::buildSvg()` = tam olarak "SVG üretilen artefakt" ilkesi. Faz K bunu config'ten DB'ye taşımaktan ibaret. |
+| Scene Graph (Layout → Prompt Builder sözleşmesi) | `Services/Ai/SceneRequest.php` + `Drivers/Gemini/GeminiPromptBuilder.php` zaten bu ara-katmanı informal olarak oynuyor; resmi bir sözleşmeye çıkarmak küçük bir refactor. |
+| Constraint Engine | Zaten ÜÇ tane var: `LayoutConstraintEngine` (OCR+metin), `CreativeCopyRuleEngine` (metin uzunluğu/yasaklı kelime), `GarmentIdentityRuleEngine` (kimlik koruma). Kullanıcının istediği `whitespace>=%22`, `hero.coverage>=65%` gibi kurallar — bunların BİRLEŞTİRİLMİŞ/genişletilmiş hali, net yeni bir sistem değil. |
+| Design Tokens genişletmesi | `brand.defaults` + preset geometrisi zaten oransal (0-1) — spacing/safe-area kavramı fiilen var, isimlendirilmemiş. |
+| Learning System (BrandBrain "öğrenir") | `CreativeStudioController::stats()` (Faz 5) zaten şablon bazlı başarı oranı/render süresi topluyor — kapsamı preset/layout/CTA bazına genişletmek, YENİ bir öğrenme sistemi kurmak değil. |
+
+### Gerçekten yeni
+- **CreativeBrief** — bugün yok. Kullanıcı template_id seçiyor (`GenerateCreativesRequest`);
+  brief'ten layout/preset türetmek net bir katman eksikliği.
+- **Layout Recommendation Engine** — brief + geçmiş performans istatistiğinden preset seçimi.
+- **LayoutGeneratorContract** (Claude → Layout JSON) — otomatik layout üretimi bugün yok
+  (`TemplateGeneratorService` sabit preset'lerle çalışıyor, LLM'den JSON üretmiyor).
+
+### ⚠️ Durdurulması gereken tek madde: Brand Similarity Score (0-100 alt skorlar)
+Bu, **Faz I'de** ("Sınırlı marka analizi") kullanıcının kendi onayıyla zaten değerlendirilip
+ERTELENDİ: *"subjektif 'minimalism score' gibi metrikler bir vision LLM'den tutarlı çıkmaz"*.
+"Typography: 97, Colors: 100, Brand Match: 98" gibi tek-sayı skorlar tam olarak bu kategoriye
+giriyor — aynı görseli bir vision LLM'e iki kez sorsanız iki farklı sayı alırsınız, sayı
+"tutarlı" göründüğü için de yanıltıcı bir güven yaratır. **Öneri:** reviewer'a sayı UYDURMAK
+yerine, zaten var olan deterministik kontrollerin (LayoutConstraintEngine/CreativeCopyRuleEngine/
+GarmentIdentityRuleEngine) geçti/kaldı raporunu bir "kontrol kartı" (checklist) olarak göster —
+her satır ölçülebilir bir kuralın gerçek sonucu, uydurulmuş bir "91/100 minimalism" değil.
+
+### Önerilen fazlandırma (⬜, sıradaki oturumda seçilecek)
+1. **Faz K — Layout Definition tablosu.** `template_presets` config'ini `creative_layouts`
+   tablosuna taşı (migration, gerçek `down()`); `TemplateGeneratorService` DB'den okusun. Admin
+   UI'da CRUD. Düşük risk — bugünkü kodun üzerine ince bir katman.
+2. **Faz L — CreativeBrief.** Yeni model (Eloquent, DTO değil — CLAUDE.md): campaign/objective/
+   platform/audience/emotion/style/text_density/cta alanları. `GenerateCreativesRequest`'e
+   `brief_id` opsiyonel alternatifi eklenir (`template_id` hâlâ çalışır — kırılma yok).
+3. **Faz M — Layout Recommendation Engine.** Saf PHP kural motoru (AI çağrısı YOK, mevcut
+   `*RuleEngine` disipliniyle aynı): brief + `creative_layouts` + geçmiş `review_status` oranına
+   göre sıralı öneri listesi döner, admin son kararı verir (otomatik seçip render etmez).
+4. ✅ **Faz N — Constraint Engine: layout geometrisi kuralları (yapıldı).** Kodu yazmadan önceki
+   "3 motoru birleştir" çerçevesi kod okunduktan sonra YANLIŞ çıktı (bkz. aşağıdaki bulgu) —
+   bunun yerine `LayoutConstraintEngine`'e render'a hiç gerek duymayan, saf slot-geometrisi
+   tabanlı yeni bir metot eklendi.
+5. **Faz O — LayoutGeneratorContract (Claude → Layout JSON).** Faz H/J'nin idiomuyla: LLM ham
+   SVG değil, şemaya karşı doğrulanan Layout JSON üretir (bkz. Faz K); geçersiz JSON'sa SVG'ye
+   hiç çevrilmez. `driver=mock` ile başlar (Faz H/J presedansı).
+6. **Faz P — BrandBrain (deterministik aggregate, vision-skor YOK).** `stats()`'ı preset/CTA/ton
+   bazına genişlet; Layout Recommendation Engine (Faz M) bu istatistiği girdi olarak kullanır.
+
+**Bağımlılık sırası:** K→L→M zorunlu (recommendation, brief+layout'a muhtaç); N ve O paralel
+yapılabilir; P, M'den önce anlamsız (istatistik önce toplanmalı).
+
+---
+
+## ✅ Faz N — Constraint Engine: Layout Geometrisi Kuralları (yapıldı, 2026-07-22)
+**Bulgu (plan revizyonu):** "3 mevcut motoru (`LayoutConstraintEngine`/`CreativeCopyRuleEngine`/
+`GarmentIdentityRuleEngine`) tek sınıfta birleştir" fikri kod okunduktan sonra terk edildi — üçü
+farklı domain'lerde (post-OCR layout / AI copy metni / garment try-on prompt direktifi), farklı
+orkestratörlerden (`CreativeRenderService` ×2, `ProductOnModelService`), farklı girdi
+şekilleriyle çağrılıyor; ortak çağrı noktaları yok. Zorla birleştirmek CLAUDE.md'nin "gereksiz
+soyutlama ekleme" ilkesini ihlal ederdi. Kullanıcının somut örnekleri (`hero.coverage`,
+`whitespace`, `text_overlap`, `cta.count`, `logo.visible`) aslında hepsi **slot GEOMETRİSİ**
+üzerine kurallar — bu, zaten var olan `LayoutConstraintEngine`'in domain'i içinde, tek bir yeni
+metotla karşılanıyor. `CreativeCopyRuleEngine`/`GarmentIdentityRuleEngine`'e dokunulmadı.
+
+- `LayoutConstraintEngine::checkSlotGeometry(slots, width, height)` — render'a hiç gerek
+  duymadan `CreativeTemplate.slots` JSON'undan hesaplar (hem manuel hem `TemplateGeneratorService`
+  çıktısı şablonlar için aynı): yinelenen slot anahtarı, hero/ürün kapsama oranı, boşluk oranı,
+  slot çakışması, (opsiyonel) logo slotu zorunluluğu. Tuvalin ≥%60'ını kaplayan görsel slotu
+  ("tam-kapak arka plan fotoğrafı") kasıtlı zemin katmanı sayılıp hem boşluk hem çakışma
+  hesabından hariç tutulur — aksi halde bugünkü `product_full_bleed` preset'i (fotoğraf %100
+  kapak) her zaman "çakışıyor"/"boşluk yok" yanlış-pozitifi verirdi.
+  **Bulunan iki yanlış-pozitif (test sırasında, gerçek preset verisiyle):** (1) metin kutusu
+  yüksekliği ilk denemede `font_size × 1.3` (tam satır yüksekliği) idi — komşu elemanlarla olan
+  kasıtlı boşlukları çakışma sayıyordu; `× 0.85` (kaba cap-height) yapıldı. (2) çakışma kontrolü
+  `data-w`'yi (AI metin kırpma için "izin verilen AZAMİ genişlik", gerçek render genişliği değil)
+  olduğu gibi kullanınca, geniş max-width'e sahip bir headline'ın sağdaki bağımsız bir CTA
+  kolonuyla "çakıştığı" yanlış çıkıyordu — çakışma kontrolü için metin genişliği
+  `min(data-w, font_size×4)` ile küçük tutuldu (boşluk hesabı hâlâ `data-w`'nin tamamını kullanır,
+  yalnız çakışma kontrolü daraltıldı).
+- Config: yeni `creative.constraints.layout.*` (`hero_coverage_min_pct=0.30`,
+  `whitespace_min_pct=0.08`, `require_logo_slot=false`, `overlap_tolerance_px=4`) — mevcut
+  `composition.constraints`/`ai.copy`/`garment_detection.analysis` eşiklerine ve onların
+  `.env` değişkenlerine DOKUNULMADI (prod uyumluluğu).
+  `CreativeTemplateController::index()` her şablon için `constraints` (`{passed, violations,
+  metrics}`) döner (ekstra sorgu yok — `slots` zaten çekiliyordu). **Sert engelleme YOK** —
+  `store()`'daki uyarı deseniyle aynı: ihlal varsa şablon yine kullanılabilir, yalnız görünür
+  uyarı gösterilir (Faz J'nin `ai_compose` sert-engelleme kararı burada uygulanmadı — o
+  doğrulanmamış AI pikselleri içindi, burada deterministik/insan-onaylı bir SVG var).
+- UI: `CreativeTemplates.vue` — liste öğesinde `⚠ N` rozeti (ihlal varsa, `.tpl-off` rozetiyle
+  aynı konumda), tasarımcı panelinde ihlal listesi.
+- Test: `tests/Unit/Creative/LayoutConstraintEngineTest.php`'e 6 yeni test — bugün üretilen iki
+  preset'in GERÇEK slot çıktısıyla geriye-dönük doğrulama (`passed=true`) + yinelenen
+  anahtar/küçük hero/çakışma/boş-slot senaryoları. `npx vite build` + `php artisan test
+  --filter=Creative` temiz (bu oturumdaki tek ilgisiz hata: `MannequinPromptBuilderTest`,
+  önceden var olan dalda, bu değişiklikle ilgisiz).
+
 ## Devam etme talimatı (kendime not)
 1. Bu dosyadan sıradaki ⬜ fazı seç.
 2. `TaskCreate` ile o fazın adımlarını çıkar, `in_progress` işaretle.
