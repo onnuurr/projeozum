@@ -50,6 +50,10 @@ class GeminiPromptBuilder
             $lines[] = $palette;
         }
 
+        if ($brief = $this->designBriefHint($request->designBrief)) {
+            $lines[] = $brief;
+        }
+
         return implode(' ', $lines);
     }
 
@@ -98,5 +102,12 @@ class GeminiPromptBuilder
         }
 
         return 'Match the brand color mood: ' . implode(', ', $colors) . '.';
+    }
+
+    private function designBriefHint(?string $brief): ?string
+    {
+        $brief = trim((string) $brief);
+
+        return $brief !== '' ? 'Follow this brand style guide for the overall mood/scene: ' . $brief : null;
     }
 }

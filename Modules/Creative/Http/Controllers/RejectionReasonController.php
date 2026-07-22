@@ -25,7 +25,8 @@ class RejectionReasonController extends Controller
         return Inertia::render('Creative::CreativeRejectionReasons', [
             'reasons' => RejectionReason::query()
                 ->ordered()
-                ->get(['id', 'category', 'label', 'hint', 'sort_order', 'is_active']),
+                ->get(['id', 'category', 'context', 'label', 'hint', 'sort_order', 'is_active']),
+            'contexts' => RejectionReason::CONTEXTS,
         ]);
     }
 

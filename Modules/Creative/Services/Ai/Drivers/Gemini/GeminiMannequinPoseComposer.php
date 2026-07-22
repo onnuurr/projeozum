@@ -30,7 +30,9 @@ class GeminiMannequinPoseComposer implements MannequinPoseComposerContract
             $refs[] = $request->posePreviewPath;
         }
 
-        $bytes = $this->client->generateImage($prompt, $refs);
+        // Poz görseli sonraki adımda try-on'a "kişi" referansı olarak girer;
+        // düşük çözünürlükte üretilirse try-on çıktısı da o tavana sıkışır.
+        $bytes = $this->client->generateImage($prompt, $refs, null, GeminiClient::defaultImageConfig());
 
         return ImageFile::temp($bytes, 'png');
     }

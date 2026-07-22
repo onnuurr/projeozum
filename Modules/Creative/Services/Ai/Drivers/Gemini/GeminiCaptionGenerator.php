@@ -41,6 +41,12 @@ class GeminiCaptionGenerator implements CaptionGeneratorContract
 
         $context = implode("\n", $lines);
 
+        $hashtagRule = $request->hashtagPool !== []
+            ? '- Şu marka hashtag havuzundan alakalı olanları MUTLAKA dahil et: '
+                . implode(', ', $request->hashtagPool)
+                . '. Kalan slotları bu ürüne özel, keşif/reach amaçlı yeni hashtag\'lerle tamamla.'
+            : '- 5-10 adet alakalı hashtag (Türkçe/İngilizce karışık olabilir).';
+
         return <<<PROMPT
         Sen bir moda/e-ticaret markasının sosyal medya editörüsün. Aşağıdaki ürün için
         Türkçe, akıcı ve marka tonuna uygun bir Instagram caption'ı ve ilgili hashtag'ler üret.
@@ -50,7 +56,7 @@ class GeminiCaptionGenerator implements CaptionGeneratorContract
 
         Kurallar:
         - Caption 1-3 cümle, samimi ve satışı destekleyen bir ton. En fazla 1-2 emoji.
-        - 5-10 adet alakalı hashtag (Türkçe/İngilizce karışık olabilir).
+        {$hashtagRule}
         - SADECE şu JSON formatında yanıt ver, başka hiçbir metin ekleme:
         {"caption": "...", "hashtags": ["#etiket1", "#etiket2"]}
         PROMPT;

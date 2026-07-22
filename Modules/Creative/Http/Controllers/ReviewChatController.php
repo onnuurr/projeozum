@@ -7,10 +7,13 @@ use App\Support\Media;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
+use Modules\Creative\Jobs\GenerateCreativeJob;
 use Modules\Creative\Jobs\GenerateMannequinJob;
 use Modules\Creative\Jobs\GenerateOnModelJob;
+use Modules\Creative\Models\CreativeAsset;
 use Modules\Creative\Models\Mannequin;
 use Modules\Creative\Models\TryonResult;
 use Modules\Creative\Services\ReviewChatService;
@@ -62,6 +65,24 @@ class ReviewChatController extends Controller
         );
     }
 
+    public function showAsset(CreativeAsset $asset, ReviewChatService $chat): Response
+    {
+        $this->authorizeChat($asset);
+        $asset->loadMissing('product:id,name');
+
+        return $this->renderChatPage(
+            subjectType: 'asset',
+            subjectId: $asset->id,
+            title: $asset->product?->name ?? 'Ürün',
+            imageUrl: Media::url($asset->image_path),
+            reviewNote: $asset->review_note,
+            reviewTags: $asset->review_tags ?? [],
+            chat: $chat,
+            subject: $asset,
+            backUrl: '/creative/gallery',
+        );
+    }
+
     private function renderChatPage(
         string $subjectType,
         int $subjectId,
@@ -70,7 +91,7 @@ class ReviewChatController extends Controller
         ?string $reviewNote,
         array $reviewTags,
         ReviewChatService $chat,
-        Mannequin|TryonResult $subject,
+        Mannequin|TryonResult|CreativeAsset $subject,
         string $backUrl,
     ): Response {
         return Inertia::render('Creative::ReviewChat', [
@@ -106,6 +127,15 @@ class ReviewChatController extends Controller
         $this->authorizeChat($result);
 
         $chat->converse($result, auth()->user(), $this->validatedMessage($request));
+
+        return back()->with('success', 'Mesaj gönderildi.');
+    }
+
+    public function sendAsset(CreativeAsset $asset, Request $request, ReviewChatService $chat): RedirectResponse
+    {
+        $this->authorizeChat($asset);
+
+        $chat->converse($asset, auth()->user(), $this->validatedMessage($request));
 
         return back()->with('success', 'Mesaj gönderildi.');
     }
@@ -152,23 +182,56 @@ class ReviewChatController extends Controller
             return back()->with('error', 'Henüz uygulanabilir bir düzeltme talimatı yok; sohbete devam edin.');
         }
 
+        // Yeni bir generation_token: ProductOnModelService::queue() ile aynı korumaya
+        // katılır — bu satır için eskiden kuyruğa alınmış (henüz bitmemiş) bir iş varsa
+        // onun çıktısı bu daha yeni isteğin üstüne yazılmaz. Bkz. GenerateOnModelJob.
         $result->update([
-            'meta'          => array_merge($result->meta ?? [], ['extra_instructions' => $suggestion]),
-            'status'        => TryonResult::STATUS_QUEUED,
-            'error'         => null,
-            'review_status' => null,
-            'review_note'   => null,
-            'review_tags'   => null,
-            'reviewed_by'   => null,
-            'reviewed_at'   => null,
+            'meta'             => array_merge($result->meta ?? [], ['extra_instructions' => $suggestion]),
+            'status'           => TryonResult::STATUS_QUEUED,
+            'generation_token' => (string) Str::uuid(),
+            'error'            => null,
+            'review_status'    => null,
+            'review_note'      => null,
+            'review_tags'      => null,
+            'reviewed_by'      => null,
+            'reviewed_at'      => null,
         ]);
 
-        GenerateOnModelJob::dispatch($result->id);
+        GenerateOnModelJob::dispatch($result->id, $result->generation_token);
 
         return redirect('/creative/tryon')->with('success', 'Talimat uygulandı, görsel yeniden üretim kuyruğuna alındı.');
     }
 
-    private function authorizeChat(Mannequin|TryonResult $subject): void
+    /**
+     * Sohbetten çıkan en son düzeltme talimatını asset'in meta'sına (ek talimat
+     * olarak) ekler ve tasarımı yeniden üretim kuyruğuna alır.
+     */
+    public function applyAsset(CreativeAsset $asset, ReviewChatService $chat): RedirectResponse
+    {
+        $this->authorizeChat($asset);
+
+        $suggestion = $chat->latestSuggestion($asset);
+        if (! $suggestion) {
+            return back()->with('error', 'Henüz uygulanabilir bir düzeltme talimatı yok; sohbete devam edin.');
+        }
+
+        $asset->update([
+            'meta'           => array_merge($asset->meta ?? [], ['extra_instructions' => $suggestion]),
+            'status'         => CreativeAsset::STATUS_QUEUED,
+            'error'          => null,
+            'review_status'  => CreativeAsset::REVIEW_PENDING,
+            'review_note'    => null,
+            'review_tags'    => null,
+            'reviewed_by'    => null,
+            'reviewed_at'    => null,
+        ]);
+
+        GenerateCreativeJob::dispatch($asset->id);
+
+        return redirect('/creative/gallery')->with('success', 'Talimat uygulandı, görsel yeniden üretim kuyruğuna alındı.');
+    }
+
+    private function authorizeChat(Mannequin|TryonResult|CreativeAsset $subject): void
     {
         $user       = auth()->user();
         $isCreator  = $subject->created_by !== null && $subject->created_by === $user->id;
@@ -177,7 +240,11 @@ class ReviewChatController extends Controller
         abort_unless($isCreator || $isReviewer, 403, 'Bu sohbete erişim yetkiniz yok.');
 
         if ($subject->review_status !== $subject::REVIEW_REJECTED) {
-            $back = $subject instanceof Mannequin ? '/creative/mannequins' : '/creative/tryon';
+            $back = match (true) {
+                $subject instanceof Mannequin => '/creative/mannequins',
+                $subject instanceof CreativeAsset => '/creative/gallery',
+                default => '/creative/tryon',
+            };
             abort(redirect($back)->with('error', 'Görselin durumu değiştiği için sohbet kullanılamıyor.'));
         }
     }

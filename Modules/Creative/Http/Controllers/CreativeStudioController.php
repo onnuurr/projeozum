@@ -4,17 +4,22 @@ namespace Modules\Creative\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Modules\Creative\Http\Controllers\Concerns\HandlesCreativeReview;
 use Modules\Creative\Http\Requests\GenerateCreativesRequest;
 use Modules\Creative\Jobs\GenerateCreativeJob;
 use Modules\Creative\Models\CreativeAsset;
 use Modules\Creative\Models\CreativeTemplate;
+use Modules\Creative\Services\ReviewNotifier;
 use Modules\Product\Models\Product;
 
 class CreativeStudioController extends Controller
 {
+    use HandlesCreativeReview;
+
     public function index(): Response
     {
         $templates = CreativeTemplate::query()
@@ -53,18 +58,26 @@ class CreativeStudioController extends Controller
             'products'       => $products,
             'formats'        => $formats,
             'default_format' => config('creative.default_format'),
+            // ai_compose toggle'ı yalnızca gerçek bir fal sürücüsü + OCR
+            // doğrulaması yapılandırılmışsa gösterilir — mock'ken sessizce
+            // gizli kalır, yanıltıcı bir "özellik" vaadi vermez (bkz. Faz J).
+            'ai_compose_available' => config('creative.composition.driver') === 'fal'
+                && (bool) config('creative.ai.fal.key')
+                && (bool) config('creative.composition.ocr.enabled'),
         ]);
     }
 
     public function generate(GenerateCreativesRequest $request): RedirectResponse
     {
-        $templateId = (int) $request->validated('template_id');
-        $productIds = $request->validated('product_ids');
-        $useAi      = (bool) $request->validated('use_ai', false);
-        $format     = $request->validated('format', config('creative.default_format'));
-        $pose       = trim((string) $request->validated('pose', ''));
+        $templateId   = (int) $request->validated('template_id');
+        $productIds   = $request->validated('product_ids');
+        $useAi        = (bool) $request->validated('use_ai', false);
+        $useCopyAi    = (bool) $request->validated('use_copy_ai', false);
+        $renderEngine = $request->validated('render_engine', 'svg');
+        $format       = $request->validated('format', config('creative.default_format'));
+        $pose         = trim((string) $request->validated('pose', ''));
 
-        $meta = ['use_ai' => $useAi, 'format' => $format];
+        $meta = ['use_ai' => $useAi, 'use_copy_ai' => $useCopyAi, 'render_engine' => $renderEngine, 'format' => $format];
         if ($pose !== '') {
             // Boşsa hiç yazma; prompt builder ürüne göre kürate poz seçsin.
             $meta['pose'] = $pose;
@@ -74,6 +87,7 @@ class CreativeStudioController extends Controller
             $asset = CreativeAsset::create([
                 'product_id'    => (int) $productId,
                 'template_id'   => $templateId,
+                'created_by'    => auth()->id(),
                 'status'        => CreativeAsset::STATUS_QUEUED,
                 'review_status' => CreativeAsset::REVIEW_PENDING,
                 'meta'          => $meta,
@@ -89,28 +103,51 @@ class CreativeStudioController extends Controller
     public function gallery(): Response
     {
         $assets = CreativeAsset::query()
-            ->with(['product:id,name,slug', 'template:id,name'])
+            ->with([
+                'product:id,name,slug', 'template:id,name', 'creator:id,name', 'reviewer:id,name',
+                'reviewChats' => fn ($q) => $q->orderBy('created_at')->with('user:id,name'),
+            ])
             ->latest()
             ->paginate(40)
             ->through(fn (CreativeAsset $a) => [
-                'id'            => $a->id,
-                'status'        => $a->status,
-                'review_status' => $a->review_status,
-                'error'         => $a->error,
-                'image_url'     => $this->url($a->image_path),
-                'caption'       => $a->meta['caption'] ?? null,
-                'hashtags'      => $a->meta['hashtags'] ?? [],
-                'format_label'  => $a->meta['format_label'] ?? null,
-                'width'         => $a->meta['width'] ?? null,
-                'height'        => $a->meta['height'] ?? null,
-                'product'       => $a->product?->only(['id', 'name', 'slug']),
-                'template'      => $a->template?->only(['id', 'name']),
-                'created_at'    => $a->created_at?->toDateTimeString(),
+                'id'              => $a->id,
+                'status'          => $a->status,
+                'review_status'   => $a->review_status,
+                'error'           => $a->error,
+                'image_url'       => $this->url($a->image_path),
+                'caption'         => $a->meta['caption'] ?? null,
+                'hashtags'        => $a->meta['hashtags'] ?? [],
+                'format_label'    => $a->meta['format_label'] ?? null,
+                'width'           => $a->meta['width'] ?? null,
+                'height'          => $a->meta['height'] ?? null,
+                'product'         => $a->product?->only(['id', 'name', 'slug']),
+                'template'        => $a->template?->only(['id', 'name']),
+                'created_at'      => $a->created_at?->toDateTimeString(),
+                'created_by'      => $a->created_by,
+                'creator_name'    => $a->creator?->name,
+                'review_note'     => $a->review_note,
+                'review_tags'     => $a->review_tags ?? [],
+                'reviewer_name'   => $a->reviewer?->name,
+                'can_review'      => auth()->user()?->can('creative.approve')
+                    && $a->created_by !== auth()->id()
+                    && $a->review_status === CreativeAsset::REVIEW_PENDING,
+                'is_own'          => $a->created_by === auth()->id(),
+                'can_chat'        => $a->review_status === CreativeAsset::REVIEW_REJECTED
+                    && ($a->created_by === auth()->id() || auth()->user()?->can('creative.approve')),
+                'review_chats'    => $a->reviewChats->map(fn ($c) => [
+                    'id'         => $c->id,
+                    'role'       => $c->role,
+                    'content'    => $c->content,
+                    'user_name'  => $c->user?->name,
+                    'created_at' => $c->created_at?->toDateTimeString(),
+                ]),
+                'chat_suggestion' => $a->meta['chat_suggested_instruction'] ?? null,
             ]);
 
         return Inertia::render('Creative::CreativeGallery', [
-            'assets' => $assets,
-            'stats'  => $this->stats(),
+            'assets'           => $assets,
+            'stats'            => $this->stats(),
+            'rejectionReasons' => $this->rejectionReasonGroups('gallery'),
         ]);
     }
 
@@ -212,16 +249,44 @@ class CreativeStudioController extends Controller
             ->deleteFileAfterSend(true);
     }
 
-    public function approve(CreativeAsset $asset): RedirectResponse
+    public function approve(CreativeAsset $asset, ReviewNotifier $notifier): RedirectResponse
     {
-        $asset->update(['review_status' => CreativeAsset::REVIEW_APPROVED]);
+        $this->guardNotOwnWork($asset);
+
+        if ($asset->review_status !== CreativeAsset::REVIEW_PENDING) {
+            return back()->with('error', 'Bu görsel onay bekliyor durumda değil.');
+        }
+
+        $asset->update([
+            'review_status' => CreativeAsset::REVIEW_APPROVED,
+            'reviewed_by'   => auth()->id(),
+            'reviewed_at'   => now(),
+        ]);
+
+        $notifier->notifyDecision($asset, true);
 
         return back()->with('success', 'Görsel onaylandı.');
     }
 
-    public function reject(CreativeAsset $asset): RedirectResponse
+    public function reject(CreativeAsset $asset, Request $request, ReviewNotifier $notifier): RedirectResponse
     {
-        $asset->update(['review_status' => CreativeAsset::REVIEW_REJECTED]);
+        $this->guardNotOwnWork($asset);
+
+        if ($asset->review_status !== CreativeAsset::REVIEW_PENDING) {
+            return back()->with('error', 'Bu görsel onay bekliyor durumda değil.');
+        }
+
+        $review = $this->validatedReview($request);
+
+        $asset->update([
+            'review_status' => CreativeAsset::REVIEW_REJECTED,
+            'review_note'   => $review['note'],
+            'review_tags'   => $review['tags'],
+            'reviewed_by'   => auth()->id(),
+            'reviewed_at'   => now(),
+        ]);
+
+        $notifier->notifyDecision($asset, false);
 
         return back()->with('success', 'Görsel reddedildi.');
     }
@@ -231,6 +296,10 @@ class CreativeStudioController extends Controller
         $asset->update([
             'status'        => CreativeAsset::STATUS_QUEUED,
             'review_status' => CreativeAsset::REVIEW_PENDING,
+            'review_note'   => null,
+            'review_tags'   => null,
+            'reviewed_by'   => null,
+            'reviewed_at'   => null,
             'error'         => null,
         ]);
 

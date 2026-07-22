@@ -13,8 +13,9 @@
 			<div>
 				<h1 class="page-title">Ret Seçim Maddeleri</h1>
 				<p class="page-subtitle">
-					Manken/giydirme reddedilirken çıkan "düzeltilmesi gereken alan" seçenekleri.
-					İşaretlenen maddeler AI sohbet asistanına otomatik aktarılır.
+					Creative Galerisi, Manken ve Model Giydirme reddedilirken çıkan "düzeltilmesi gereken alan"
+					seçenekleri. Bir madde "Tüm ekranlar" bağlamındaysa üçünde de görünür; belirli bir ekrana
+					atarsanız yalnız orada çıkar. İşaretlenen maddeler AI sohbet asistanına otomatik aktarılır.
 				</p>
 			</div>
 		</div>
@@ -38,6 +39,13 @@
 						<datalist id="category-list">
 							<option v-for="c in categories" :key="c" :value="c" />
 						</datalist>
+					</label>
+					<label class="field">
+						<span class="field-label">Ekran</span>
+						<select v-model="form.context">
+							<option value="">Tüm ekranlar</option>
+							<option v-for="(label, key) in contexts" :key="key" :value="key">{{ label }}</option>
+						</select>
 					</label>
 					<label class="field">
 						<span class="field-label">Etiket <em>*</em></span>
@@ -67,11 +75,22 @@
 		<div class="card">
 			<div class="card-header">
 				<h3>Maddeler</h3>
-				<span class="hint">{{ reasons.length }} madde</span>
+				<div class="context-filter">
+					<button
+						v-for="tab in filterTabs"
+						:key="tab.key"
+						class="filter-tab"
+						:class="{ active: contextFilter === tab.key }"
+						@click="contextFilter = tab.key"
+					>
+						{{ tab.label }}
+					</button>
+				</div>
+				<span class="hint">{{ filteredReasons.length }} madde</span>
 			</div>
 			<div class="card-body">
-				<div v-if="reasons.length === 0" class="empty-block">
-					Henüz madde yok. Yukarıdan ekleyin.
+				<div v-if="filteredReasons.length === 0" class="empty-block">
+					{{ reasons.length === 0 ? 'Henüz madde yok. Yukarıdan ekleyin.' : 'Bu ekranda madde yok.' }}
 				</div>
 				<div v-else class="groups">
 					<div v-for="group in grouped" :key="group.category" class="group">
@@ -80,6 +99,10 @@
 							<div v-for="item in group.items" :key="item.id" class="row" :class="{ inactive: !item.is_active }">
 								<template v-if="editingId === item.id">
 									<input v-model="edit.category" class="row-input" type="text" />
+									<select v-model="edit.context" class="row-input narrow">
+										<option value="">Tüm ekranlar</option>
+										<option v-for="(label, key) in contexts" :key="key" :value="key">{{ label }}</option>
+									</select>
 									<input v-model="edit.label" class="row-input" type="text" />
 									<input v-model="edit.hint" class="row-input flex" type="text" placeholder="AI ipucu" />
 									<input v-model.number="edit.sort_order" class="row-input narrow" type="number" min="0" />
@@ -90,6 +113,9 @@
 								</template>
 								<template v-else>
 									<span class="row-label">{{ item.label }}</span>
+									<span class="context-badge" :class="`context-${item.context || 'all'}`">
+										{{ item.context ? contexts[item.context] : 'Tüm ekranlar' }}
+									</span>
 									<span class="row-hint">{{ item.hint || '—' }}</span>
 									<span class="row-order">#{{ item.sort_order }}</span>
 									<label class="row-toggle" :title="item.is_active ? 'Aktif' : 'Pasif'">
@@ -120,6 +146,7 @@ defineOptions({ layout: AppLayout })
 
 const props = defineProps({
 	reasons: { type: Array, default: () => [] },
+	contexts: { type: Object, default: () => ({}) },
 })
 
 const showToast = inject('showToast', null)
@@ -127,16 +154,28 @@ const $swal = inject('$swal')
 
 const busy = ref(false)
 const editingId = ref(null)
-const form = reactive({ category: '', label: '', hint: '', sort_order: 0 })
-const edit = reactive({ category: '', label: '', hint: '', sort_order: 0 })
+const contextFilter = ref('')
+const form = reactive({ category: '', context: '', label: '', hint: '', sort_order: 0 })
+const edit = reactive({ category: '', context: '', label: '', hint: '', sort_order: 0 })
 
 const canCreate = computed(() => form.label.trim().length > 0)
 
 const categories = computed(() => [...new Set(props.reasons.map(r => r.category))])
 
+const filterTabs = computed(() => [
+	{ key: '', label: 'Tümü' },
+	...Object.entries(props.contexts).map(([key, label]) => ({ key, label })),
+])
+
+const filteredReasons = computed(() => {
+	if (!contextFilter.value) return props.reasons
+	// Belirli bir ekran seçiliyse: o ekrana özel maddeler + "tüm ekranlar" maddeleri.
+	return props.reasons.filter(r => !r.context || r.context === contextFilter.value)
+})
+
 const grouped = computed(() => {
 	const map = new Map()
-	for (const r of props.reasons) {
+	for (const r of filteredReasons.value) {
 		if (!map.has(r.category)) map.set(r.category, [])
 		map.get(r.category).push(r)
 	}
@@ -152,6 +191,7 @@ function create() {
 	busy.value = true
 	router.post('/creative/rejection-reasons', {
 		category: form.category.trim() || 'Düzeltilmesi gereken alan',
+		context: form.context || null,
 		label: form.label.trim(),
 		hint: form.hint.trim() || null,
 		sort_order: form.sort_order || 0,
@@ -167,6 +207,7 @@ function create() {
 function startEdit(item) {
 	editingId.value = item.id
 	edit.category = item.category
+	edit.context = item.context || ''
 	edit.label = item.label
 	edit.hint = item.hint || ''
 	edit.sort_order = item.sort_order
@@ -181,6 +222,7 @@ function saveEdit(item) {
 	busy.value = true
 	router.put(`/creative/rejection-reasons/${item.id}`, {
 		category: edit.category.trim() || 'Düzeltilmesi gereken alan',
+		context: edit.context || null,
 		label: edit.label.trim(),
 		hint: edit.hint.trim() || null,
 		sort_order: edit.sort_order || 0,
@@ -196,6 +238,7 @@ function saveEdit(item) {
 function toggleActive(item) {
 	router.put(`/creative/rejection-reasons/${item.id}`, {
 		category: item.category,
+		context: item.context || null,
 		label: item.label,
 		hint: item.hint || null,
 		sort_order: item.sort_order,
@@ -233,14 +276,19 @@ async function destroy(item) {
 .card-body { padding: 18px; }
 .empty-block { text-align: center; color: #aaa; padding: 28px 0; font-style: italic; font-size: 13px; }
 
+.context-filter { display: flex; gap: 6px; flex-wrap: wrap; }
+.filter-tab { border: 1px solid #e5e5ee; background: #fff; color: #666; font-size: 12px; font-weight: 600; padding: 5px 11px; border-radius: 999px; cursor: pointer; font-family: inherit; }
+.filter-tab:hover { background: #f5f5f8; }
+.filter-tab.active { background: rgb(var(--color-primary)); color: #fff; border-color: transparent; }
+
 .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; }
 .field { display: flex; flex-direction: column; gap: 5px; }
 .field-wide { grid-column: 1 / -1; }
 .field-narrow { max-width: 120px; }
 .field-label { font-size: 12px; font-weight: 600; color: #555; }
 .field-label em { color: rgb(var(--color-primary)); font-style: normal; }
-.field input { border: 1px solid #e8e8f0; border-radius: 8px; padding: 8px 10px; font-family: inherit; font-size: 13px; color: #1a1a2e; outline: none; background: #fff; }
-.field input:focus { border-color: rgb(var(--color-primary)); }
+.field input, .field select { border: 1px solid #e8e8f0; border-radius: 8px; padding: 8px 10px; font-family: inherit; font-size: 13px; color: #1a1a2e; outline: none; background: #fff; }
+.field input:focus, .field select:focus { border-color: rgb(var(--color-primary)); }
 .form-actions { margin-top: 16px; display: flex; justify-content: flex-end; }
 
 .groups { display: flex; flex-direction: column; gap: 18px; }
@@ -249,6 +297,11 @@ async function destroy(item) {
 .row { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border: 1px solid #f0f0f5; border-radius: 10px; background: #fafafc; }
 .row.inactive { opacity: .55; }
 .row-label { font-size: 13px; font-weight: 600; color: #1a1a2e; min-width: 120px; }
+.context-badge { font-size: 10.5px; font-weight: 700; padding: 3px 8px; border-radius: 999px; background: #eef0ff; color: #4c4dc9; white-space: nowrap; }
+.context-badge.context-all { background: #f0f0f5; color: #777; }
+.context-badge.context-gallery { background: #eaf5ee; color: #2f8f52; }
+.context-badge.context-mannequin { background: #fff2e0; color: #b9711a; }
+.context-badge.context-tryon { background: #fdeaf3; color: #c23a86; }
 .row-hint { font-size: 12px; color: #999; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .row-order { font-size: 11px; color: #bbb; font-family: 'SF Mono', Menlo, Consolas, monospace; }
 .row-toggle { display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; color: #888; cursor: pointer; }
@@ -256,7 +309,7 @@ async function destroy(item) {
 .row-actions { display: flex; gap: 6px; }
 .row-input { border: 1px solid #e8e8f0; border-radius: 7px; padding: 6px 9px; font-family: inherit; font-size: 12.5px; color: #1a1a2e; outline: none; }
 .row-input.flex { flex: 1; }
-.row-input.narrow { max-width: 70px; }
+.row-input.narrow { max-width: 120px; }
 .row-input:focus { border-color: rgb(var(--color-primary)); }
 .mini-btn { border: 1px solid #e5e5ee; background: #fff; color: #555; font-size: 12px; font-weight: 600; padding: 5px 10px; border-radius: 7px; cursor: pointer; font-family: inherit; }
 .mini-btn:hover:not(:disabled) { background: #f5f5f8; }

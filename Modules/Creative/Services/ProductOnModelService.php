@@ -5,6 +5,7 @@ namespace Modules\Creative\Services;
 use App\Support\Media;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Modules\Creative\Models\Mannequin;
 use Modules\Creative\Models\Pose;
 use Modules\Creative\Models\TryonResult;
@@ -82,6 +83,12 @@ class ProductOnModelService
                     'mannequin_id'       => $mannequin->id,
                     'garment_image_path' => $garmentImagePath,
                     'status'             => TryonResult::STATUS_QUEUED,
+                    // Bu satır product_id+pose_id üstünde idempotent (yeniden kuyruğa
+                    // alma aynı satırı günceller). Eski bir üretim hâlâ arka planda
+                    // sürüyorsa, bitince bu YENİ isteğin verisini ezmemesi için her
+                    // queue() çağrısı taze bir token üretir — bkz. generate() sonundaki
+                    // token kontrolü ve GenerateOnModelJob.
+                    'generation_token'   => (string) Str::uuid(),
                     'error'              => null,
                     'meta'               => $meta !== [] ? $meta : null,
                     'created_by'         => $creatorId,
@@ -97,8 +104,13 @@ class ProductOnModelService
     /**
      * Tek bir giydirme sonucunu üretir: mankeni pozla → ürünü giydir → staged_image_path.
      * DB'de product_images'a bağlanmaz; bu ancak {@see publish()} ile (onay sonrası) olur.
+     *
+     * $expectedToken verilirse, üretim bitiminde satırın generation_token'ı hâlâ bununla
+     * eşleşmiyorsa (bu satır daha yeni bir queue() çağrısıyla geçersiz kılınmış) sonuç
+     * DB'ye YAZILMAZ — aksi halde uzun süren (birkaç dakikalık) eski bir üretim, kullanıcının
+     * arada seçtiği yeni manken/ürün/görsele ait satırın üstüne eski çıktıyı yazabilir.
      */
-    public function generate(TryonResult $result): TryonResult
+    public function generate(TryonResult $result, ?string $expectedToken = null): TryonResult
     {
         $product   = $result->product()->with('images')->first();
         $mannequin = $result->mannequin;
@@ -218,7 +230,15 @@ class ProductOnModelService
             // 3) Üretim sonrası kalite iyileştirme (upscale + son dokunuş).
             //    Kapalıysa/başarısızsa $out aynen döner (graceful degrade).
             $enhanced = $this->enhancer->enhance($out);
-            $staged   = $this->persistStaged($enhanced, $product, $result);
+
+            // AI çağrıları dakikalarca sürebilir; bu süre içinde kullanıcı aynı satırı
+            // (product_id+pose_id) yeni bir manken/ürün/görselle yeniden kuyruğa almış
+            // olabilir. Böyle bir durumda bu üretim ARTIK GEÇERSİZ — DB'yi ezmeden çık.
+            if ($expectedToken !== null && $result->fresh()?->generation_token !== $expectedToken) {
+                return $result;
+            }
+
+            $staged = $this->persistStaged($enhanced, $product, $result);
 
             $result->update([
                 'staged_image_path' => $staged,

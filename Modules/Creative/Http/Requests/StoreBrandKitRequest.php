@@ -36,6 +36,19 @@ class StoreBrandKitRequest extends FormRequest
             // Logo varyant yolları: {"primary":"path","mono":"path"}
             'logos'         => ['nullable', 'array'],
             'logos.*'       => ['nullable', 'string', 'max:1024'],
+
+            // Tasarım kriterleri: AI görsel-üstü metin üretimini yönlendiren marka brief'i.
+            'design_brief'    => ['nullable', 'string', 'max:4000'],
+            'tone'            => ['nullable', 'string', 'max:191'],
+            'cta_phrases'     => ['nullable', 'array', 'max:20'],
+            'cta_phrases.*'   => ['string', 'max:60'],
+            'banned_words'    => ['nullable', 'array', 'max:50'],
+            'banned_words.*'  => ['string', 'max:60'],
+
+            // Marka hashtag havuzu: caption üretiminde her zaman dahil edilir
+            // (keşif için AI'nin ek ürettiği hashtag'lerle birlikte).
+            'hashtag_pool'    => ['nullable', 'array', 'max:30'],
+            'hashtag_pool.*'  => ['string', 'max:60'],
         ];
     }
 
@@ -49,6 +62,18 @@ class StoreBrandKitRequest extends FormRequest
                         $this->input($field),
                         fn ($v) => is_string($v) ? trim($v) !== '' : $v !== null,
                     ),
+                ]);
+            }
+        }
+
+        // Liste alanları: boş/whitespace elemanları at, yeniden indeksle.
+        foreach (['cta_phrases', 'banned_words', 'hashtag_pool'] as $field) {
+            if (is_array($this->input($field))) {
+                $this->merge([
+                    $field => array_values(array_filter(
+                        $this->input($field),
+                        fn ($v) => is_string($v) && trim($v) !== '',
+                    )),
                 ]);
             }
         }

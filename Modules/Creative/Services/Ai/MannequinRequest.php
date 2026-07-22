@@ -22,8 +22,10 @@ class MannequinRequest
      * @param  int|null     $bustCm          Göğüs çevresi (cm)
      * @param  int|null     $waistCm         Bel çevresi (cm)
      * @param  int|null     $hipsCm          Kalça çevresi (cm)
-     * @param  string|null  $extras          Serbest ek tarif (operatör notu)
-     * @param  string|null  $promptOverride  Verilirse otomatik prompt yerine bu kullanılır
+     * @param  string|null  $extras              Serbest ek tarif (operatör notu)
+     * @param  string|null  $referencePhotoPath   Operatörün yüklediği referans fotoğrafın disk yolu
+     *                                            (gerçekçilik/ışık-doku çapası; kimlik kopyası değil)
+     * @param  string|null  $promptOverride       Verilirse otomatik prompt yerine bu kullanılır
      */
     public function __construct(
         public string $name,
@@ -38,6 +40,7 @@ class MannequinRequest
         public ?int $waistCm = null,
         public ?int $hipsCm = null,
         public ?string $extras = null,
+        public ?string $referencePhotoPath = null,
         public ?string $promptOverride = null,
     ) {}
 }

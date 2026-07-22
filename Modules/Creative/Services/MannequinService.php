@@ -2,6 +2,7 @@
 
 namespace Modules\Creative\Services;
 
+use App\Support\Media;
 use Illuminate\Support\Facades\Storage;
 use Modules\Creative\Models\Mannequin;
 use Modules\Creative\Services\Ai\Contracts\MannequinComposerContract;
@@ -81,6 +82,7 @@ class MannequinService
             waistCm:  $mannequin->waist_cm,
             hipsCm:   $mannequin->hips_cm,
             extras:   $mannequin->extras,
+            referencePhotoPath: Media::localPath($mannequin->source_photo_path, config('creative.disk', 'public')),
         );
     }
 

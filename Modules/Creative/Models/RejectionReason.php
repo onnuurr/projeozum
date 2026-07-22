@@ -20,8 +20,19 @@ class RejectionReason extends Model
 
     protected $table = 'creative_rejection_reasons';
 
+    /**
+     * Ret diyaloğunun çıktığı ekranlar. NULL context ("Tüm ekranlar") bu üçünde
+     * de gösterilir; belirli bir değer yalnız o ekranda gösterilir.
+     */
+    public const CONTEXTS = [
+        'gallery'    => 'Creative Galerisi',
+        'mannequin'  => 'Manken',
+        'tryon'      => 'Model Giydirme',
+    ];
+
     protected $fillable = [
         'category',
+        'context',
         'label',
         'hint',
         'sort_order',
@@ -36,6 +47,13 @@ class RejectionReason extends Model
     public function scopeActive(Builder $q): Builder
     {
         return $q->where('is_active', true);
+    }
+
+    public function scopeForContext(Builder $q, string $context): Builder
+    {
+        return $q->where(function (Builder $q) use ($context) {
+            $q->whereNull('context')->orWhere('context', $context);
+        });
     }
 
     public function scopeOrdered(Builder $q): Builder

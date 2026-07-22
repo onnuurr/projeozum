@@ -17,6 +17,7 @@ use Modules\Creative\Models\BrandKit;
  *     'fonts'    => ['regular' => '/abs/path.ttf', 'bold' => '/abs/path.ttf'],
  *     'spacing'  => ['md' => 16, ...],
  *     'logos'    => ['primary' => '/abs/path.png', ...],
+ *     'criteria' => ['design_brief' => ?string, 'tone' => ?string, 'cta_phrases' => string[], 'banned_words' => string[]],
  *   ]
  */
 class BrandTokenService
@@ -27,7 +28,7 @@ class BrandTokenService
     /**
      * Varsayılan kit'in normalize token sözlüğü (cache'li).
      *
-     * @return array{palette:array<string,string>,fonts:array<string,string>,spacing:array<string,mixed>,logos:array<string,string>}
+     * @return array{palette:array<string,string>,fonts:array<string,string>,spacing:array<string,mixed>,logos:array<string,string>,criteria:array<string,mixed>}
      */
     public function tokens(): array
     {
@@ -39,7 +40,7 @@ class BrandTokenService
     /**
      * Belirli bir kit için token sözlüğü (cache'siz; önizleme/editör için).
      *
-     * @return array{palette:array<string,string>,fonts:array<string,string>,spacing:array<string,mixed>,logos:array<string,string>}
+     * @return array{palette:array<string,string>,fonts:array<string,string>,spacing:array<string,mixed>,logos:array<string,string>,criteria:array<string,mixed>}
      */
     public function tokensFor(?BrandKit $kit): array
     {
@@ -55,7 +56,7 @@ class BrandTokenService
     }
 
     /**
-     * @return array{palette:array<string,string>,fonts:array<string,string>,spacing:array<string,mixed>,logos:array<string,string>}
+     * @return array{palette:array<string,string>,fonts:array<string,string>,spacing:array<string,mixed>,logos:array<string,string>,criteria:array<string,mixed>}
      */
     private function normalize(?BrandKit $kit): array
     {
@@ -72,10 +73,17 @@ class BrandTokenService
         );
 
         return [
-            'palette' => $palette,
-            'fonts'   => $this->resolveFonts($kit?->typography),
-            'spacing' => $spacing,
-            'logos'   => $this->resolvePaths($kit?->logos),
+            'palette'  => $palette,
+            'fonts'    => $this->resolveFonts($kit?->typography),
+            'spacing'  => $spacing,
+            'logos'    => $this->resolvePaths($kit?->logos),
+            'criteria' => [
+                'design_brief' => trim((string) $kit?->design_brief) ?: null,
+                'tone'         => trim((string) $kit?->tone) ?: null,
+                'cta_phrases'  => $this->stringList($kit?->cta_phrases),
+                'banned_words' => $this->stringList($kit?->banned_words),
+                'hashtag_pool' => $this->stringList($kit?->hashtag_pool),
+            ],
         ];
     }
 
@@ -141,5 +149,23 @@ class BrandTokenService
         }
 
         return $out;
+    }
+
+    /**
+     * Boş/whitespace elemanları elenmiş, yeniden indekslenmiş string listesi
+     * (cta_phrases/banned_words gibi liste alanları için).
+     *
+     * @return array<int,string>
+     */
+    private function stringList(mixed $list): array
+    {
+        $out = [];
+        foreach ((array) ($list ?? []) as $value) {
+            if (is_string($value) && trim($value) !== '') {
+                $out[] = trim($value);
+            }
+        }
+
+        return array_values($out);
     }
 }

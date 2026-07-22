@@ -112,6 +112,26 @@
 				<span class="ai-dot"></span>
 				<span class="ai-label">✨ AI sahne / giydirme</span>
 			</label>
+			<label
+				class="ai-toggle"
+				:class="{ on: useCopyAi }"
+				:title="hasCopySlots ? 'Marka kriterlerine (BrandKit) uygun başlık/alt başlık/CTA metni üret' : 'Seçili şablonda headline/sub_headline/cta_button slotu yok — etkisiz'"
+			>
+				<input v-model="useCopyAi" type="checkbox" />
+				<span class="ai-dot"></span>
+				<span class="ai-label">✍️ AI metin (başlık/CTA)</span>
+			</label>
+			<span v-if="useCopyAi && !hasCopySlots" class="hint copy-hint">Bu şablonda metin slotu yok</span>
+			<label
+				v-if="props.ai_compose_available"
+				class="ai-toggle"
+				:class="{ on: useAiCompose }"
+				title="SVG şablonu yerine fal.ai (Flux) ile tam post kompozisyonu üret — OCR ile doğrulanmış metin gerektirir"
+			>
+				<input v-model="useAiCompose" type="checkbox" />
+				<span class="ai-dot"></span>
+				<span class="ai-label">🖼️ AI kompozisyon</span>
+			</label>
 			<label v-if="useAi" class="pose-select" title="AI mankeninin duruşu (poz planlaması)">
 				<span class="fs-label">Poz</span>
 				<select v-model="selectedPose">
@@ -119,6 +139,7 @@
 				</select>
 			</label>
 			<button
+				v-if="can('creative.generate')"
 				class="btn btn-primary btn-with-icon"
 				:disabled="!canGenerate || busy"
 				@click="generate"
@@ -138,14 +159,18 @@ import { Head, Link, router, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import CreativeNav from '../Components/CreativeNav.vue'
+import { useCan } from '@/composables/useCan'
 
 defineOptions({ layout: AppLayout })
+
+const { can } = useCan()
 
 const props = defineProps({
 	templates: { type: Array, default: () => [] },
 	products: { type: Array, default: () => [] },
 	formats: { type: Array, default: () => [] },
 	default_format: { type: String, default: null },
+	ai_compose_available: { type: Boolean, default: false },
 })
 
 const showToast = inject('showToast', null)
@@ -156,7 +181,15 @@ const selectedProducts = reactive(new Set())
 const search = ref('')
 const busy = ref(false)
 const useAi = ref(false)
+const useCopyAi = ref(false)
+const useAiCompose = ref(false)
 const selectedFormat = ref(props.default_format || props.formats[0]?.key || null)
+
+const COPY_SLOT_KEYS = ['headline', 'sub_headline', 'cta_button']
+const hasCopySlots = computed(() => {
+	const t = props.templates.find(t => t.id === selectedTemplate.value)
+	return Array.isArray(t?.slots) && t.slots.some(s => COPY_SLOT_KEYS.includes(s?.key))
+})
 
 // Poz planlaması: değer doğrudan AI prompt'una giden duruş yönergesidir.
 // Boş değer = "Otomatik": backend ürün adına göre kürate poz seçer.
@@ -202,6 +235,8 @@ function generate() {
 		template_id: selectedTemplate.value,
 		product_ids: Array.from(selectedProducts),
 		use_ai: useAi.value,
+		use_copy_ai: useCopyAi.value,
+		render_engine: useAiCompose.value ? 'ai_compose' : 'svg',
 		format: selectedFormat.value,
 		pose: useAi.value ? (selectedPose.value || null) : null,
 	}, {
@@ -286,6 +321,7 @@ function generate() {
 .ai-toggle.on .ai-dot::after { transform: translateX(14px); }
 .ai-label { font-size: 12px; font-weight: 600; color: #555; white-space: nowrap; }
 .ai-toggle.on .ai-label { color: rgb(var(--color-primary)); }
+.copy-hint { font-size: 11px; color: #d97706; white-space: nowrap; }
 
 /* ── Dar ekran (telefon) ── */
 @media (max-width: 640px) {

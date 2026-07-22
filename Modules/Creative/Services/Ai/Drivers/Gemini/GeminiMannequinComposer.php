@@ -20,29 +20,20 @@ class GeminiMannequinComposer implements MannequinComposerContract
     {
         $prompt = $this->prompts->build($request);
 
+        // Referans fotoğraf verilmişse (bkz. MannequinPromptBuilder) Gemini'ye
+        // görsel olarak da gönderilir — image-to-image gerçekçilik/ışık-doku
+        // çapası, salt metinden çok daha güvenilir "gerçek insan" sonucu verir.
+        $referenceImages = $request->referencePhotoPath ? [$request->referencePhotoPath] : [];
+
         // Kimlik (yüz) burada doğduğu için: opsiyonel güçlü model + tam boy kadraj
         // (aspectRatio) / çözünürlük. Değerler boşsa generateImage bunları göndermez.
         $bytes = $this->client->generateImage(
             $prompt,
-            [],
+            $referenceImages,
             (string) config('creative.ai.gemini.mannequin_model') ?: null,
-            $this->imageConfig(),
+            GeminiClient::defaultImageConfig(),
         );
 
         return ImageFile::temp($bytes, 'png');
-    }
-
-    /**
-     * generationConfig.imageConfig için config'ten aspectRatio/imageSize.
-     * Boş değerler atılır (gönderilmez).
-     *
-     * @return array<string,string>
-     */
-    private function imageConfig(): array
-    {
-        return array_filter([
-            'aspectRatio' => (string) config('creative.ai.gemini.image.aspect_ratio', ''),
-            'imageSize'   => (string) config('creative.ai.gemini.image.size', ''),
-        ], fn ($v) => $v !== '');
     }
 }

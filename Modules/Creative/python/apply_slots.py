@@ -49,6 +49,10 @@ def _apply_text(elem, slot):
     elem.set("font-weight", "bold" if slot.get("bold") else "normal")
     if slot.get("fill"):
         elem.set("fill", str(slot["fill"]))
+    # Render'ı etkilemez — yalnız backend'in karakter-tavanı denetimi (bkz.
+    # CreativeCopyRuleEngine::applyWidthCap) için saklanan custom attribute.
+    # Her zaman yazılır (x/y gibi) ki 0'a çekilince eski değer sızmasın.
+    elem.set("data-w", str(_num(slot.get("w"))))
     if not (elem.text and elem.text.strip()):
         elem.text = slot["key"]
 

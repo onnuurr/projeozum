@@ -6,6 +6,8 @@ use Nwidart\Modules\Support\ModuleServiceProvider;
 use Modules\Creative\Console\Commands\CreativeReviewReportCommand;
 use Modules\Creative\Console\Commands\TrainGarmentDetectorCommand;
 use Modules\Creative\Services\Ai\Contracts\CaptionGeneratorContract;
+use Modules\Creative\Services\Ai\Contracts\CompositionComposerContract;
+use Modules\Creative\Services\Ai\Contracts\CopyGeneratorContract;
 use Modules\Creative\Services\Ai\Contracts\GarmentIdentitySummarizerContract;
 use Modules\Creative\Services\Ai\Contracts\GarmentPartAnalyzerContract;
 use Modules\Creative\Services\Ai\Contracts\GarmentTryOnContract;
@@ -15,7 +17,9 @@ use Modules\Creative\Services\Ai\Contracts\PosePreviewComposerContract;
 use Modules\Creative\Services\Ai\Contracts\RejectionInsightContract;
 use Modules\Creative\Services\Ai\Contracts\SceneComposerContract;
 use Modules\Creative\Services\Ai\Drivers\Fal\FalFashnTryOn;
+use Modules\Creative\Services\Ai\Drivers\Fal\FalFluxComposer;
 use Modules\Creative\Services\Ai\Drivers\Gemini\GeminiCaptionGenerator;
+use Modules\Creative\Services\Ai\Drivers\Gemini\GeminiCopyGenerator;
 use Modules\Creative\Services\Ai\Drivers\Gemini\GeminiIdentitySummarizer;
 use Modules\Creative\Services\Ai\Drivers\Gemini\GeminiMannequinComposer;
 use Modules\Creative\Services\Ai\Drivers\Gemini\GeminiMannequinPoseComposer;
@@ -25,6 +29,8 @@ use Modules\Creative\Services\Ai\Drivers\Gemini\GeminiRejectionInsightGenerator;
 use Modules\Creative\Services\Ai\Drivers\Gemini\GeminiSceneComposer;
 use Modules\Creative\Services\Ai\Drivers\Gemini\GeminiTryOn;
 use Modules\Creative\Services\Ai\Drivers\Mock\MockCaptionGenerator;
+use Modules\Creative\Services\Ai\Drivers\Mock\MockCompositionComposer;
+use Modules\Creative\Services\Ai\Drivers\Mock\MockCopyGenerator;
 use Modules\Creative\Services\Ai\Drivers\Mock\MockIdentitySummarizer;
 use Modules\Creative\Services\Ai\Drivers\Mock\MockMannequinComposer;
 use Modules\Creative\Services\Ai\Drivers\Mock\MockMannequinPoseComposer;
@@ -48,6 +54,9 @@ use Modules\Creative\Services\Enhancement\PythonImageEnhancer;
 use Modules\Creative\Services\Enhancement\PythonZeroShotGarmentPartDetector;
 use Modules\Creative\Services\Rendering\PythonRenderer;
 use Modules\Creative\Services\Rendering\RendererContract;
+use Modules\Creative\Services\Vision\NullTextRecognizer;
+use Modules\Creative\Services\Vision\PythonTesseractTextRecognizer;
+use Modules\Creative\Services\Vision\TextRecognizerContract;
 
 class CreativeServiceProvider extends ModuleServiceProvider
 {
@@ -205,12 +214,40 @@ class CreativeServiceProvider extends ModuleServiceProvider
             return $app->make($useGemini ? GeminiCaptionGenerator::class : MockCaptionGenerator::class);
         });
 
+        // Görsel-üstü metin (headline/sub-headline/CTA) sürücüsü: gemini metin
+        // modeli (anahtar varsa), aksi halde mock.
+        $this->app->bind(CopyGeneratorContract::class, function ($app) {
+            $useGemini = config('creative.ai.copy_driver') === 'gemini'
+                && config('creative.ai.gemini.api_key');
+
+            return $app->make($useGemini ? GeminiCopyGenerator::class : MockCopyGenerator::class);
+        });
+
         // Ret analiz raporu "ne yapılabilir" önerisi: gemini metin modeli (anahtar
         // varsa), aksi halde şablon tabanlı mock (bkz. CreativeReviewReportCommand).
         $this->app->bind(RejectionInsightContract::class, function ($app) {
             $useGemini = (bool) config('creative.ai.gemini.api_key');
 
             return $app->make($useGemini ? GeminiRejectionInsightGenerator::class : MockRejectionInsightGenerator::class);
+        });
+
+        // AI tam-post kompozisyon sürücüsü (Faz J): fal (anahtar varsa), aksi
+        // halde mock — bkz. Modules/Creative/config/config.php `composition`.
+        $this->app->bind(CompositionComposerContract::class, function ($app) {
+            $useFal = config('creative.composition.driver') === 'fal'
+                && config('creative.ai.fal.key');
+
+            return $app->make($useFal ? FalFluxComposer::class : MockCompositionComposer::class);
+        });
+
+        // OCR metin tanıma (Faz J): enabled + driver=python ise Python
+        // (pytesseract), aksi halde passthrough (Null, hiç kelime bulamaz —
+        // CreativeRenderService bunu ai_compose'u hiç çalıştırmama sinyali sayar).
+        $this->app->bind(TextRecognizerContract::class, function ($app) {
+            $usePython = config('creative.composition.ocr.enabled')
+                && config('creative.composition.ocr.driver') === 'python';
+
+            return $app->make($usePython ? PythonTesseractTextRecognizer::class : NullTextRecognizer::class);
         });
     }
 }

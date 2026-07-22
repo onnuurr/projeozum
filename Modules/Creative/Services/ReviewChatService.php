@@ -4,6 +4,7 @@ namespace Modules\Creative\Services;
 
 use App\Models\User;
 use Illuminate\Support\Collection;
+use Modules\Creative\Models\CreativeAsset;
 use Modules\Creative\Models\Mannequin;
 use Modules\Creative\Models\ReviewChat;
 use Modules\Creative\Models\TryonResult;
@@ -27,7 +28,7 @@ class ReviewChatService
      *
      * @return array{reply: string, suggested_instruction: ?string}
      */
-    public function converse(Mannequin|TryonResult $subject, User $user, string $message): array
+    public function converse(Mannequin|TryonResult|CreativeAsset $subject, User $user, string $message): array
     {
         $message = trim($message);
 
@@ -52,7 +53,7 @@ class ReviewChatService
     /**
      * @return Collection<int,ReviewChat>
      */
-    public function history(Mannequin|TryonResult $subject): Collection
+    public function history(Mannequin|TryonResult|CreativeAsset $subject): Collection
     {
         return $subject->reviewChats()->orderBy('created_at')->get();
     }
@@ -60,14 +61,14 @@ class ReviewChatService
     /**
      * En son sohbetten çıkan, henüz uygulanmamış düzeltme talimatı (varsa).
      */
-    public function latestSuggestion(Mannequin|TryonResult $subject): ?string
+    public function latestSuggestion(Mannequin|TryonResult|CreativeAsset $subject): ?string
     {
         $value = $subject->meta['chat_suggested_instruction'] ?? null;
 
         return is_string($value) && $value !== '' ? $value : null;
     }
 
-    private function store(Mannequin|TryonResult $subject, User $user, string $role, string $content): ReviewChat
+    private function store(Mannequin|TryonResult|CreativeAsset $subject, User $user, string $role, string $content): ReviewChat
     {
         return $subject->reviewChats()->create([
             'user_id'    => $user->id,
@@ -77,10 +78,18 @@ class ReviewChatService
         ]);
     }
 
-    private function buildPrompt(Mannequin|TryonResult $subject, string $newMessage): string
+    private function buildPrompt(Mannequin|TryonResult|CreativeAsset $subject, string $newMessage): string
     {
-        $type    = $subject instanceof Mannequin ? 'sanal manken kimlik görseli' : 'ürün giydirme (try-on) görseli';
-        $context = $subject instanceof Mannequin ? $this->mannequinContext($subject) : $this->tryonContext($subject);
+        $type = match (true) {
+            $subject instanceof Mannequin => 'sanal manken kimlik görseli',
+            $subject instanceof CreativeAsset => 'sosyal medya tasarımı (Creative Studio)',
+            default => 'ürün giydirme (try-on) görseli',
+        };
+        $context = match (true) {
+            $subject instanceof Mannequin => $this->mannequinContext($subject),
+            $subject instanceof CreativeAsset => $this->assetContext($subject),
+            default => $this->tryonContext($subject),
+        };
 
         $history = $this->history($subject)
             ->map(fn (ReviewChat $c) => ($c->role === ReviewChat::ROLE_USER ? 'Kullanıcı' : 'Asistan') . ': ' . $c->content)
@@ -122,7 +131,7 @@ class ReviewChatService
      * Ret gerekçesini (serbest açıklama + işaretlenen "düzeltilmesi gereken alan"
      * maddeleri) tek metne dökerek prompt'a hazır bilgi olarak verir.
      */
-    private function rejectionSummary(Mannequin|TryonResult $subject): string
+    private function rejectionSummary(Mannequin|TryonResult|CreativeAsset $subject): string
     {
         $lines = [];
 
@@ -162,6 +171,22 @@ class ReviewChatService
             '- Manken: ' . ($r->mannequin?->name ?? '—'),
             '- Poz: ' . ($r->pose?->label ?? '—') . ' (' . ($r->pose?->prompt ?? '—') . ')',
             '- Mevcut ek talimat: ' . (($r->meta['extra_instructions'] ?? null) ?: '—'),
+        ];
+
+        return implode("\n", $lines);
+    }
+
+    private function assetContext(CreativeAsset $a): string
+    {
+        $a->loadMissing(['product:id,name', 'template:id,name']);
+
+        $lines = [
+            '- Ürün: ' . ($a->product?->name ?? '—'),
+            '- Şablon: ' . ($a->template?->name ?? '—'),
+            '- AI sahne kullanıldı mı: ' . (($a->meta['use_ai'] ?? false) ? 'evet' : 'hayır'),
+            '- AI metin (başlık/CTA) kullanıldı mı: ' . (($a->meta['use_copy_ai'] ?? false) ? 'evet' : 'hayır'),
+            '- Üretilen metin: ' . (($a->meta['copy'] ?? null) ? json_encode($a->meta['copy'], JSON_UNESCAPED_UNICODE) : '—'),
+            '- Mevcut ek talimat: ' . (($a->meta['extra_instructions'] ?? null) ?: '—'),
         ];
 
         return implode("\n", $lines);

@@ -8,11 +8,18 @@ use Illuminate\Support\Facades\Storage;
 use Modules\Creative\Models\CreativeAsset;
 use Modules\Creative\Models\CreativeTemplate;
 use Modules\Creative\Services\Ai\AiSceneService;
+use Modules\Creative\Services\Ai\CompositionRequest;
+use Modules\Creative\Services\Ai\Contracts\CompositionComposerContract;
+use Modules\Creative\Services\Ai\Contracts\CopyGeneratorContract;
+use Modules\Creative\Services\Ai\CopyRequest;
 use Modules\Creative\Services\Ai\SceneRequest;
 use Modules\Creative\Services\Ai\Support\ImageFile;
 use Modules\Creative\Services\Enhancement\ImageEnhancerContract;
+use Modules\Creative\Services\Exceptions\CompositionConstraintException;
 use Modules\Creative\Services\Exceptions\PermanentRenderException;
 use Modules\Creative\Services\Rendering\RendererContract;
+use Modules\Creative\Services\Vision\TextRecognizerContract;
+use Modules\Product\Models\Product;
 
 class CreativeRenderService
 {
@@ -26,6 +33,12 @@ class CreativeRenderService
         private AiSceneService $aiScenes,
         private CaptionService $captions,
         private ImageEnhancerContract $enhancer,
+        private CopyGeneratorContract $copyGenerator,
+        private CreativeCopyRuleEngine $copyRules,
+        private ReviewNotifier $notifier,
+        private CompositionComposerContract $composer,
+        private TextRecognizerContract $textRecognizer,
+        private LayoutConstraintEngine $layoutConstraints,
     ) {}
 
     /**
@@ -92,6 +105,18 @@ class CreativeRenderService
         $brand  = $this->brandTokens->tokens();
         $format = $this->resolveFormat($asset);
 
+        // Ret sonrası chatbot ile üretilen düzeltme talimatı varsa (bkz. ReviewChatService),
+        // marka brief'ine EK olarak eklenir — yapısal alanları (ürün, şablon) ezmez. Hem sahne
+        // hem metin üretimi bunu görür (ret sebebi hangisiyle ilgili olursa olsun).
+        $extra          = trim((string) ($asset->meta['extra_instructions'] ?? ''));
+        $briefWithExtra = $this->joinBrief($brand['criteria']['design_brief'] ?? null, $extra);
+
+        // İkinci, opsiyonel render motoru (Faz J): fal.ai Flux ile tam-AI post
+        // kompozisyonu. SVG yolu (aşağısı) hiç değişmeden kalır.
+        if (($asset->meta['render_engine'] ?? 'svg') === 'ai_compose') {
+            return $this->generateAiComposition($asset, $product, $template, $brand, $format, $briefWithExtra, $startedAt);
+        }
+
         $imagePaths = [];
         $usedImage  = null;
         $aiStored   = null;
@@ -123,6 +148,7 @@ class CreativeRenderService
                             palette: $brand['palette'] ?? [],
                             aspectLabel: $format['aspect'] ?? null,
                             pose: $this->resolvePose($asset),
+                            designBrief: $briefWithExtra !== '' ? $briefWithExtra : null,
                         ),
                         (int) $product->id,
                     );
@@ -134,10 +160,13 @@ class CreativeRenderService
             }
         }
 
+        $copy   = $this->buildCopy($asset, $product, $template, $brand);
+        $values = array_merge(['product_name' => (string) $product->name], $copy['values'] ?? []);
+
         try {
             $bytes = $this->renderer->render(
                 $template,
-                ['product_name' => (string) $product->name],
+                $values,
                 $imagePaths,
                 $brand,
                 $format['width'] ?? null,
@@ -181,10 +210,198 @@ class CreativeRenderService
                 'format_label' => $format['label'] ?? null,
                 'width'        => $format['width'] ?? $template->width,
                 'height'       => $format['height'] ?? $template->height,
+                'copy'        => array_filter($copy['values'] ?? [], fn ($v) => $v !== '') ?: null,
+                'copy_ai_raw' => $copy['envelope'] ?? null,
             ]),
         ])->save();
 
+        $this->notifier->notifyPending($asset, $asset->created_by);
+
         return $asset;
+    }
+
+    /**
+     * AI kompozisyon (fal.ai Flux) render motoru — Faz J. Ürün + marka
+     * kriterlerini tek bir istekte bitmiş post olarak ister, sonra
+     * LayoutConstraintEngine + OCR ile doğrular. Doğrulama başarısız olursa
+     * CompositionConstraintException fırlatır (GenerateCreativeJob bunu
+     * mevcut tries/backoff ile retry eder) — insan reviewer'a asla
+     * doğrulanmamış bir kompozisyon ulaşmaz.
+     */
+    private function generateAiComposition(
+        CreativeAsset $asset,
+        Product $product,
+        CreativeTemplate $template,
+        array $brand,
+        array $format,
+        string $briefWithExtra,
+        float $startedAt,
+    ): CreativeAsset {
+        if (! config('creative.composition.ocr.enabled')) {
+            // Retry ile çözülmez — bu bir config/operasyon hatası: OCR'sız
+            // tam-AI render'ı "ham AI çıktısı asla doğrudan kullanılmaz"
+            // disiplinini ihlal eder.
+            throw new PermanentRenderException(
+                'AI kompozisyon motoru (ai_compose) OCR doğrulaması olmadan çalıştırılamaz. '
+                . 'creative.composition.ocr.enabled=true yapın.',
+            );
+        }
+
+        $refs = [];
+        if ($src = $this->pickImageSrc($product)) {
+            if ($local = $this->resolver->toLocalPath($src)) {
+                $refs[] = $local;
+                foreach ($product->images as $img) {
+                    if (count($refs) >= self::AI_MAX_REFS) {
+                        break;
+                    }
+                    if ($img->path === $src || ! $img->path) {
+                        continue;
+                    }
+                    if ($p = $this->resolver->toLocalPath($img->path)) {
+                        $refs[] = $p;
+                    }
+                }
+            }
+        }
+
+        $copy    = $this->buildCopy($asset, $product, $template, $brand, force: true);
+        $values  = $copy['values'] ?? [];
+        $wantCta = collect($template->slots ?? [])->contains(fn ($s) => ($s['key'] ?? null) === 'cta_button');
+
+        // Fail-fast: render'dan ÖNCE ucuz/I-O'suz doğrulama, boşuna bir AI
+        // çağrısı yapılmasın.
+        $preCheck = $this->layoutConstraints->checkIntendedText($values);
+        if (! $preCheck['passed']) {
+            throw new CompositionConstraintException(implode('; ', $preCheck['violations']));
+        }
+
+        try {
+            $composedPath = $this->composer->compose(new CompositionRequest(
+                productName: (string) $product->name,
+                productImagePaths: $refs,
+                palette: $brand['palette'] ?? [],
+                aspectLabel: $format['aspect'] ?? null,
+                headline: $values['headline'] ?? null,
+                subHeadline: $values['sub_headline'] ?? null,
+                ctaButton: $values['cta_button'] ?? null,
+                designBrief: $briefWithExtra !== '' ? $briefWithExtra : null,
+            ));
+        } finally {
+            $this->resolver->cleanup();
+        }
+
+        $ocrWords = $this->textRecognizer->recognize($composedPath);
+        $report   = $this->layoutConstraints->evaluate($ocrWords, $values, $format, $wantCta);
+
+        if (! $report['passed']) {
+            ImageFile::delete([$composedPath]);
+            throw new CompositionConstraintException(implode('; ', $report['violations']));
+        }
+
+        $enhanced = $this->enhancer->enhance($composedPath);
+        $bytes    = (string) file_get_contents($enhanced);
+        ImageFile::delete(array_unique([$composedPath, $enhanced]));
+
+        $path = sprintf(
+            '%s/%d/%d.png',
+            config('creative.output_dir', 'creatives'),
+            $product->id,
+            $asset->id,
+        );
+
+        Storage::disk($this->disk())->put($path, $bytes);
+
+        $caption = $this->buildCaption($product);
+
+        $asset->fill([
+            'image_path'    => $path,
+            'status'        => CreativeAsset::STATUS_DONE,
+            'review_status' => CreativeAsset::REVIEW_PENDING,
+            'error'         => null,
+            'meta'          => array_merge($asset->meta ?? [], [
+                'render_engine'      => 'ai_compose',
+                'composition_model'  => $this->composer->modelIdentifier(),
+                'constraint_report'  => $report,
+                'intended_text'      => $values,
+                'caption'      => $caption['caption'] ?? null,
+                'hashtags'     => $caption['hashtags'] ?? [],
+                'render_ms'    => (int) round((microtime(true) - $startedAt) * 1000),
+                'format'       => $format['key'] ?? null,
+                'format_label' => $format['label'] ?? null,
+                'width'        => $format['width'] ?? $template->width,
+                'height'       => $format['height'] ?? $template->height,
+                'copy_ai_raw'  => $copy['envelope'] ?? null,
+            ]),
+        ])->save();
+
+        $this->notifier->notifyPending($asset, $asset->created_by);
+
+        return $asset;
+    }
+
+    /**
+     * Şablonun tanımladığı headline/sub_headline/cta_button slotları için
+     * (varsa) AI ile marka kriterlerine uygun metin üretir. Şablon bu
+     * slotları hiç tanımlamıyorsa maliyetsiz no-op döner. AI kapalıysa ya da
+     * başarısız olursa slotlar boş string ile doldurulur — TANIMLI bir slotu
+     * `values`'a hiç yazmamak, render motorunda literal yer tutucu metin
+     * ("headline" gibi) sızmasına yol açar (bkz. apply_slots.py/render.py).
+     *
+     * @return array{values:array<string,string>,envelope:?array}
+     */
+    private function buildCopy(CreativeAsset $asset, Product $product, CreativeTemplate $template, array $brand, bool $force = false): array
+    {
+        $slotsByKey = collect($template->slots ?? [])
+            ->filter(fn ($s) => in_array($s['key'] ?? null, ['headline', 'sub_headline', 'cta_button'], true))
+            ->keyBy('key')->all();
+
+        if ($slotsByKey === []) {
+            return [];
+        }
+
+        $resolved = ['headline' => null, 'sub_headline' => null, 'cta_button' => null];
+        $envelope = null;
+
+        // $force: ai_compose motorunun SVG fallback'i yok — metin slotu
+        // tanımlıysa AI'dan metin istemek isteğe bağlı değil (bkz. generateAiComposition).
+        if ($force || (bool) ($asset->meta['use_copy_ai'] ?? false)) {
+            try {
+                $product->loadMissing('category');
+
+                // Ret sonrası chatbot düzeltme talimatı varsa brief'e ek olarak eklenir
+                // (bkz. generate() — aynı hesap, buildCopy() self-contained kalsın diye burada tekrarlanır).
+                $extra          = trim((string) ($asset->meta['extra_instructions'] ?? ''));
+                $briefWithExtra = $this->joinBrief($brand['criteria']['design_brief'] ?? null, $extra);
+
+                $request = new CopyRequest(
+                    productName: (string) $product->name,
+                    category: $product->category?->name,
+                    attributes: array_filter(
+                        ['materyal' => $product->material, 'cinsiyet' => $product->gender],
+                        fn ($v) => is_string($v) && $v !== '',
+                    ),
+                    designBrief: $briefWithExtra !== '' ? $briefWithExtra : null,
+                    tone: $brand['criteria']['tone'] ?? null,
+                    ctaPhrases: $brand['criteria']['cta_phrases'] ?? [],
+                    bannedWords: $brand['criteria']['banned_words'] ?? [],
+                );
+                $envelope = $this->copyGenerator->generate($request);
+                $resolved = $this->copyRules->resolve($envelope['data'] ?? [], $brand['criteria'] ?? [], $slotsByKey);
+            } catch (\Throwable $e) {
+                Log::warning('Creative AI copywriting başarısız.', [
+                    'product_id' => $product->id,
+                    'error'      => $e->getMessage(),
+                ]);
+            }
+        }
+
+        $out = [];
+        foreach (array_keys($slotsByKey) as $key) {
+            $out[$key] = (string) ($resolved[$key] ?? '');
+        }
+
+        return ['values' => $out, 'envelope' => $envelope];
     }
 
     /**
@@ -241,6 +458,18 @@ class CreativeRenderService
     private function wantsAi(CreativeAsset $asset): bool
     {
         return (bool) ($asset->meta['use_ai'] ?? false);
+    }
+
+    /**
+     * Marka brief'i + (varsa) chatbot düzeltme talimatını tek metne birleştirir.
+     * Boş parçalar atlanır — aksi halde brief boşken "trim(''.'. '.extra)" gibi
+     * naif bir concat, başında sarkan bir ". " bırakırdı.
+     */
+    private function joinBrief(?string $brief, string $extra): string
+    {
+        $parts = array_filter([trim((string) $brief), $extra], fn ($p) => $p !== '');
+
+        return implode('. ', $parts);
     }
 
     /**

@@ -10,11 +10,11 @@ use Modules\Creative\Services\Ai\Contracts\RejectionInsightContract;
  */
 class MockRejectionInsightGenerator implements RejectionInsightContract
 {
-    public function generate(array $tryonSummary, array $mannequinSummary): string
+    public function generate(array $tryonSummary, array $mannequinSummary, array $assetSummary): string
     {
         $lines = [];
 
-        foreach (['Giydirme' => $tryonSummary, 'Manken' => $mannequinSummary] as $label => $s) {
+        foreach (['Giydirme' => $tryonSummary, 'Manken' => $mannequinSummary, 'Creative Studio' => $assetSummary] as $label => $s) {
             if (($s['total_reviewed'] ?? 0) === 0) {
                 $lines[] = "• {$label}: bu pencerede incelenen kayıt yok, öneri üretilemedi.";
                 continue;

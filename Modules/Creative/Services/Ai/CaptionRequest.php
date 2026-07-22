@@ -10,15 +10,18 @@ namespace Modules\Creative\Services\Ai;
 class CaptionRequest
 {
     /**
-     * @param  string                $productName  Ürün adı
-     * @param  string|null           $category     Ürün kategorisi (varsa)
-     * @param  array<string,string>  $attributes   Ek ürün nitelikleri (materyal, cinsiyet vb.)
-     * @param  array<string,string>  $palette      Marka renk token'ları (ton ipucu)
+     * @param  string                $productName   Ürün adı
+     * @param  string|null           $category      Ürün kategorisi (varsa)
+     * @param  array<string,string>  $attributes    Ek ürün nitelikleri (materyal, cinsiyet vb.)
+     * @param  array<string,string>  $palette       Marka renk token'ları (ton ipucu)
+     * @param  array<int,string>     $hashtagPool   Marka hashtag havuzu (varsa MUTLAKA dahil edilir —
+     *                                              nihai garanti CaptionService::mergeHashtags()'te)
      */
     public function __construct(
         public string $productName,
         public ?string $category = null,
         public array $attributes = [],
         public array $palette = [],
+        public array $hashtagPool = [],
     ) {}
 }

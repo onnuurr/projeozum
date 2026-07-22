@@ -14,9 +14,11 @@ class FalClient
 {
     /**
      * @param  array<string,mixed>  $input  Model girdisi (örn. fashn/tryon model_image/garment_image)
+     * @param  string|null  $model  Çağrılacak model id'si; null ise creative.ai.fal.model'e düşer
+     *                              (örn. FalFluxComposer kendi creative.composition.fal.model'ini verir).
      * @return array<string,mixed>  Tamamlanan işin sonuç JSON'u
      */
-    public function run(array $input): array
+    public function run(array $input, ?string $model = null): array
     {
         $key = (string) config('creative.ai.fal.key');
         if ($key === '') {
@@ -24,7 +26,7 @@ class FalClient
         }
 
         $base    = rtrim((string) config('creative.ai.fal.base_url'), '/');
-        $model   = trim((string) config('creative.ai.fal.model'), '/');
+        $model   = trim($model ?? (string) config('creative.ai.fal.model'), '/');
         $timeout = (int) config('creative.ai.timeout', 240);
 
         $submit = Http::timeout($timeout)

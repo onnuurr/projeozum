@@ -19,14 +19,22 @@ class BrandKit extends Model
         'typography',
         'logos',
         'spacing',
+        'design_brief',
+        'tone',
+        'cta_phrases',
+        'banned_words',
+        'hashtag_pool',
     ];
 
     protected $casts = [
-        'is_default' => 'boolean',
-        'palette'    => 'array',
-        'typography' => 'array',
-        'logos'      => 'array',
-        'spacing'    => 'array',
+        'is_default'   => 'boolean',
+        'palette'      => 'array',
+        'typography'   => 'array',
+        'logos'        => 'array',
+        'spacing'      => 'array',
+        'cta_phrases'  => 'array',
+        'banned_words' => 'array',
+        'hashtag_pool' => 'array',
     ];
 
     /**

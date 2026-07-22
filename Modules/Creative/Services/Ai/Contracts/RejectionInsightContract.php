@@ -11,6 +11,7 @@ interface RejectionInsightContract
     /**
      * @param  array<string,mixed>  $tryonSummary   CreativeReviewReportCommand::summarizeSubject() çıktısı
      * @param  array<string,mixed>  $mannequinSummary
+     * @param  array<string,mixed>  $assetSummary   Creative Studio (CreativeAsset) özeti
      */
-    public function generate(array $tryonSummary, array $mannequinSummary): string;
+    public function generate(array $tryonSummary, array $mannequinSummary, array $assetSummary): string;
 }

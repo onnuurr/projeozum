@@ -90,6 +90,10 @@ def iter_slots(root):
                 "align": _align_from_anchor(elem.get("text-anchor")),
                 "fill": (elem.get("fill") or "#000000").strip(),
                 "bold": bool(bold),
+                # Render'ı ETKİLEMEZ (metin SVG'de gerçek bir "width"e sahip değil) —
+                # yalnız backend'deki karakter-tavanı denetimi (CreativeCopyRuleEngine)
+                # için saklanan, custom bir attribute (bkz. apply_slots.py::_apply_text).
+                "w": parse_length(elem.get("data-w")),
             }
         elif tag in _IMAGE_TAGS:
             yield elem, {

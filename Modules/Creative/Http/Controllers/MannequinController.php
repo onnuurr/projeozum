@@ -42,6 +42,7 @@ class MannequinController extends Controller
                 'status'          => $m->status,
                 'error'           => $m->error,
                 'reference_url'   => $this->url($m->reference_image_path, $m->updated_at?->timestamp),
+                'source_photo_url' => $this->url($m->source_photo_path),
                 'created_at'      => $m->created_at?->toDateTimeString(),
                 'created_by'      => $m->created_by,
                 'creator_name'    => $m->creator?->name,
@@ -67,14 +68,21 @@ class MannequinController extends Controller
 
         return Inertia::render('Creative::CreativeMannequins', [
             'mannequins'       => $mannequins,
-            'rejectionReasons' => $this->rejectionReasonGroups(),
+            'rejectionReasons' => $this->rejectionReasonGroups('mannequin'),
         ]);
     }
 
     public function store(StoreMannequinRequest $request): RedirectResponse
     {
+        $data = $request->safe()->except('reference_photo');
+
+        if ($request->hasFile('reference_photo')) {
+            $data['source_photo_path'] = $request->file('reference_photo')
+                ->store('creative/mannequin_references', config('creative.disk', 'public'));
+        }
+
         $mannequin = Mannequin::create(array_merge(
-            $request->validated(),
+            $data,
             ['status' => Mannequin::STATUS_DRAFT, 'created_by' => auth()->id()],
         ));
 

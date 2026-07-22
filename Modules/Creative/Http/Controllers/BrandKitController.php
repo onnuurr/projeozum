@@ -27,15 +27,20 @@ class BrandKitController extends Controller
         $kits = BrandKit::query()
             ->orderByDesc('is_default')
             ->orderByDesc('id')
-            ->get(['id', 'name', 'is_default', 'palette', 'typography', 'logos', 'spacing'])
+            ->get(['id', 'name', 'is_default', 'palette', 'typography', 'logos', 'spacing', 'design_brief', 'tone', 'cta_phrases', 'banned_words', 'hashtag_pool'])
             ->map(fn (BrandKit $k) => [
-                'id'         => $k->id,
-                'name'       => $k->name,
-                'is_default' => $k->is_default,
-                'palette'    => (object) ($k->palette ?? []),
-                'typography' => (object) ($k->typography ?? []),
-                'logos'      => (object) ($k->logos ?? []),
-                'spacing'    => (object) ($k->spacing ?? []),
+                'id'           => $k->id,
+                'name'         => $k->name,
+                'is_default'   => $k->is_default,
+                'palette'      => (object) ($k->palette ?? []),
+                'typography'   => (object) ($k->typography ?? []),
+                'logos'        => (object) ($k->logos ?? []),
+                'spacing'      => (object) ($k->spacing ?? []),
+                'design_brief' => $k->design_brief,
+                'tone'         => $k->tone,
+                'cta_phrases'  => $k->cta_phrases ?? [],
+                'banned_words' => $k->banned_words ?? [],
+                'hashtag_pool' => $k->hashtag_pool ?? [],
             ]);
 
         return Inertia::render('Creative::CreativeBrandKits', [
@@ -178,12 +183,17 @@ class BrandKitController extends Controller
     private function payload(StoreBrandKitRequest $request): array
     {
         return [
-            'name'       => $request->validated('name'),
-            'is_default' => (bool) $request->validated('is_default', false),
-            'palette'    => $request->validated('palette') ?: null,
-            'typography' => $request->validated('typography') ?: null,
-            'logos'      => $request->validated('logos') ?: null,
-            'spacing'    => $request->validated('spacing') ?: null,
+            'name'         => $request->validated('name'),
+            'is_default'   => (bool) $request->validated('is_default', false),
+            'palette'      => $request->validated('palette') ?: null,
+            'typography'   => $request->validated('typography') ?: null,
+            'logos'        => $request->validated('logos') ?: null,
+            'spacing'      => $request->validated('spacing') ?: null,
+            'design_brief' => $request->validated('design_brief') ?: null,
+            'tone'         => $request->validated('tone') ?: null,
+            'cta_phrases'  => $request->validated('cta_phrases') ?: null,
+            'banned_words' => $request->validated('banned_words') ?: null,
+            'hashtag_pool' => $request->validated('hashtag_pool') ?: null,
         ];
     }
 

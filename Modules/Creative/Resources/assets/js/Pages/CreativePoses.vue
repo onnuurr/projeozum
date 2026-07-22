@@ -18,7 +18,7 @@
 			</div>
 			<div class="header-actions">
 				<button type="button" class="btn btn-ghost" @click="refresh">Yenile</button>
-				<button type="button" class="btn btn-primary btn-with-icon" :disabled="busy" @click="generateAll">
+				<button v-if="can('creative.asset.manage')" type="button" class="btn btn-primary btn-with-icon" :disabled="busy" @click="generateAll">
 					<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 3l14 9-14 9V3z" /></svg>
 					{{ busy ? 'Kuyruğa alınıyor…' : `Katalog pozlarını üret (${catalogCount})` }}
 				</button>
@@ -26,7 +26,7 @@
 		</div>
 
 		<!-- Özel poz ekle -->
-		<div class="card">
+		<div v-if="can('creative.asset.manage')" class="card">
 			<div class="card-header"><h3>Özel Poz Ekle</h3></div>
 			<div class="card-body">
 				<div class="add-row">
@@ -62,7 +62,7 @@
 						</div>
 						<div class="pose-meta">
 							<span class="pose-label">{{ p.label }}</span>
-							<span class="pose-actions">
+							<span v-if="can('creative.asset.manage')" class="pose-actions">
 								<button type="button" class="link-btn" @click="regenerate(p)">Yeniden</button>
 								<button type="button" class="link-btn danger" @click="destroy(p)">Sil</button>
 							</span>
@@ -81,8 +81,11 @@ import { Head, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import CreativeNav from '../Components/CreativeNav.vue'
+import { useCan } from '@/composables/useCan'
 
 defineOptions({ layout: AppLayout })
+
+const { can } = useCan()
 
 const props = defineProps({
 	poses: { type: Array, default: () => [] },

@@ -123,7 +123,7 @@ class TryonController extends Controller
             'mannequins'       => $mannequins,
             'poses'            => $poses,
             'results'          => $results,
-            'rejectionReasons' => $this->rejectionReasonGroups(),
+            'rejectionReasons' => $this->rejectionReasonGroups('tryon'),
         ]);
     }
 
@@ -173,7 +173,7 @@ class TryonController extends Controller
         }
 
         foreach ($queued as $result) {
-            GenerateOnModelJob::dispatch($result->id);
+            GenerateOnModelJob::dispatch($result->id, $result->generation_token);
         }
 
         return back()->with('success', $queued->count() . ' görsel giydirme kuyruğuna alındı.');

@@ -12,25 +12,28 @@ class GeminiRejectionInsightGenerator implements RejectionInsightContract
 {
     public function __construct(private GeminiClient $client) {}
 
-    public function generate(array $tryonSummary, array $mannequinSummary): string
+    public function generate(array $tryonSummary, array $mannequinSummary, array $assetSummary): string
     {
-        return trim($this->client->generateText($this->buildPrompt($tryonSummary, $mannequinSummary)));
+        return trim($this->client->generateText($this->buildPrompt($tryonSummary, $mannequinSummary, $assetSummary)));
     }
 
-    private function buildPrompt(array $tryon, array $mannequin): string
+    private function buildPrompt(array $tryon, array $mannequin, array $asset): string
     {
         $tryonBlock      = $this->summarizeBlock('Giydirme (TryonResult)', $tryon);
         $mannequinBlock  = $this->summarizeBlock('Manken', $mannequin);
+        $assetBlock      = $this->summarizeBlock('Creative Studio (sosyal medya tasarımı)', $asset);
 
         return <<<PROMPT
         Sen bir moda e-ticaret şirketinde AI görsel üretim pipeline'ını (manken + ürün
-        giydirme) izleyen bir kalite mühendisisin. Aşağıda haftalık ret analiz raporunun
-        özeti var. Bu veriye bakarak ekibe kısa, somut ve uygulanabilir bir "ne yapılabilir"
-        değerlendirmesi yaz.
+        giydirme + sosyal medya tasarımı) izleyen bir kalite mühendisisin. Aşağıda haftalık
+        ret analiz raporunun özeti var. Bu veriye bakarak ekibe kısa, somut ve uygulanabilir
+        bir "ne yapılabilir" değerlendirmesi yaz.
 
         {$tryonBlock}
 
         {$mannequinBlock}
+
+        {$assetBlock}
 
         Kurallar:
         - Türkçe yaz, 3-5 kısa madde (•) halinde, toplam ~120 kelimeyi geçme.

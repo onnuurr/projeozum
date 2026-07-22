@@ -34,6 +34,7 @@ class Mannequin extends Model
         'waist_cm',
         'hips_cm',
         'extras',
+        'source_photo_path',
         'prompt',
         'reference_image_path',
         'status',

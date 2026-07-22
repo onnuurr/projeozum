@@ -47,7 +47,7 @@
 			<section class="card bk-editor">
 				<div class="card-header">
 					<h3>{{ form.id ? 'Kiti Düzenle' : 'Yeni Kit' }}</h3>
-					<button v-if="form.id" class="link-btn danger" @click="remove">Sil</button>
+					<button v-if="form.id && can('creative.brandkit.manage')" class="link-btn danger" @click="remove">Sil</button>
 				</div>
 				<div class="card-body">
 					<div class="field">
@@ -81,7 +81,7 @@
 					<div class="section">
 						<div class="section-head">
 							<h4>Tipografi (Fontlar)</h4>
-							<label class="upload-btn" :class="{ busy: fontUploading }">
+							<label v-if="can('creative.brandkit.manage')" class="upload-btn" :class="{ busy: fontUploading }">
 								{{ fontUploading ? '…' : '+ Font / ZIP yükle' }}
 								<input type="file" accept=".ttf,.otf,.woff,.woff2,.zip" multiple hidden @change="uploadFont" />
 							</label>
@@ -159,7 +159,7 @@
 						<div v-for="(row, i) in form.logos" :key="'l' + i" class="token-row logo-row">
 							<input v-model="row.key" class="token-key" type="text" placeholder="primary" />
 							<input v-model="row.value" class="token-path" type="text" placeholder="brand_kits/logos/…" />
-							<label class="upload-btn" :class="{ busy: uploading === i }">
+							<label v-if="can('creative.brandkit.manage')" class="upload-btn" :class="{ busy: uploading === i }">
 								{{ uploading === i ? '…' : 'Yükle' }}
 								<input type="file" accept="image/*" @change="uploadLogo($event, i)" hidden />
 							</label>
@@ -167,9 +167,56 @@
 						</div>
 					</div>
 
+					<!-- Tasarım Kriterleri -->
+					<div class="section">
+						<div class="section-head">
+							<h4>Tasarım Kriterleri</h4>
+						</div>
+						<p class="muted" style="margin-bottom:10px">AI görsel-üstü metin (başlık/CTA) üretirken bu kriterlere uyar.</p>
+
+						<div class="field">
+							<label>Marka brief'i</label>
+							<textarea v-model="form.design_brief" maxlength="4000" rows="3" placeholder="Örn. Sıcak, samimi, minimal bir ton. Ürün her zaman öne çıksın."></textarea>
+						</div>
+
+						<div class="field">
+							<label>Ton</label>
+							<input v-model="form.tone" type="text" maxlength="191" placeholder="örn. samimi, premium, enerjik" />
+						</div>
+
+						<div class="section-head" style="margin-top:14px">
+							<h4 style="font-size:12.5px">CTA İfadeleri (kapalı liste)</h4>
+							<button class="link-btn" @click="addSimpleRow('cta_phrases')">+ CTA</button>
+						</div>
+						<p v-if="form.cta_phrases.length === 0" class="muted">Boşsa AI serbest bir CTA üretir.</p>
+						<div v-for="(row, i) in form.cta_phrases" :key="'cta' + i" class="token-row">
+							<input v-model="form.cta_phrases[i]" class="token-path" type="text" placeholder="Şimdi Keşfet" maxlength="60" />
+							<button class="row-del" @click="form.cta_phrases.splice(i, 1)">✕</button>
+						</div>
+
+						<div class="section-head" style="margin-top:14px">
+							<h4 style="font-size:12.5px">Yasaklı Kelimeler</h4>
+							<button class="link-btn" @click="addSimpleRow('banned_words')">+ Kelime</button>
+						</div>
+						<div v-for="(row, i) in form.banned_words" :key="'ban' + i" class="token-row">
+							<input v-model="form.banned_words[i]" class="token-path" type="text" placeholder="örn. ücretsiz kargo garantisi" maxlength="60" />
+							<button class="row-del" @click="form.banned_words.splice(i, 1)">✕</button>
+						</div>
+
+						<div class="section-head" style="margin-top:14px">
+							<h4 style="font-size:12.5px">Hashtag Havuzu</h4>
+							<button class="link-btn" @click="addSimpleRow('hashtag_pool')">+ Hashtag</button>
+						</div>
+						<p class="muted">Buradakiler caption üretiminde her zaman dahil edilir; AI kalanları keşif için serbest üretir.</p>
+						<div v-for="(row, i) in form.hashtag_pool" :key="'ht' + i" class="token-row">
+							<input v-model="form.hashtag_pool[i]" class="token-path" type="text" placeholder="örn. yenisezon" maxlength="60" />
+							<button class="row-del" @click="form.hashtag_pool.splice(i, 1)">✕</button>
+						</div>
+					</div>
+
 					<div class="editor-actions">
 						<button class="btn btn-ghost" @click="newKit">Temizle</button>
-						<button class="btn btn-primary" :disabled="busy" @click="save">
+						<button v-if="can('creative.brandkit.manage')" class="btn btn-primary" :disabled="busy" @click="save">
 							{{ busy ? 'Kaydediliyor…' : (form.id ? 'Güncelle' : 'Oluştur') }}
 						</button>
 					</div>
@@ -185,8 +232,11 @@ import { Head, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import CreativeNav from '../Components/CreativeNav.vue'
+import { useCan } from '@/composables/useCan'
 
 defineOptions({ layout: AppLayout })
+
+const { can } = useCan()
 
 const props = defineProps({
 	kits: { type: Array, default: () => [] },
@@ -211,6 +261,11 @@ function blankForm() {
 		typography: { regular: '', bold: '', fonts: [] },
 		spacing: Object.entries(props.defaults?.spacing || { sm: 8, md: 16, lg: 32 }).map(([key, value]) => ({ key, value })),
 		logos: [],
+		design_brief: '',
+		tone: '',
+		cta_phrases: [],
+		banned_words: [],
+		hashtag_pool: [],
 	}
 }
 
@@ -305,11 +360,20 @@ function editKit(k) {
 		typography: buildTypography(k.typography),
 		spacing: objToRows(k.spacing),
 		logos: objToRows(k.logos),
+		design_brief: k.design_brief || '',
+		tone: k.tone || '',
+		cta_phrases: Array.isArray(k.cta_phrases) ? [...k.cta_phrases] : [],
+		banned_words: Array.isArray(k.banned_words) ? [...k.banned_words] : [],
+		hashtag_pool: Array.isArray(k.hashtag_pool) ? [...k.hashtag_pool] : [],
 	})
 }
 
 function addRow(field) {
 	form[field].push({ key: '', value: field === 'spacing' ? 0 : '' })
+}
+
+function addSimpleRow(field) {
+	form[field].push('')
 }
 
 function clearErrors() { Object.keys(errors).forEach(k => delete errors[k]) }
@@ -328,6 +392,11 @@ function payload() {
 		typography,
 		spacing: rowsToObj(form.spacing),
 		logos: rowsToObj(form.logos),
+		design_brief: form.design_brief,
+		tone: form.tone,
+		cta_phrases: form.cta_phrases.filter(v => (v || '').trim() !== ''),
+		banned_words: form.banned_words.filter(v => (v || '').trim() !== ''),
+		hashtag_pool: form.hashtag_pool.filter(v => (v || '').trim() !== ''),
 	}
 }
 
@@ -434,8 +503,9 @@ async function remove() {
 
 .field { margin-bottom: 14px; }
 .field label { display: block; font-size: 12px; font-weight: 600; color: #666; margin-bottom: 5px; }
-.field input, .field select { width: 100%; border: 1px solid #e8e8f0; border-radius: 8px; padding: 8px 10px; font-size: 13px; font-family: inherit; color: #1a1a2e; background: #fff; }
-.field input:focus, .field select:focus { outline: none; border-color: rgb(var(--color-primary) / .35); background: rgb(var(--color-primary-soft)); }
+.field input, .field select, .field textarea { width: 100%; border: 1px solid #e8e8f0; border-radius: 8px; padding: 8px 10px; font-size: 13px; font-family: inherit; color: #1a1a2e; background: #fff; }
+.field textarea { resize: vertical; }
+.field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: rgb(var(--color-primary) / .35); background: rgb(var(--color-primary-soft)); }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .err { color: #dc2626; font-size: 11.5px; margin-top: 4px; display: block; }
 

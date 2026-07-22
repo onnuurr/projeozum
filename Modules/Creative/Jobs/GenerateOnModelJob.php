@@ -31,7 +31,11 @@ class GenerateOnModelJob implements ShouldQueue
     // çağrısı + enhance için gerekli.
     public int $timeout = 700;
 
-    public function __construct(public int $resultId) {}
+    // Dispatch anındaki generation_token — üretim biterken bu satır başka bir queue()
+    // çağrısıyla geçersiz kılınmışsa (kullanıcı arada yeni manken/ürün seçip yeniden
+    // üretime almışsa) eski işin çıktısının satırı ezmesini engeller. Bkz.
+    // ProductOnModelService::queue/generate.
+    public function __construct(public int $resultId, public ?string $generationToken = null) {}
 
     /**
      * @return array<int,int>
@@ -49,11 +53,19 @@ class GenerateOnModelJob implements ShouldQueue
             return;
         }
 
+        if (! $this->isCurrent($result)) {
+            return;
+        }
+
         $result->update(['status' => TryonResult::STATUS_GENERATING, 'error' => null]);
 
         try {
-            $service->generate($result);
+            $service->generate($result, $this->generationToken);
         } catch (Throwable $e) {
+            if (! $this->isCurrent($result->fresh())) {
+                return;
+            }
+
             if ($this->attempts() < $this->tries) {
                 $result->update([
                     'status' => TryonResult::STATUS_GENERATING,
@@ -70,9 +82,23 @@ class GenerateOnModelJob implements ShouldQueue
     public function failed(Throwable $e): void
     {
         $result = TryonResult::find($this->resultId);
-        if ($result && $result->status !== TryonResult::STATUS_FAILED) {
+        if ($result && $result->status !== TryonResult::STATUS_FAILED && $this->isCurrent($result)) {
             $this->markFailed($result, $e);
         }
+    }
+
+    /**
+     * Bu işin taşıdığı token hâlâ satırın güncel token'ıyla eşleşiyor mu? Eşleşmiyorsa
+     * (veya token hiç taşınmıyorsa — eski/manuel dispatch) satır başka bir üretimle
+     * geçersiz kılınmamış demektir ya da kontrol devre dışıdır; true döner.
+     */
+    private function isCurrent(?TryonResult $result): bool
+    {
+        if (! $result || $this->generationToken === null) {
+            return true;
+        }
+
+        return $result->generation_token === $this->generationToken;
     }
 
     private function markFailed(TryonResult $result, Throwable $e): void

@@ -19,6 +19,8 @@ class SceneRequest
      * @param  string|null  $promptOverride     Verilirse otomatik prompt yerine bu kullanılır
      * @param  string|null  $pose               Manken duruşu yönergesi; null ise builder
      *                                          ürün adına göre kürate bir poz seçer
+     * @param  string|null  $designBrief        Marka brief'i (admin tanımlı, sahnenin genel
+     *                                          mood/kompozisyonu için ipucu)
      */
     public function __construct(
         public string $productName,
@@ -28,5 +30,6 @@ class SceneRequest
         public ?string $aspectLabel = null,
         public ?string $promptOverride = null,
         public ?string $pose = null,
+        public ?string $designBrief = null,
     ) {}
 }

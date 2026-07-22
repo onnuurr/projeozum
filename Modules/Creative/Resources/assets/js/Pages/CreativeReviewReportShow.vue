@@ -37,6 +37,11 @@
 				<span class="kpi-value">{{ report.mannequins?.total_reviewed ?? 0 }}</span>
 				<span class="kpi-hint">{{ report.mannequins?.total_rejected ?? 0 }} reddedildi</span>
 			</div>
+			<div class="kpi-card">
+				<span class="kpi-label">Creative Studio İncelendi</span>
+				<span class="kpi-value">{{ report.creative_assets?.total_reviewed ?? 0 }}</span>
+				<span class="kpi-hint">{{ report.creative_assets?.total_rejected ?? 0 }} reddedildi</span>
+			</div>
 		</div>
 
 		<div v-if="insightLines.length" class="card ai-card">
@@ -56,6 +61,7 @@
 
 		<ReportSection title="Giydirme" icon="shirt" :summary="report.tryon_results" />
 		<ReportSection title="Manken" icon="user" :summary="report.mannequins" />
+		<ReportSection title="Creative Studio" icon="image" :summary="report.creative_assets" />
 
 		<div v-if="report.detection_summary" class="card">
 			<div class="card-header">
@@ -154,6 +160,7 @@ const labelFrequencyEntries = computed(() =>
 const SECTION_ICON_PATHS = {
 	shirt: 'M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z',
 	user: 'M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2',
+	image: 'M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM21 15l-5-5-9 9',
 }
 
 function sectionIcon(name) {

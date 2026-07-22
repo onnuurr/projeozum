@@ -86,9 +86,12 @@
 					</span>
 					<span v-if="a.error" class="asset-error" :title="a.error">{{ a.error }}</span>
 					<span class="asset-date">{{ a.created_at }}</span>
+					<div v-if="a.review_tags && a.review_tags.length" class="review-tags">
+						<span v-for="t in a.review_tags" :key="t" class="review-tag">{{ t }}</span>
+					</div>
 				</div>
 
-				<div v-if="a.status === 'done'" class="asset-caption">
+				<div v-if="a.status === 'done' && can('creative.generate')" class="asset-caption">
 					<textarea
 						class="caption-input"
 						rows="3"
@@ -111,26 +114,28 @@
 				</div>
 
 				<div class="asset-actions">
-					<template v-if="a.status === 'done'">
+					<template v-if="a.status === 'done' && can('creative.approve') && a.can_review">
 						<button
-							v-if="a.review_status !== 'approved'"
 							class="act-btn approve"
 							:disabled="busy === a.id"
 							@click="action(a, 'approve')"
 						>✓ Onayla</button>
 						<button
-							v-if="a.review_status !== 'rejected'"
 							class="act-btn reject"
 							:disabled="busy === a.id"
-							@click="action(a, 'reject')"
+							@click="reject(a)"
 						>✕ Reddet</button>
 					</template>
 					<button
+						v-if="can('creative.generate')"
 						class="act-btn regen"
 						:disabled="busy === a.id || a.status === 'queued' || a.status === 'processing'"
 						@click="action(a, 'regenerate')"
 					>↻ Yeniden</button>
 				</div>
+				<Link v-if="a.can_chat" :href="`/creative/assets/${a.id}/review-chat`" class="chat-link">
+					💬 AI ile Konuş <span v-if="a.review_chats?.length">({{ a.review_chats.length }} mesaj)</span>
+				</Link>
 			</div>
 		</div>
 
@@ -181,13 +186,20 @@ import { Head, Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import CreativeNav from '../Components/CreativeNav.vue'
+import { useCan } from '@/composables/useCan'
+import { openRejectDialog } from '../support/rejectDialog'
 
 defineOptions({ layout: AppLayout })
 
-defineProps({
+const { can } = useCan()
+
+const props = defineProps({
 	assets: { type: Object, default: () => ({ data: [], links: [], total: 0, last_page: 1 }) },
 	stats: { type: Object, default: () => ({ total: 0, done: 0, failed: 0, pending: 0, approved: 0, success_rate: null, avg_render_ms: null, per_template: [] }) },
+	rejectionReasons: { type: Array, default: () => [] },
 })
+
+const $swal = inject('$swal')
 
 function fmtMs(ms) {
 	if (ms == null) return '—'
@@ -264,6 +276,21 @@ function action(a, kind) {
 		preserveState: false,
 		onError: (errs) => {
 			showToast?.({ type: 'error', title: 'İşlem başarısız', message: Object.values(errs)[0] || 'Sunucu hatası.' })
+		},
+		onFinish: () => { busy.value = null },
+	})
+}
+
+async function reject(a) {
+	if (busy.value) return
+	const result = await openRejectDialog($swal, props.rejectionReasons)
+	if (!result) return
+	busy.value = a.id
+	router.post(`/creative/assets/${a.id}/reject`, { reason: result.reason, tags: result.tags }, {
+		preserveScroll: true,
+		preserveState: false,
+		onError: (errs) => {
+			showToast?.({ type: 'error', title: 'Reddedilemedi', message: Object.values(errs)[0] || 'Sunucu hatası.' })
 		},
 		onFinish: () => { busy.value = null },
 	})
@@ -350,6 +377,11 @@ function goTo(url) {
 .act-btn.reject:hover:not(:disabled) { background: #fecaca; }
 .act-btn.regen { background: #f0f0f5; color: #555; }
 .act-btn.regen:hover:not(:disabled) { background: #e5e5ee; }
+
+.review-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.review-tag { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 10px; background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+.chat-link { display: block; text-align: center; padding: 8px 12px; margin: 0 13px 13px; background: #eef2ff; color: #4338ca; border-radius: 8px; font-size: 12px; font-weight: 600; text-decoration: none; }
+.chat-link:hover { background: #e0e7ff; }
 
 .pagination { display: flex; gap: 4px; justify-content: center; margin-top: 24px; flex-wrap: wrap; }
 .page-btn { min-width: 34px; height: 34px; padding: 0 10px; border: 1px solid #e8e8f0; background: #fff; border-radius: 8px; font-size: 13px; color: #555; cursor: pointer; font-family: inherit; }

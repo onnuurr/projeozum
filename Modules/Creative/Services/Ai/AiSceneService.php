@@ -2,6 +2,7 @@
 
 namespace Modules\Creative\Services\Ai;
 
+use App\Support\Media;
 use Illuminate\Support\Facades\Storage;
 use Modules\Creative\Services\Ai\Contracts\GarmentTryOnContract;
 use Modules\Creative\Services\Ai\Contracts\SceneComposerContract;
@@ -72,9 +73,13 @@ class AiSceneService
         Storage::disk($disk)->put($rel, $bytes);
 
         return [
-            // Render slot'u yerel dosya ister; az önce okuduğumuz kaynak yerel
-            // yol zaten geçerli (uzak diske ayrıca yüklendi).
-            'path'   => $resultPath,
+            // KRİTİK: $resultPath bir geçici dosyadır ve generate()'teki finally
+            // bloğu (ImageFile::delete($temps)) bu fonksiyon dönüşünden hemen
+            // sonra siler — o yolu döndürmek render'a artık var olmayan bir
+            // dosya verirdi (Python compositor sessizce atlar, ürün görseli
+            // boş kalır). Bunun yerine az önce kalıcı diske yazdığımız `$rel`i
+            // yerel okunabilir yola çözüyoruz (uzak diskte kalıcı cache'e iner).
+            'path'   => Media::localPath($rel, $disk),
             'stored' => $rel,
         ];
     }

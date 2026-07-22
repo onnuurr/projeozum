@@ -26,6 +26,7 @@ class StoreMannequinRequest extends FormRequest
             'waist_cm'  => ['nullable', 'integer', 'min:20', 'max:200'],
             'hips_cm'   => ['nullable', 'integer', 'min:20', 'max:200'],
             'extras'    => ['nullable', 'string', 'max:500'],
+            'reference_photo' => ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:8192'],
         ];
     }
 }

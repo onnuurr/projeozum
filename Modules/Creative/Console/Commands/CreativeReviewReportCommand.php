@@ -5,6 +5,7 @@ namespace Modules\Creative\Console\Commands;
 use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
+use Modules\Creative\Models\CreativeAsset;
 use Modules\Creative\Models\GarmentScan;
 use Modules\Creative\Models\Mannequin;
 use Modules\Creative\Models\TryonResult;
@@ -24,7 +25,7 @@ class CreativeReviewReportCommand extends Command
 {
     protected $signature = 'creative:review-report {--days=7 : Kaç günlük pencere taransın} {--no-notify : Bildirim gönderme, yalnızca dosyayı üret}';
 
-    protected $description = 'Son N günde reddedilen manken/giydirme görsellerini etiket ve AI sürücü kırılımında raporlar (salt-okuma)';
+    protected $description = 'Son N günde reddedilen manken/giydirme/creative görsellerini etiket ve AI sürücü kırılımında raporlar (salt-okuma)';
 
     public function __construct(private RejectionInsightContract $insightGenerator)
     {
@@ -38,6 +39,7 @@ class CreativeReviewReportCommand extends Command
 
         $tryon      = $this->summarizeSubject(TryonResult::query()->where('reviewed_at', '>=', $since)->get(), 'tryon_driver', 'tryon_model');
         $mannequins = $this->summarizeSubject(Mannequin::query()->where('reviewed_at', '>=', $since)->get(), null, null);
+        $assets     = $this->summarizeSubject(CreativeAsset::query()->where('reviewed_at', '>=', $since)->get(), null, null);
         $detections = $this->summarizeDetections(GarmentScan::query()->where('created_at', '>=', $since)->get());
 
         $report = [
@@ -46,15 +48,16 @@ class CreativeReviewReportCommand extends Command
             'window_since'      => $since->toIso8601String(),
             'tryon_results'     => $tryon,
             'mannequins'        => $mannequins,
+            'creative_assets'   => $assets,
             'detection_summary' => $detections,
-            'ai_insight'        => $this->generateInsight($tryon, $mannequins),
+            'ai_insight'        => $this->generateInsight($tryon, $mannequins, $assets),
         ];
 
         $path = storage_path('app/creative-review-reports/' . now()->format('Y-m-d') . '.json');
         File::ensureDirectoryExists(dirname($path));
         File::put($path, json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
 
-        $this->renderConsole($tryon, $mannequins, $detections);
+        $this->renderConsole($tryon, $mannequins, $assets, $detections);
         $this->info("Tam rapor: {$path}");
 
         if (! $this->option('no-notify')) {
@@ -65,7 +68,7 @@ class CreativeReviewReportCommand extends Command
     }
 
     /**
-     * @param  \Illuminate\Support\Collection<int,Mannequin|TryonResult>  $rows
+     * @param  \Illuminate\Support\Collection<int,Mannequin|TryonResult|CreativeAsset>  $rows
      * @return array<string,mixed>
      */
     private function summarizeSubject($rows, ?string $driverColumn, ?string $modelColumn): array
@@ -161,10 +164,10 @@ class CreativeReviewReportCommand extends Command
      * her açıldığında tekrar çağrılmaz). Sürücü (Gemini) çağrısı başarısız olursa
      * asıl rapor verisi yine de kaydedilsin diye hata burada yutulur.
      */
-    private function generateInsight(array $tryon, array $mannequins): ?string
+    private function generateInsight(array $tryon, array $mannequins, array $assets): ?string
     {
         try {
-            return $this->insightGenerator->generate($tryon, $mannequins);
+            return $this->insightGenerator->generate($tryon, $mannequins, $assets);
         } catch (Throwable $e) {
             $this->components->warn("AI önerisi üretilemedi: {$e->getMessage()}");
 
@@ -172,7 +175,7 @@ class CreativeReviewReportCommand extends Command
         }
     }
 
-    private function renderConsole(array $tryon, array $mannequins, array $detections): void
+    private function renderConsole(array $tryon, array $mannequins, array $assets, array $detections): void
     {
         $this->newLine();
         $this->components->info('Giydirme (TryonResult) ret özeti');
@@ -197,6 +200,14 @@ class CreativeReviewReportCommand extends Command
         $this->line("  İncelenen: {$mannequins['total_reviewed']}  |  Reddedilen: {$mannequins['total_rejected']}");
         if ($mannequins['tag_counts'] !== []) {
             $this->table(['Ret etiketi', 'Adet'], collect($mannequins['tag_counts'])->map(fn ($c, $t) => [$t, $c])->values()->all());
+        }
+
+        $this->newLine();
+        $this->components->info('Creative Studio (sosyal medya tasarımı) ret özeti');
+        $this->line("  İncelenen: {$assets['total_reviewed']}  |  Reddedilen: {$assets['total_rejected']}"
+            . ($assets['rejection_rate'] !== null ? sprintf(' (%%%d)', $assets['rejection_rate'] * 100) : ''));
+        if ($assets['tag_counts'] !== []) {
+            $this->table(['Ret etiketi', 'Adet'], collect($assets['tag_counts'])->map(fn ($c, $t) => [$t, $c])->values()->all());
         }
 
         $this->newLine();

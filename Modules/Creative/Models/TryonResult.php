@@ -30,6 +30,7 @@ class TryonResult extends Model
         'product_image_id',
         'staged_image_path',
         'status',
+        'generation_token',
         'tryon_driver',
         'tryon_model',
         'generation_duration_ms',

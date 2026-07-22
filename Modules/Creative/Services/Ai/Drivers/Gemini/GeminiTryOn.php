@@ -26,10 +26,18 @@ class GeminiTryOn implements GarmentTryOnContract
 
         $images = [$modelImagePath, $garmentImagePath, ...array_column($extraGarmentImages, 'path')];
 
+        // Try-on sabit olarak 3.1-flash-image kullanır ve 1K/2K/4K destekler;
+        // bu yüzden kimlik/poz adımlarından ayrı, kendi imageSize env'i vardır.
+        $imageConfig = GeminiClient::buildImageConfig(
+            (string) config('creative.ai.gemini.image.aspect_ratio', ''),
+            (string) config('creative.ai.gemini.image.tryon_size', ''),
+        );
+
         $bytes = $this->client->generateImage(
             $prompt,
             $images,
             (string) config('creative.ai.gemini.tryon_model') ?: null,
+            $imageConfig,
         );
 
         return ImageFile::temp($bytes, 'png');

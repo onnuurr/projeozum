@@ -88,9 +88,11 @@ const applying = ref(false)
 const logEl = ref(null)
 const inputEl = ref(null)
 
-const base = computed(() => props.subjectType === 'mannequin'
-	? `/creative/mannequins/${props.subjectId}`
-	: `/creative/tryon/${props.subjectId}`)
+const base = computed(() => {
+	if (props.subjectType === 'mannequin') return `/creative/mannequins/${props.subjectId}`
+	if (props.subjectType === 'asset') return `/creative/assets/${props.subjectId}`
+	return `/creative/tryon/${props.subjectId}`
+})
 
 function scrollToBottom() {
 	nextTick(() => { if (logEl.value) logEl.value.scrollTop = logEl.value.scrollHeight })

@@ -93,6 +93,24 @@
 						<textarea v-model="form.extras" rows="2" placeholder="Makyaj, stil, duruş tonu detayları…"></textarea>
 					</label>
 				</div>
+
+				<div class="reference-upload">
+					<div class="reference-upload-head">
+						<strong>Referans fotoğraf (opsiyonel)</strong>
+						<span class="hint">Kimliği kopyalamaz — yalnızca ten/ışık/doku gerçekçiliği için AI'a görsel çapa olarak verilir.</span>
+					</div>
+					<div class="reference-upload-body">
+						<label class="upload-drop" v-if="!referencePreview">
+							<input type="file" accept="image/*" @change="onReferenceFileChange" hidden />
+							<span>Görsel seç…</span>
+						</label>
+						<div v-else class="reference-preview">
+							<img :src="referencePreview" alt="Referans fotoğraf" />
+							<button type="button" class="link-btn danger" @click="clearReferenceFile">Kaldır</button>
+						</div>
+					</div>
+				</div>
+
 				<div class="form-actions">
 					<button class="btn btn-primary btn-with-icon" :disabled="!canCreate || busy" @click="create">
 						<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
@@ -137,7 +155,7 @@
 							<button type="button" class="act-btn approve" :disabled="busyReview === m.id" @click="approve(m)">✓ Onayla</button>
 							<button type="button" class="act-btn reject" :disabled="busyReview === m.id" @click="reject(m)">✕ Reddet</button>
 						</div>
-						<div class="mannequin-actions">
+						<div v-if="can('creative.asset.manage')" class="mannequin-actions">
 							<button type="button" class="link-btn" @click="regenerate(m)">Yeniden üret</button>
 							<button type="button" class="link-btn danger" @click="destroy(m)">Sil</button>
 						</div>
@@ -154,8 +172,24 @@
 			<div v-if="preview" class="lightbox" @click.self="closePreview">
 				<div class="lb-box">
 					<button class="lb-close" @click="closePreview">✕</button>
-					<div class="lb-img-wrap">
-						<img :src="preview.reference_url" :alt="preview.name" />
+					<div
+						class="lb-img-wrap"
+						:class="{ zoomed: zoom.scale > 1, dragging: zoom.dragging }"
+						@wheel.prevent="onWheel"
+						@pointerdown="onPointerDown"
+						@pointermove="onPointerMove"
+						@pointerup="onPointerUp"
+						@pointercancel="onPointerUp"
+						@dblclick="onDblClick"
+						@touchstart.passive="onTouchStart"
+						@touchmove.prevent="onTouchMove"
+					>
+						<img
+							:src="preview.reference_url"
+							:alt="preview.name"
+							draggable="false"
+							:style="{ transform: `translate(${zoom.x}px, ${zoom.y}px) scale(${zoom.scale})` }"
+						/>
 					</div>
 					<div class="lb-side">
 						<h3 class="lb-title">{{ preview.name }}</h3>
@@ -164,6 +198,7 @@
 							<span v-if="measureLine(preview)" class="lb-chip dim">{{ measureLine(preview) }}</span>
 							<span class="lb-chip ghost">{{ statusLabel(preview.status) }}</span>
 						</div>
+						<span class="lb-hint">Yakınlaştırmak için fare tekerleği veya pinch, gezinmek için sürükleyin.</span>
 						<a :href="preview.reference_url" target="_blank" :download="`manken-${preview.id}.png`" class="btn btn-primary lb-download">
 							<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
 							İndir
@@ -182,6 +217,7 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import CreativeNav from '../Components/CreativeNav.vue'
 import { openRejectDialog } from '../support/rejectDialog'
+import { useCan } from '@/composables/useCan'
 
 defineOptions({ layout: AppLayout })
 
@@ -192,6 +228,7 @@ const props = defineProps({
 
 const showToast = inject('showToast', null)
 const $swal = inject('$swal')
+const { can } = useCan()
 
 const busy = ref(false)
 const busyReview = ref(null)
@@ -200,6 +237,22 @@ const form = reactive({
 	name: '', gender: '', age_range: '', skin_tone: '', body_type: '', hair: '',
 	face: '', height_cm: null, bust_cm: null, waist_cm: null, hips_cm: null, extras: '',
 })
+
+const referenceFile = ref(null)
+const referencePreview = ref(null)
+
+function onReferenceFileChange(e) {
+	const file = e.target.files[0] || null
+	referenceFile.value = file
+	if (referencePreview.value) URL.revokeObjectURL(referencePreview.value)
+	referencePreview.value = file ? URL.createObjectURL(file) : null
+}
+
+function clearReferenceFile() {
+	if (referencePreview.value) URL.revokeObjectURL(referencePreview.value)
+	referenceFile.value = null
+	referencePreview.value = null
+}
 
 const genders = [
 	{ value: 'female', label: 'Kadın' },
@@ -269,10 +322,11 @@ function measureLine(m) {
 function create() {
 	if (!canCreate.value || busy.value) return
 	busy.value = true
-	router.post('/creative/mannequins', { ...form }, {
+	router.post('/creative/mannequins', { ...form, reference_photo: referenceFile.value }, {
 		onSuccess: () => {
 			form.name = ''; form.hair = ''; form.face = ''; form.extras = ''
 			form.height_cm = null; form.bust_cm = null; form.waist_cm = null; form.hips_cm = null
+			clearReferenceFile()
 		},
 		onError: (errs) => {
 			showToast?.({ type: 'error', title: 'Üretilemedi', message: Object.values(errs)[0] || 'Doğrulama hatası.' })
@@ -300,13 +354,103 @@ async function destroy(m) {
 	})
 }
 
+// Büyük önizleme (lightbox) zoom/pan durumu — bkz. CreativeTryon.vue (aynı yapı).
+const zoom = reactive({ scale: 1, x: 0, y: 0, dragging: false })
+const MIN_SCALE = 1
+const MAX_SCALE = 5
+
+function resetZoom() {
+	zoom.scale = 1
+	zoom.x = 0
+	zoom.y = 0
+}
+
 function openPreview(m) {
 	if (!m.reference_url) return
 	preview.value = m
+	resetZoom()
 }
 
 function closePreview() {
 	preview.value = null
+}
+
+// img, flex ile wrapper'ın merkezine ortalandığı için CSS transform-origin (img'in kendi
+// merkezi) de wrapper merkeziyle çakışır — imleç noktasını sabit tutmak için scale
+// değişimini bu merkeze göre telafi etmemiz gerekiyor, yoksa zoom her zaman görselin
+// ortasına doğru kayar.
+function zoomAt(cx, cy, rect, targetScale) {
+	const centerX = rect.width / 2
+	const centerY = rect.height / 2
+	const prev = zoom.scale
+	const next = Math.min(MAX_SCALE, Math.max(MIN_SCALE, targetScale))
+	const k = next / prev
+	zoom.x = (1 - k) * (cx - centerX) + k * zoom.x
+	zoom.y = (1 - k) * (cy - centerY) + k * zoom.y
+	zoom.scale = next
+	if (next === MIN_SCALE) { zoom.x = 0; zoom.y = 0 }
+}
+
+function onWheel(e) {
+	const rect = e.currentTarget.getBoundingClientRect()
+	const cx = e.clientX - rect.left
+	const cy = e.clientY - rect.top
+	zoomAt(cx, cy, rect, zoom.scale * (e.deltaY < 0 ? 1.15 : 1 / 1.15))
+}
+
+let dragStart = null
+function onPointerDown(e) {
+	if (zoom.scale <= 1) return
+	e.preventDefault()
+	zoom.dragging = true
+	dragStart = { x: e.clientX - zoom.x, y: e.clientY - zoom.y }
+	e.currentTarget.setPointerCapture(e.pointerId)
+}
+function onPointerMove(e) {
+	if (!zoom.dragging || !dragStart) return
+	zoom.x = e.clientX - dragStart.x
+	zoom.y = e.clientY - dragStart.y
+}
+function onPointerUp(e) {
+	zoom.dragging = false
+	dragStart = null
+	if (e.currentTarget?.hasPointerCapture?.(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
+}
+
+function onDblClick(e) {
+	if (zoom.scale > 1) {
+		resetZoom()
+		return
+	}
+	const rect = e.currentTarget.getBoundingClientRect()
+	zoomAt(e.clientX - rect.left, e.clientY - rect.top, rect, 2)
+}
+
+// Mobil pinch-zoom / tek parmak sürükleme
+let touchStartDist = null
+let touchStartScale = 1
+let touchStartPos = null
+function touchDist(touches) {
+	const [a, b] = touches
+	return Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY)
+}
+function onTouchStart(e) {
+	if (e.touches.length === 2) {
+		touchStartDist = touchDist(e.touches)
+		touchStartScale = zoom.scale
+	} else if (e.touches.length === 1 && zoom.scale > 1) {
+		touchStartPos = { x: e.touches[0].clientX - zoom.x, y: e.touches[0].clientY - zoom.y }
+	}
+}
+function onTouchMove(e) {
+	if (e.touches.length === 2 && touchStartDist) {
+		const next = Math.min(MAX_SCALE, Math.max(MIN_SCALE, touchStartScale * (touchDist(e.touches) / touchStartDist)))
+		zoom.scale = next
+		if (next === MIN_SCALE) { zoom.x = 0; zoom.y = 0 }
+	} else if (e.touches.length === 1 && touchStartPos) {
+		zoom.x = e.touches[0].clientX - touchStartPos.x
+		zoom.y = e.touches[0].clientY - touchStartPos.y
+	}
 }
 
 function onKeydown(e) {
@@ -352,6 +496,14 @@ onUnmounted(() => {
 .field textarea { resize: vertical; }
 .form-actions { margin-top: 16px; display: flex; justify-content: flex-end; }
 
+.reference-upload { margin-top: 16px; padding-top: 16px; border-top: 1px solid #f0f0f5; }
+.reference-upload-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; margin-bottom: 10px; font-size: 13px; color: #1a1a2e; }
+.reference-upload-head .hint { color: #888; font-weight: 400; }
+.upload-drop { display: inline-flex; align-items: center; justify-content: center; width: 120px; height: 120px; border: 2px dashed #d5d5e0; border-radius: 12px; color: #888; font-size: 12px; font-weight: 600; cursor: pointer; }
+.upload-drop:hover { border-color: rgb(var(--color-primary)); color: rgb(var(--color-primary)); }
+.reference-preview { display: flex; align-items: center; gap: 12px; }
+.reference-preview img { width: 90px; height: 90px; border-radius: 10px; object-fit: cover; border: 1px solid #ebebf0; }
+
 /* Liste */
 .mannequin-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 16px; }
 .mannequin-card { border: 1px solid #ebebf0; border-radius: 12px; overflow: hidden; background: #fff; display: flex; flex-direction: column; }
@@ -394,14 +546,18 @@ onUnmounted(() => {
 .lb-box { display: flex; gap: 0; max-width: 1100px; max-height: 90vh; background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,.4); position: relative; }
 .lb-close { position: absolute; top: 12px; right: 12px; z-index: 2; width: 34px; height: 34px; border: none; border-radius: 50%; background: rgba(255,255,255,.9); color: #1a1a2e; font-size: 16px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.2); }
 .lb-close:hover { background: #fff; }
-.lb-img-wrap { background: #11111b repeating-conic-gradient(#1a1a26 0% 25%, #15151f 0% 50%) 0 / 24px 24px; display: flex; align-items: center; justify-content: center; min-width: 0; }
-.lb-img-wrap img { max-width: 62vw; max-height: 90vh; object-fit: contain; display: block; }
+.lb-img-wrap { background: #11111b repeating-conic-gradient(#1a1a26 0% 25%, #15151f 0% 50%) 0 / 24px 24px; display: flex; align-items: center; justify-content: center; min-width: 0; overflow: hidden; cursor: zoom-in; touch-action: none; }
+.lb-img-wrap.zoomed { cursor: grab; }
+.lb-img-wrap.dragging { cursor: grabbing; }
+.lb-img-wrap img { max-width: 62vw; max-height: 90vh; object-fit: contain; display: block; transition: transform .08s; will-change: transform; -webkit-user-drag: none; user-select: none; }
+.lb-img-wrap.dragging img { transition: none; }
 .lb-side { width: 300px; flex-shrink: 0; padding: 22px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }
 .lb-title { font-size: 17px; font-weight: 700; color: #1a1a2e; }
 .lb-tags-meta { display: flex; flex-wrap: wrap; gap: 6px; }
 .lb-chip { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 6px; background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary-hover)); }
 .lb-chip.dim { background: #f0f0f5; color: #555; font-family: 'SF Mono', Menlo, Consolas, monospace; }
 .lb-chip.ghost { background: #f5f5f8; color: #888; }
+.lb-hint { font-size: 11px; color: #aaa; line-height: 1.4; }
 .lb-download { margin-top: auto; justify-content: center; }
 @media (max-width: 820px) { .lb-box { flex-direction: column; } .lb-img-wrap img { max-width: 86vw; max-height: 50vh; } .lb-side { width: auto; } }
 .chat-link { display: block; text-align: center; padding: 8px 12px; margin: 0 12px 12px; background: #eef2ff; color: #4338ca; border-radius: 8px; font-size: 12px; font-weight: 600; text-decoration: none; }

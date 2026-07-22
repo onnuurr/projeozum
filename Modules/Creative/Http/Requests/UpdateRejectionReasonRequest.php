@@ -3,9 +3,11 @@
 namespace Modules\Creative\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+use Modules\Creative\Models\RejectionReason;
 
 /**
- * Ret seçim maddesi güncelleme (etiket/kategori/sıra/aktiflik).
+ * Ret seçim maddesi güncelleme (etiket/kategori/bağlam/sıra/aktiflik).
  */
 class UpdateRejectionReasonRequest extends FormRequest
 {
@@ -18,6 +20,7 @@ class UpdateRejectionReasonRequest extends FormRequest
     {
         return [
             'category'   => ['nullable', 'string', 'max:120'],
+            'context'    => ['nullable', Rule::in(array_keys(RejectionReason::CONTEXTS))],
             'label'      => ['required', 'string', 'max:120'],
             'hint'       => ['nullable', 'string', 'max:255'],
             'sort_order' => ['nullable', 'integer', 'min:0', 'max:65535'],
@@ -28,9 +31,11 @@ class UpdateRejectionReasonRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $category = trim((string) $this->input('category', ''));
+        $context  = trim((string) $this->input('context', ''));
 
         $this->merge([
             'category'  => $category !== '' ? $category : 'Düzeltilmesi gereken alan',
+            'context'   => $context !== '' ? $context : null,
             'is_active' => $this->boolean('is_active'),
         ]);
     }

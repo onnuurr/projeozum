@@ -75,6 +75,36 @@ class GeminiClient
     }
 
     /**
+     * generationConfig.imageConfig için verilen aspectRatio/imageSize'ı filtreler.
+     * Boş değerler atılır (gönderilmez) — bir model alanı reddederse ilgili
+     * env'i boşaltmak yeter, davranış otomatik eskiye döner.
+     *
+     * @return array<string,string>
+     */
+    public static function buildImageConfig(?string $aspectRatio, ?string $imageSize): array
+    {
+        return array_filter([
+            'aspectRatio' => (string) $aspectRatio,
+            'imageSize'   => (string) $imageSize,
+        ], fn ($v) => $v !== '');
+    }
+
+    /**
+     * config('creative.ai.gemini.image.*') üzerinden varsayılan imageConfig.
+     * Kimlik ve poz adımları bunu kullanır (ikisi de varsayılan olarak
+     * 2.5-flash-image'e düşebildiği için 'size' varsayılan olarak boş bırakılır).
+     *
+     * @return array<string,string>
+     */
+    public static function defaultImageConfig(): array
+    {
+        return self::buildImageConfig(
+            (string) config('creative.ai.gemini.image.aspect_ratio', ''),
+            (string) config('creative.ai.gemini.image.size', ''),
+        );
+    }
+
+    /**
      * Verilen prompt ile düz metin üretir (caption/hashtag gibi).
      *
      * Aynı generateContent endpoint'i kullanılır; ancak responseModalities

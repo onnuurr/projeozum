@@ -20,7 +20,7 @@
 		</div>
 
 		<!-- Adım 1: Ürün -->
-		<div class="card">
+		<div v-if="can('creative.asset.manage')" class="card">
 			<div class="card-header">
 				<h3>1. Ürün Seç</h3>
 				<div class="card-search">
@@ -117,7 +117,7 @@
 		</div>
 
 		<!-- Adım 2: Manken -->
-		<div class="card">
+		<div v-if="can('creative.asset.manage')" class="card">
 			<div class="card-header">
 				<h3>2. Manken Seç</h3>
 				<span class="hint">{{ mannequins.length }} uygun manken</span>
@@ -143,7 +143,7 @@
 		</div>
 
 		<!-- Adım 3: Pozlar (bağımsız kütüphane) -->
-		<div class="card">
+		<div v-if="can('creative.asset.manage')" class="card">
 			<div class="card-header">
 				<h3>3. Pozlar Seç</h3>
 				<button v-if="poses.length" type="button" class="link-btn" @click="toggleAllPoses">
@@ -173,13 +173,13 @@
 		</div>
 
 		<!-- Aksiyon -->
-		<div class="action-bar">
+		<div v-if="can('creative.asset.manage')" class="action-bar">
 			<div class="selection-summary">
 				<strong>{{ selectedPoses.size }}</strong> poz ×
 				<strong>{{ selectedProduct ? 1 : 0 }}</strong> ürün =
 				<strong>{{ selectedProduct ? selectedPoses.size : 0 }}</strong> görsel
 			</div>
-			<button class="btn btn-primary btn-with-icon" :disabled="!canGenerate || busy" @click="generate">
+			<button v-if="can('creative.asset.manage')" class="btn btn-primary btn-with-icon" :disabled="!canGenerate || busy" @click="generate">
 				<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 3l14 9-14 9V3z" /></svg>
 				{{ busy ? 'Kuyruğa alınıyor…' : 'Giydir ve Ürün Görseli Yap' }}
 			</button>
@@ -215,7 +215,7 @@
 								<button type="button" class="act-btn approve" :disabled="busyReview === r.id" @click="approve(r)">✓ Onayla</button>
 								<button type="button" class="act-btn reject" :disabled="busyReview === r.id" @click="reject(r)">✕ Reddet</button>
 							</div>
-							<div v-if="r.status === 'done'" class="result-actions">
+							<div v-if="r.status === 'done' && can('creative.asset.manage')" class="result-actions">
 								<template v-if="r.review_status === 'approved'">
 									<button v-if="!r.is_cover" type="button" class="link-btn" @click="setCover(r)">Kapak yap</button>
 									<span v-else class="is-cover-note">Kapak</span>
@@ -286,8 +286,11 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import CreativeNav from '../Components/CreativeNav.vue'
 import { openRejectDialog } from '../support/rejectDialog'
+import { useCan } from '@/composables/useCan'
 
 defineOptions({ layout: AppLayout })
+
+const { can } = useCan()
 
 const props = defineProps({
 	products: { type: Array, default: () => [] },

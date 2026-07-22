@@ -21,6 +21,10 @@ use Modules\Creative\Services\Ai\MannequinRequest;
  *  - [Dinamik] yaş/vücut/ölçü/ek tarif.
  *  - [Gerçekçilik + Işık/Kamera] PromptDirectives ile paylaşılan sabit çapalar.
  *
+ * Operatör bir referans fotoğraf yüklerse [Kimlik Duvarı] devre dışı kalır:
+ * amaç o kişinin kimliğini kopyalamak değil, image-to-image ile gerçekçilik
+ * (ten/ışık/doku) çapası almaktır — bkz. referenceAnchor().
+ *
  * Cinsiyet ve yaş, virgüllü sıfat listesine gömülmek yerine ÖZNE ismine yazılır
  * (ör. "a young girl", "an adult man") — görsel modelleri özne ismine çok daha
  * güçlü ağırlık verdiği için kız/erkek ve çocuk/yetişkin ayrımı böyle güvenilir olur.
@@ -35,6 +39,7 @@ class MannequinPromptBuilder
 
         $subject = $this->subjectNoun($request);
         $isChild = $this->isChild($request->ageRange);
+        $hasRef  = $request->referencePhotoPath !== null;
 
         $lines = [
             sprintf(
@@ -42,8 +47,8 @@ class MannequinPromptBuilder
                 $subject,
                 $subject,
             ),
-            $this->identity($request),
-            $this->distinctiveness(),
+            $hasRef ? $this->referenceAnchor() : $this->identity($request),
+            $this->distinctiveness($hasRef),
             $this->expression($request),
             $this->descriptors($request),
             $this->measurements($request, $isChild),
@@ -94,14 +99,40 @@ class MannequinPromptBuilder
      * benzemesini önleyen sabit yönerge. identityProfile() zaten her üretimde
      * farklı varyant seçiyor; bu satır modele o farkı görsel olarak ABARTMASINI
      * söyler — aksi halde metindeki ince farklar görsele yeterince yansımayabilir.
+     *
+     * Referans fotoğraf verilmişken metin farklı: burada amaç kimlik çeşitliliği
+     * değil, referanstaki gerçek kişinin birebir kopyalanmaması (bkz. referenceAnchor).
      */
-    private function distinctiveness(): string
+    private function distinctiveness(bool $hasReferencePhoto = false): string
     {
+        if ($hasReferencePhoto) {
+            return 'The generated person is a new, original individual — not a copy of the reference photograph\'s '
+                . 'specific identity. Do not default to a generic, interchangeable "stock catalog model" appearance; '
+                . 'this must read as one specific, unique real person with their own coherent facial identity.';
+        }
+
         return 'This is one specific, unique individual: their facial identity, proportions and overall '
             . 'look must be entirely their own, clearly and visibly distinct from any other generated model. '
             . 'Do not default to a generic, interchangeable "stock catalog model" appearance — this person must '
             . 'not look like a twin, sibling or close relative of another model even if age, gender and ethnic '
             . 'background match.';
+    }
+
+    /**
+     * Referans fotoğraf verildiğinde kullanılır — identity()'nin yerini alır.
+     *
+     * Amaç kimlik kopyalama değil GERÇEKÇİLİK: ekli fotoğraf yalnızca ten
+     * tonu/ışık/doku/fotografik zemin için görsel bir çapa olarak kullanılır.
+     * Referanstaki kişinin yüzü birebir kopyalanmaz (bkz. distinctiveness) —
+     * hem consent/KVKK riskini azaltır hem de "twin" sorununu tekrar üretmez.
+     */
+    private function referenceAnchor(): string
+    {
+        return 'A reference photograph is attached purely as a visual anchor for photographic realism: use it to '
+            . 'guide realistic skin texture and tone, natural lighting behavior and true-to-life photographic '
+            . 'grounding. Do NOT reproduce the exact facial identity of the person in the reference photo — '
+            . 'generate a different, original individual, but match the reference\'s level of authentic, '
+            . 'unretouched photographic realism.';
     }
 
     /**
