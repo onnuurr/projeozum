@@ -2,11 +2,21 @@
 
 namespace Modules\Product\Services;
 
+use App\Models\User;
 use App\Support\Media;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Modules\Product\Events\MaterialChanged;
+use Modules\Product\Events\MediaUploaded;
+use Modules\Product\Events\ProductArchived;
+use Modules\Product\Events\ProductCreated;
+use Modules\Product\Events\ProductPublished;
+use Modules\Product\Events\ProductUpdated;
+use Modules\Product\Events\ProductVariantsSynced;
 use Modules\Product\Exceptions\BarcodeGenerationException;
+use Modules\Product\Exceptions\InvalidProductTransitionException;
 use Modules\Product\Models\Product;
+use Modules\Product\Models\ProductStatusHistory;
 use Modules\Superadmin\Models\Setting;
 
 /**
@@ -18,7 +28,10 @@ use Modules\Superadmin\Models\Setting;
  */
 class ProductService
 {
-    public function __construct(private ProductMaterialLinkService $materialLinks) {}
+    public function __construct(
+        private ProductMaterialLinkService $materialLinks,
+        private ProductAttributeService $productAttributes,
+    ) {}
 
     /**
      * Yeni ürün oluşturur; varyant + materyal bağını kurar, görselleri yükler.
@@ -50,6 +63,8 @@ class ProductService
 
         $this->storeImages($product, $images);
 
+        $this->dispatchWriteEvents(new ProductCreated($product), $product, $data, $images);
+
         return $product;
     }
 
@@ -69,6 +84,71 @@ class ProductService
         });
 
         $this->storeImages($product, $images);
+
+        $this->dispatchWriteEvents(new ProductUpdated($product), $product, $data, $images);
+
+        return $product;
+    }
+
+    /**
+     * create()/update() ortak event dispatch'i. Transaction commit edip
+     * `storeImages()` de dahil tüm yan etkiler bittikten SONRA çağrılır — rollback
+     * olursa hiçbir event ateşlenmemiş olur, Timeline'da hayalet kayıt oluşmaz.
+     *
+     * @param  array<string, mixed>      $data
+     * @param  array<int, UploadedFile>  $images
+     */
+    private function dispatchWriteEvents(ProductCreated|ProductUpdated $primary, Product $product, array $data, array $images): void
+    {
+        event($primary);
+
+        ProductVariantsSynced::dispatch($product, count($data['variants']));
+
+        if (! empty($data['description_materials'])) {
+            MaterialChanged::dispatch($product);
+        }
+
+        if ($images !== []) {
+            MediaUploaded::dispatch($product, count($images));
+        }
+    }
+
+    /**
+     * Ürünü yeni bir yaşam döngüsü durumuna geçirir (Faz 2). `OrderService::transition()`
+     * ile aynı iskelet: harita kontrolü + durum güncellemesi + denetim satırı tek
+     * transaction içinde; event dispatch transaction commit'inden SONRA yapılır
+     * (rollback olursa event hiç ateşlenmez, bkz. Faz 1 ilkesi).
+     *
+     * @throws InvalidProductTransitionException  geçiş haritada tanımlı değilse.
+     */
+    public function transitionStatus(Product $product, string $to, User $actor, ?string $note = null): Product
+    {
+        $product = DB::transaction(function () use ($product, $to, $actor, $note) {
+            $from    = $product->status;
+            $allowed = Product::allowedTransitions()[$from] ?? [];
+
+            if (! in_array($to, $allowed, true)) {
+                throw new InvalidProductTransitionException($from, $to);
+            }
+
+            $product->forceFill(['status' => $to])->save();
+
+            ProductStatusHistory::create([
+                'product_id'  => $product->id,
+                'from_status' => $from,
+                'to_status'   => $to,
+                'user_id'     => $actor->id,
+                'note'        => $note,
+            ]);
+
+            return $product;
+        });
+
+        match ($to) {
+            Product::STATUS_PUBLISHED => ProductPublished::dispatch($product),
+            Product::STATUS_ARCHIVED  => ProductArchived::dispatch($product),
+            default                   => null,
+        };
 
         return $product;
     }
@@ -226,6 +306,10 @@ class ProductService
             'care_instructions' => $data['care_instructions'] ?? null,
             'material'          => $data['material'] ?? null,
             'origin_country'    => $data['origin_country'] ?? 'TR',
+            'attributes'        => $this->productAttributes->filterToDefinedKeys(
+                $data['category_id'] ?? null,
+                $data['attributes'] ?? [],
+            ),
             'public_name'        => $data['public_name'] ?? null,
             'public_description' => $data['public_description'] ?? null,
             'tenant_description' => $data['tenant_description'] ?? null,

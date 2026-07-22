@@ -156,6 +156,7 @@
 						<th class="col-price">Site Fiyatı</th>
 						<th class="col-mp">Pazaryeri</th>
 						<th class="col-stock">Stok</th>
+						<th class="col-readiness">Hazırlık</th>
 						<th class="col-actions">İşlemler</th>
 					</tr>
 				</thead>
@@ -207,7 +208,8 @@
 									class="mp-item"
 									:class="{ sent: listingSummary(p, mp)?.isSent }"
 									:title="mp.name"
-									@click="openListing(p, mp)"
+									:disabled="!canAdd"
+									@click="canAdd && openListing(p, mp)"
 								>
 									<img
 										v-if="!logoFailed[mp.key]"
@@ -226,6 +228,17 @@
 							<span v-if="p.stock === 0" class="stock-pill stock-out">Tükendi</span>
 							<span v-else-if="p.stock < 20" class="stock-pill stock-low">{{ p.stock }}</span>
 							<span v-else class="stock-pill stock-ok">{{ p.stock }}</span>
+						</td>
+						<td class="col-readiness">
+							<div class="readiness-badges">
+								<span
+									v-for="cap in readinessCapabilities"
+									:key="cap.key"
+									class="readiness-dot"
+									:class="{ ready: p.readiness?.[cap.key]?.ready }"
+									:title="readinessTooltip(p, cap)"
+								>{{ cap.icon }}</span>
+							</div>
 						</td>
 						<td class="col-actions">
 							<div class="action-btns">
@@ -357,6 +370,23 @@ const itemsPerPage = 15
 /* ── Yardımcılar ── */
 function formatPrice(value) {
 	return '₺' + Number(value ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+/* ── Hazırlık göstergesi (Faz 4) ──
+ * Salt-okuma: backend'in ProductReadinessService::evaluate() çıktısını
+ * (ProductCatalogPresenter::catalogRow()'daki `readiness` key'i) gösterir.
+ * Buradaki rozetler hiçbir akışı engellemez, yalnızca bilgi verir. */
+const readinessCapabilities = [
+	{ key: 'try_on', icon: '👕', label: 'Sanal Giydirme' },
+	{ key: 'creative_render', icon: '🎨', label: 'Kreatif Görsel Üretimi' },
+	{ key: 'marketplace_push', icon: '🏪', label: 'Pazaryeri Gönderimi' },
+]
+
+function readinessTooltip(p, cap) {
+	const result = p.readiness?.[cap.key]
+	if (!result) return cap.label
+	if (result.ready) return `${cap.label} — Hazır`
+	return `${cap.label} — Eksik: ${result.missing.join(', ')}`
 }
 
 /* ── Pazaryeri rozetleri ──
@@ -776,7 +806,21 @@ async function bulkDelete() {
 .col-price { width: 120px; }
 .col-mp { width: 360px; }
 .col-stock { width: 80px; }
+.col-readiness { width: 90px; }
 .col-actions { width: 120px; }
+
+.readiness-badges { display: flex; gap: 4px; }
+.readiness-dot {
+	width: 22px; height: 22px;
+	border-radius: 7px;
+	display: inline-flex; align-items: center; justify-content: center;
+	font-size: 11px;
+	background: #f5f5f8;
+	filter: grayscale(1);
+	opacity: .45;
+	cursor: default;
+}
+.readiness-dot.ready { background: #dcfce7; filter: none; opacity: 1; }
 
 .mono { font-family: 'SF Mono', Consolas, monospace; color: #888; font-size: 12px; }
 
@@ -812,6 +856,7 @@ async function bulkDelete() {
 .mp-item { display: flex; flex-direction: column; align-items: center; gap: 3px; flex: 0 0 auto; background: none; border: none; cursor: pointer; padding: 2px; opacity: .55; transition: opacity .12s; }
 .mp-item:hover { opacity: 1; }
 .mp-item.sent { opacity: 1; }
+.mp-item:disabled { cursor: default; pointer-events: none; }
 .mp-badge {
 	display: inline-flex; align-items: center; justify-content: center;
 	width: 26px; height: 26px;
@@ -881,6 +926,6 @@ async function bulkDelete() {
 .pagination-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 @media (max-width: 760px) {
-	.col-mp, .col-id { display: none; }
+	.col-mp, .col-id, .col-readiness { display: none; }
 }
 </style>

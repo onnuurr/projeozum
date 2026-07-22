@@ -5,6 +5,7 @@ namespace Modules\Product\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Modules\Product\Models\ProductDescriptionMaterial;
+use Modules\Product\Services\ProductAttributeService;
 
 class StoreProductRequest extends FormRequest
 {
@@ -17,7 +18,7 @@ class StoreProductRequest extends FormRequest
     {
         $ignoreId = $this->ignoredProductId();
 
-        return [
+        $rules = [
             'name'              => ['required', 'string', 'max:191'],
             'sku'               => [
                 'required',
@@ -41,6 +42,7 @@ class StoreProductRequest extends FormRequest
             'care_instructions' => ['nullable', 'string', 'max:2000'],
             'material'          => ['nullable', 'string', 'max:191'],
             'origin_country'    => ['nullable', 'string', 'size:2'],
+            'attributes'        => ['nullable', 'array'],
 
             // Açıklamalar (M2)
             'public_name'        => ['nullable', 'string', 'max:255'],
@@ -88,6 +90,13 @@ class StoreProductRequest extends FormRequest
             'description_materials.*.sort_order'    => ['nullable', 'integer', 'min:0'],
             'description_materials.*.notes'         => ['nullable', 'string', 'max:500'],
         ];
+
+        $categoryId = $this->input('category_id');
+
+        return array_merge(
+            $rules,
+            app(ProductAttributeService::class)->rulesFor($categoryId ? (int) $categoryId : null),
+        );
     }
 
     public function messages(): array

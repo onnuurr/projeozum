@@ -419,6 +419,37 @@
 						<span v-if="firstMaterialError" class="form-error">{{ firstMaterialError }}</span>
 					</div>
 				</section>
+
+				<section v-if="activeAttributeDefinitions.length" class="card">
+					<header class="card-head">
+						<h2>Kategori Özellikleri</h2>
+						<p>Seçili kategoriye özgü alanlar. Kategori değiştirilirse kaydederken güncel kategoriye ait olmayan alanlar dikkate alınmaz.</p>
+					</header>
+					<div class="card-body">
+						<div class="form-grid-2">
+							<div v-for="def in activeAttributeDefinitions" :key="def.key" class="form-group">
+								<label class="form-label">{{ def.label }}<span v-if="def.required" class="required">*</span></label>
+								<CustomSelect
+									v-if="def.type === 'enum'"
+									v-model="form.attributes[def.key]"
+									:options="def.options.map((o) => ({ value: o, label: o }))"
+									:show-label="false"
+								/>
+								<label v-else-if="def.type === 'boolean'" class="toggle-row">
+									<input type="checkbox" v-model="form.attributes[def.key]" />
+									<span class="toggle-text">{{ def.label }}</span>
+								</label>
+								<input
+									v-else
+									v-model="form.attributes[def.key]"
+									class="form-input"
+									:type="def.type === 'number' ? 'number' : 'text'"
+								/>
+								<span v-if="errors[`attributes.${def.key}`]" class="form-error">{{ errors[`attributes.${def.key}`] }}</span>
+							</div>
+						</div>
+					</div>
+				</section>
 			</div>
 
 			<!-- ── Açıklama (AI) ── -->
@@ -432,6 +463,7 @@
 						<div class="ai-actions">
 							<span v-if="aiGeneratedAt" class="ai-stamp">Son üretim: {{ new Date(aiGeneratedAt).toLocaleString('tr-TR') }}</span>
 							<button
+								v-if="canUseAi"
 								type="button"
 								class="btn btn-primary btn-sm"
 								:disabled="aiBusy || !isEdit"
@@ -545,6 +577,7 @@ import CustomSelect from '@/Components/CustomSelect.vue'
 import MaterialPicker from '@/Components/MaterialPicker.vue'
 import MarkdownPreview from '@/Components/MarkdownPreview.vue'
 import axios from 'axios'
+import { useCan } from '@/composables/useCan'
 
 defineOptions({ layout: AppLayout })
 
@@ -552,10 +585,12 @@ const props = defineProps({
 	product: { type: Object, default: null },
 	categories: { type: Array, default: () => [] },
 	brands: { type: Array, default: () => [] },
+	attributeDefinitions: { type: Object, default: () => ({}) },
 })
 
 const showToast = inject('showToast')
 const page = usePage()
+const { can } = useCan()
 
 const isEdit = computed(() => !!props.product)
 
@@ -581,7 +616,7 @@ const fieldTabMap = {
 	variants: 'variant',
 	images: 'images',
 	material: 'attributes', origin_country: 'attributes', care_instructions: 'attributes',
-	description_materials: 'attributes',
+	description_materials: 'attributes', attributes: 'attributes',
 	public_name: 'description', public_description: 'description', tenant_description: 'description',
 	barcode: 'other', is_domestic: 'other', manufacturer_code: 'other', gtip_code: 'other',
 }
@@ -634,7 +669,7 @@ async function generateAiDescription() {
 	}
 }
 
-const canUseAi = computed(() => !!(page.props.auth?.user?.permissions?.includes?.('product.ai.generate') ?? true))
+const canUseAi = computed(() => can('product.ai.generate'))
 
 /* ── Barkod (GS1) otomatik üretim ── */
 const barcodeBusy = ref(false)
@@ -710,6 +745,12 @@ const categoryOptions = computed(() =>
 	localCategories.value.map((c) => ({ value: c.id, label: c.name ?? c.label })),
 )
 
+// Seçili kategoriye göre değişen özellik tanımları (Faz 3 — Attribute Engine).
+// Kategori değişince form.attributes DEĞERLERİ elle temizlenmez (kullanıcı
+// verisini kaybetmesin) — tanımsız/eski anahtarlar backend'de kayıt anında
+// ProductAttributeService::filterToDefinedKeys() ile elenir.
+const activeAttributeDefinitions = computed(() => props.attributeDefinitions[form.category_id] ?? [])
+
 const canCreateCategory = computed(() => page.props.auth?.permissions?.includes?.('category.create') ?? true)
 const canCreateBrand = computed(() => page.props.auth?.permissions?.includes?.('brand.manage') ?? true)
 const creatingCategory = ref(false)
@@ -783,6 +824,7 @@ const defaultForm = () => ({
 	care_instructions: '',
 	material: '',
 	origin_country: 'TR',
+	attributes: {},
 	// SEO
 	meta_title: '',
 	meta_description: '',
@@ -957,6 +999,7 @@ function buildPayload() {
 		care_instructions: form.care_instructions?.trim() || null,
 		material: form.material?.trim() || null,
 		origin_country: (form.origin_country || 'TR').toUpperCase(),
+		attributes: { ...form.attributes },
 		// SEO
 		meta_title: form.meta_title?.trim() || null,
 		meta_description: form.meta_description?.trim() || null,
@@ -1057,6 +1100,7 @@ function loadFromProduct(p) {
 		care_instructions: p.careInstructions ?? '',
 		material: p.material ?? '',
 		origin_country: p.originCountry ?? 'TR',
+		attributes: { ...(p.attributes || {}) },
 		// SEO
 		meta_title: p.metaTitle ?? '',
 		meta_description: p.metaDescription ?? '',

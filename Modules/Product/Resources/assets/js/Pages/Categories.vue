@@ -14,7 +14,7 @@
 				<h1 class="page-title">Kategoriler</h1>
 				<p class="page-subtitle">Ürün kategorilerini yönet, pazaryeri entegrasyonlarıyla eşleştir</p>
 			</div>
-			<button class="btn btn-primary btn-with-icon" @click="openNewCategoryModal">
+			<button v-if="canManage" class="btn btn-primary btn-with-icon" @click="openNewCategoryModal">
 				<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
 					<path d="M12 5v14M5 12h14" />
 				</svg>
@@ -79,7 +79,7 @@
 			</div>
 
 			<!-- Toplu işlem çubuğu -->
-			<div v-if="selectedCount > 0" class="bulk-bar">
+			<div v-if="canManage && selectedCount > 0" class="bulk-bar">
 				<span class="bulk-info"><strong>{{ selectedCount }}</strong> kategori seçildi</span>
 				<div class="bulk-actions">
 					<button class="btn btn-ghost btn-sm" @click="clearSelection">Vazgeç</button>
@@ -132,8 +132,9 @@
 									class="mp-chip"
 									:class="mpChipClass(cat, mp)"
 									:style="mpChipStyle(cat, mp)"
-									@click="openMarketplaceCheck(cat, mp)"
-									:title="mpTooltip(cat, mp)"
+									:disabled="!canManage"
+									@click="canManage && openMarketplaceCheck(cat, mp)"
+									:title="canManage ? mpTooltip(cat, mp) : `${mp.name} — görüntüleme yetkiniz var, düzenlemek için yetkiniz yok`"
 								>
 									{{ mp.logoText }}
 									<span
@@ -156,8 +157,9 @@
 						<td class="dim">{{ cat.updatedAt }}</td>
 						<td>
 							<div class="table-actions">
-								<button class="table-action-btn view" @click="editCategory(cat)" title="Düzenle">✏️ Düzenle</button>
-								<button class="table-action-btn delete" @click="confirmDelete(cat)" title="Sil">🗑️</button>
+								<button v-if="canManage" class="table-action-btn view" @click="editCategory(cat)" title="Düzenle">✏️ Düzenle</button>
+								<button v-if="canManage" class="table-action-btn view" @click="openAttributesModal(cat)" title="Özellikler">🏷️</button>
+								<button v-if="canManage" class="table-action-btn delete" @click="confirmDelete(cat)" title="Sil">🗑️</button>
 							</div>
 						</td>
 					</tr>
@@ -208,6 +210,12 @@
 			:errors="formErrors"
 			@submit="handleFormSubmit"
 		/>
+
+		<CategoryAttributesModal
+			v-model="attributesModalOpen"
+			:category="attributesCategory"
+			@changed="() => router.reload({ only: ['categories'], preserveScroll: true })"
+		/>
 	</div>
 </template>
 
@@ -220,6 +228,8 @@ import CustomSelect from '@/Components/CustomSelect.vue'
 import MarketplaceConnectDrawer from '@/Components/MarketplaceConnectDrawer.vue'
 import MarketplaceCategoryPickerModal from '@/Components/MarketplaceCategoryPickerModal.vue'
 import CategoryFormDrawer from '@/Components/CategoryFormDrawer.vue'
+import CategoryAttributesModal from '@/Components/CategoryAttributesModal.vue'
+import { useCan } from '@/composables/useCan'
 
 defineOptions({ layout: AppLayout })
 
@@ -230,6 +240,8 @@ const props = defineProps({
 
 const showToast = inject('showToast')
 const $swal = inject('$swal')
+const { can } = useCan()
+const canManage = computed(() => can('category.manage'))
 
 /* ── Veri ── */
 const categories = ref(props.categories.map((c) => ({ ...c })))
@@ -266,6 +278,16 @@ watch(formDrawerOpen, (open) => {
 const connectDrawerOpen = ref(false)
 const connectingMarketplace = ref(null)
 const connectingCategory = ref(null)
+
+/* ── Özellik tanımları modal state (Faz 3) ── */
+const attributesModalOpen = ref(false)
+const attributesCategoryId = ref(null)
+const attributesCategory = computed(() => categories.value.find((c) => c.id === attributesCategoryId.value) ?? null)
+
+function openAttributesModal(cat) {
+	attributesCategoryId.value = cat.id
+	attributesModalOpen.value = true
+}
 
 /* ── Eşleştirme modal state ── */
 const mapperOpen = ref(false)
@@ -831,6 +853,11 @@ async function confirmDelete(cat) {
 	justify-content: center;
 	transition: transform .12s, box-shadow .12s, border-color .12s;
 	padding: 0;
+}
+.mp-chip:disabled {
+	cursor: default;
+	opacity: .6;
+	pointer-events: none;
 }
 .mp-chip:hover {
 	transform: translateY(-1px);

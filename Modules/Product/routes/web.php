@@ -39,6 +39,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('can:product.add')
         ->whereNumber('product')
         ->name('products.update');
+    Route::put('/products/{product:id}/status', [ProductController::class, 'updateStatus'])
+        ->middleware('can:product.add')
+        ->whereNumber('product')
+        ->name('products.update-status');
     Route::delete('/products/{product:id}', [ProductController::class, 'destroy'])
         ->middleware('can:product.delete')
         ->whereNumber('product')
@@ -79,6 +83,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->middleware('can:category.manage')->name('marketplaces.store');
         Route::delete('/{category}/marketplaces/{marketplace}', [CategoryController::class, 'destroyMapping'])
             ->middleware('can:category.manage')->name('marketplaces.destroy');
+
+        // Kategoriye göre değişen ürün özelliği tanımları (Faz 3 — Attribute Engine).
+        Route::post('/{category}/attribute-definitions', [CategoryController::class, 'storeAttributeDefinition'])
+            ->middleware('can:category.manage')->name('attribute-definitions.store');
+        Route::put('/{category}/attribute-definitions/{definition}', [CategoryController::class, 'updateAttributeDefinition'])
+            ->middleware('can:category.manage')->name('attribute-definitions.update');
+        Route::delete('/{category}/attribute-definitions/{definition}', [CategoryController::class, 'destroyAttributeDefinition'])
+            ->middleware('can:category.manage')->name('attribute-definitions.destroy');
     });
 
     Route::post('/products/marketplaces/{marketplace}/connect', [CategoryController::class, 'connectMarketplace'])

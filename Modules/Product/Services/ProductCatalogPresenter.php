@@ -4,6 +4,7 @@ namespace Modules\Product\Services;
 
 use App\Support\Media;
 use Illuminate\Support\Collection;
+use Modules\Product\Enums\Capability;
 use Modules\Product\Models\PriceList;
 use Modules\Product\Models\Product;
 use Modules\Tenant\Models\Tenant;
@@ -21,6 +22,7 @@ class ProductCatalogPresenter
     public function __construct(
         private ProductDisplayResolver $display,
         private ProductMaterialLinkService $materialLinks,
+        private ProductReadinessService $readiness,
     ) {}
 
     /**
@@ -124,6 +126,7 @@ class ProductCatalogPresenter
             'sizes'             => $this->sizes($p),
             'colors'            => $this->colors($p),
             'variants'          => $variantsArr,
+            'readiness'         => $this->readinessByCapability($p),
         ];
     }
 
@@ -251,6 +254,19 @@ class ProductCatalogPresenter
         return $variantRows === []
             ? (float) ($customPrice ?? $p->price)
             : (float) min(array_column($variantRows, 'price'));
+    }
+
+    /**
+     * Her capability için hazırlık durumu (Faz 4). `$p->images`/`variants`/
+     * `category->marketplaceMappings` zaten yüklü — ekstra sorgu açmaz.
+     *
+     * @return array<string, array{ready: bool, score: int, missing: array<int, string>}>
+     */
+    private function readinessByCapability(Product $p): array
+    {
+        return collect(Capability::cases())
+            ->mapWithKeys(fn (Capability $c) => [$c->value => $this->readiness->evaluate($p, $c)])
+            ->all();
     }
 
     /**

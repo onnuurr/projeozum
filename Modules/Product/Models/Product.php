@@ -24,6 +24,41 @@ class Product extends Model
         return ProductFactory::new();
     }
 
+    // Ürün yaşam döngüsü durum makinesi (Faz 2). Sadece yapısal — katalog
+    // görünürlük sorguları bu kolona göre filtrelenmiyor (bkz. plan Faz 2 madde 2).
+    public const STATUS_DRAFT     = 'draft';
+    public const STATUS_PUBLISHED = 'published';
+    public const STATUS_ARCHIVED  = 'archived';
+
+    /**
+     * Durum sabiti → TR etiket haritası.
+     *
+     * @return array<string, string>
+     */
+    public static function statuses(): array
+    {
+        return [
+            self::STATUS_DRAFT     => 'Taslak',
+            self::STATUS_PUBLISHED => 'Yayında',
+            self::STATUS_ARCHIVED  => 'Arşivlendi',
+        ];
+    }
+
+    /**
+     * İzin verilen durum geçişleri (Faz 2). Order'ın aksine akış lineer değil —
+     * yayın durumu ileri-geri geçilebilir.
+     *
+     * @return array<string, array<int, string>>
+     */
+    public static function allowedTransitions(): array
+    {
+        return [
+            self::STATUS_DRAFT     => [self::STATUS_PUBLISHED, self::STATUS_ARCHIVED],
+            self::STATUS_PUBLISHED => [self::STATUS_DRAFT, self::STATUS_ARCHIVED],
+            self::STATUS_ARCHIVED  => [self::STATUS_DRAFT, self::STATUS_PUBLISHED],
+        ];
+    }
+
     protected $table = 'products';
 
     protected $fillable = [
@@ -31,6 +66,7 @@ class Product extends Model
         'brand_id',
         'name',
         'slug',
+        'status',
         'sku',
         'gender',
         'price',
@@ -46,6 +82,7 @@ class Product extends Model
         'care_instructions',
         'material',
         'origin_country',
+        'attributes',
         // Açıklamalar (M2)
         'public_name',
         'public_description',
@@ -83,6 +120,7 @@ class Product extends Model
         'shipping_fee'     => 'decimal:2',
         'is_domestic'      => 'boolean',
         'ai_generated_at'  => 'datetime',
+        'attributes'       => 'array',
     ];
 
     public function category(): BelongsTo
@@ -130,6 +168,16 @@ class Product extends Model
     public function boms(): HasMany
     {
         return $this->hasMany(\Modules\Atelier\Models\ProductBom::class);
+    }
+
+    public function timelineEntries(): HasMany
+    {
+        return $this->hasMany(ProductTimelineEntry::class)->latest();
+    }
+
+    public function statusHistories(): HasMany
+    {
+        return $this->hasMany(ProductStatusHistory::class);
     }
 
     public function getRouteKeyName(): string

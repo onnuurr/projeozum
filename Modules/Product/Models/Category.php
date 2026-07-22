@@ -51,6 +51,11 @@ class Category extends Model
         return $this->hasMany(CategoryMarketplaceMapping::class);
     }
 
+    public function attributeDefinitions(): HasMany
+    {
+        return $this->hasMany(CategoryAttributeDefinition::class)->orderBy('sort_order');
+    }
+
     public function products(): HasMany
     {
         return $this->hasMany(Product::class);

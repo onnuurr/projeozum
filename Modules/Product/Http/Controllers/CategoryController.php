@@ -12,6 +12,7 @@ use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Product\Models\Category;
+use Modules\Product\Models\CategoryAttributeDefinition;
 use Modules\Product\Models\CategoryMarketplaceMapping;
 use Modules\Product\Models\Marketplace;
 
@@ -25,7 +26,7 @@ class CategoryController extends Controller
             ->get();
 
         $categories = Category::query()
-            ->with(['parent:id,name', 'marketplaceMappings'])
+            ->with(['parent:id,name', 'marketplaceMappings', 'attributeDefinitions'])
             ->orderBy('sort_order')
             ->orderBy('name')
             ->get()
@@ -56,6 +57,15 @@ class CategoryController extends Controller
                     'status'       => $c->status,
                     'updatedAt'    => optional($c->updated_at)->format('Y-m-d'),
                     'marketplaces' => $mpByKey,
+                    'attributeDefinitions' => $c->attributeDefinitions->map(fn (CategoryAttributeDefinition $d) => [
+                        'id'         => $d->id,
+                        'key'        => $d->key,
+                        'label'      => $d->label,
+                        'type'       => $d->type,
+                        'options'    => $d->options ?? [],
+                        'required'   => $d->required,
+                        'sort_order' => $d->sort_order,
+                    ]),
                 ];
             });
 
@@ -196,6 +206,60 @@ class CategoryController extends Controller
             ->delete();
 
         return redirect()->route('products.categories.index');
+    }
+
+    /**
+     * Kategoriye yeni bir özellik tanımı ekler (Faz 3 — Attribute Engine).
+     */
+    public function storeAttributeDefinition(Request $request, Category $category): RedirectResponse
+    {
+        $data = $this->validateAttributeDefinition($request, $category->id);
+
+        $category->attributeDefinitions()->create($data);
+
+        return redirect()->route('products.categories.index');
+    }
+
+    public function updateAttributeDefinition(Request $request, Category $category, CategoryAttributeDefinition $definition): RedirectResponse
+    {
+        $data = $this->validateAttributeDefinition($request, $category->id, $definition->id);
+
+        $definition->update($data);
+
+        return redirect()->route('products.categories.index');
+    }
+
+    public function destroyAttributeDefinition(Category $category, CategoryAttributeDefinition $definition): RedirectResponse
+    {
+        $definition->delete();
+
+        return redirect()->route('products.categories.index');
+    }
+
+    private function validateAttributeDefinition(Request $request, int $categoryId, ?int $ignoreId = null): array
+    {
+        $data = $request->validate([
+            'key'        => [
+                'required', 'string', 'max:64', 'regex:/^[a-z][a-z0-9_]*$/',
+                Rule::unique('category_attribute_definitions', 'key')
+                    ->where('category_id', $categoryId)
+                    ->ignore($ignoreId),
+            ],
+            'label'      => ['required', 'string', 'max:120'],
+            'type'       => ['required', Rule::in(['string', 'enum', 'number', 'boolean'])],
+            'options'    => ['nullable', 'array'],
+            'options.*'  => ['string', 'max:120'],
+            'required'   => ['nullable', 'boolean'],
+            'sort_order' => ['nullable', 'integer', 'min:0'],
+        ], [
+            'key.regex' => 'Anahtar küçük harfle başlamalı, yalnızca küçük harf/rakam/alt çizgi içerebilir.',
+        ]);
+
+        $data['category_id'] = $categoryId;
+        $data['required']    = $data['required'] ?? false;
+        $data['options']     = $data['type'] === 'enum' ? ($data['options'] ?? []) : null;
+
+        return $data;
     }
 
     private function validateCategory(Request $request, ?int $ignoreId = null): array

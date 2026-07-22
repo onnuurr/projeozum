@@ -8,11 +8,14 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use Modules\Product\Exceptions\InvalidProductTransitionException;
 use Modules\Product\Http\Requests\BulkDestroyProductRequest;
 use Modules\Product\Http\Requests\StoreProductRequest;
 use Modules\Product\Http\Requests\UpdateProductRequest;
+use Modules\Product\Http\Requests\UpdateProductStatusRequest;
 use Modules\Product\Models\Brand;
 use Modules\Product\Models\Category;
+use Modules\Product\Models\CategoryAttributeDefinition;
 use Modules\Product\Models\Marketplace;
 use Modules\Product\Models\Product;
 use Modules\Product\Models\ProductFavorite;
@@ -89,9 +92,10 @@ class ProductController extends Controller
         [$categories, $brands] = $this->formReferenceData();
 
         return Inertia::render('Product::ProductForm', [
-            'product'    => null,
-            'categories' => $categories,
-            'brands'     => $brands,
+            'product'              => null,
+            'categories'           => $categories,
+            'brands'               => $brands,
+            'attributeDefinitions' => $this->attributeDefinitionsByCategory(),
         ]);
     }
 
@@ -109,9 +113,10 @@ class ProductController extends Controller
         [$categories, $brands] = $this->formReferenceData();
 
         return Inertia::render('Product::ProductForm', [
-            'product'    => $this->shapeProductForForm($product),
-            'categories' => $categories,
-            'brands'     => $brands,
+            'product'              => $this->shapeProductForForm($product),
+            'categories'           => $categories,
+            'brands'               => $brands,
+            'attributeDefinitions' => $this->attributeDefinitionsByCategory(),
         ]);
     }
 
@@ -128,6 +133,24 @@ class ProductController extends Controller
         $this->products->update($product, $request->validated(), $request->file('images') ?? []);
 
         return redirect()->route('products.index');
+    }
+
+    public function updateStatus(UpdateProductStatusRequest $request, Product $product): RedirectResponse
+    {
+        try {
+            $this->products->transitionStatus(
+                $product,
+                $request->validated('status'),
+                $request->user(),
+                $request->validated('note'),
+            );
+        } catch (InvalidProductTransitionException $e) {
+            // withErrors() kullanılıyor ki Inertia bunu bir 422 validation hatası gibi
+            // ele alıp frontend'in onError callback'ini tetiklesin (bkz. OrderController::updateStatus).
+            return back()->withErrors(['status' => $e->getMessage()]);
+        }
+
+        return back();
     }
 
     public function destroy(Product $product): RedirectResponse
@@ -248,6 +271,29 @@ class ProductController extends Controller
     }
 
     /**
+     * Kategori id'sine göre gruplanmış özellik tanımları (Faz 3). Tümü tek
+     * seferde önden yüklenir — `Products.vue`'nun "hepsini yükle, client-side
+     * filtrele" tercihiyle tutarlı, kategori seçildikçe ayrı istek atılmaz.
+     *
+     * @return array<int, array<int, array<string, mixed>>>
+     */
+    private function attributeDefinitionsByCategory(): array
+    {
+        return CategoryAttributeDefinition::query()
+            ->orderBy('sort_order')
+            ->get()
+            ->groupBy('category_id')
+            ->map(fn ($defs) => $defs->map(fn (CategoryAttributeDefinition $d) => [
+                'key'      => $d->key,
+                'label'    => $d->label,
+                'type'     => $d->type,
+                'options'  => $d->options ?? [],
+                'required' => $d->required,
+            ])->values())
+            ->all();
+    }
+
+    /**
      * Düzenleme formunun beklediği şekle ürünü dönüştürür (varyant + görsel dahil).
      */
     private function shapeProductForForm(Product $product): array
@@ -267,6 +313,7 @@ class ProductController extends Controller
             'careInstructions' => $product->care_instructions,
             'material'         => $product->material,
             'originCountry'    => $product->origin_country,
+            'attributes'       => $product->attributes ?? [],
             'publicName'        => $product->public_name,
             'publicDescription' => $product->public_description,
             'tenantDescription' => $product->tenant_description,

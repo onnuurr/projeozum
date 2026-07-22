@@ -4,6 +4,7 @@ namespace Modules\Product\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
+use Modules\Product\Events\AiAnalysisCompleted;
 use Modules\Product\Http\Requests\GenerateProductDescriptionRequest;
 use Modules\Product\Models\Product;
 use Modules\Product\Services\Ai\Contracts\ProductDescriptionGenerator;
@@ -32,6 +33,8 @@ class ProductAiDescriptionController extends Controller
         // Sadece "son AI ne zaman koştu" audit'i için timestamp güncelle;
         // metni burada persist ETMEYİZ — admin edit edip form üzerinden kaydeder.
         $product->forceFill(['ai_generated_at' => now()])->save();
+
+        AiAnalysisCompleted::dispatch($product);
 
         return response()->json([
             'data' => [
