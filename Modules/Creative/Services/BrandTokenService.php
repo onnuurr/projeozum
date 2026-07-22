@@ -17,6 +17,7 @@ use Modules\Creative\Models\BrandKit;
  *     'fonts'    => ['regular' => '/abs/path.ttf', 'bold' => '/abs/path.ttf'],
  *     'spacing'  => ['md' => 16, ...],
  *     'logos'    => ['primary' => '/abs/path.png', ...],
+ *     'copy'     => ['brief' => '...', 'tone' => '...', 'cta_phrases' => [...], 'banned_words' => [...]],
  *   ]
  */
 class BrandTokenService
@@ -27,7 +28,7 @@ class BrandTokenService
     /**
      * Varsayılan kit'in normalize token sözlüğü (cache'li).
      *
-     * @return array{palette:array<string,string>,fonts:array<string,string>,spacing:array<string,mixed>,logos:array<string,string>}
+     * @return array{palette:array<string,string>,fonts:array<string,string>,spacing:array<string,mixed>,logos:array<string,string>,copy:array<string,mixed>}
      */
     public function tokens(): array
     {
@@ -76,7 +77,41 @@ class BrandTokenService
             'fonts'   => $this->resolveFonts($kit?->typography),
             'spacing' => $spacing,
             'logos'   => $this->resolvePaths($kit?->logos),
+            'copy'    => $this->resolveCopy($kit),
         ];
+    }
+
+    /**
+     * Markanın "yazı" (copy) kimliği: pazarlama metni üretimi (CopyGeneratorContract)
+     * bu alanlarla sınırlanır. Kit yoksa/eksikse güvenli boş değerler döner.
+     *
+     * @return array{brief:string,tone:string,cta_phrases:array<int,string>,banned_words:array<int,string>}
+     */
+    private function resolveCopy(?BrandKit $kit): array
+    {
+        return [
+            'brief'        => trim((string) ($kit?->design_brief ?? '')),
+            'tone'         => trim((string) ($kit?->tone ?? '')),
+            'cta_phrases'  => $this->stringList($kit?->cta_phrases),
+            'banned_words' => $this->stringList($kit?->banned_words),
+        ];
+    }
+
+    /**
+     * Yalnız boş-olmayan string değerleri tutan yeniden-indekslenmiş liste.
+     *
+     * @return array<int,string>
+     */
+    private function stringList(mixed $list): array
+    {
+        $out = [];
+        foreach ((array) ($list ?? []) as $value) {
+            if (is_string($value) && trim($value) !== '') {
+                $out[] = trim($value);
+            }
+        }
+
+        return array_values(array_unique($out));
     }
 
     /**

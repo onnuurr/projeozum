@@ -290,6 +290,9 @@ return [
         'tryon_driver'   => env('AI_STUDIO_TRYON_DRIVER', 'gemini'),
         // gemini | mock — caption/hashtag üretimi
         'caption_driver' => env('CREATIVE_CAPTION_DRIVER', 'gemini'),
+        // gemini | mock — on-image pazarlama metni (headline/sub/cta) üretimi.
+        // Anahtar yoksa mock'a düşer; gemini metin modelini (text_model) kullanır.
+        'copy_driver'    => env('CREATIVE_COPY_DRIVER', 'gemini'),
 
         // AI çağrıları yavaş; pipeline genel zaman aşımı (saniye).
         'timeout' => (int) env('CREATIVE_AI_TIMEOUT', 240),

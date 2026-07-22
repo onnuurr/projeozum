@@ -6,6 +6,7 @@ use Nwidart\Modules\Support\ModuleServiceProvider;
 use Modules\Creative\Console\Commands\CreativeReviewReportCommand;
 use Modules\Creative\Console\Commands\TrainGarmentDetectorCommand;
 use Modules\Creative\Services\Ai\Contracts\CaptionGeneratorContract;
+use Modules\Creative\Services\Ai\Contracts\CopyGeneratorContract;
 use Modules\Creative\Services\Ai\Contracts\GarmentIdentitySummarizerContract;
 use Modules\Creative\Services\Ai\Contracts\GarmentPartAnalyzerContract;
 use Modules\Creative\Services\Ai\Contracts\GarmentTryOnContract;
@@ -16,6 +17,7 @@ use Modules\Creative\Services\Ai\Contracts\RejectionInsightContract;
 use Modules\Creative\Services\Ai\Contracts\SceneComposerContract;
 use Modules\Creative\Services\Ai\Drivers\Fal\FalFashnTryOn;
 use Modules\Creative\Services\Ai\Drivers\Gemini\GeminiCaptionGenerator;
+use Modules\Creative\Services\Ai\Drivers\Gemini\GeminiCopyGenerator;
 use Modules\Creative\Services\Ai\Drivers\Gemini\GeminiIdentitySummarizer;
 use Modules\Creative\Services\Ai\Drivers\Gemini\GeminiMannequinComposer;
 use Modules\Creative\Services\Ai\Drivers\Gemini\GeminiMannequinPoseComposer;
@@ -25,6 +27,7 @@ use Modules\Creative\Services\Ai\Drivers\Gemini\GeminiRejectionInsightGenerator;
 use Modules\Creative\Services\Ai\Drivers\Gemini\GeminiSceneComposer;
 use Modules\Creative\Services\Ai\Drivers\Gemini\GeminiTryOn;
 use Modules\Creative\Services\Ai\Drivers\Mock\MockCaptionGenerator;
+use Modules\Creative\Services\Ai\Drivers\Mock\MockCopyGenerator;
 use Modules\Creative\Services\Ai\Drivers\Mock\MockIdentitySummarizer;
 use Modules\Creative\Services\Ai\Drivers\Mock\MockMannequinComposer;
 use Modules\Creative\Services\Ai\Drivers\Mock\MockMannequinPoseComposer;
@@ -203,6 +206,15 @@ class CreativeServiceProvider extends ModuleServiceProvider
                 && config('creative.ai.gemini.api_key');
 
             return $app->make($useGemini ? GeminiCaptionGenerator::class : MockCaptionGenerator::class);
+        });
+
+        // On-image copy sürücüsü (headline/sub/cta): gemini metin modeli (anahtar
+        // varsa), aksi halde şablon tabanlı mock.
+        $this->app->bind(CopyGeneratorContract::class, function ($app) {
+            $useGemini = config('creative.ai.copy_driver') === 'gemini'
+                && config('creative.ai.gemini.api_key');
+
+            return $app->make($useGemini ? GeminiCopyGenerator::class : MockCopyGenerator::class);
         });
 
         // Ret analiz raporu "ne yapılabilir" önerisi: gemini metin modeli (anahtar

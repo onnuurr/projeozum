@@ -25,6 +25,7 @@ class CreativeRenderService
         private BrandTokenService $brandTokens,
         private AiSceneService $aiScenes,
         private CaptionService $captions,
+        private CopyService $copy,
         private ImageEnhancerContract $enhancer,
     ) {}
 
@@ -134,10 +135,17 @@ class CreativeRenderService
             }
         }
 
+        // Metin slotları: her zaman ürün adı (product_name) hazır; use_copy_ai
+        // açıksa şablonun semantik copy slotları (headline/sub/cta) marka tonunda
+        // üretilir. Copy üretimi nice-to-have: hata olursa render düşmez.
+        $values = ['product_name' => (string) $product->name];
+        $copy   = $this->buildCopy($asset, $template, $product, $format);
+        $values = array_merge($values, $copy);
+
         try {
             $bytes = $this->renderer->render(
                 $template,
-                ['product_name' => (string) $product->name],
+                $values,
                 $imagePaths,
                 $brand,
                 $format['width'] ?? null,
@@ -174,6 +182,7 @@ class CreativeRenderService
             'meta'          => array_merge($asset->meta ?? [], [
                 'used_image' => $usedImage,
                 'ai_scene'   => $aiStored,
+                'copy'       => $copy !== [] ? $copy : null,
                 'caption'    => $caption['caption'] ?? null,
                 'hashtags'   => $caption['hashtags'] ?? [],
                 'render_ms'  => (int) round((microtime(true) - $startedAt) * 1000),
@@ -185,6 +194,58 @@ class CreativeRenderService
         ])->save();
 
         return $asset;
+    }
+
+    /**
+     * use_copy_ai açıksa şablonun copy slotları için marka tonunda metin üretir.
+     * Kapalıysa veya üretim başarısız olursa boş dizi döner (metin slotları statik
+     * SVG içeriğiyle kalır; render düşmez).
+     *
+     * Ret sonrası düzeltme talimatı (meta.extra_instructions) varsa marka brief'ine
+     * EKLENİR (onu ezmez) — regenerate bu sayede hem markayı hem düzeltmeyi görür.
+     *
+     * @param  array<string,mixed>  $format
+     * @return array<string,string>
+     */
+    private function buildCopy(CreativeAsset $asset, CreativeTemplate $template, $product, array $format): array
+    {
+        if (! $this->wantsCopy($asset)) {
+            return [];
+        }
+
+        try {
+            return $this->copy->forTemplate(
+                $product,
+                $template,
+                $format['aspect'] ?? null,
+                $this->resolveExtraInstructions($asset),
+            );
+        } catch (\Throwable $e) {
+            Log::warning('Creative copy üretimi başarısız.', [
+                'asset_id' => $asset->id ?? null,
+                'error'    => $e->getMessage(),
+            ]);
+
+            return [];
+        }
+    }
+
+    /**
+     * Asset için on-image metin (headline/sub/cta) üretilsin mi? (meta.use_copy_ai)
+     */
+    private function wantsCopy(CreativeAsset $asset): bool
+    {
+        return (bool) ($asset->meta['use_copy_ai'] ?? false);
+    }
+
+    /**
+     * Ret sonrası düzeltme talimatı (meta.extra_instructions). Boşsa null.
+     */
+    private function resolveExtraInstructions(CreativeAsset $asset): ?string
+    {
+        $extra = trim((string) ($asset->meta['extra_instructions'] ?? ''));
+
+        return $extra !== '' ? $extra : null;
     }
 
     /**

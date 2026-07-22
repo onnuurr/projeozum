@@ -112,6 +112,11 @@
 				<span class="ai-dot"></span>
 				<span class="ai-label">✨ AI sahne / giydirme</span>
 			</label>
+			<label class="ai-toggle" :class="{ on: useCopyAi }" title="Şablonun metin alanları (başlık / alt başlık / CTA) için marka tonunda otomatik yazı üret">
+				<input v-model="useCopyAi" type="checkbox" />
+				<span class="ai-dot"></span>
+				<span class="ai-label">✍️ AI metin (başlık/CTA)</span>
+			</label>
 			<label v-if="useAi" class="pose-select" title="AI mankeninin duruşu (poz planlaması)">
 				<span class="fs-label">Poz</span>
 				<select v-model="selectedPose">
@@ -156,6 +161,7 @@ const selectedProducts = reactive(new Set())
 const search = ref('')
 const busy = ref(false)
 const useAi = ref(false)
+const useCopyAi = ref(false)
 const selectedFormat = ref(props.default_format || props.formats[0]?.key || null)
 
 // Poz planlaması: değer doğrudan AI prompt'una giden duruş yönergesidir.
@@ -202,6 +208,7 @@ function generate() {
 		template_id: selectedTemplate.value,
 		product_ids: Array.from(selectedProducts),
 		use_ai: useAi.value,
+		use_copy_ai: useCopyAi.value,
 		format: selectedFormat.value,
 		pose: useAi.value ? (selectedPose.value || null) : null,
 	}, {

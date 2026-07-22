@@ -36,6 +36,14 @@ class StoreBrandKitRequest extends FormRequest
             // Logo varyant yolları: {"primary":"path","mono":"path"}
             'logos'         => ['nullable', 'array'],
             'logos.*'       => ['nullable', 'string', 'max:1024'],
+
+            // Yazı (copy) kimliği: on-image metin üretimi bu alanlarla sınırlanır.
+            'design_brief'   => ['nullable', 'string', 'max:2000'],
+            'tone'           => ['nullable', 'string', 'max:191'],
+            'cta_phrases'    => ['nullable', 'array', 'max:20'],
+            'cta_phrases.*'  => ['string', 'max:191'],
+            'banned_words'   => ['nullable', 'array', 'max:100'],
+            'banned_words.*' => ['string', 'max:191'],
         ];
     }
 
@@ -49,6 +57,18 @@ class StoreBrandKitRequest extends FormRequest
                         $this->input($field),
                         fn ($v) => is_string($v) ? trim($v) !== '' : $v !== null,
                     ),
+                ]);
+            }
+        }
+
+        // CTA/yasaklı kelime listeleri: boş satırları at, kırp, yeniden indeksle.
+        foreach (['cta_phrases', 'banned_words'] as $field) {
+            if (is_array($this->input($field))) {
+                $this->merge([
+                    $field => array_values(array_filter(
+                        array_map(fn ($v) => is_string($v) ? trim($v) : $v, $this->input($field)),
+                        fn ($v) => is_string($v) && $v !== '',
+                    )),
                 ]);
             }
         }

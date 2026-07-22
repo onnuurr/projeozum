@@ -109,6 +109,38 @@ export route + ZIP mantığı, retry/backoff, `npm run build` temiz.
 
 ---
 
+## ✅ Özellik İzi — On-Image Copy (başlık/alt başlık/CTA) üretimi
+**Amaç:** Şablonun metin slotlarına (headline/sub/cta) ürün adını ham geçmek yerine MARKA TONUNDA
+otomatik pazarlama metni üretmek. Önceden `CreativeRenderService::generate` yalnız `product_name`
+değerini geçiyordu; `render.py` `values.get(slot["key"])` ile eşlediği için `headline`/`sub`/`cta`
+slotları BOŞ kalıyordu. Caption servisiyle bire bir paralel desen (contract + gemini/mock + config binding).
+
+- **Şema:** `2026_07_22_120000_add_copy_fields_to_brand_kits_table` — `brand_kits`'e `design_brief`(text),
+  `tone`(string), `cta_phrases`(json), `banned_words`(json), hepsi nullable, gerçek `down()` (4 kolonu
+  drop eder). `BrandKit` fillable/casts güncellendi.
+- **Marka kimliği:** `BrandTokenService::tokens()` çıktısına `copy` bölümü eklendi
+  (`{brief,tone,cta_phrases[],banned_words[]}`) — önceki sözleşme korundu (salt ekleme).
+- **Sürücü katmanı:** `Services/Ai/Contracts/CopyGeneratorContract` + `CopyRequest` DTO (CaptionRequest
+  deseni); `Drivers/Gemini/CopyPromptBuilder` (saf/test edilebilir) + `GeminiCopyGenerator`
+  (JSON→slot eşleme); `Drivers/Mock/MockCopyGenerator` (role uygun şablon). Config
+  `creative.ai.copy_driver` (`CREATIVE_COPY_DRIVER`, gemini→anahtar varsa, yoksa mock);
+  `CreativeServiceProvider` binding'i caption ile aynı.
+- **Marka güvenliği KOD seviyesinde:** `Support/CopyConstraints::sanitize()` yasaklı kelimeleri tam-kelime
+  (Unicode/Türkçe) ayıklar — LLM talimatı yok saysa bile garanti (OCR/RuleEngine felsefesi). Boşalan slot
+  tamamen düşürülür. `Support/CopySlots` slot anahtarını semantik role çözer (`product_name` kapsam dışı;
+  "subheadline" alt-dizesi "headline"a kaymaz).
+- **Orkestrasyon + kablolama:** `Services/CopyService::forTemplate()` şablonun copy slotlarını ayıklayıp
+  markanın copy token'larıyla üretir. `CreativeRenderService::generate` artık `meta.use_copy_ai` açıksa
+  copy üretip `values`e merge eder (non-fatal: hata→`Log::warning`, render düşmez), izini `meta.copy`'ye
+  yazar. `meta.extra_instructions` varsa brief'e EKLENİR (ezmez) — ret sonrası regenerate hem markayı hem
+  düzeltmeyi görür. `GenerateCreativesRequest`+Studio controller `use_copy_ai`; StoreBrandKitRequest+
+  BrandKitController copy alanları; UI: Studio "✍️ AI metin" toggle + BrandKits "Yazı (Copy) Kimliği" bölümü.
+- **Doğrulandı:** `CopyGeneratorTest` (8 saf birim: rol çözümü/ban güvencesi/prompt kısıtları/mock) +
+  `CopyServiceTest` (3 feature: brand token copy, slot doldurma+ban, copy slotu yoksa boş) yeşil;
+  tüm Creative feature suite 33/33 yeşil; `npm run build` temiz. (Not: `MannequinPromptBuilderTest`'in
+  "buğday" içeren rastgele ten varyantını bekleyen testi bu özellikten BAĞIMSIZ olarak zaten flaky/
+  kırık — temiz branch'te de aynı şekilde başarısız.)
+
 ---
 
 ## 🆕 Özellik İzi — Sanal Manken Stüdyosu (yeni, BrandCreative roadmap'inden bağımsız)

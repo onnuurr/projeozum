@@ -167,6 +167,32 @@
 						</div>
 					</div>
 
+					<!-- Yazı (copy) kimliği: on-image metin üretimi bu alanlarla sınırlanır -->
+					<div class="section">
+						<div class="section-head">
+							<h4>Yazı (Copy) Kimliği</h4>
+						</div>
+						<p class="muted" style="margin: 0 0 8px">
+							Görsel üstü metin (başlık / alt başlık / CTA) üretilirken bu alanlar kullanılır.
+						</p>
+						<label class="copy-field">
+							<span>Yaratıcı brief</span>
+							<textarea v-model="form.design_brief" rows="3" placeholder="Markanın genel yaratıcı dili / mesajı…"></textarea>
+						</label>
+						<label class="copy-field">
+							<span>Ton</span>
+							<input v-model="form.tone" type="text" placeholder="ör. sıcak, samimi, lüks" />
+						</label>
+						<label class="copy-field">
+							<span>CTA ifadeleri <em>(her satıra bir tane)</em></span>
+							<textarea v-model="form.cta_phrases" rows="3" placeholder="Hemen keşfet&#10;Sepete ekle"></textarea>
+						</label>
+						<label class="copy-field">
+							<span>Yasaklı kelimeler <em>(her satıra bir tane)</em></span>
+							<textarea v-model="form.banned_words" rows="3" placeholder="ucuz&#10;indirim"></textarea>
+						</label>
+					</div>
+
 					<div class="editor-actions">
 						<button class="btn btn-ghost" @click="newKit">Temizle</button>
 						<button class="btn btn-primary" :disabled="busy" @click="save">
@@ -211,7 +237,16 @@ function blankForm() {
 		typography: { regular: '', bold: '', fonts: [] },
 		spacing: Object.entries(props.defaults?.spacing || { sm: 8, md: 16, lg: 32 }).map(([key, value]) => ({ key, value })),
 		logos: [],
+		design_brief: '',
+		tone: '',
+		cta_phrases: '',
+		banned_words: '',
 	}
+}
+
+// Çok satırlı metni satır başına bir öğe olan diziye çevirir (boş satırları atar).
+function linesToList(text) {
+	return String(text || '').split('\n').map(s => s.trim()).filter(Boolean)
 }
 
 const form = reactive(blankForm())
@@ -305,6 +340,10 @@ function editKit(k) {
 		typography: buildTypography(k.typography),
 		spacing: objToRows(k.spacing),
 		logos: objToRows(k.logos),
+		design_brief: k.design_brief || '',
+		tone: k.tone || '',
+		cta_phrases: (k.cta_phrases || []).join('\n'),
+		banned_words: (k.banned_words || []).join('\n'),
 	})
 }
 
@@ -328,6 +367,10 @@ function payload() {
 		typography,
 		spacing: rowsToObj(form.spacing),
 		logos: rowsToObj(form.logos),
+		design_brief: form.design_brief || null,
+		tone: form.tone || null,
+		cta_phrases: linesToList(form.cta_phrases),
+		banned_words: linesToList(form.banned_words),
 	}
 }
 
@@ -453,6 +496,11 @@ async function remove() {
 .link-btn { background: none; border: none; color: rgb(var(--color-primary)); font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
 .link-btn.danger { color: #dc2626; }
 .muted { font-size: 12px; color: #aaa; font-style: italic; }
+
+.copy-field { display: block; margin-bottom: 10px; }
+.copy-field > span { display: block; font-size: 12px; font-weight: 600; color: #555; margin-bottom: 4px; }
+.copy-field > span em { font-weight: 400; color: #aaa; font-style: normal; }
+.copy-field input, .copy-field textarea { width: 100%; border: 1px solid #e8e8f0; border-radius: 7px; padding: 8px 10px; font-size: 12.5px; font-family: inherit; resize: vertical; }
 
 .token-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .token-key { width: 110px; flex-shrink: 0; border: 1px solid #e8e8f0; border-radius: 7px; padding: 7px 9px; font-size: 12.5px; font-family: inherit; }

@@ -61,10 +61,11 @@ class CreativeStudioController extends Controller
         $templateId = (int) $request->validated('template_id');
         $productIds = $request->validated('product_ids');
         $useAi      = (bool) $request->validated('use_ai', false);
+        $useCopyAi  = (bool) $request->validated('use_copy_ai', false);
         $format     = $request->validated('format', config('creative.default_format'));
         $pose       = trim((string) $request->validated('pose', ''));
 
-        $meta = ['use_ai' => $useAi, 'format' => $format];
+        $meta = ['use_ai' => $useAi, 'use_copy_ai' => $useCopyAi, 'format' => $format];
         if ($pose !== '') {
             // Boşsa hiç yazma; prompt builder ürüne göre kürate poz seçsin.
             $meta['pose'] = $pose;

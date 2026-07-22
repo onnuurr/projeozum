@@ -19,6 +19,7 @@ class GenerateCreativesRequest extends FormRequest
             'product_ids'   => ['required', 'array', 'min:1'],
             'product_ids.*' => ['integer', 'exists:products,id'],
             'use_ai'        => ['sometimes', 'boolean'],
+            'use_copy_ai'   => ['sometimes', 'boolean'],
             'format'        => ['sometimes', 'string', Rule::in(array_keys((array) config('creative.formats', [])))],
             'pose'          => ['sometimes', 'nullable', 'string', 'max:500'],
         ];
