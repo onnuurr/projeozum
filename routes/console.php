@@ -78,6 +78,20 @@ Schedule::command('creative:review-report')->weekly()->onOneServer();
 
 /*
 |--------------------------------------------------------------------------
+| Mimari sağlık denetimi
+|--------------------------------------------------------------------------
+| Migration disiplini, AI katmanı Mock/config-switch deseni, controller
+| sorumluluğu, tenant izolasyonu ve kod kalitesi kurallarını denetler
+| (salt-okuma, hiçbir şey silmez/değiştirmez — bkz. tools/architecture-doctor).
+| --json çıktısı storage/app/architecture-doctor.json'a yazılır. Kurallar
+| bugün hepsi Maturity::Experimental olduğu için --ci her zaman exit 0
+| döner; bir kural Stable'a yükseltildiğinde bu zamanlama fiilen anlamlı
+| hale gelir (kritik ihlalde exit 1, bkz. ArchitectureDoctor\Policies\Policy).
+*/
+Schedule::command('architecture:doctor --ci --json')->weekly()->onOneServer();
+
+/*
+|--------------------------------------------------------------------------
 | Otomatik yedekleme (DB + dosyalar → Google Drive)
 |--------------------------------------------------------------------------
 | pg_dump + proje dosyaları tar'ı alınıp rclone ile gdrive:ServerBackup'a
