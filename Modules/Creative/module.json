@@ -7,5 +7,9 @@
     "providers": [
         "Modules\\Creative\\Providers\\CreativeServiceProvider"
     ],
-    "files": []
+    "files": [],
+    "architecture": {
+        "allowed_dependencies": ["Product"],
+        "provides_shared_infrastructure": ["Services.Ai.Contracts", "Services.Ai.Drivers"]
+    }
 }

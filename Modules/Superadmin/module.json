@@ -7,5 +7,8 @@
     "providers": [
         "Modules\\Superadmin\\Providers\\SuperadminServiceProvider"
     ],
-    "files": []
+    "files": [],
+    "architecture": {
+        "allowed_dependencies": ["Tenant"]
+    }
 }

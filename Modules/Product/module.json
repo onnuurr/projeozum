@@ -7,5 +7,10 @@
     "providers": [
         "Modules\\Product\\Providers\\ProductServiceProvider"
     ],
-    "files": []
+    "files": [],
+    "architecture": {
+        "allowed_dependencies": ["Superadmin"],
+        "forbidden_dependencies": ["Tenant", "Atelier"],
+        "shared_infrastructure": ["Creative.Services.Ai"]
+    }
 }

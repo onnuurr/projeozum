@@ -8,6 +8,7 @@ use App\Listeners\LogPasswordReset;
 use App\Listeners\LogSuccessfulLogin;
 use App\Listeners\LogSuccessfulLogout;
 use App\Support\PostLoginRedirect;
+use ArchitectureDoctor\Console\ArchitectureDoctorCommand;
 use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Auth\Events\Login;
@@ -35,6 +36,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        if ($this->app->runningInConsole()) {
+            $this->commands([ArchitectureDoctorCommand::class]);
+        }
+
         Vite::prefetch(concurrency: 3);
 
         // ->toast('success', 'Kaydedildi.') kısayolu — Schema B'yi doğrudan oluşturur.

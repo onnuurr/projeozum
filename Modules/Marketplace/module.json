@@ -14,5 +14,8 @@
     "providers": [
         "Modules\\Marketplace\\Providers\\MarketplaceServiceProvider"
     ],
-    "files": []
+    "files": [],
+    "architecture": {
+        "allowed_dependencies": []
+    }
 }

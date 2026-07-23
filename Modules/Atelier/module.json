@@ -7,5 +7,9 @@
     "providers": [
         "Modules\\Atelier\\Providers\\AtelierServiceProvider"
     ],
-    "files": []
+    "files": [],
+    "architecture": {
+        "allowed_dependencies": ["Product"],
+        "shared_infrastructure": ["Creative.Services.Ai"]
+    }
 }

@@ -253,7 +253,21 @@
       "Bash(git -C /home/ozumserver/htdocs/ozumserver.com.tr status --porcelain -- Modules/Creative/Services/Ai/Support/PromptDirectives.php Modules/Creative/config/config.php)",
       "Skill(artifact-design)",
       "Artifact",
-      "Bash(php -v)"
+      "Bash(php -v)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(git checkout *)",
+      "Bash(echo \"ci exit: $?\")",
+      "Bash(rm -f /tmp/claude-0/-home-ozumserver-htdocs-ozumserver-com-tr/6b74e58e-3603-4e57-8288-be8cc1ea9dcb/scratchpad/check_*.php)",
+      "Bash(composer show *)",
+      "Bash(composer --version)",
+      "Bash(COMPOSER_ALLOW_SUPERUSER=1 composer require --dev phpmd/phpmd --no-interaction)",
+      "Bash(vendor/bin/phpmd Modules/Superadmin/Http/Controllers/SettingsController.php json codesize,unusedcode)",
+      "Bash(vendor/bin/phpmd --help)",
+      "Bash(vendor/bin/phpmd Modules/Superadmin/Http/Controllers/SettingsController.php xml codesize,unusedcode --ignore-violations-on-exit)",
+      "Bash(COMPOSER_ALLOW_SUPERUSER=1 composer require --dev \"phpmd/phpmd:^2.15\" --no-interaction --with-all-dependencies)",
+      "Bash(vendor/bin/deptrac analyse *)",
+      "Bash(time vendor/bin/phpmd app,Modules xml codesize,unusedcode --exclude vendor,node_modules,storage)",
+      "Bash(vendor/bin/phpmd app,Modules xml codesize,unusedcode --exclude vendor,node_modules,storage)"
     ]
   }
 }

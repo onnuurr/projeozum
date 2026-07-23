@@ -1,0 +1,39 @@
+deptrac:
+  skip_violations:
+    Modules\Product\Http\Controllers\CartController:
+      - Modules\Tenant\Models\Tenant
+      - Modules\Tenant\Services\TenantAccessService
+    Modules\Product\Http\Controllers\OrderController:
+      - Modules\Tenant\Models\Tenant
+      - Modules\Tenant\Models\TenantCreditLedger
+    Modules\Product\Http\Controllers\ProductAiDescriptionController:
+      - Modules\Tenant\Models\Tenant
+    Modules\Product\Http\Controllers\ProductController:
+      - Modules\Tenant\Models\Tenant
+    Modules\Product\Models\Order:
+      - Modules\Tenant\Models\Tenant
+    Modules\Product\Models\Product:
+      - Modules\Atelier\Models\ProductBom
+    Modules\Product\Models\ProductDescriptionMaterial:
+      - Modules\Atelier\Models\Material
+    Modules\Product\Services\Ai\Contracts\ProductDescriptionGenerator:
+      - Modules\Tenant\Models\Tenant
+    Modules\Product\Services\Ai\GeminiProductDescriptionGenerator:
+      - Modules\Tenant\Models\Tenant
+    Modules\Product\Services\Ai\ProductDescriptionPromptBuilder:
+      - Modules\Tenant\Models\Tenant
+    Modules\Product\Services\Ai\PromptMaterialResolver:
+      - Modules\Atelier\Services\MaterialSpecService
+    Modules\Product\Services\CheckoutService:
+      - Modules\Tenant\Exceptions\InsufficientCreditException
+      - Modules\Tenant\Models\Tenant
+      - Modules\Tenant\Services\TenantAccessService
+      - Modules\Tenant\Services\TenantCreditService
+    Modules\Product\Services\OrderService:
+      - Modules\Tenant\Services\TenantCreditService
+    Modules\Product\Services\ProductCatalogPresenter:
+      - Modules\Tenant\Models\Tenant
+      - Modules\Tenant\Models\TenantProductAccess
+    Modules\Product\Services\ProductDisplayResolver:
+      - Modules\Tenant\Models\Tenant
+      - Modules\Tenant\Models\TenantProductAccess
