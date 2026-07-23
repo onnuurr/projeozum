@@ -81,6 +81,21 @@ class MenuSeeder extends Seeder
             ],
         );
 
+        // architecture:doctor komutunun ürettiği rapor (bkz. ArchitectureDoctorController).
+        // Yalnız architecture-doctor.view iznine sahip hesaplar (superadmin) görür.
+        Menu::firstOrCreate(
+            ['route_name' => 'superadmin.architecture-doctor.index'],
+            [
+                'parent_id'  => null,
+                'label'      => 'Mimari Doktor',
+                'icon'       => 'reports',
+                'url'        => null,
+                'permission' => 'architecture-doctor.view',
+                'sort_order' => 95,
+                'is_active'  => true,
+            ],
+        );
+
         // Creative ret ekranındaki "düzeltilmesi gereken alan" seçim maddelerinin
         // yönetimi. Yalnız creative.rejection-reasons.manage izni (superadmin) görür.
         Menu::firstOrCreate(

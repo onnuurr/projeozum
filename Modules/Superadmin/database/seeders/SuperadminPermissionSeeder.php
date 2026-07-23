@@ -19,6 +19,7 @@ class SuperadminPermissionSeeder extends Seeder
             'users.manage'    => 'Kullanıcı Yönet',
             'backups.view'    => 'Yedeklemeleri Görüntüle',
             'backups.manage'  => 'Yedekleme Tetikle',
+            'architecture-doctor.view' => 'Mimari Doktor Raporunu Görüntüle',
         ];
 
         $created = [];

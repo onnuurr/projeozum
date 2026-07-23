@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\Superadmin\Http\Controllers\ArchitectureDoctorController;
 use Modules\Superadmin\Http\Controllers\BackupController;
 use Modules\Superadmin\Http\Controllers\LogAccessController;
 use Modules\Superadmin\Http\Controllers\LogViewerController;
@@ -33,6 +34,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('can:backups.view')->name('superadmin.backups.index');
     Route::post('superadmin/backups/run', [BackupController::class, 'run'])
         ->middleware('can:backups.manage')->name('superadmin.backups.run');
+
+    // Mimari sağlık raporu (architecture:doctor --json çıktısı) — resource'dan ÖNCE tanımlanmalı.
+    Route::get('superadmin/architecture-doctor', [ArchitectureDoctorController::class, 'index'])
+        ->middleware('can:architecture-doctor.view')->name('superadmin.architecture-doctor.index');
 
     // Menüler — Route::resource('superadmin')'dan ÖNCE tanımlanmalı, aksi halde
     // GET superadmin/menus, resource'un superadmin/{superadmin} (show) route'u
