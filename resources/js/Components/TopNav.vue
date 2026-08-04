@@ -22,27 +22,72 @@
 					:key="item.name"
 					class="nav-item"
 					ref="navItemEls"
-					@mouseenter="openDropdown(item)"
-					@mouseleave="scheduleClose"
 				>
 					<Link
-						v-if="item.to"
+						v-if="item.to && !item.children?.length"
 						:href="item.to"
 						class="nav-link"
 						:class="{ active: item.active }"
-					>{{ item.name }}</Link>
-					<a v-else href="#" class="nav-link" :class="{ active: item.active }" @click.prevent>{{ item.name }}</a>
+						:title="item.name"
+					>
+						<span v-if="item.icon" v-html="item.icon"></span>
+						<span v-else class="nav-link-fallback">{{ item.name.charAt(0) }}</span>
+					</Link>
+					<button
+						v-else
+						type="button"
+						class="nav-link"
+						:class="{ active: item.active, open: activeDropdown === item.name }"
+						:title="item.name"
+						@click.stop="toggleDropdown(item)"
+					>
+						<span v-if="item.icon" v-html="item.icon"></span>
+						<span v-else class="nav-link-fallback">{{ item.name.charAt(0) }}</span>
+					</button>
 					<div
+						v-if="item.children?.length"
 						class="nav-dropdown"
 						:class="{ open: activeDropdown === item.name }"
 						:style="dropdownStyle(item)"
-						@mouseenter="cancelClose"
-						@mouseleave="scheduleClose"
 					>
-						<template v-for="child in item.children" :key="child.label">
-							<Link v-if="child.to" :href="child.to">{{ child.label }}</Link>
-							<a v-else href="#" @click.prevent>{{ child.label }}</a>
-						</template>
+						<div v-for="child in item.children" :key="child.label" class="nav-dropdown-entry">
+							<Link
+								v-if="child.to && !child.children?.length"
+								:href="child.to"
+								class="nav-dropdown-icon"
+								:title="child.label"
+								@click="activeDropdown = null"
+							>
+								<span v-if="child.icon" v-html="child.icon"></span>
+								<span v-else class="nav-dropdown-fallback">{{ child.label.charAt(0) }}</span>
+							</Link>
+							<button
+								v-else
+								type="button"
+								class="nav-dropdown-icon"
+								:class="{ open: activeSubdropdown === child.label }"
+								:title="child.label"
+								@click.stop="toggleSubdropdown(child)"
+							>
+								<span v-if="child.icon" v-html="child.icon"></span>
+								<span v-else class="nav-dropdown-fallback">{{ child.label.charAt(0) }}</span>
+								<span v-if="child.children?.length" class="nav-dropdown-caret"></span>
+							</button>
+
+							<div
+								v-if="child.children?.length"
+								class="nav-subdropdown"
+								:class="{ open: activeSubdropdown === child.label }"
+							>
+								<div class="nav-subdropdown-label">{{ child.label }}</div>
+								<template v-for="sub in child.children" :key="sub.label">
+									<Link v-if="sub.to" :href="sub.to" class="nav-subdropdown-item" @click="activeSubdropdown = null; activeDropdown = null">
+										<span v-if="sub.icon" v-html="sub.icon"></span>
+										<span>{{ sub.label }}</span>
+									</Link>
+								</template>
+							</div>
+						</div>
 					</div>
 				</div>
 			</div>
@@ -196,6 +241,56 @@
 			<div v-if="moreOpen" class="mtb-sheet-backdrop" @click="moreOpen = false"></div>
 
 			<div class="mtb-sheet" :class="{ open: moreOpen }" @click.stop>
+				<!-- Aktif modülün alt sayfaları (desktop'taki nav-dropdown/nav-subdropdown ile aynı
+				     navItems verisi): mobilde başka hiçbir yerden erişilemiyordu, bu yüzden
+				     akordeon liste olarak buraya taşındı. -->
+				<template v-if="navItems.length">
+					<div class="mtb-sheet-section-label">Bu Bölüm</div>
+					<div class="mtb-nav-list">
+						<div v-for="item in navItems" :key="item.name" class="mtb-nav-node">
+							<component
+								:is="item.to && !item.children?.length ? Link : 'button'"
+								:href="item.to || undefined"
+								type="button"
+								class="mtb-nav-row"
+								:class="{ active: item.active, open: mobileNavExpanded === item.name }"
+								@click="item.children?.length ? toggleMobileNav(item.name) : closeMobileSheet()"
+							>
+								<span class="mtb-nav-icon" v-html="item.icon"></span>
+								<span class="mtb-nav-label">{{ item.name }}</span>
+								<span v-if="item.children?.length" class="mtb-nav-chevron" :class="{ open: mobileNavExpanded === item.name }">&#8250;</span>
+							</component>
+							<div v-if="item.children?.length" class="mtb-nav-children" :class="{ open: mobileNavExpanded === item.name }">
+								<div class="mtb-nav-children-inner">
+									<template v-for="child in item.children" :key="child.label">
+										<component
+											:is="child.to && !child.children?.length ? Link : 'button'"
+											:href="child.to || undefined"
+											type="button"
+											class="mtb-nav-subrow"
+											:class="{ open: mobileNavSubExpanded === child.label }"
+											@click="child.children?.length ? toggleMobileNavSub(child.label) : closeMobileSheet()"
+										>
+											<span v-html="child.icon"></span>
+											<span>{{ child.label }}</span>
+											<span v-if="child.children?.length" class="mtb-nav-chevron" :class="{ open: mobileNavSubExpanded === child.label }">&#8250;</span>
+										</component>
+										<div v-if="child.children?.length" class="mtb-nav-grandchildren" :class="{ open: mobileNavSubExpanded === child.label }">
+											<div class="mtb-nav-grandchildren-inner">
+												<Link v-for="sub in child.children" :key="sub.label" :href="sub.to" class="mtb-nav-leaf" @click="closeMobileSheet()">
+													<span v-html="sub.icon"></span>
+													<span>{{ sub.label }}</span>
+												</Link>
+											</div>
+										</div>
+									</template>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="mtb-sheet-section-label">Hızlı Erişim</div>
+				</template>
+
 				<button class="mtb-sheet-item" @click="onMoreAction('search')">
 					<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
 						<circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
@@ -275,11 +370,13 @@ const notifOpen = ref(false)
 const userOpen = ref(false)
 const moreOpen = ref(false)
 const activeDropdown = ref(null)
+const activeSubdropdown = ref(null)
+const mobileNavExpanded = ref(null)
+const mobileNavSubExpanded = ref(null)
 const dropdownPositions = ref({})
 const notifPanelStyle = ref({})
 const userDropdownStyle = ref({})
 
-let closeTimer = null
 let hoverScrollTimer = null
 
 const unreadCount = computed(() => props.notifications.filter((n) => !n.read).length)
@@ -330,10 +427,23 @@ function updateScrollArrows() {
 	scrollAtEnd.value = el.scrollLeft + el.clientWidth >= el.scrollWidth - 1
 }
 
-function openDropdown(item) {
-	cancelClose()
+// Üst menü SAP tarzı: hover'la açılmaz, tıklamayla açılır/kapanır (masaüstü SaaS hissi).
+function toggleDropdown(item) {
+	if (activeDropdown.value === item.name) {
+		activeDropdown.value = null
+		activeSubdropdown.value = null
+		return
+	}
+	notifOpen.value = false
+	userOpen.value = false
 	activeDropdown.value = item.name
+	activeSubdropdown.value = null
 	nextTick(() => positionDropdowns())
+}
+
+// Alt menü (bir sonraki seviye) hover'la değil, SAP tarzı tıklamayla açılır/kapanır.
+function toggleSubdropdown(child) {
+	activeSubdropdown.value = activeSubdropdown.value === child.label ? null : child.label
 }
 
 function positionDropdowns() {
@@ -355,16 +465,6 @@ function positionDropdowns() {
 function dropdownStyle(item) {
 	const pos = dropdownPositions.value[item.name]
 	return pos || {}
-}
-
-function scheduleClose() {
-	closeTimer = setTimeout(() => {
-		activeDropdown.value = null
-	}, 120)
-}
-
-function cancelClose() {
-	clearTimeout(closeTimer)
 }
 
 function toggleNotif() {
@@ -402,14 +502,35 @@ function toggleMore() {
 	moreOpen.value = !moreOpen.value
 	notifOpen.value = false
 	userOpen.value = false
+	if (!moreOpen.value) {
+		mobileNavExpanded.value = null
+		mobileNavSubExpanded.value = null
+	}
 }
 
 function onMoreAction(action) {
-	moreOpen.value = false
+	closeMobileSheet()
 	if (action === 'search') emit('open-search')
 	else if (action === 'cart') emit('open-cart')
 	else if (action === 'notif') toggleNotif()
 	else if (action === 'user') toggleUser()
+}
+
+// Bu bölüm akordeonundaki bir yaprağa (link) dokununca sheet'i kapat ve
+// açık kalan akordeon durumunu sıfırla — bir sonraki açılış kapalı başlasın.
+function closeMobileSheet() {
+	moreOpen.value = false
+	mobileNavExpanded.value = null
+	mobileNavSubExpanded.value = null
+}
+
+function toggleMobileNav(name) {
+	mobileNavExpanded.value = mobileNavExpanded.value === name ? null : name
+	mobileNavSubExpanded.value = null
+}
+
+function toggleMobileNavSub(label) {
+	mobileNavSubExpanded.value = mobileNavSubExpanded.value === label ? null : label
 }
 
 function positionUser() {
@@ -432,7 +553,13 @@ function handleGlobalClick(e) {
 	// ile aynı DOM dalında değiller; panelin kendi sınıfı da ayrıca kontrol edilir.
 	if (!e.target.closest('.notif-wrap') && !e.target.closest('.notif-panel')) notifOpen.value = false
 	if (!e.target.closest('.nav-user-wrap') && !e.target.closest('.user-dropdown')) userOpen.value = false
-	if (!e.target.closest('.mobile-tab-bar') && !e.target.closest('.mtb-sheet')) moreOpen.value = false
+	if (!e.target.closest('.mobile-tab-bar') && !e.target.closest('.mtb-sheet')) {
+		moreOpen.value = false
+		mobileNavExpanded.value = null
+		mobileNavSubExpanded.value = null
+	}
+	if (!e.target.closest('.nav-item')) activeDropdown.value = null
+	if (!e.target.closest('.nav-dropdown-entry')) activeSubdropdown.value = null
 }
 
 onMounted(() => {
@@ -444,7 +571,6 @@ onMounted(() => {
 onBeforeUnmount(() => {
 	window.removeEventListener('resize', updateScrollArrows)
 	document.removeEventListener('click', handleGlobalClick)
-	clearTimeout(closeTimer)
 	clearInterval(hoverScrollTimer)
 })
 </script>
@@ -538,28 +664,46 @@ onBeforeUnmount(() => {
 
 .nav-item { position: relative; flex-shrink: 0; }
 
+/* İkon-only üst menü (submenü): SAP/masaüstü SaaS araç çubuğu gibi — metin yerine
+   ikon kareleri, etiket title/tooltip ile gösterilir. Açılır/kapanır davranış
+   hover değil tıklamadır (bkz. toggleDropdown) — masaüstü uygulama hissi için. */
 .nav-link {
-	display: block;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 40px;
+	height: 36px;
+	border: none;
+	background: none;
 	text-decoration: none;
 	color: #666;
-	font-size: 13.5px;
-	font-weight: 500;
-	padding: 6px 14px;
-	border-radius: 20px;
+	border-radius: 10px;
+	cursor: pointer;
 	transition: all 0.15s;
 	white-space: nowrap;
+	flex-shrink: 0;
 }
+.nav-link :deep(svg) { width: 18px; height: 18px; }
+.nav-link-fallback { font-size: 13px; font-weight: 700; line-height: 1; }
 .nav-link:hover { color: rgb(var(--color-primary)); background: rgb(var(--color-primary-soft)); }
 .nav-link.active { background: rgb(var(--color-primary)); color: #fff; font-weight: 600; }
+.nav-link.open { background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary)); }
 
+/* İkon-only alt menü: SAP/masaüstü SaaS tarzı bir araç çubuğu gibi davranır —
+   köklerin altı metin listesi değil, sadece ikon kareleridir; etiket title/tooltip
+   ile gösterilir. Bir alt seviyesi olan ikonlar (nav-subdropdown) hover'la değil
+   tıklamayla açılır (bkz. toggleSubdropdown). */
 .nav-dropdown {
 	position: fixed;
 	background: #fff;
-	border-radius: 10px;
+	border-radius: 12px;
 	box-shadow: 0 8px 28px rgba(0, 0, 0, 0.13);
 	border: 1px solid #ebebf0;
-	min-width: 168px;
-	padding: 5px;
+	max-width: 260px;
+	padding: 6px;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
 	opacity: 0;
 	pointer-events: none;
 	transform: translateY(-6px);
@@ -571,18 +715,96 @@ onBeforeUnmount(() => {
 	pointer-events: all;
 	transform: translateY(0);
 }
-.nav-dropdown a {
-	display: block;
+
+.nav-dropdown-entry { position: relative; }
+
+.nav-dropdown-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 38px;
+	height: 38px;
+	border: 1px solid transparent;
+	border-radius: 9px;
+	background: none;
+	color: #555;
+	cursor: pointer;
+	text-decoration: none;
+	transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.nav-dropdown-icon:hover,
+.nav-dropdown-icon.open {
+	background: rgb(var(--color-primary-soft));
+	color: rgb(var(--color-primary));
+	border-color: rgb(var(--color-primary) / .18);
+}
+.nav-dropdown-icon :deep(svg) { width: 16px; height: 16px; }
+.nav-dropdown-fallback {
+	font-size: 12px;
+	font-weight: 700;
+	line-height: 1;
+}
+.nav-dropdown-caret {
+	position: absolute;
+	right: 4px;
+	bottom: 4px;
+	width: 0;
+	height: 0;
+	border-style: solid;
+	border-width: 0 0 5px 5px;
+	border-color: transparent transparent currentColor transparent;
+	opacity: .55;
+}
+
+/* Bir alt menü seviyesi (varsa): ikon karesine tıklanınca açılan, SAP tarzı
+   buton-listesi flyout. Kart konumu ebeveyn .nav-dropdown-entry'e göre absolute'tür,
+   böylece ayrıca JS ile koordinat hesaplamaya gerek kalmaz. */
+.nav-subdropdown {
+	position: absolute;
+	top: calc(100% + 4px);
+	left: 0;
+	background: #fff;
+	border: 1px solid #ebebf0;
+	border-radius: 10px;
+	box-shadow: 0 8px 28px rgba(0, 0, 0, 0.13);
+	min-width: 190px;
+	padding: 5px;
+	opacity: 0;
+	pointer-events: none;
+	transform: translateY(-4px);
+	transition: opacity 0.12s, transform 0.12s;
+	z-index: 10000;
+}
+.nav-subdropdown.open {
+	opacity: 1;
+	pointer-events: all;
+	transform: translateY(0);
+}
+.nav-subdropdown-label {
+	font-size: 10.5px;
+	font-weight: 700;
+	color: #bbb;
+	text-transform: uppercase;
+	letter-spacing: .04em;
+	padding: 6px 10px 4px;
+	white-space: nowrap;
+}
+.nav-subdropdown-item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
 	text-decoration: none;
 	color: #444;
 	font-size: 12.5px;
 	font-weight: 500;
-	padding: 7px 12px;
+	padding: 7px 10px;
 	border-radius: 7px;
 	transition: background 0.12s, color 0.12s;
 	white-space: nowrap;
 }
-.nav-dropdown a:hover { background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary)); }
+.nav-subdropdown-item :deep(svg) { width: 14px; height: 14px; flex-shrink: 0; color: #aaa; transition: color .12s; }
+.nav-subdropdown-item:hover { background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary)); }
+.nav-subdropdown-item:hover :deep(svg) { color: rgb(var(--color-primary)); }
 
 .nav-actions {
 	display: flex;
@@ -911,6 +1133,8 @@ onBeforeUnmount(() => {
 	position: fixed;
 	left: 8px; right: 8px;
 	bottom: calc(56px + env(safe-area-inset-bottom) + 8px);
+	max-height: min(72vh, 520px);
+	overflow-y: auto;
 	background: #fff;
 	border: 1px solid #e8e8f0;
 	border-radius: 16px;
@@ -923,6 +1147,91 @@ onBeforeUnmount(() => {
 	transition: opacity .15s, transform .15s;
 }
 .mtb-sheet.open { opacity: 1; pointer-events: all; transform: translateY(0) scale(1); }
+
+.mtb-sheet-section-label {
+	font-size: 10.5px;
+	font-weight: 700;
+	color: #bbb;
+	text-transform: uppercase;
+	letter-spacing: .06em;
+	padding: 10px 10px 4px;
+}
+
+/* Bu bölüm akordeonu: aktif modülün 2./3. seviye sayfaları (navItems), masaüstünde
+   nav-dropdown/nav-subdropdown flyout'u olarak görünen aynı veri — mobilde flyout yerine
+   satır içi açılır/kapanır liste olarak (dokunma hedefleri için daha uygun). */
+.mtb-nav-list { display: flex; flex-direction: column; }
+.mtb-nav-node + .mtb-nav-node { border-top: 1px solid #f5f5f8; }
+
+.mtb-nav-row {
+	width: 100%;
+	display: flex; align-items: center; gap: 10px;
+	background: none; border: none; cursor: pointer;
+	padding: 10px 10px; border-radius: 10px;
+	font-size: 13px; font-weight: 600; color: #333;
+	text-decoration: none;
+	transition: background .12s, color .12s;
+}
+.mtb-nav-row :deep(svg) { width: 16px; height: 16px; flex-shrink: 0; color: #aaa; transition: color .12s; }
+.mtb-nav-row:hover,
+.mtb-nav-row.open { background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary)); }
+.mtb-nav-row:hover :deep(svg),
+.mtb-nav-row.open :deep(svg) { color: rgb(var(--color-primary)); }
+.mtb-nav-row.active { color: rgb(var(--color-primary)); }
+.mtb-nav-label { flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mtb-nav-chevron {
+	flex-shrink: 0;
+	color: #ccc;
+	font-size: 15px;
+	line-height: 1;
+	transition: transform .15s;
+}
+.mtb-nav-chevron.open { transform: rotate(90deg); }
+
+.mtb-nav-children {
+	display: grid;
+	grid-template-rows: 0fr;
+	overflow: hidden;
+	transition: grid-template-rows .18s ease;
+}
+.mtb-nav-children.open { grid-template-rows: 1fr; }
+.mtb-nav-children-inner { min-height: 0; padding-left: 14px; }
+
+.mtb-nav-subrow {
+	width: 100%;
+	display: flex; align-items: center; gap: 9px;
+	background: none; border: none; cursor: pointer;
+	padding: 8px 10px; border-radius: 9px;
+	font-size: 12.5px; font-weight: 550; color: #555;
+	text-decoration: none;
+	transition: background .12s, color .12s;
+}
+.mtb-nav-subrow :deep(svg) { width: 14px; height: 14px; flex-shrink: 0; color: #bbb; }
+.mtb-nav-subrow:hover,
+.mtb-nav-subrow.open { background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary)); }
+.mtb-nav-subrow:hover :deep(svg),
+.mtb-nav-subrow.open :deep(svg) { color: rgb(var(--color-primary)); }
+
+.mtb-nav-grandchildren {
+	display: grid;
+	grid-template-rows: 0fr;
+	overflow: hidden;
+	transition: grid-template-rows .16s ease;
+}
+.mtb-nav-grandchildren.open { grid-template-rows: 1fr; }
+.mtb-nav-grandchildren-inner { min-height: 0; padding-left: 14px; }
+
+.mtb-nav-leaf {
+	display: flex; align-items: center; gap: 9px;
+	padding: 7px 10px; border-radius: 8px;
+	font-size: 12px; font-weight: 500; color: #777;
+	text-decoration: none;
+	transition: background .12s, color .12s;
+}
+.mtb-nav-leaf :deep(svg) { width: 13px; height: 13px; flex-shrink: 0; color: #ccc; }
+.mtb-nav-leaf:hover { background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary)); }
+.mtb-nav-leaf:hover :deep(svg) { color: rgb(var(--color-primary)); }
+
 .mtb-sheet-item {
 	width: 100%;
 	display: flex; align-items: center; gap: 10px;

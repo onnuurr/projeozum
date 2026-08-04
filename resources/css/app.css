@@ -70,6 +70,31 @@
 	--portal-surface: 255 255 255;           /* kart zemini */
 }
 
+/* ============================================================
+   Admin Panel V2 teması (deneysel, placeholder) — TEK KAYNAK.
+   resources/js/Layouts/AppLayout.vue dispatcher'ı, Superadmin → Ayarlar →
+   Arayüz sekimindeki ui.adminTheme flag'i 'v2' olduğunda <html> etiketine
+   data-theme="v2" ekliyor. Şimdilik ana paletle birebir aynı — asıl amaç
+   flag mekanizmasını kanıtlamak. Gerçek tasarım kaynağı netleşince yalnızca
+   buradaki değerler değiştirilecek, JS/PHP tarafına dokunulmayacak.
+   ============================================================ */
+[data-theme="v2"] {
+	--color-primary: 249 106 33;
+	--color-primary-hover: 226 86 20;
+	--color-primary-soft: 255 240 230;
+
+	--color-ink: 26 26 30;
+	--color-muted: 138 138 148;
+	--color-surface: 255 255 255;
+	--color-bg: 245 245 247;
+	--color-border: 236 236 239;
+
+	--color-success: 22 163 74;
+	--color-warning: 245 158 11;
+	--color-danger: 220 38 38;
+	--color-info: 37 99 235;
+}
+
 html, body {
 	font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 	color: rgb(var(--color-ink));
