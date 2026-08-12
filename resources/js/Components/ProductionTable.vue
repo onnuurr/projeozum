@@ -38,7 +38,7 @@
 						</button>
 					</td>
 					<td>{{ row.subject }}</td>
-					<td><span class="status-badge" :class="`status-${row.statusClass}`">{{ row.status }}</span></td>
+					<td><Badge :color="statusColorMap[row.statusClass]" :label="row.status" variant="tonal" /></td>
 					<td class="dim">{{ row.start }}</td>
 					<td class="dim">{{ row.end }}</td>
 					<td class="cell-name">{{ row.owner }}</td>
@@ -50,12 +50,21 @@
 </template>
 
 <script setup>
+import Badge from '@/Components/Badge.vue'
+
 const props = defineProps({
 	title: { type: String, default: 'Üretim Planı' },
 	rows: { type: Array, required: true },
 })
 
 const emit = defineEmits(['toggle-star'])
+
+const statusColorMap = {
+	done: 'success',
+	scheduled: 'warning',
+	active: 'danger',
+	progress: 'info',
+}
 
 function toggleStar(row) {
 	emit('toggle-star', row.id)

@@ -66,7 +66,7 @@
 								<div v-else class="task-empty-circle">+</div>
 								<span>{{ task.text }}</span>
 								<div class="tli-actions">
-									<button v-if="task.alert" style="color: #f05a5a">●</button>
+									<Badge v-if="task.alert" color="danger" dot />
 									<button v-else-if="task.menu">···</button>
 									<template v-else>
 										<button>✓</button>
@@ -109,6 +109,8 @@
 </template>
 
 <script setup>
+import Badge from '@/Components/Badge.vue'
+
 defineProps({
 	title: { type: String, default: 'Yeni Sipariş Yönetimi' },
 	team: { type: Array, required: true },

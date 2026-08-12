@@ -19,10 +19,18 @@
 			</div>
 		</div>
 		<div class="chart-area">
-			<div v-for="(item, idx) in items" :key="item.label" class="chart-item">
+			<div v-for="item in items" :key="item.label" class="chart-item">
 				<div class="chart-num">{{ item.value }}</div>
 				<div class="chart-canvas-wrap">
-					<canvas :ref="(el) => (canvasRefs[idx] = el)" width="100" height="100"></canvas>
+					<Chart
+						type="doughnut"
+						:data="[item.value, Math.max(total - item.value, 0)]"
+						:colors="[item.color, '#f0f0f6']"
+						cutout="72%"
+						:legend="false"
+						:tooltip="false"
+						height="100px"
+					/>
 					<div class="chart-label-over">{{ item.label }}</div>
 				</div>
 			</div>
@@ -31,53 +39,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, nextTick } from 'vue'
-import Chart from 'chart.js/auto'
+import Chart from '@/Components/Chart.vue'
 
-const props = defineProps({
+defineProps({
 	title: { type: String, default: 'Sipariş Takibi' },
 	items: { type: Array, required: true },
 	total: { type: Number, default: 16 },
 })
-
-const canvasRefs = ref([])
-const chartInstances = []
-
-function buildCharts() {
-	chartInstances.forEach((c) => c?.destroy())
-	chartInstances.length = 0
-
-	props.items.forEach((item, idx) => {
-		const canvas = canvasRefs.value[idx]
-		if (!canvas) return
-		const pct = item.value / props.total
-		chartInstances[idx] = new Chart(canvas.getContext('2d'), {
-			type: 'doughnut',
-			data: {
-				datasets: [
-					{
-						data: [pct, 1 - pct],
-						backgroundColor: [item.color, '#f0f0f6'],
-						borderWidth: 0,
-						borderRadius: 4,
-					},
-				],
-			},
-			options: {
-				cutout: '72%',
-				plugins: { legend: { display: false }, tooltip: { enabled: false } },
-				animation: { duration: 800 },
-				responsive: false,
-			},
-		})
-	})
-}
-
-onMounted(() => {
-	nextTick(buildCharts)
-})
-
-watch(() => props.items, () => nextTick(buildCharts), { deep: true })
 </script>
 
 <style scoped>

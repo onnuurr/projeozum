@@ -18,6 +18,7 @@ const props = defineProps({
     compact: { type: Boolean, default: false },
     tooltipValuePrefix: { type: String, default: '' },
     cutout: { type: [String, Number], default: '62%' },
+    tooltip: { type: Boolean, default: true },
 });
 
 const INK = '#1A1A1E';
@@ -131,20 +132,22 @@ function buildOptions() {
             legend: props.legend
                 ? { position: props.legendPosition, labels: { color: MUTED, font: { size: 10 }, padding: 12, usePointStyle: true, pointStyle: 'circle' } }
                 : { display: false },
-            tooltip: {
-                backgroundColor: INK,
-                titleColor: 'rgba(255,255,255,0.7)',
-                bodyColor: '#fff',
-                padding: 9,
-                cornerRadius: 8,
-                displayColors: isMulti.value,
-                callbacks: {
-                    label: (ctx) => {
-                        const value = ctx.parsed?.y ?? ctx.parsed;
-                        return props.tooltipValuePrefix + value.toLocaleString('tr-TR');
+            tooltip: props.tooltip
+                ? {
+                    backgroundColor: INK,
+                    titleColor: 'rgba(255,255,255,0.7)',
+                    bodyColor: '#fff',
+                    padding: 9,
+                    cornerRadius: 8,
+                    displayColors: isMulti.value,
+                    callbacks: {
+                        label: (ctx) => {
+                            const value = ctx.parsed?.y ?? ctx.parsed;
+                            return props.tooltipValuePrefix + value.toLocaleString('tr-TR');
+                        },
                     },
-                },
-            },
+                }
+                : { enabled: false },
         },
         scales,
         cutout: props.type === 'doughnut' ? props.cutout : undefined,
