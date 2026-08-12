@@ -10,3 +10,22 @@ export const colorVariants = {
     info: { filled: 'bg-info text-white', tonal: 'bg-info/10 text-info', outlined: 'border border-info text-info bg-transparent', solid: 'bg-info', dot: 'bg-info' },
     neutral: { filled: 'bg-gray-500 text-white', tonal: 'bg-gray-100 text-gray-600', outlined: 'border border-gray-300 text-gray-600 bg-transparent', solid: 'bg-gray-400', dot: 'bg-gray-400' },
 };
+
+// Canvas (Chart.js) çizimleri Tailwind class kullanamaz, gerçek hex değer ister.
+export const colorHex = {
+    primary: '#F96A21',
+    success: '#16A34A',
+    warning: '#F59E0B',
+    danger: '#DC2626',
+    info: '#2563EB',
+    neutral: '#9CA3AF',
+};
+
+export function hexToRgba(hex, alpha = 1) {
+    const clean = hex.replace('#', '');
+    const full = clean.length === 3 ? clean.split('').map((c) => c + c).join('') : clean;
+    const r = parseInt(full.substring(0, 2), 16);
+    const g = parseInt(full.substring(2, 4), 16);
+    const b = parseInt(full.substring(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}

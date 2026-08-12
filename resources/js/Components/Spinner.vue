@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue';
-import { COLOR_KEYS } from '@/lib/colorVariants.js';
+import { COLOR_KEYS, colorHex } from '@/lib/colorVariants.js';
 
 const props = defineProps({
     size: { type: String, default: 'md', validator: (v) => ['sm', 'md', 'lg'].includes(v) },
@@ -10,15 +10,6 @@ const props = defineProps({
 
 const sizeClasses = { sm: 'w-3 h-3', md: 'w-4 h-4', lg: 'w-6 h-6' };
 const ringWidths = { sm: 2, md: 2.5, lg: 3.5 };
-
-const colorHex = {
-    primary: '#F96A21',
-    success: '#16A34A',
-    warning: '#F59E0B',
-    danger: '#DC2626',
-    info: '#2563EB',
-    neutral: '#9CA3AF',
-};
 
 const gradientStyle = computed(() => {
     const ring = ringWidths[props.size] ?? 2.5;
