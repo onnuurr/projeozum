@@ -13,7 +13,9 @@ defineProps({
 				<slot name="badge">{{ typeof badge === 'string' ? badge : badge?.label }}</slot>
 			</div>
 			<h1 class="page-title">{{ title }}</h1>
-			<p v-if="subtitle" class="page-subtitle">{{ subtitle }}</p>
+			<p v-if="subtitle || $slots.subtitle" class="page-subtitle">
+				<slot name="subtitle">{{ subtitle }}</slot>
+			</p>
 		</div>
 		<div v-if="$slots.actions" class="header-actions">
 			<slot name="actions" />
