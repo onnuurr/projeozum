@@ -10,36 +10,30 @@
 			]"
 		/>
 
-		<div class="page-header">
-			<div>
-				<h1 class="page-title">{{ product.name }} · Tenant Ayarları</h1>
-				<p class="page-subtitle">
-					<span class="mono">{{ product.sku }}</span>
-					<span v-if="product.brand_name"> · {{ product.brand_name }}</span>
-					<span v-if="product.category_name"> · {{ product.category_name }}</span>
-					<span class="dim"> · Baz Fiyat: <strong>₺{{ formatPrice(product.default_price) }}</strong></span>
-				</p>
-			</div>
-		</div>
+		<PageHeader :title="`${product.name} · Tenant Ayarları`">
+			<template #subtitle>
+				<span class="mono">{{ product.sku }}</span>
+				<span v-if="product.brand_name"> · {{ product.brand_name }}</span>
+				<span v-if="product.category_name"> · {{ product.category_name }}</span>
+				<span class="dim"> · Baz Fiyat: <strong>₺{{ formatPrice(product.default_price) }}</strong></span>
+			</template>
+		</PageHeader>
 
-		<div class="info-box">
+		<Alert variant="info" class="page-alert">
 			<strong>Sadece sistem yöneticisi tarafından düzenlenebilir.</strong>
 			Tüm aktif tenantlar listelenir. Her satırda durum kaynağı belirtilir:
 			<span class="src-tag default">varsayılan</span>
 			<span class="src-tag rule">marka/kategori kuralı</span>
 			<span class="src-tag override">ürün override</span>
-		</div>
+		</Alert>
 
-		<div class="card">
-			<div class="card-header">
-				<h3>Tenant Listesi · {{ rows.length }} aktif tenant</h3>
+		<Card :title="`Tenant Listesi · ${rows.length} aktif tenant`" body-class="p-0">
+			<template #actions>
 				<div class="card-search">
-					<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-						<circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
-					</svg>
+					<Search :size="13" />
 					<input v-model="searchQuery" type="text" placeholder="Tenant ara..." />
 				</div>
-			</div>
+			</template>
 
 			<div class="table-scroll">
 			<table class="data-table">
@@ -61,7 +55,7 @@
 					<tr v-for="r in filtered" :key="r.tenant_id" :class="{ dirty: isDirty(r.tenant_id) }">
 						<td>
 							<div class="tenant-cell">
-								<div class="tenant-logo">{{ r.tenant_name.charAt(0).toUpperCase() }}</div>
+								<Avatar :initials="r.tenant_name.charAt(0).toUpperCase()" size="sm" />
 								<div>
 									<div class="tenant-name">{{ r.tenant_name }}</div>
 									<div class="tenant-code mono">{{ r.tenant_code }}</div>
@@ -69,13 +63,17 @@
 							</div>
 						</td>
 						<td>
-							<span v-if="r.tenant_type" class="badge badge-type">{{ r.tenant_type }}</span>
+							<Badge v-if="r.tenant_type" color="info" variant="tonal" :label="r.tenant_type" />
 							<span v-else class="dim">—</span>
 						</td>
 						<td>
-							<span :class="['status-pill', r.effective === 'allowed' ? 'allowed' : 'blocked']">
-								{{ r.effective === 'allowed' ? '✓ Açık' : '🚫 Gizli' }}
-							</span>
+							<Badge
+								:color="r.effective === 'allowed' ? 'success' : 'danger'"
+								variant="tonal"
+								:icon="r.effective === 'allowed' ? Check : Ban"
+								:label="r.effective === 'allowed' ? 'Açık' : 'Gizli'"
+								class="mr-1.5"
+							/>
 							<span :class="['src-tag', sourceTagClass(r.source)]">{{ sourceLabel(r.source) }}</span>
 						</td>
 						<td>
@@ -106,25 +104,32 @@
 						</td>
 						<td>
 							<div class="table-actions">
-								<button class="btn btn-primary btn-sm" @click="save(r)" :disabled="!isDirty(r.tenant_id) || busyMap[r.tenant_id]">
-									{{ busyMap[r.tenant_id] ? '...' : 'Kaydet' }}
-								</button>
-								<button v-if="r.override_id" class="table-action-btn delete" @click="confirmReset(r)" title="Override'ı sil (varsayılana dön)">↺</button>
+								<Button variant="primary" size="sm" :disabled="!isDirty(r.tenant_id)" :loading="!!busyMap[r.tenant_id]" @click="save(r)">
+									Kaydet
+								</Button>
+								<button v-if="r.override_id" class="table-action-btn delete" @click="confirmReset(r)" title="Override'ı sil (varsayılana dön)"><RotateCcw :size="14" /></button>
 							</div>
 						</td>
 					</tr>
 				</tbody>
 			</table>
 			</div>
-		</div>
+		</Card>
 	</div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, inject } from 'vue'
 import { Head, router, usePage } from '@inertiajs/vue3'
+import { Search, Check, Ban, RotateCcw } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
+import PageHeader from '@/Components/PageHeader.vue'
+import Card from '@/Components/Card.vue'
+import Badge from '@/Components/Badge.vue'
+import Avatar from '@/Components/Avatar.vue'
+import Alert from '@/Components/Alert.vue'
+import Button from '@/Components/Button.vue'
 
 defineOptions({ layout: AppLayout })
 
@@ -251,62 +256,39 @@ async function confirmReset(r) {
 </script>
 
 <style scoped>
-.page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; gap: 16px; }
-.page-title { font-size: 22px; font-weight: 700; color: #1a1a2e; line-height: 1.2; }
-.page-subtitle { font-size: 13px; color: #888; margin-top: 4px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.page-alert { margin-bottom: 16px; }
 
-.info-box { background: #f0f9ff; border: 1px solid #bae6fd; color: #0c4a6e; padding: 12px 16px; border-radius: 10px; font-size: 12.5px; line-height: 1.6; margin-bottom: 16px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-
-.card { background: #fff; border-radius: 16px; border: 1px solid #ebebf0; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.04); }
-.card-header { padding: 14px 18px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #f0f0f5; }
-.card-header h3 { font-size: 15px; font-weight: 700; color: #1a1a2e; }
-.card-search { display: flex; align-items: center; gap: 6px; background: #f5f5f8; border: 1px solid #e8e8f0; border-radius: 8px; padding: 5px 10px; margin-left: auto; min-width: 220px; }
-.card-search svg { color: #aaa; flex-shrink: 0; }
-.card-search input { border: none; background: none; outline: none; font-family: inherit; font-size: 13px; color: #1a1a2e; width: 100%; }
-.card-search input::placeholder { color: #bbb; }
+.card-search { display: flex; align-items: center; gap: 6px; background: rgb(var(--color-bg)); border: 1px solid rgb(var(--color-border)); border-radius: 8px; padding: 5px 10px; min-width: 220px; }
+.card-search svg { color: rgb(var(--color-muted)); flex-shrink: 0; }
+.card-search input { border: none; background: none; outline: none; font-family: inherit; font-size: 13px; color: rgb(var(--color-ink)); width: 100%; }
 
 .data-table { width: 100%; border-collapse: separate; border-spacing: 0; }
-.data-table thead tr { background: #f8f8fc; }
-.data-table th { text-align: left; padding: 12px 16px; font-size: 11px; font-weight: 600; color: #aaa; border-bottom: 1px solid #f0f0f5; text-transform: uppercase; letter-spacing: 0.04em; }
-.data-table td { padding: 10px 16px; font-size: 13px; color: #444; border-bottom: 1px solid #f5f5f8; vertical-align: middle; }
+.data-table thead tr { background: rgb(var(--color-bg)); }
+.data-table th { text-align: left; padding: 12px 16px; font-size: 11px; font-weight: 600; color: rgb(var(--color-muted)); border-bottom: 1px solid rgb(var(--color-border)); text-transform: uppercase; letter-spacing: 0.04em; }
+.data-table td { padding: 10px 16px; font-size: 13px; color: rgb(var(--color-ink)); border-bottom: 1px solid rgb(var(--color-border)); vertical-align: middle; }
 .data-table tr:last-child td { border-bottom: none; }
-.data-table tr:hover td { background: #fafafe; }
-.data-table tr.dirty td { background: #fffbeb; }
-.empty-row { text-align: center !important; color: #aaa; padding: 32px 0 !important; font-style: italic; }
-.dim { color: #aaa; font-size: 12px; }
+.data-table tr:hover td { background: rgb(var(--color-bg) / .5); }
+.data-table tr.dirty td { background: rgb(var(--color-warning) / .08); }
+.empty-row { text-align: center !important; color: rgb(var(--color-muted)); padding: 32px 0 !important; font-style: italic; }
+.dim { color: rgb(var(--color-muted)); font-size: 12px; }
 .mono { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; }
 
 .tenant-cell { display: flex; align-items: center; gap: 10px; }
-.tenant-logo {
-	width: 32px; height: 32px; border-radius: 8px;
-	background: linear-gradient(135deg, #dbeafe, #bfdbfe);
-	display: flex; align-items: center; justify-content: center;
-	font-size: 14px; font-weight: 800; color: #2563eb; flex-shrink: 0;
-}
-.tenant-name { font-weight: 600; color: #1a1a2e; font-size: 13px; }
-.tenant-code { color: #888; }
-
-.badge { display: inline-block; padding: 3px 9px; border-radius: 6px; font-size: 11px; font-weight: 600; }
-.badge-type { background: rgb(var(--color-primary-soft)); color: #4338ca; }
-
-.status-pill { display: inline-block; padding: 3px 9px; border-radius: 6px; font-size: 11px; font-weight: 600; margin-right: 6px; }
-.status-pill.allowed { background: #dcfce7; color: #15803d; }
-.status-pill.blocked { background: #fee2e2; color: #b91c1c; }
+.tenant-name { font-weight: 600; color: rgb(var(--color-ink)); font-size: 13px; }
+.tenant-code { color: rgb(var(--color-muted)); }
 
 .src-tag { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 600; }
-.src-tag.default { background: #f3f4f6; color: #6b7280; }
-.src-tag.rule { background: #fef3c7; color: #92400e; }
+.src-tag.default { background: rgb(var(--color-bg)); color: rgb(var(--color-muted)); }
+.src-tag.rule { background: rgb(var(--color-warning) / .12); color: rgb(var(--color-warning)); }
 .src-tag.override { background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary)); }
 
-.form-input { padding: 7px 10px; border: 1px solid #e8e8f0; border-radius: 6px; font-family: inherit; font-size: 13px; color: #1a1a2e; background: #fff; outline: none; transition: border-color .15s; }
+.form-input { padding: 7px 10px; border: 1px solid rgb(var(--color-border)); border-radius: 6px; font-family: inherit; font-size: 13px; color: rgb(var(--color-ink)); background: rgb(var(--color-surface)); outline: none; transition: border-color .15s; }
 .form-input.compact { width: 100%; max-width: 140px; }
 .form-input:focus { border-color: rgb(var(--color-primary)); }
-.form-input:disabled { background: #f5f5f8; color: #aaa; cursor: not-allowed; }
-.form-check { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12.5px; color: #444; }
-
-.btn-sm { padding: 6px 14px; font-size: 12px; }
+.form-input:disabled { background: rgb(var(--color-bg)); color: rgb(var(--color-muted)); cursor: not-allowed; }
+.form-check { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12.5px; color: rgb(var(--color-ink)); }
 
 .table-actions { display: flex; gap: 4px; align-items: center; }
-.table-action-btn { background: #f3f4f6; border: none; cursor: pointer; font-size: 14px; padding: 5px 9px; border-radius: 6px; color: #6b7280; transition: all .15s; line-height: 1; }
-.table-action-btn.delete:hover { background: #fee2e2; color: #dc2626; }
+.table-action-btn { display: inline-flex; align-items: center; justify-content: center; background: rgb(var(--color-bg)); border: none; cursor: pointer; padding: 6px; border-radius: 6px; color: rgb(var(--color-muted)); transition: all .15s; }
+.table-action-btn.delete:hover { background: rgb(var(--color-danger) / .12); color: rgb(var(--color-danger)); }
 </style>
