@@ -11,126 +11,76 @@
 			]"
 		/>
 
-		<div class="page-header">
-			<div>
-				<h1 class="page-title">{{ tenant.name }} · Erişim Yönetimi</h1>
-				<p class="page-subtitle">
-					<span class="mono">{{ tenant.code }}</span>
-					<span v-if="tenant.type"> · {{ tenant.type.name }}</span>
-					<span class="info-hint">· Varsayılan tüm ürünler açık (blacklist mode)</span>
-				</p>
-			</div>
-		</div>
+		<PageHeader :title="`${tenant.name} · Erişim Yönetimi`">
+			<template #subtitle>
+				<span class="mono">{{ tenant.code }}</span>
+				<span v-if="tenant.type"> · {{ tenant.type.name }}</span>
+				<span class="info-hint">· Varsayılan tüm ürünler açık (blacklist mode)</span>
+			</template>
+		</PageHeader>
 
 		<!-- ─── Kurallar ──────────────────────────────────────────────── -->
-		<div class="card">
-			<div class="card-header">
-				<h3>Blok Kuralları</h3>
-				<span class="card-sub">{{ rules.length }} kural · marka veya kategori bazlı erişim engeli</span>
-				<button v-if="canManage" class="btn btn-primary btn-sm btn-with-icon" @click="openRuleModal">
-					<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-						<path d="M12 5v14M5 12h14" />
-					</svg>
-					Yeni Kural
-				</button>
-			</div>
+		<Card title="Blok Kuralları" body-class="p-0">
+			<template #actions>
+				<div class="card-actions-row">
+					<span class="card-sub">{{ rules.length }} kural · marka veya kategori bazlı erişim engeli</span>
+					<Button v-if="canManage" variant="primary" size="sm" with-icon @click="openRuleModal">
+						<template #leading><Plus :size="11" /></template>
+						Yeni Kural
+					</Button>
+				</div>
+			</template>
 
-			<div class="table-scroll">
-			<table class="data-table">
-				<thead>
-					<tr>
-						<th style="width: 15%">Kapsam Tipi</th>
-						<th style="width: 35%">Kapsam</th>
-						<th style="width: 15%">Durum</th>
-						<th style="width: 25%">Not</th>
-						<th style="width: 10%">İşlem</th>
-					</tr>
-				</thead>
-				<tbody>
-					<tr v-if="rules.length === 0">
-						<td colspan="5" class="empty-row">Kural yok — tüm marka ve kategoriler açık</td>
-					</tr>
-					<tr v-for="r in rules" :key="r.id">
-						<td>
-							<span :class="['badge', r.scope_type === 'brand' ? 'badge-brand' : 'badge-category']">
-								{{ r.scope_type === 'brand' ? 'Marka' : 'Kategori' }}
-							</span>
-						</td>
-						<td><strong>{{ r.scope_label }}</strong></td>
-						<td>
-							<span class="status-pill blocked">🚫 Bloklu</span>
-						</td>
-						<td class="dim">{{ r.notes || '—' }}</td>
-						<td>
-							<button v-if="canManage" class="table-action-btn delete" @click="confirmDeleteRule(r)" title="Kuralı Sil">🗑️</button>
-						</td>
-					</tr>
-				</tbody>
-			</table>
-			</div>
-		</div>
+			<DataTable :columns="ruleColumns" :data="rules" row-key-field="id" empty-title="Kural yok — tüm marka ve kategoriler açık">
+				<template #scope_type="{ value }">
+					<Badge :color="value === 'brand' ? 'warning' : 'info'" variant="tonal" :label="value === 'brand' ? 'Marka' : 'Kategori'" />
+				</template>
+				<template #scope_label="{ value }"><strong>{{ value }}</strong></template>
+				<template #status="{}"><Badge color="danger" variant="tonal" :icon="Ban" label="Bloklu" /></template>
+				<template #notes="{ value }"><span class="dim">{{ value || '—' }}</span></template>
+				<template #actions="{ row }">
+					<button v-if="canManage" class="table-action-btn delete" @click="confirmDeleteRule(row)" title="Kuralı Sil"><Trash2 :size="14" /></button>
+				</template>
+			</DataTable>
+		</Card>
 
 		<!-- ─── Ürün Override'ları ────────────────────────────────────── -->
-		<div class="card" style="margin-top: 20px">
-			<div class="card-header">
-				<h3>Ürün Override'ları</h3>
-				<span class="card-sub">{{ overrides.length }} ürün · kural üzerine özel davranış</span>
-				<button v-if="canManage" class="btn btn-primary btn-sm btn-with-icon" @click="openOverrideModal">
-					<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-						<path d="M12 5v14M5 12h14" />
-					</svg>
-					Yeni Override
-				</button>
-			</div>
+		<Card title="Ürün Override'ları" body-class="p-0" style="margin-top: 20px">
+			<template #actions>
+				<div class="card-actions-row">
+					<span class="card-sub">{{ overrides.length }} ürün · kural üzerine özel davranış</span>
+					<Button v-if="canManage" variant="primary" size="sm" with-icon @click="openOverrideModal">
+						<template #leading><Plus :size="11" /></template>
+						Yeni Override
+					</Button>
+				</div>
+			</template>
 
-			<div class="table-scroll">
-			<table class="data-table">
-				<thead>
-					<tr>
-						<th style="width: 28%">Ürün</th>
-						<th style="width: 12%">Marka</th>
-						<th style="width: 12%">Kategori</th>
-						<th style="width: 12%">Baz Fiyat</th>
-						<th style="width: 12%">Özel Fiyat</th>
-						<th style="width: 12%">Durum</th>
-						<th style="width: 12%">İşlem</th>
-					</tr>
-				</thead>
-				<tbody>
-					<tr v-if="overrides.length === 0">
-						<td colspan="7" class="empty-row">Override yok — bu tenant kural setine uyuyor</td>
-					</tr>
-					<tr v-for="o in overrides" :key="o.id">
-						<td>
-							<div class="product-cell">
-								<strong>{{ o.product_name }}</strong>
-								<span class="dim mono">{{ o.product_sku }}</span>
-							</div>
-						</td>
-						<td class="dim">{{ o.brand_name || '—' }}</td>
-						<td class="dim">{{ o.category_name || '—' }}</td>
-						<td><span class="mono">₺{{ formatPrice(o.base_price) }}</span></td>
-						<td>
-							<span v-if="o.custom_price !== null" class="mono price-custom">₺{{ formatPrice(o.custom_price) }}</span>
-							<span v-else class="dim">—</span>
-						</td>
-						<td>
-							<span :class="['status-pill', o.is_blocked ? 'blocked' : 'allowed']">
-								{{ o.is_blocked ? '🚫 Gizli' : '✓ Açık' }}
-							</span>
-						</td>
-						<td>
-							<div class="table-actions">
-								<button v-if="canManage" class="table-action-btn view" @click="editOverride(o)" title="Düzenle">✏️</button>
-									<button v-if="canCustomizeCopy" class="table-action-btn view" @click="openCustomCopy(o)" title="Özel Metin (Bu Bayiye Özel)">📝</button>
-								<button v-if="canManage" class="table-action-btn delete" @click="confirmDeleteOverride(o)" title="Sil">🗑️</button>
-							</div>
-						</td>
-					</tr>
-				</tbody>
-			</table>
-			</div>
-		</div>
+			<DataTable :columns="overrideColumns" :data="overrides" row-key-field="id" empty-title="Override yok — bu tenant kural setine uyuyor">
+				<template #product_name="{ row }">
+					<div class="product-cell">
+						<strong>{{ row.product_name }}</strong>
+						<span class="dim mono">{{ row.product_sku }}</span>
+					</div>
+				</template>
+				<template #brand_name="{ value }"><span class="dim">{{ value || '—' }}</span></template>
+				<template #category_name="{ value }"><span class="dim">{{ value || '—' }}</span></template>
+				<template #base_price="{ value }"><span class="mono">₺{{ formatPrice(value) }}</span></template>
+				<template #custom_price="{ value }">
+					<span v-if="value !== null" class="mono price-custom">₺{{ formatPrice(value) }}</span>
+					<span v-else class="dim">—</span>
+				</template>
+				<template #is_blocked="{ value }">
+					<Badge v-if="value" color="danger" variant="tonal" :icon="Ban" label="Gizli" />
+					<Badge v-else color="success" variant="tonal" :icon="Check" label="Açık" />
+				</template>
+				<template #actions="{ row }">
+					<button v-if="canManage" class="table-action-btn view" @click="editOverride(row)" title="Düzenle"><Pencil :size="14" /></button>
+					<button v-if="canCustomizeCopy" class="table-action-btn view" @click="openCustomCopy(row)" title="Özel Metin (Bu Bayiye Özel)"><NotebookPen :size="14" /></button>
+					<button v-if="canManage" class="table-action-btn delete" @click="confirmDeleteOverride(row)" title="Sil"><Trash2 :size="14" /></button>
+				</template>
+			</DataTable>
+		</Card>
 
 		<!-- ─── Kural Modal ───────────────────────────────────────────── -->
 		<AppModal v-model="ruleModalOpen" title="Yeni Blok Kuralı" size="md" variant="warning">
@@ -154,14 +104,14 @@
 					<label class="form-label">Not</label>
 					<textarea v-model="ruleForm.notes" class="form-input" rows="2" placeholder="Bu kuralın amacı..." />
 				</div>
-				<div class="info-box">
+				<Alert variant="warning">
 					Seçilen <strong>{{ ruleForm.scope_type === 'brand' ? 'markaya' : 'kategoriye' }}</strong> ait tüm ürünler bu tenant'a kapatılacak.
 					İstisna eklemek için ürün override'ı kullanın.
-				</div>
+				</Alert>
 			</form>
 			<template #footer="{ close }">
-				<button class="btn btn-ghost" @click="close" :disabled="ruleBusy">İptal</button>
-				<button class="btn btn-primary" @click="submitRule" :disabled="ruleBusy">Ekle</button>
+				<Button variant="ghost" :disabled="ruleBusy" @click="close">İptal</Button>
+				<Button variant="primary" :loading="ruleBusy" @click="submitRule">Ekle</Button>
 			</template>
 		</AppModal>
 
@@ -202,10 +152,10 @@
 				</div>
 			</form>
 			<template #footer="{ close }">
-				<button class="btn btn-ghost" @click="close" :disabled="overrideBusy">İptal</button>
-				<button class="btn btn-primary" @click="submitOverride" :disabled="overrideBusy">
+				<Button variant="ghost" :disabled="overrideBusy" @click="close">İptal</Button>
+				<Button variant="primary" :loading="overrideBusy" @click="submitOverride">
 					{{ overrideEditing ? 'Kaydet' : 'Ekle' }}
-				</button>
+				</Button>
 			</template>
 		</AppModal>
 
@@ -223,17 +173,22 @@
 				<div class="form-row">
 					<label class="form-label">Özel Açıklama (Markdown)</label>
 					<textarea v-model="customCopy.custom_description" rows="8" class="form-input" placeholder="Boş: default tenant_description'ı gösterir" />
-					<button
+					<Button
 						v-if="customCopy.default_tenant_description"
 						type="button"
-						class="btn btn-ghost btn-xs"
+						variant="ghost"
+						size="xs"
+						with-icon
 						@click="customCopy.custom_description = customCopy.default_tenant_description"
-					>↓ Varsayılandan kopyala</button>
+					>
+						<template #leading><ArrowDown :size="11" /></template>
+						Varsayılandan kopyala
+					</Button>
 				</div>
 			</form>
 			<template #footer="{ close }">
-				<button class="btn btn-ghost" @click="close" :disabled="customCopy.busy">İptal</button>
-				<button class="btn btn-primary" @click="submitCustomCopy" :disabled="customCopy.busy">Kaydet</button>
+				<Button variant="ghost" :disabled="customCopy.busy" @click="close">İptal</Button>
+				<Button variant="primary" :loading="customCopy.busy" @click="submitCustomCopy">Kaydet</Button>
 			</template>
 		</AppModal>
 	</div>
@@ -242,8 +197,15 @@
 <script setup>
 import { ref, computed, inject, reactive, watch } from 'vue'
 import { Head, router, usePage } from '@inertiajs/vue3'
+import { Plus, Ban, Check, Pencil, NotebookPen, Trash2, ArrowDown } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
+import PageHeader from '@/Components/PageHeader.vue'
+import Card from '@/Components/Card.vue'
+import DataTable from '@/Components/DataTable.vue'
+import Badge from '@/Components/Badge.vue'
+import Alert from '@/Components/Alert.vue'
+import Button from '@/Components/Button.vue'
 import AppModal from '@/Components/AppModal.vue'
 
 defineOptions({ layout: AppLayout })
@@ -256,6 +218,22 @@ const props = defineProps({
 	categories: { type: Array, default: () => [] },
 	canCustomizeCopy: { type: Boolean, default: false },
 })
+
+const ruleColumns = [
+	{ key: 'scope_type', label: 'Kapsam Tipi' },
+	{ key: 'scope_label', label: 'Kapsam' },
+	{ key: 'status', label: 'Durum', sortable: false },
+	{ key: 'notes', label: 'Not' },
+]
+
+const overrideColumns = [
+	{ key: 'product_name', label: 'Ürün' },
+	{ key: 'brand_name', label: 'Marka' },
+	{ key: 'category_name', label: 'Kategori' },
+	{ key: 'base_price', label: 'Baz Fiyat' },
+	{ key: 'custom_price', label: 'Özel Fiyat' },
+	{ key: 'is_blocked', label: 'Durum' },
+]
 
 const showToast = inject('showToast')
 const $swal = inject('$swal')
@@ -512,63 +490,37 @@ async function confirmDeleteOverride(o) {
 </script>
 
 <style scoped>
-.page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; gap: 16px; }
-.page-title { font-size: 22px; font-weight: 700; color: #1a1a2e; line-height: 1.2; }
-.page-subtitle { font-size: 13px; color: #888; margin-top: 4px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.info-hint { color: #aaa; font-size: 12px; }
+.info-hint { color: rgb(var(--color-muted)); font-size: 12px; }
 
-.card { background: #fff; border-radius: 16px; border: 1px solid #ebebf0; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.04); }
-.card-header { padding: 14px 18px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #f0f0f5; }
-.card-header h3 { font-size: 15px; font-weight: 700; color: #1a1a2e; }
-.card-sub { font-size: 12px; color: #888; }
-.card-header .btn { margin-left: auto; }
+.card-actions-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.card-sub { font-size: 12px; color: rgb(var(--color-muted)); }
 
-.btn-sm { padding: 6px 12px; font-size: 12px; }
-
-.data-table { width: 100%; border-collapse: separate; border-spacing: 0; }
-.data-table thead tr { background: #f8f8fc; }
-.data-table th { text-align: left; padding: 12px 16px; font-size: 11px; font-weight: 600; color: #aaa; border-bottom: 1px solid #f0f0f5; text-transform: uppercase; letter-spacing: 0.04em; }
-.data-table td { padding: 12px 16px; font-size: 13px; color: #444; border-bottom: 1px solid #f5f5f8; vertical-align: middle; }
-.data-table tr:last-child td { border-bottom: none; }
-.data-table tr:hover td { background: #fafafe; }
-.empty-row { text-align: center !important; color: #aaa; padding: 32px 0 !important; font-style: italic; }
-.dim { color: #aaa; font-size: 12px; }
+.dim { color: rgb(var(--color-muted)); font-size: 12px; }
 .mono { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; }
-
-.badge { display: inline-block; padding: 3px 9px; border-radius: 6px; font-size: 11px; font-weight: 600; }
-.badge-brand { background: #fef3c7; color: #92400e; }
-.badge-category { background: #ddd6fe; color: rgb(var(--color-primary-hover)); }
-
-.status-pill { display: inline-block; padding: 3px 9px; border-radius: 6px; font-size: 11px; font-weight: 600; }
-.status-pill.allowed { background: #dcfce7; color: #15803d; }
-.status-pill.blocked { background: #fee2e2; color: #b91c1c; }
 
 .product-cell { display: flex; flex-direction: column; gap: 2px; }
 .price-custom { color: rgb(var(--color-primary)); font-weight: 700; }
 
-.table-actions { display: flex; gap: 4px; }
-.table-action-btn { background: #f3f4f6; border: none; cursor: pointer; font-size: 13px; padding: 5px 9px; border-radius: 6px; color: #6b7280; transition: all .15s; }
+.table-action-btn { display: inline-flex; align-items: center; justify-content: center; background: rgb(var(--color-bg)); border: none; cursor: pointer; padding: 6px; border-radius: 6px; color: rgb(var(--color-muted)); transition: all .15s; }
 .table-action-btn.view:hover { background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary)); }
-.table-action-btn.delete:hover { background: #fee2e2; color: #dc2626; }
+.table-action-btn.delete:hover { background: rgb(var(--color-danger) / .12); color: rgb(var(--color-danger)); }
 
 .form-grid { display: flex; flex-direction: column; gap: 14px; }
 .form-row { display: flex; flex-direction: column; gap: 6px; }
-.form-label { font-size: 12px; font-weight: 600; color: #1a1a2e; }
-.form-label .req { color: #ef4444; }
-.form-input { padding: 9px 12px; border: 1px solid #e8e8f0; border-radius: 8px; font-family: inherit; font-size: 13px; color: #1a1a2e; background: #fff; outline: none; transition: border-color .15s; }
+.form-label { font-size: 12px; font-weight: 600; color: rgb(var(--color-ink)); }
+.form-label .req { color: rgb(var(--color-danger)); }
+.form-input { padding: 9px 12px; border: 1px solid rgb(var(--color-border)); border-radius: 8px; font-family: inherit; font-size: 13px; color: rgb(var(--color-ink)); background: rgb(var(--color-surface)); outline: none; transition: border-color .15s; }
 .form-input:focus { border-color: rgb(var(--color-primary)); }
-.form-error { font-size: 11.5px; color: #ef4444; }
-.form-check { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: #1a1a2e; }
-
-.info-box { background: #fef3c7; color: #92400e; padding: 10px 12px; border-radius: 8px; font-size: 12px; line-height: 1.5; }
+.form-error { font-size: 11.5px; color: rgb(var(--color-danger)); }
+.form-check { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: rgb(var(--color-ink)); }
 
 .search-wrap { position: relative; }
-.search-results { position: absolute; top: 100%; left: 0; right: 0; max-height: 280px; overflow-y: auto; background: #fff; border: 1px solid #e8e8f0; border-radius: 8px; margin-top: 4px; z-index: 100; box-shadow: 0 4px 16px rgba(0,0,0,.08); }
-.search-result { padding: 10px 12px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; border-bottom: 1px solid #f5f5f8; }
-.search-result:hover { background: #f5f5f8; }
+.search-results { position: absolute; top: 100%; left: 0; right: 0; max-height: 280px; overflow-y: auto; background: rgb(var(--color-surface)); border: 1px solid rgb(var(--color-border)); border-radius: 8px; margin-top: 4px; z-index: 100; box-shadow: 0 4px 16px rgba(0,0,0,.08); }
+.search-result { padding: 10px 12px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; border-bottom: 1px solid rgb(var(--color-border)); }
+.search-result:hover { background: rgb(var(--color-bg)); }
 .search-result:last-child { border-bottom: none; }
-.search-result strong { font-size: 13px; color: #1a1a2e; }
+.search-result strong { font-size: 13px; color: rgb(var(--color-ink)); }
 .search-result .dim { font-size: 11px; }
 
-.picked-product { padding: 10px 12px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; font-size: 13px; color: #0c4a6e; }
+.picked-product { padding: 10px 12px; background: rgb(var(--color-info) / .08); border: 1px solid rgb(var(--color-info) / .25); border-radius: 8px; font-size: 13px; color: rgb(var(--color-info)); }
 </style>
