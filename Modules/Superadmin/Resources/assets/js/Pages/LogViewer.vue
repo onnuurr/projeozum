@@ -9,54 +9,17 @@
 			]"
 		/>
 
-		<div class="page-header">
-			<div>
-				<h1 class="page-title">Sistem Logları</h1>
-				<p class="page-subtitle">
-					Sistem hareketleri ve hata kayıtları
-				</p>
-			</div>
-			<div class="header-meta">
-				<span class="session-badge">
-					<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-						<rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-						<path d="M7 11V7a5 5 0 0110 0v4" />
-					</svg>
-					Güvenli oturum aktif
-				</span>
-			</div>
-		</div>
+		<PageHeader title="Sistem Logları" subtitle="Sistem hareketleri ve hata kayıtları">
+			<template #actions>
+				<StatusIndicator status="online" label="Güvenli oturum aktif" />
+			</template>
+		</PageHeader>
 
 		<!-- Sekmeler -->
-		<div class="tabs-bar">
-			<button
-				class="tab-btn"
-				:class="{ active: activeTab === 'activity' }"
-				@click="switchTab('activity')"
-			>
-				<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-					<polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-				</svg>
-				Sistem Hareketleri
-				<span class="tab-count">{{ activity.total }}</span>
-			</button>
-			<button
-				class="tab-btn"
-				:class="{ active: activeTab === 'errors' }"
-				@click="switchTab('errors')"
-			>
-				<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-					<circle cx="12" cy="12" r="10" />
-					<line x1="12" y1="8" x2="12" y2="12" />
-					<line x1="12" y1="16" x2="12.01" y2="16" />
-				</svg>
-				Hata Logları
-				<span class="tab-count tab-count-error">{{ errors.total }}</span>
-			</button>
-		</div>
+		<Tabs v-model="activeTabModel" :tabs="tabItems" variant="pills" class="tabs-bar" />
 
 		<!-- Filtre kartı -->
-		<div class="card filter-card">
+		<Card class="filter-card" body-class="p-3.5">
 			<div class="filter-row">
 				<div class="filter-group">
 					<label class="filter-label">Modül</label>
@@ -108,14 +71,14 @@
 					<input v-model="localFilters.date_to" type="date" class="filter-input" />
 				</div>
 				<div class="filter-actions">
-					<button class="btn btn-primary btn-sm" @click="applyFilters">Filtrele</button>
-					<button class="btn btn-ghost btn-sm" @click="clearFilters">Temizle</button>
+					<Button variant="primary" size="sm" @click="applyFilters">Filtrele</Button>
+					<Button variant="ghost" size="sm" @click="clearFilters">Temizle</Button>
 				</div>
 			</div>
-		</div>
+		</Card>
 
 		<!-- ── Sistem Hareketleri sekmesi ── -->
-		<div v-if="activeTab === 'activity'" class="card">
+		<Card v-if="activeTab === 'activity'" body-class="p-0">
 			<div class="table-scroll">
 			<table class="data-table">
 				<thead>
@@ -141,11 +104,11 @@
 						>
 							<td class="mono dim">{{ row.created_at }}</td>
 							<td>
-								<span v-if="row.module" class="pill pill-module">{{ row.module }}</span>
+								<Badge v-if="row.module" color="neutral" variant="tonal" :label="row.module" />
 								<span v-else class="dim">—</span>
 							</td>
 							<td>
-								<span class="pill" :class="actionPillClass(row.level)">{{ row.action }}</span>
+								<Badge :color="actionBadgeColor(row.level)" variant="tonal" :label="row.action" />
 							</td>
 							<td class="desc-cell">{{ row.description }}</td>
 							<td>
@@ -172,10 +135,10 @@
 			</table>
 			</div>
 			<PaginationLinks :links="activity.links" />
-		</div>
+		</Card>
 
 		<!-- ── Hata Logları sekmesi ── -->
-		<div v-if="activeTab === 'errors'" class="card">
+		<Card v-if="activeTab === 'errors'" body-class="p-0">
 			<div class="table-scroll">
 			<table class="data-table">
 				<thead>
@@ -200,11 +163,11 @@
 						>
 							<td class="mono dim">{{ row.occurred_at ?? row.created_at }}</td>
 							<td>
-								<span v-if="row.module" class="pill pill-module">{{ row.module }}</span>
+								<Badge v-if="row.module" color="neutral" variant="tonal" :label="row.module" />
 								<span v-else class="dim">—</span>
 							</td>
 							<td>
-								<span class="pill" :class="levelPillClass(row.level)">{{ row.level }}</span>
+								<Badge :color="levelBadgeColor(row.level)" variant="tonal" :label="row.level" />
 							</td>
 							<td class="desc-cell">{{ row.message }}</td>
 							<td class="mono dim file-cell">
@@ -263,15 +226,22 @@
 			</table>
 			</div>
 			<PaginationLinks :links="errors.links" />
-		</div>
+		</Card>
 	</div>
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import { Head, router } from '@inertiajs/vue3'
+import { Activity, AlertCircle } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
+import StatusIndicator from '@/Components/StatusIndicator.vue'
+import Tabs from '@/Components/Tabs.vue'
+import Badge from '@/Components/Badge.vue'
+import Card from '@/Components/Card.vue'
+import PageHeader from '@/Components/PageHeader.vue'
+import Button from '@/Components/Button.vue'
 
 defineOptions({ layout: AppLayout })
 
@@ -282,6 +252,11 @@ const props = defineProps({
 	activeTab: { type: String, default: 'activity' },
 	filters:   { type: Object, default: () => ({}) },
 })
+
+const tabItems = computed(() => [
+	{ key: 'activity', label: 'Sistem Hareketleri', icon: Activity, count: props.activity.total },
+	{ key: 'errors', label: 'Hata Logları', icon: AlertCircle, count: props.errors.total },
+])
 
 // ── Basit sayfalama bileşeni (inline) ──────────────────────────────────────
 const PaginationLinks = {
@@ -335,6 +310,11 @@ function switchTab(tab) {
 	router.get('/superadmin/logs', { tab, ...buildParams() }, { preserveState: true })
 }
 
+const activeTabModel = computed({
+	get: () => props.activeTab,
+	set: (tab) => switchTab(tab),
+})
+
 // ── Filtre eylemleri ───────────────────────────────────────────────────────
 function buildParams() {
 	const p = {}
@@ -369,99 +349,74 @@ function shortPath(file) {
 	return parts.length > 3 ? '…/' + parts.slice(-3).join('/') : file
 }
 
-function actionPillClass(level) {
+function actionBadgeColor(level) {
 	const map = {
-		warning: 'pill-warning',
-		notice:  'pill-notice',
-		info:    'pill-info',
+		warning: 'warning',
+		notice:  'info',
+		info:    'info',
 	}
-	return map[level] ?? 'pill-info'
+	return map[level] ?? 'info'
 }
 
-function levelPillClass(level) {
+function levelBadgeColor(level) {
 	const map = {
-		critical: 'pill-critical',
-		error:    'pill-error',
-		warning:  'pill-warning',
+		critical: 'danger',
+		error:    'danger',
+		warning:  'warning',
 	}
-	return map[level] ?? 'pill-error'
+	return map[level] ?? 'danger'
 }
 </script>
 
 <style scoped>
 /* ── Layout ── */
-.page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 18px; gap: 16px; }
-.page-title  { font-size: 22px; font-weight: 700; color: #1a1a2e; }
-.page-subtitle { font-size: 13px; color: #888; margin-top: 4px; }
-
-.session-badge {
-	display: inline-flex; align-items: center; gap: 5px;
-	padding: 5px 12px; border-radius: 999px;
-	background: #dcfce7; color: #16a34a;
-	font-size: 11.5px; font-weight: 600;
-}
-
 /* ── Sekmeler ── */
-.tabs-bar { display: flex; gap: 4px; margin-bottom: 14px; }
-.tab-btn {
-	display: inline-flex; align-items: center; gap: 6px;
-	padding: 8px 16px; border-radius: 10px;
-	background: transparent; border: 1.5px solid #e8e8f0;
-	font-size: 13px; font-weight: 600; color: #888;
-	cursor: pointer; transition: all .15s;
-}
-.tab-btn:hover { border-color: #c0c0d8; color: #1a1a2e; }
-.tab-btn.active { border-color: rgb(var(--color-primary)); background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary-hover)); }
-.tab-count { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; padding: 1px 6px; background: #f0f0f5; color: #666; border-radius: 999px; font-size: 11px; }
-.tab-count-error { background: #fee2e2; color: #dc2626; }
+.tabs-bar { margin-bottom: 14px; }
 
 /* ── Filtre kartı ── */
-.filter-card { padding: 14px 16px; margin-bottom: 14px; }
+.filter-card { margin-bottom: 14px; }
 .filter-row  { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
 .filter-group { display: flex; flex-direction: column; gap: 4px; min-width: 140px; }
 .filter-group-wide { flex: 1; min-width: 200px; }
-.filter-label  { font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: .04em; }
+.filter-label  { font-size: 11px; font-weight: 600; color: rgb(var(--color-muted)); text-transform: uppercase; letter-spacing: .04em; }
 .filter-select, .filter-input {
-	padding: 7px 10px; border: 1.5px solid #e8e8f0; border-radius: 8px;
-	font-family: inherit; font-size: 13px; color: #1a1a2e; background: #fff;
+	padding: 7px 10px; border: 1.5px solid rgb(var(--color-border)); border-radius: 8px;
+	font-family: inherit; font-size: 13px; color: rgb(var(--color-ink)); background: rgb(var(--color-surface));
 	outline: none; transition: border-color .15s;
 }
 .filter-select:focus, .filter-input:focus { border-color: rgb(var(--color-primary)); }
 .filter-actions { display: flex; gap: 6px; align-items: flex-end; padding-bottom: 1px; }
-.btn-sm { padding: 7px 14px; font-size: 12.5px; }
 
-/* ── Kart + tablo ── */
-.card { background: #fff; border-radius: 16px; border: 1px solid #ebebf0; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.04); margin-bottom: 14px; }
-
+/* ── Tablo ── */
 .data-table { width: 100%; border-collapse: separate; border-spacing: 0; }
-.data-table thead tr { background: #f8f8fc; }
-.data-table th { text-align: left; padding: 12px 14px; font-size: 11px; font-weight: 600; color: #aaa; border-bottom: 1px solid #f0f0f5; text-transform: uppercase; letter-spacing: .04em; }
-.data-table td { padding: 10px 14px; font-size: 13px; color: #444; border-bottom: 1px solid #f5f5f8; vertical-align: middle; }
+.data-table thead tr { background: rgb(var(--color-bg)); }
+.data-table th { text-align: left; padding: 12px 14px; font-size: 11px; font-weight: 600; color: rgb(var(--color-muted)); border-bottom: 1px solid rgb(var(--color-border)); text-transform: uppercase; letter-spacing: .04em; }
+.data-table td { padding: 10px 14px; font-size: 13px; color: rgb(var(--color-ink)); border-bottom: 1px solid rgb(var(--color-border)); vertical-align: middle; }
 .data-table tr:last-child td { border-bottom: none; }
 
 .data-row { cursor: pointer; transition: background .1s; }
-.data-row:hover td { background: #fafafe; }
-.data-row.row-expanded td { background: #f8f8fc; }
-.empty-row { text-align: center !important; color: #aaa; padding: 32px 0 !important; font-style: italic; }
+.data-row:hover td { background: rgb(var(--color-bg) / .5); }
+.data-row.row-expanded td { background: rgb(var(--color-bg)); }
+.empty-row { text-align: center !important; color: rgb(var(--color-muted)); padding: 32px 0 !important; font-style: italic; }
 
 .mono { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; }
-.dim  { color: #9ca3af; }
+.dim  { color: rgb(var(--color-muted)); }
 .desc-cell { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .file-cell  { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; }
 
 .expand-cell { text-align: center; width: 32px; }
-.expand-icon { font-size: 16px; color: #aaa; display: inline-block; transition: transform .2s; user-select: none; }
+.expand-icon { font-size: 16px; color: rgb(var(--color-muted)); display: inline-block; transition: transform .2s; user-select: none; }
 .expand-icon.open { transform: rotate(90deg); color: rgb(var(--color-primary)); }
 
 /* ── Genişletme satırı ── */
-.expand-row td { padding: 0; border-bottom: 1px solid #ebebf0; background: #fafafe; }
+.expand-row td { padding: 0; border-bottom: 1px solid rgb(var(--color-border)); background: rgb(var(--color-bg) / .5); }
 .expand-content { padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; }
 
-.expand-section-title { font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: .05em; }
+.expand-section-title { font-size: 11px; font-weight: 700; color: rgb(var(--color-muted)); text-transform: uppercase; letter-spacing: .05em; }
 
 .expand-meta { display: flex; flex-direction: column; gap: 6px; }
 .meta-item   { display: flex; align-items: baseline; gap: 8px; font-size: 12.5px; }
-.meta-key    { font-size: 11px; font-weight: 700; color: #aaa; min-width: 80px; }
+.meta-key    { font-size: 11px; font-weight: 700; color: rgb(var(--color-muted)); min-width: 80px; }
 
 .json-block {
 	margin: 0; padding: 12px 14px;
@@ -484,33 +439,22 @@ function levelPillClass(level) {
 }
 .trace-line:last-child { border-bottom: none; }
 
-.expand-empty { font-size: 12px; color: #aaa; font-style: italic; margin: 0; }
-
-/* ── Pills ── */
-.pill { display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; white-space: nowrap; }
-.pill-module   { background: #f0f0f5; color: #555; }
-.pill-info     { background: #dbeafe; color: #1d4ed8; }
-.pill-notice   { background: #e0f2fe; color: #0369a1; }
-.pill-warning  { background: #fef3c7; color: #d97706; }
-.pill-error    { background: #fee2e2; color: #dc2626; }
-.pill-critical { background: #fce7f3; color: #be185d; }
+.expand-empty { font-size: 12px; color: rgb(var(--color-muted)); font-style: italic; margin: 0; }
 
 /* ── Sayfalama ── */
-.pagination { display: flex; flex-wrap: wrap; gap: 4px; padding: 12px 14px; border-top: 1px solid #f0f0f5; }
+.pagination { display: flex; flex-wrap: wrap; gap: 4px; padding: 12px 14px; border-top: 1px solid rgb(var(--color-border)); }
 .page-link {
 	display: inline-flex; align-items: center; justify-content: center;
 	min-width: 32px; height: 32px; padding: 0 10px;
-	border: 1.5px solid #e8e8f0; border-radius: 8px;
-	font-size: 12.5px; color: #555; text-decoration: none;
-	cursor: pointer; transition: all .15s; background: #fff;
+	border: 1.5px solid rgb(var(--color-border)); border-radius: 8px;
+	font-size: 12.5px; color: rgb(var(--color-muted)); text-decoration: none;
+	cursor: pointer; transition: all .15s; background: rgb(var(--color-surface));
 }
 .page-link:hover:not(.disabled) { border-color: rgb(var(--color-primary)); color: rgb(var(--color-primary)); }
 .page-link.active { background: rgb(var(--color-primary)); border-color: rgb(var(--color-primary)); color: #fff; }
-.page-link.disabled { color: #ccc; cursor: default; }
+.page-link.disabled { color: rgb(var(--color-border)); cursor: default; }
 
 @media (max-width: 640px) {
-	.page-header { flex-wrap: wrap; }
-	.tabs-bar { flex-wrap: wrap; }
 	.filter-actions { width: 100%; }
 	.filter-actions .btn { flex: 1; }
 }
