@@ -10,61 +10,32 @@
 			]"
 		/>
 
-		<div class="page-header">
-			<div>
-				<h1 class="page-title">Tenant Tipleri</h1>
-				<p class="page-subtitle"><strong>{{ types.length }}</strong> tip kayıtlı</p>
-			</div>
-			<button v-if="canManage" class="btn btn-primary btn-with-icon" @click="openNew">
-				<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-					<path d="M12 5v14M5 12h14" />
-				</svg>
-				Yeni Tip
-			</button>
-		</div>
+		<PageHeader title="Tenant Tipleri">
+			<template #subtitle><strong>{{ types.length }}</strong> tip kayıtlı</template>
+			<template v-if="canManage" #actions>
+				<Button variant="primary" with-icon @click="openNew">
+					<template #leading><Plus :size="13" /></template>
+					Yeni Tip
+				</Button>
+			</template>
+		</PageHeader>
 
-		<div class="card">
-			<div class="card-header">
-				<h3>Tip Listesi</h3>
-			</div>
-			<div class="table-scroll">
-			<table class="data-table">
-				<thead>
-					<tr>
-						<th style="width: 15%">Kod</th>
-						<th style="width: 20%">Ad</th>
-						<th style="width: 25%">Açıklama</th>
-						<th style="width: 12%">Fiyat Listesi</th>
-						<th style="width: 10%">Tenant</th>
-						<th style="width: 8%">Sıra</th>
-						<th style="width: 10%">İşlemler</th>
-					</tr>
-				</thead>
-				<tbody>
-					<tr v-if="types.length === 0">
-						<td colspan="7" class="empty-row">Kayıt bulunamadı</td>
-					</tr>
-					<tr v-for="t in types" :key="t.id">
-						<td><span class="mono">{{ t.code }}</span></td>
-						<td><strong>{{ t.name }}</strong></td>
-						<td class="dim">{{ t.description || '—' }}</td>
-						<td>
-							<span v-if="t.price_list_type" class="badge badge-price">{{ priceLabel(t.price_list_type) }}</span>
-							<span v-else class="dim">—</span>
-						</td>
-						<td><span class="user-count">{{ t.tenantCount }}</span></td>
-						<td>{{ t.sort_order }}</td>
-						<td>
-							<div class="table-actions">
-								<button v-if="canManage" class="table-action-btn view" @click="edit(t)" title="Düzenle">✏️</button>
-								<button v-if="canManage" class="table-action-btn delete" @click="confirmDelete(t)" title="Sil">🗑️</button>
-							</div>
-						</td>
-					</tr>
-				</tbody>
-			</table>
-			</div>
-		</div>
+		<Card title="Tip Listesi" body-class="p-0">
+			<DataTable :columns="columns" :data="types" row-key-field="id" empty-title="Kayıt bulunamadı">
+				<template #code="{ value }"><span class="mono">{{ value }}</span></template>
+				<template #name="{ value }"><strong>{{ value }}</strong></template>
+				<template #description="{ value }"><span class="dim">{{ value || '—' }}</span></template>
+				<template #price_list_type="{ value }">
+					<Badge v-if="value" color="warning" variant="tonal" :label="priceLabel(value)" />
+					<span v-else class="dim">—</span>
+				</template>
+				<template #tenantCount="{ value }"><span class="user-count">{{ value }}</span></template>
+				<template #actions="{ row }">
+					<button v-if="canManage" class="table-action-btn view" @click="edit(row)" title="Düzenle"><Pencil :size="14" /></button>
+					<button v-if="canManage" class="table-action-btn delete" @click="confirmDelete(row)" title="Sil"><Trash2 :size="14" /></button>
+				</template>
+			</DataTable>
+		</Card>
 
 		<AppModal v-model="formOpen" :title="editing ? 'Tipi Düzenle' : 'Yeni Tenant Tipi'" size="md" variant="info">
 			<form class="form-grid" @submit.prevent="submit">
@@ -109,10 +80,10 @@
 				</div>
 			</form>
 			<template #footer="{ close }">
-				<button class="btn btn-ghost" @click="close" :disabled="busy">İptal</button>
-				<button class="btn btn-primary" @click="submit" :disabled="busy">
+				<Button variant="ghost" :disabled="busy" @click="close">İptal</Button>
+				<Button variant="primary" :loading="busy" @click="submit">
 					{{ editing ? 'Kaydet' : 'Ekle' }}
-				</button>
+				</Button>
 			</template>
 		</AppModal>
 	</div>
@@ -121,8 +92,14 @@
 <script setup>
 import { ref, computed, inject, reactive, watch } from 'vue'
 import { Head, router, usePage } from '@inertiajs/vue3'
+import { Plus, Pencil, Trash2 } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
+import PageHeader from '@/Components/PageHeader.vue'
+import Card from '@/Components/Card.vue'
+import DataTable from '@/Components/DataTable.vue'
+import Badge from '@/Components/Badge.vue'
+import Button from '@/Components/Button.vue'
 import AppModal from '@/Components/AppModal.vue'
 
 defineOptions({ layout: AppLayout })
@@ -130,6 +107,15 @@ defineOptions({ layout: AppLayout })
 const props = defineProps({
 	types: { type: Array, default: () => [] },
 })
+
+const columns = [
+	{ key: 'code', label: 'Kod' },
+	{ key: 'name', label: 'Ad' },
+	{ key: 'description', label: 'Açıklama' },
+	{ key: 'price_list_type', label: 'Fiyat Listesi' },
+	{ key: 'tenantCount', label: 'Tenant' },
+	{ key: 'sort_order', label: 'Sıra' },
+]
 
 const showToast = inject('showToast')
 const $swal = inject('$swal')
@@ -249,42 +235,25 @@ async function confirmDelete(t) {
 </script>
 
 <style scoped>
-.page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; gap: 16px; }
-.page-title { font-size: 22px; font-weight: 700; color: #1a1a2e; line-height: 1.2; }
-.page-subtitle { font-size: 13px; color: #888; margin-top: 4px; }
+.dim { color: rgb(var(--color-muted)); font-size: 12px; }
+.mono { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; color: rgb(var(--color-muted)); }
+.user-count { display: inline-block; padding: 2px 9px; background: rgb(var(--color-bg)); color: rgb(var(--color-muted)); border-radius: 6px; font-size: 11.5px; font-weight: 700; font-family: 'SF Mono', Menlo, Consolas, monospace; }
 
-.card { background: #fff; border-radius: 16px; border: 1px solid #ebebf0; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.04); }
-.card-header { padding: 14px 18px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #f0f0f5; }
-.card-header h3 { font-size: 15px; font-weight: 700; color: #1a1a2e; }
-
-.data-table { width: 100%; border-collapse: separate; border-spacing: 0; }
-.data-table thead tr { background: #f8f8fc; }
-.data-table th { text-align: left; padding: 12px 16px; font-size: 11px; font-weight: 600; color: #aaa; border-bottom: 1px solid #f0f0f5; text-transform: uppercase; letter-spacing: 0.04em; }
-.data-table td { padding: 12px 16px; font-size: 13px; color: #444; border-bottom: 1px solid #f5f5f8; vertical-align: middle; }
-.data-table tr:last-child td { border-bottom: none; }
-.data-table tr:hover td { background: #fafafe; }
-.empty-row { text-align: center !important; color: #aaa; padding: 32px 0 !important; font-style: italic; }
-.dim { color: #aaa; font-size: 12px; }
-.mono { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; color: #555; }
-.badge-price { display: inline-block; padding: 3px 9px; background: #fef3c7; color: #92400e; border-radius: 6px; font-size: 11px; font-weight: 600; }
-.user-count { display: inline-block; padding: 2px 9px; background: #f0f0f5; color: #555; border-radius: 6px; font-size: 11.5px; font-weight: 700; font-family: 'SF Mono', Menlo, Consolas, monospace; }
-
-.table-actions { display: flex; gap: 4px; }
-.table-action-btn { background: #f3f4f6; border: none; cursor: pointer; font-size: 13px; padding: 5px 9px; border-radius: 6px; color: #6b7280; transition: all .15s; }
+.table-action-btn { display: inline-flex; align-items: center; justify-content: center; background: rgb(var(--color-bg)); border: none; cursor: pointer; padding: 6px; border-radius: 6px; color: rgb(var(--color-muted)); transition: all .15s; }
 .table-action-btn.view:hover { background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary)); }
-.table-action-btn.delete:hover { background: #fee2e2; color: #dc2626; }
+.table-action-btn.delete:hover { background: rgb(var(--color-danger) / .12); color: rgb(var(--color-danger)); }
 
 .form-grid { display: flex; flex-direction: column; gap: 14px; }
 .form-row { display: flex; flex-direction: column; gap: 6px; }
 .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .form-row-inline { flex-direction: row; align-items: center; gap: 10px; }
-.form-label { font-size: 12px; font-weight: 600; color: #1a1a2e; }
-.form-label .req { color: #ef4444; }
-.form-input { padding: 9px 12px; border: 1px solid #e8e8f0; border-radius: 8px; font-family: inherit; font-size: 13px; color: #1a1a2e; background: #fff; outline: none; transition: border-color .15s; }
+.form-label { font-size: 12px; font-weight: 600; color: rgb(var(--color-ink)); }
+.form-label .req { color: rgb(var(--color-danger)); }
+.form-input { padding: 9px 12px; border: 1px solid rgb(var(--color-border)); border-radius: 8px; font-family: inherit; font-size: 13px; color: rgb(var(--color-ink)); background: rgb(var(--color-surface)); outline: none; transition: border-color .15s; }
 .form-input.mono { font-family: 'SF Mono', Menlo, Consolas, monospace; }
 .form-input:focus { border-color: rgb(var(--color-primary)); }
-.form-error { font-size: 11.5px; color: #ef4444; }
-.form-check { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: #1a1a2e; }
+.form-error { font-size: 11.5px; color: rgb(var(--color-danger)); }
+.form-check { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: rgb(var(--color-ink)); }
 
 @media (max-width: 560px) {
 	.form-row-2 { grid-template-columns: 1fr; }
