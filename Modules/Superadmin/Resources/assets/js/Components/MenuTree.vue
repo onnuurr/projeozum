@@ -11,7 +11,7 @@
         <template #item="{ element }">
             <div class="mt-node">
                 <div class="mt-row" :class="{ inactive: !element.is_active }">
-                    <span class="mt-handle" title="Sürükle">⋮⋮</span>
+                    <span class="mt-handle" title="Sürükle"><GripVertical :size="14" /></span>
                     <button
                         v-if="hasChildren(element)"
                         type="button"
@@ -35,14 +35,14 @@
                             @click="$emit('edit', element)"
                             title="Düzenle"
                         >
-                            ✎
+                            <Pencil :size="13" />
                         </button>
                         <button
                             type="button"
                             @click="$emit('add-child', element)"
                             title="Alt menü ekle"
                         >
-                            ＋
+                            <Plus :size="13" />
                         </button>
                         <button
                             type="button"
@@ -50,7 +50,7 @@
                             @click="$emit('remove', element)"
                             title="Sil"
                         >
-                            🗑
+                            <Trash2 :size="13" />
                         </button>
                     </span>
                 </div>
@@ -73,6 +73,7 @@
 
 <script setup>
 import draggable from "vuedraggable";
+import { GripVertical, Pencil, Plus, Trash2 } from "lucide-vue-next";
 
 const props = defineProps({
     nodes: { type: Array, required: true },
@@ -120,7 +121,7 @@ function onChange(evt) {
 }
 .mt-children {
     margin-left: 22px;
-    border-left: 1px dashed #e0e0ea;
+    border-left: 1px dashed rgb(var(--color-border));
     padding-left: 8px;
 }
 .mt-node {
@@ -131,22 +132,23 @@ function onChange(evt) {
     align-items: center;
     gap: 8px;
     padding: 7px 10px;
-    background: #fff;
-    border: 1px solid #ebebf0;
+    background: rgb(var(--color-surface));
+    border: 1px solid rgb(var(--color-border));
     border-radius: 8px;
     transition: border-color 0.12s;
 }
 .mt-row:hover {
-    border-color: #c8c8d8;
+    border-color: rgb(var(--color-muted));
 }
 .mt-row.inactive {
     opacity: 0.5;
 }
 .mt-handle {
     cursor: grab;
-    color: #bbb;
+    color: rgb(var(--color-muted));
     user-select: none;
-    font-size: 12px;
+    display: inline-flex;
+    align-items: center;
 }
 .mt-toggle {
     width: 18px;
@@ -158,13 +160,13 @@ function onChange(evt) {
     border: none;
     background: transparent;
     cursor: pointer;
-    color: #888;
+    color: rgb(var(--color-muted));
     font-size: 10px;
     line-height: 1;
     padding: 0;
 }
 .mt-toggle:hover {
-    color: #1a1a2e;
+    color: rgb(var(--color-ink));
 }
 .mt-toggle-spacer {
     width: 18px;
@@ -173,20 +175,20 @@ function onChange(evt) {
 .mt-label {
     font-size: 13px;
     font-weight: 500;
-    color: #1a1a2e;
+    color: rgb(var(--color-ink));
 }
 .mt-count {
     font-size: 10px;
-    color: #6b7280;
-    background: #f1f1f7;
+    color: rgb(var(--color-muted));
+    background: rgb(var(--color-bg));
     border-radius: 999px;
     padding: 1px 7px;
     font-weight: 600;
 }
 .mt-badge {
     font-size: 10px;
-    color: #8a6d00;
-    background: #fff8e1;
+    color: rgb(var(--color-warning));
+    background: rgb(var(--color-warning) / .12);
     border-radius: 4px;
     padding: 1px 6px;
 }
@@ -198,20 +200,23 @@ function onChange(evt) {
 .mt-actions button {
     width: 26px;
     height: 26px;
-    border: 1px solid #ebebf0;
-    background: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgb(var(--color-border));
+    background: rgb(var(--color-surface));
     border-radius: 6px;
     cursor: pointer;
-    color: #666;
+    color: rgb(var(--color-muted));
 }
 .mt-actions button:hover {
-    background: #f5f5fb;
-    color: #1a1a2e;
+    background: rgb(var(--color-bg));
+    color: rgb(var(--color-ink));
 }
 .mt-actions button.danger:hover {
-    background: #fef2f2;
-    color: #dc2626;
-    border-color: #fecaca;
+    background: rgb(var(--color-danger) / .1);
+    color: rgb(var(--color-danger));
+    border-color: rgb(var(--color-danger) / .3);
 }
 
 @media (max-width: 640px) {

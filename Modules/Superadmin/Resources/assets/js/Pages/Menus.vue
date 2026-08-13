@@ -1,31 +1,39 @@
 <template>
 	<div class="menus-page">
-		<header class="mp-header">
-			<div>
-				<h1>Menü Yönetimi</h1>
-				<p>Sürükle-bırak ile sırala ve iç içe taşı. Kökler sidebar'da, alt menüler header'da görünür.</p>
-			</div>
-			<div class="mp-header-actions">
-				<button class="btn-ghost" :disabled="!dirty" @click="resetTree">Geri Al</button>
-				<button class="btn-primary" :disabled="!dirty || saving" @click="saveOrder">
-					{{ saving ? 'Kaydediliyor…' : 'Sıralamayı Kaydet' }}
-				</button>
-				<button class="btn-primary" @click="openCreate(null)">+ Yeni Kök Menü</button>
-			</div>
-		</header>
+		<Breadcrumb
+			:items="[
+				{ label: 'Ana Sayfa', to: '/workflow', icon: 'home' },
+				{ label: 'Süper Admin' },
+				{ label: 'Menü Yönetimi' },
+			]"
+		/>
+
+		<PageHeader title="Menü Yönetimi" subtitle="Sürükle-bırak ile sırala ve iç içe taşı. Kökler sidebar'da, alt menüler header'da görünür.">
+			<template #actions>
+				<Button variant="ghost" size="sm" :disabled="!dirty" @click="resetTree">Geri Al</Button>
+				<Button variant="primary" size="sm" :disabled="!dirty" :loading="saving" @click="saveOrder">
+					Sıralamayı Kaydet
+				</Button>
+				<Button variant="primary" size="sm" with-icon @click="openCreate(null)">
+					<template #leading><Plus :size="13" /></template>
+					Yeni Kök Menü
+				</Button>
+			</template>
+		</PageHeader>
 
 		<div class="mp-body">
-			<MenuTree
-				:nodes="tree"
-				:parent-id="null"
-				:disabled="saving"
-				class="mp-tree"
-				@changed="dirty = true"
-				@add-route="onAddRoute"
-				@edit="openEdit"
-				@add-child="openCreate"
-				@remove="removeMenu"
-			/>
+			<Card title="Menü Ağacı" class="mp-tree" body-class="p-3.5">
+				<MenuTree
+					:nodes="tree"
+					:parent-id="null"
+					:disabled="saving"
+					@changed="dirty = true"
+					@add-route="onAddRoute"
+					@edit="openEdit"
+					@add-child="openCreate"
+					@remove="removeMenu"
+				/>
+			</Card>
 
 			<RouteCatalog :routes="routes" :disabled="saving" class="mp-catalog" />
 		</div>
@@ -70,14 +78,12 @@
 					</select>
 				</label>
 
-				<label class="mp-check">
-					<input v-model="form.is_active" type="checkbox" /> Aktif
-				</label>
+				<Toggle v-model="form.is_active" label="Aktif" />
 			</form>
 
 			<template #footer="{ close }">
-				<button type="button" class="btn btn-ghost" @click="close">Vazgeç</button>
-				<button type="submit" form="menu-form" class="btn btn-primary" :disabled="saving">Kaydet</button>
+				<Button variant="ghost" @click="close">Vazgeç</Button>
+				<Button type="submit" form="menu-form" variant="primary" :loading="saving">Kaydet</Button>
 			</template>
 		</AppModal>
 	</div>
@@ -86,8 +92,14 @@
 <script setup>
 import { ref, watch, inject } from 'vue'
 import { router } from '@inertiajs/vue3'
+import { Plus } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import AppModal from '@/Components/AppModal.vue'
+import Toggle from '@/Components/Toggle.vue'
+import Card from '@/Components/Card.vue'
+import Breadcrumb from '@/Components/Breadcrumb.vue'
+import PageHeader from '@/Components/PageHeader.vue'
+import Button from '@/Components/Button.vue'
 import { useToast } from '@/composables/useToast.js'
 import { menuIconKeys, renderMenuIcon } from '@/menuIcons.js'
 import MenuTree from '../Components/MenuTree.vue'
@@ -282,20 +294,11 @@ async function removeMenu(menu) {
 @media (max-width: 900px) {
 	.mp-body { grid-template-columns: 1fr; }
 }
-.mp-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 18px; gap: 16px; flex-wrap: wrap; }
-.mp-header h1 { font-size: 20px; font-weight: 700; color: #1a1a2e; }
-.mp-header p { font-size: 13px; color: #888; margin-top: 4px; }
-.mp-header-actions { display: flex; gap: 8px; flex-shrink: 0; }
-.btn-primary { background: #1a1a2e; color: #fff; border: none; border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer; }
-.btn-primary:disabled { opacity: .5; cursor: default; }
-.btn-ghost { background: #fff; color: #555; border: 1px solid #e8e8f0; border-radius: 8px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
-.btn-ghost:disabled { opacity: .5; cursor: default; }
 .mp-form { display: flex; flex-direction: column; gap: 12px; }
-.mp-form label { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; font-weight: 600; color: #444; }
-.mp-form input[type=text], .mp-form select { border: 1px solid #e0e0ea; border-radius: 8px; padding: 8px 10px; font-size: 13px; }
-.mp-check { flex-direction: row !important; align-items: center; gap: 8px; }
+.mp-form label { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; font-weight: 600; color: rgb(var(--color-muted)); }
+.mp-form input[type=text], .mp-form select { border: 1px solid rgb(var(--color-border)); border-radius: 8px; padding: 8px 10px; font-size: 13px; }
 .mp-icon-picker { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; }
-.mp-icon { width: 100%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border: 1px solid #e8e8f0; border-radius: 8px; background: #fff; color: #666; cursor: pointer; }
+.mp-icon { width: 100%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border: 1px solid rgb(var(--color-border)); border-radius: 8px; background: rgb(var(--color-surface)); color: rgb(var(--color-muted)); cursor: pointer; }
 .mp-icon.active { border-color: rgb(var(--color-primary)); color: rgb(var(--color-primary)); background: rgb(var(--color-primary-soft)); }
 
 @media (max-width: 640px) {
