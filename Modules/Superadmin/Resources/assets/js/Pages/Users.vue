@@ -9,24 +9,29 @@
 			]"
 		/>
 
-		<div class="page-header">
-			<div>
-				<h1 class="page-title">Kullanıcılar</h1>
-				<p class="page-subtitle"><strong>{{ users.length }}</strong> kullanıcı kayıtlı</p>
-			</div>
-			<button class="btn btn-primary btn-with-icon" @click="openNew">
-				<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-					<path d="M12 5v14M5 12h14" />
-				</svg>
-				Yeni Kullanıcı
-			</button>
-		</div>
+		<PageHeader title="Kullanıcılar">
+			<template #subtitle><strong>{{ users.length }}</strong> kullanıcı kayıtlı</template>
+			<template #actions>
+				<Button variant="primary" with-icon @click="openNew">
+					<template #leading><Plus :size="13" /></template>
+					Yeni Kullanıcı
+				</Button>
+			</template>
+		</PageHeader>
 
-		<div class="card">
-			<div class="card-header">
-				<h3>Kullanıcı Listesi</h3>
+		<Card title="Kullanıcı Listesi" body-class="p-2.5" class="filter-card">
+			<div class="filter-row">
+
 				<div class="card-search">
-					<input v-model="searchQuery" type="text" placeholder="İsim, e-posta, telefon ara..." />
+					<FormField variant="default">
+						<FormInput v-model="searchQuery" type="text" placeholder="İsim, e-posta, telefon ara..." variant="default">
+							<template #icon>
+								<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+									<circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
+								</svg>
+							</template>
+						</FormInput>
+					</FormField>
 				</div>
 				<select v-model="filterRole" class="filter-select">
 					<option value="">Tüm roller</option>
@@ -39,58 +44,38 @@
 				</select>
 			</div>
 
-			<div class="table-scroll">
-			<table class="data-table">
-				<thead>
-					<tr>
-						<th>Kullanıcı</th>
-						<th>Telefon</th>
-						<th>Unvan</th>
-						<th>Rol</th>
-						<th>Tenant</th>
-						<th>Durum</th>
-						<th>Kayıt Tarihi</th>
-						<th>İşlemler</th>
-					</tr>
-				</thead>
-				<tbody>
-					<tr v-if="filtered.length === 0">
-						<td colspan="8" class="empty-row">Kayıt bulunamadı</td>
-					</tr>
-					<tr v-for="u in filtered" :key="u.id">
-						<td>
-							<div class="user-cell">
-								<div class="user-avatar">{{ initials(u.name) }}</div>
-								<div class="user-info">
-									<span class="user-name">{{ u.name }}</span>
-									<span class="user-email">{{ u.email }}</span>
-								</div>
-							</div>
-						</td>
-						<td>{{ u.phone || '—' }}</td>
-						<td>{{ u.job_title || '—' }}</td>
-						<td><span v-if="u.role" class="badge-role">{{ u.role }}</span><span v-else class="dim">—</span></td>
-						<td>{{ u.tenant?.name || '—' }}</td>
-						<td>
-							<span :class="['status-pill', u.is_active ? 'active' : 'inactive']">
-								{{ u.is_active ? 'Aktif' : 'Pasif' }}
-							</span>
-						</td>
-						<td>{{ u.created_at }}</td>
-						<td>
-							<div class="table-actions">
-								<button class="table-action-btn view" @click="edit(u)" title="Düzenle">✏️</button>
-								<button class="table-action-btn toggle" @click="toggle(u)" :title="u.is_active ? 'Pasifleştir' : 'Aktifleştir'">
-									{{ u.is_active ? '⏸️' : '▶️' }}
-								</button>
-								<button class="table-action-btn delete" @click="confirmDelete(u)" title="Sil">🗑️</button>
-							</div>
-						</td>
-					</tr>
-				</tbody>
-			</table>
-			</div>
-		</div>
+			<DataTable :columns="columns" :data="filtered" empty-title="Kayıt bulunamadı" empty-hint="Filtreyi değiştirip tekrar deneyin.">
+			<template #user="{ row }">
+				<div class="user-cell">
+					<Avatar :initials="initials(row.name)" size="md" />
+					<div class="user-info">
+						<span class="user-name">{{ row.name }}</span>
+						<span class="user-email">{{ row.email }}</span>
+					</div>
+				</div>
+			</template>
+			<template #phone="{ value }">{{ value || '—' }}</template>
+			<template #job_title="{ value }">{{ value || '—' }}</template>
+			<template #role="{ value }">
+				<Badge v-if="value" color="primary" variant="tonal" :label="value" />
+				<span v-else class="dim">—</span>
+			</template>
+			<template #tenant="{ row }">{{ row.tenant?.name || '—' }}</template>
+			<template #is_active="{ value }">
+				<Badge :color="value ? 'success' : 'danger'" variant="tonal" :label="value ? 'Aktif' : 'Pasif'" />
+			</template>
+			<template #actions="{ row }">
+				<button class="table-action-btn view" @click="edit(row)" title="Düzenle"><Pencil :size="14" /></button>
+				<button class="table-action-btn toggle" @click="toggle(row)" :title="row.is_active ? 'Pasifleştir' : 'Aktifleştir'">
+					<component :is="row.is_active ? Pause : Play" :size="14" />
+				</button>
+				<button class="table-action-btn delete" @click="confirmDelete(row)" title="Sil"><Trash2 :size="14" /></button>
+			</template>
+		</DataTable>
+			
+		</Card>
+
+		
 
 		<AppModal v-model="formOpen" :title="editing ? 'Kullanıcı Düzenle' : 'Yeni Kullanıcı'" size="md" variant="info">
 			<form class="form-grid" @submit.prevent="submit">
@@ -147,10 +132,10 @@
 				</div>
 			</form>
 			<template #footer="{ close }">
-				<button class="btn btn-ghost" @click="close" :disabled="busy">İptal</button>
-				<button class="btn btn-primary" @click="submit" :disabled="busy">
+				<Button variant="ghost" @click="close" :disabled="busy">İptal</Button>
+				<Button variant="primary" :loading="busy" @click="submit">
 					{{ editing ? 'Kaydet' : 'Ekle' }}
-				</button>
+				</Button>
 			</template>
 		</AppModal>
 	</div>
@@ -159,9 +144,27 @@
 <script setup>
 import { ref, reactive, computed, inject, watch } from 'vue'
 import { Head, router } from '@inertiajs/vue3'
+import { Plus, Pencil, Pause, Play, Trash2 } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import AppModal from '@/Components/AppModal.vue'
+import Avatar from '@/Components/Avatar.vue'
+import Badge from '@/Components/Badge.vue'
+import DataTable from '@/Components/DataTable.vue'
+import Card from '@/Components/Card.vue'
+import PageHeader from '@/Components/PageHeader.vue'
+import Button from '@/Components/Button.vue'
+import FormField from '@/Components/Form/FormField.vue'
+import FormInput from '@/Components/Form/FormInput.vue'
+const columns = [
+	{ key: 'user', label: 'Kullanıcı', sortable: false },
+	{ key: 'phone', label: 'Telefon' },
+	{ key: 'job_title', label: 'Unvan' },
+	{ key: 'role', label: 'Rol' },
+	{ key: 'tenant', label: 'Tenant', sortable: false },
+	{ key: 'is_active', label: 'Durum' },
+	{ key: 'created_at', label: 'Kayıt Tarihi' },
+]
 
 defineOptions({ layout: AppLayout })
 
@@ -283,53 +286,38 @@ async function confirmDelete(u) {
 </script>
 
 <style scoped>
-.page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; gap: 16px; flex-wrap: wrap; }
-.page-title { font-size: 22px; font-weight: 700; color: #1a1a2e; line-height: 1.2; }
-.page-subtitle { font-size: 13px; color: #888; margin-top: 4px; }
+.filter-card { margin-bottom: 14px; }
+.filter-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.card-search { display: flex; align-items: center; gap: 6px; background: rgb(var(--color-bg)); border: 1px solid rgb(var(--color-border)); border-radius: 8px; padding: 5px 10px; margin-left: auto; min-width: 240px; }
+.card-search :deep(.form-group) { width: 100%; }
+.card-search :deep(.form-input-wrap) { display: flex; align-items: center; gap: 6px; }
+.card-search :deep(.form-input-icon) { color: rgb(var(--color-muted)); flex-shrink: 0; display: flex; }
+.card-search :deep(.form-input) { border: none; background: none; outline: none; box-shadow: none; height: auto; padding: 0; font-family: inherit; font-size: 13px; width: 100%; }
+.card-search :deep(.form-input)::placeholder { color: rgb(var(--color-muted)); }
+.filter-select { border: 1px solid rgb(var(--color-border)); background: rgb(var(--color-bg)); border-radius: 8px; padding: 6px 10px; font-size: 12.5px; font-family: inherit; outline: none; }
 
-.card { background: #fff; border-radius: 16px; border: 1px solid #ebebf0; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.04); }
-.card-header { padding: 14px 18px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #f0f0f5; flex-wrap: wrap; }
-.card-header h3 { font-size: 15px; font-weight: 700; color: #1a1a2e; }
-.card-search { display: flex; align-items: center; gap: 6px; background: #f5f5f8; border: 1px solid #e8e8f0; border-radius: 8px; padding: 5px 10px; margin-left: auto; min-width: 240px; }
-.card-search input { border: none; background: none; outline: none; font-family: inherit; font-size: 13px; width: 100%; }
-.filter-select { border: 1px solid #e8e8f0; background: #f5f5f8; border-radius: 8px; padding: 6px 10px; font-size: 12.5px; font-family: inherit; outline: none; }
-
-.data-table { width: 100%; border-collapse: separate; border-spacing: 0; }
-.data-table thead tr { background: #f8f8fc; }
-.data-table th { text-align: left; padding: 12px 16px; font-size: 11px; font-weight: 600; color: #aaa; border-bottom: 1px solid #f0f0f5; text-transform: uppercase; letter-spacing: 0.04em; }
-.data-table td { padding: 12px 16px; font-size: 13px; color: #444; border-bottom: 1px solid #f5f5f8; vertical-align: middle; }
-.data-table tr:last-child td { border-bottom: none; }
-.empty-row { text-align: center !important; color: #aaa; padding: 32px 0 !important; font-style: italic; }
-.dim { color: #aaa; font-size: 12px; }
+.dim { color: rgb(var(--color-muted)); font-size: 12px; }
 
 .user-cell { display: flex; align-items: center; gap: 12px; }
-.user-avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #dbeafe, #bfdbfe); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: #2563eb; flex-shrink: 0; }
 .user-info { display: flex; flex-direction: column; gap: 2px; }
-.user-name { font-weight: 600; color: #1a1a2e; font-size: 13px; }
-.user-email { font-size: 11px; color: #888; }
+.user-name { font-weight: 600; color: rgb(var(--color-ink)); font-size: 13px; }
+.user-email { font-size: 11px; color: rgb(var(--color-muted)); }
 
-.badge-role { display: inline-block; padding: 3px 9px; background: rgb(var(--color-primary-soft)); color: #4338ca; border-radius: 6px; font-size: 11px; font-weight: 600; }
-
-.status-pill { display: inline-block; padding: 3px 9px; border-radius: 6px; font-size: 11px; font-weight: 600; }
-.status-pill.active { background: #dcfce7; color: #15803d; }
-.status-pill.inactive { background: #fee2e2; color: #b91c1c; }
-
-.table-actions { display: flex; gap: 4px; }
-.table-action-btn { background: #f3f4f6; border: none; cursor: pointer; font-size: 13px; padding: 5px 9px; border-radius: 6px; color: #6b7280; transition: all .15s; }
+.table-action-btn { display: inline-flex; align-items: center; justify-content: center; background: rgb(var(--color-bg)); border: none; cursor: pointer; padding: 6px; border-radius: 6px; color: rgb(var(--color-muted)); transition: all .15s; }
 .table-action-btn.view:hover { background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary)); }
-.table-action-btn.toggle:hover { background: #fef3c7; color: #b45309; }
-.table-action-btn.delete:hover { background: #fee2e2; color: #dc2626; }
+.table-action-btn.toggle:hover { background: rgb(var(--color-warning) / .15); color: rgb(var(--color-warning)); }
+.table-action-btn.delete:hover { background: rgb(var(--color-danger) / .12); color: rgb(var(--color-danger)); }
 
 .form-grid { display: flex; flex-direction: column; gap: 14px; }
 .form-row { display: flex; flex-direction: column; gap: 6px; }
 .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.form-label { font-size: 12px; font-weight: 600; color: #1a1a2e; }
-.form-label .req { color: #ef4444; }
-.form-input { padding: 9px 12px; border: 1px solid #e8e8f0; border-radius: 8px; font-family: inherit; font-size: 13px; color: #1a1a2e; background: #fff; outline: none; }
+.form-label { font-size: 12px; font-weight: 600; color: rgb(var(--color-ink)); }
+.form-label .req { color: rgb(var(--color-danger)); }
+.form-input { padding: 9px 12px; border: 1px solid rgb(var(--color-border)); border-radius: 8px; font-family: inherit; font-size: 13px; color: rgb(var(--color-ink)); background: rgb(var(--color-surface)); outline: none; }
 .form-input:focus { border-color: rgb(var(--color-primary)); }
-.form-input:disabled { background: #f5f5f8; color: #999; }
-.form-error { font-size: 11.5px; color: #ef4444; }
-.form-hint { font-size: 11px; color: #aaa; }
+.form-input:disabled { background: rgb(var(--color-bg)); color: rgb(var(--color-muted)); }
+.form-error { font-size: 11.5px; color: rgb(var(--color-danger)); }
+.form-hint { font-size: 11px; color: rgb(var(--color-muted)); }
 
 @media (max-width: 560px) {
 	.form-row-2 { grid-template-columns: 1fr; }
