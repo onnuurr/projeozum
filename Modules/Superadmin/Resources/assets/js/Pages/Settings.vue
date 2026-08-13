@@ -9,37 +9,23 @@
 			]"
 		/>
 
-		<div class="page-header">
-			<div>
-				<div class="sa-badge">
-					<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-						<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-					</svg>
-					Süper Admin
-				</div>
-				<h1 class="page-title">Sistem Ayarları</h1>
-				<p class="page-subtitle">
-					Tüm SaaS platformunu etkileyen genel ayarlar. Değişiklikler tüm tenant'lara yansır.
-				</p>
-			</div>
-			<div class="header-actions">
-				<button v-if="form.isDirty" class="btn btn-ghost" @click="resetForm" :disabled="form.processing">
+		<PageHeader badge="Süper Admin" title="Sistem Ayarları" subtitle="Tüm SaaS platformunu etkileyen genel ayarlar. Değişiklikler tüm tenant'lara yansır.">
+			<template #actions>
+				<Button v-if="form.isDirty" variant="ghost" :disabled="form.processing" @click="resetForm">
 					Değişiklikleri İptal Et
-				</button>
-				<button
-					class="btn btn-primary btn-with-icon"
-					:class="{ 'btn-loading': form.processing }"
-					:disabled="!form.isDirty || form.processing"
+				</Button>
+				<Button
+					variant="primary"
+					with-icon
+					:disabled="!form.isDirty"
+					:loading="form.processing"
 					@click="save"
 				>
-					<span v-if="form.processing" class="btn-spinner"></span>
-					<svg v-else width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-						<polyline points="20 6 9 17 4 12" />
-					</svg>
-					{{ form.processing ? 'Kaydediliyor…' : 'Kaydet' }}
-				</button>
-			</div>
-		</div>
+					<template #leading><Check :size="13" /></template>
+					Kaydet
+				</Button>
+			</template>
+		</PageHeader>
 
 		<div class="sa-layout">
 			<!-- Mobil (telefon): sol nav yerine hamburger buton, tıklayınca nav açılır/kapanır -->
@@ -366,12 +352,10 @@
 								</svg>
 								<input v-model="roleSearch" type="text" placeholder="Rol ara..." class="role-search-input" />
 							</div>
-							<button v-if="can('rbac.manage')" class="btn btn-primary btn-sm btn-with-icon" @click="openAddRole">
-								<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-									<line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-								</svg>
+							<Button v-if="can('rbac.manage')" variant="primary" size="sm" with-icon @click="openAddRole">
+								<template #leading><Plus :size="12" /></template>
 								Yeni Rol
-							</button>
+							</Button>
 						</div>
 
 						<div v-if="filteredRoles.length === 0" class="role-empty">
@@ -436,12 +420,10 @@
 								</svg>
 								<input v-model="permSearch" type="text" placeholder="İzin ara..." class="role-search-input" />
 							</div>
-							<button v-if="can('rbac.manage')" class="btn btn-primary btn-sm btn-with-icon" @click="openAddPermission">
-								<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-									<line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-								</svg>
+							<Button v-if="can('rbac.manage')" variant="primary" size="sm" with-icon @click="openAddPermission">
+								<template #leading><Plus :size="12" /></template>
 								Yeni İzin
-							</button>
+							</Button>
 						</div>
 
 						<div v-if="flatPermissions.length === 0" class="role-empty">
@@ -615,7 +597,7 @@
 							</div>
 							<div class="test-time">{{ form.mail.lastTestedAt }}</div>
 						</div>
-						<button class="btn btn-secondary btn-sm" @click="testMail">Test E-postası Gönder</button>
+						<Button variant="secondary" size="sm" @click="testMail">Test E-postası Gönder</Button>
 					</div>
 				</Card>
 
@@ -877,9 +859,9 @@
 							<div class="ir-value">{{ form.storage.lastBackupSize ?? '—' }}</div>
 						</div>
 						<a href="/superadmin/backups" class="btn btn-secondary btn-sm">Tüm Geçmiş</a>
-						<button v-if="can('backups.manage')" class="btn btn-secondary btn-sm" :disabled="backupBusy" @click="runBackup">
-							{{ backupBusy ? 'Kuyruğa alınıyor…' : 'Şimdi Yedekle' }}
-						</button>
+						<Button v-if="can('backups.manage')" variant="secondary" size="sm" :loading="backupBusy" @click="runBackup">
+							Şimdi Yedekle
+						</Button>
 					</div>
 				</Card>
 
@@ -1037,13 +1019,13 @@
 					<div class="sa-divider"></div>
 
 					<div class="cache-actions">
-						<button class="btn btn-primary btn-sm" :disabled="cacheBusy" @click="cacheAction('all')">
-							{{ cacheBusy === 'all' ? 'Temizleniyor…' : 'Laravel + Cloudflare Önbelleğini Temizle' }}
-						</button>
-						<button class="btn btn-secondary btn-sm" :disabled="cacheBusy" @click="cacheAction('clear')">Cache Temizle</button>
-						<button class="btn btn-secondary btn-sm" :disabled="cacheBusy" @click="cacheAction('config')">Config Cache Yenile</button>
-						<button class="btn btn-secondary btn-sm" :disabled="cacheBusy" @click="cacheAction('route')">Route Cache Yenile</button>
-						<button class="btn btn-secondary btn-sm" :disabled="cacheBusy" @click="cacheAction('view')">View Cache Yenile</button>
+						<Button variant="primary" size="sm" :disabled="!!cacheBusy" :loading="cacheBusy === 'all'" @click="cacheAction('all')">
+							Laravel + Cloudflare Önbelleğini Temizle
+						</Button>
+						<Button variant="secondary" size="sm" :disabled="!!cacheBusy" :loading="cacheBusy === 'clear'" @click="cacheAction('clear')">Cache Temizle</Button>
+						<Button variant="secondary" size="sm" :disabled="!!cacheBusy" :loading="cacheBusy === 'config'" @click="cacheAction('config')">Config Cache Yenile</Button>
+						<Button variant="secondary" size="sm" :disabled="!!cacheBusy" :loading="cacheBusy === 'route'" @click="cacheAction('route')">Route Cache Yenile</Button>
+						<Button variant="secondary" size="sm" :disabled="!!cacheBusy" :loading="cacheBusy === 'view'" @click="cacheAction('view')">View Cache Yenile</Button>
 					</div>
 				</Card>
 
@@ -1316,10 +1298,10 @@
 			</div>
 
 			<template #footer="{ close }">
-				<button class="btn btn-ghost" :disabled="roleBusy" @click="close">İptal</button>
-				<button class="btn btn-primary" :disabled="!isRoleFormValid || roleBusy" @click="saveRole">
-					{{ roleBusy ? 'Kaydediliyor…' : (editingRole && editingRole.isNew ? 'Rolü Oluştur' : 'Değişiklikleri Kaydet') }}
-				</button>
+				<Button variant="ghost" :disabled="roleBusy" @click="close">İptal</Button>
+				<Button variant="primary" :disabled="!isRoleFormValid" :loading="roleBusy" @click="saveRole">
+					{{ editingRole && editingRole.isNew ? 'Rolü Oluştur' : 'Değişiklikleri Kaydet' }}
+				</Button>
 			</template>
 		</AppModal>
 
@@ -1350,10 +1332,10 @@
 			</div>
 
 			<template #footer="{ close }">
-				<button class="btn btn-ghost" :disabled="permBusy" @click="close">İptal</button>
-				<button class="btn btn-primary" :disabled="!isPermFormValid || permBusy" @click="savePermission">
-					{{ permBusy ? 'Kaydediliyor…' : (editingPermission && editingPermission.isNew ? 'Oluştur' : 'Güncelle') }}
-				</button>
+				<Button variant="ghost" :disabled="permBusy" @click="close">İptal</Button>
+				<Button variant="primary" :disabled="!isPermFormValid" :loading="permBusy" @click="savePermission">
+					{{ editingPermission && editingPermission.isNew ? 'Oluştur' : 'Güncelle' }}
+				</Button>
 			</template>
 		</AppModal>
 
@@ -1382,10 +1364,8 @@
 				</div>
 			</div>
 			<template #footer="{ close }">
-				<button class="btn btn-ghost" :disabled="roleBusy" @click="close">Vazgeç</button>
-				<button class="btn btn-danger" :disabled="roleBusy" @click="deleteRole">
-					{{ roleBusy ? 'Siliniyor…' : 'Evet, Sil' }}
-				</button>
+				<Button variant="ghost" :disabled="roleBusy" @click="close">Vazgeç</Button>
+				<Button variant="danger" :loading="roleBusy" @click="deleteRole">Evet, Sil</Button>
 			</template>
 		</AppModal>
 	</div>
@@ -1394,7 +1374,7 @@
 <script setup>
 import { ref, computed, reactive, watch, onBeforeUnmount } from 'vue'
 import { Head, Link, useForm, router } from '@inertiajs/vue3'
-import { Building2, UsersRound, ShoppingCart, Clock, AlertCircle } from 'lucide-vue-next'
+import { Building2, UsersRound, ShoppingCart, Clock, AlertCircle, Check, Plus } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import CustomSelect from '@/Components/CustomSelect.vue'
@@ -1403,6 +1383,8 @@ import Card from '@/Components/Card.vue'
 import Badge from '@/Components/Badge.vue'
 import ProgressBar from '@/Components/ProgressBar.vue'
 import StatWidget from '@/Components/StatWidget.vue'
+import PageHeader from '@/Components/PageHeader.vue'
+import Button from '@/Components/Button.vue'
 import { useCan } from '@/composables/useCan'
 
 defineOptions({ layout: AppLayout })
@@ -1932,51 +1914,6 @@ onBeforeUnmount(stopSystemPolling)
 </script>
 
 <style scoped>
-.page-header {
-	display: flex;
-	align-items: flex-start;
-	justify-content: space-between;
-	margin-bottom: 18px;
-	gap: 16px;
-	flex-wrap: wrap;
-}
-
-.page-title {
-	font-size: 22px;
-	font-weight: 700;
-	color: #1a1a2e;
-	line-height: 1.2;
-	margin-top: 6px;
-}
-
-.page-subtitle {
-	font-size: 13px;
-	color: #888;
-	margin-top: 4px;
-	max-width: 620px;
-}
-
-.sa-badge {
-	display: inline-flex;
-	align-items: center;
-	gap: 4px;
-	background: linear-gradient(135deg, #1a1a2e, rgb(var(--color-primary)));
-	color: #fff;
-	padding: 4px 10px;
-	border-radius: 999px;
-	font-size: 10.5px;
-	font-weight: 700;
-	letter-spacing: 0.06em;
-	text-transform: uppercase;
-	box-shadow: 0 4px 12px rgb(var(--color-primary) / 0.25);
-}
-
-.header-actions {
-	display: flex;
-	gap: 8px;
-	flex-shrink: 0;
-}
-
 /* ── Layout ── */
 .sa-layout {
 	position: relative;
@@ -3212,7 +3149,6 @@ onBeforeUnmount(stopSystemPolling)
 }
 
 @media (max-width: 640px) {
-	.header-actions { width: 100%; flex-wrap: wrap; }
 	.header-actions .btn { flex: 1; justify-content: center; }
 
 	.sa-section { padding: 16px 14px 18px; }
