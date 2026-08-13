@@ -9,70 +9,76 @@
 			]"
 		/>
 
-		<div class="page-header">
-			<div>
-				<h1 class="page-title">Yedeklemeler</h1>
-				<p class="page-subtitle">
-					Veritabanı + proje dosyaları her gece <strong>02:00</strong>'de <code>backup:run</code>
-					komutuyla yedeklenip rclone ile Google Drive'a kopyalanır.
-				</p>
-			</div>
-			<button v-if="can('backups.manage')" class="btn btn-primary btn-sm" :disabled="busy || hasRunning" @click="runNow">
-				{{ busy ? 'Kuyruğa alınıyor…' : 'Şimdi Çalıştır' }}
-			</button>
-		</div>
+		<PageHeader title="Yedeklemeler">
+			<template #subtitle>
+				Veritabanı + proje dosyaları her gece <strong>02:00</strong>'de <code>backup:run</code>
+				komutuyla yedeklenip rclone ile Google Drive'a kopyalanır.
+			</template>
+			<template v-if="can('backups.manage')" #actions>
+				<Button variant="primary" size="sm" :disabled="hasRunning" :loading="busy" @click="runNow">
+					Şimdi Çalıştır
+				</Button>
+			</template>
+		</PageHeader>
 
 		<div class="kpi-grid">
-			<div class="kpi-card">
-				<span class="kpi-label">Son Durum</span>
-				<span class="kpi-value" :class="statusColorClass(latest?.status)">{{ statusLabel(latest?.status) }}</span>
-				<span class="kpi-hint">{{ latest ? formatDate(latest.started_at) : 'Henüz çalışmadı' }}</span>
-			</div>
-			<div class="kpi-card">
-				<span class="kpi-label">Sıradaki Çalışma</span>
-				<span class="kpi-value kpi-value-sm">{{ formatDate(nextRunAt) }}</span>
-				<span class="kpi-hint">Zamanlanmış (dailyAt 02:00)</span>
-			</div>
-			<div class="kpi-card">
-				<span class="kpi-label">Son 20 Çalışma Başarı Oranı</span>
-				<span class="kpi-value" :class="rateColorClass(successRate)">{{ successRate === null ? '—' : `%${Math.round(successRate * 100)}` }}</span>
-				<span class="kpi-hint">{{ recentSuccessCount }}/{{ recentWindow.length }} başarılı</span>
-			</div>
+			<Card title="Son Durum" body-class="p-3.5">
+				<Badge v-if="latest" :color="statusColor(latest.status)" :label="statusLabel(latest.status)" />
+				<span v-else class="text-sm font-semibold text-ink">—</span>
+				<p class="text-2xs text-muted mt-1.5">{{ latest ? formatDate(latest.started_at) : 'Henüz çalışmadı' }}</p>
+			</Card>
+			<Card title="Sıradaki Çalışma" body-class="p-3.5">
+				<p class="text-sm font-semibold text-ink">{{ formatDate(nextRunAt) }}</p>
+				<p class="text-2xs text-muted mt-1.5">Zamanlanmış (dailyAt 02:00)</p>
+			</Card>
+			<Card title="Son 20 Çalışma Başarı Oranı" body-class="p-3.5">
+				<ProgressBar
+					v-if="successRate !== null"
+					:value="Math.round(successRate * 100)"
+					:color="rateColor(successRate)"
+					show-value
+				/>
+				<span v-else class="text-sm font-semibold text-ink">—</span>
+				<p class="text-2xs text-muted mt-1.5">{{ recentSuccessCount }}/{{ recentWindow.length }} başarılı</p>
+			</Card>
 		</div>
 
-		<div class="card">
-			<div class="card-header">
-				<svg class="header-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-					<ellipse cx="12" cy="5" rx="9" ry="3" />
-					<path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6" />
-				</svg>
-				<h3>Geçmiş</h3>
+		<Card title="Geçmiş">
+			<template #actions>
 				<span class="hint">Son {{ runs.length }} çalışma</span>
-			</div>
-			<div class="card-body">
-				<div v-if="runs.length === 0" class="empty-block">
-					Henüz yedekleme çalışmadı. <code>php artisan backup:run</code> ile üretilir.
+			</template>
+			<EmptyState v-if="runs.length === 0" :icon="Archive" title="Henüz yedekleme çalışmadı.">
+				<p class="text-2xs text-muted empty-hint"><code>php artisan backup:run</code> ile üretilir.</p>
+			</EmptyState>
+			<div v-else class="rows">
+				<div v-for="r in runs" :key="r.id" class="row">
+					<Badge :color="statusColor(r.status)" :label="statusLabel(r.status)" />
+					<span class="row-date">{{ formatDate(r.started_at) }}</span>
+					<span class="row-trigger">{{ r.triggered_by === 'manual' ? 'Elle' : 'Zamanlanmış' }}</span>
+					<span class="row-duration">{{ formatDuration(r.duration_seconds) }}</span>
+					<span class="row-size">{{ formatBytes((r.db_dump_bytes ?? 0) + (r.files_bytes ?? 0)) }}</span>
+					<Tooltip v-if="r.error_message" :text="r.error_message" position="top">
+						<span class="row-error">{{ r.error_message }}</span>
+					</Tooltip>
 				</div>
-				<div v-else class="rows">
-					<div v-for="r in runs" :key="r.id" class="row">
-						<span class="status-badge" :class="statusColorClass(r.status)">{{ statusLabel(r.status) }}</span>
-						<span class="row-date">{{ formatDate(r.started_at) }}</span>
-						<span class="row-trigger">{{ r.triggered_by === 'manual' ? 'Elle' : 'Zamanlanmış' }}</span>
-						<span class="row-duration">{{ formatDuration(r.duration_seconds) }}</span>
-						<span class="row-size">{{ formatBytes((r.db_dump_bytes ?? 0) + (r.files_bytes ?? 0)) }}</span>
-						<span v-if="r.error_message" class="row-error" :title="r.error_message">{{ r.error_message }}</span>
-					</div>
-				</div>
 			</div>
-		</div>
+		</Card>
 	</div>
 </template>
 
 <script setup>
 import { computed, ref } from 'vue'
 import { Head, router } from '@inertiajs/vue3'
+import { Archive } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
+import Badge from '@/Components/Badge.vue'
+import ProgressBar from '@/Components/ProgressBar.vue'
+import Tooltip from '@/Components/Tooltip.vue'
+import Card from '@/Components/Card.vue'
+import PageHeader from '@/Components/PageHeader.vue'
+import EmptyState from '@/Components/EmptyState.vue'
+import Button from '@/Components/Button.vue'
 import { useCan } from '@/composables/useCan'
 
 defineOptions({ layout: AppLayout })
@@ -124,66 +130,35 @@ function statusLabel(status) {
 	return { running: 'Çalışıyor', success: 'Başarılı', failed: 'Başarısız' }[status] ?? '—'
 }
 
-function statusColorClass(status) {
-	return { running: 'rate-warn', success: 'rate-good', failed: 'rate-bad' }[status] ?? 'rate-neutral'
+function statusColor(status) {
+	return { running: 'warning', success: 'success', failed: 'danger' }[status] ?? 'neutral'
 }
 
-function rateColorClass(rate) {
-	if (rate === null || rate === undefined) return 'rate-neutral'
-	if (rate >= 0.9) return 'rate-good'
-	if (rate >= 0.7) return 'rate-warn'
-	return 'rate-bad'
+function rateColor(rate) {
+	if (rate === null || rate === undefined) return 'neutral'
+	if (rate >= 0.9) return 'success'
+	if (rate >= 0.7) return 'warning'
+	return 'danger'
 }
 </script>
 
 <style scoped>
-.page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; gap: 16px; }
-.page-title { font-size: 22px; font-weight: 700; color: #1a1a2e; line-height: 1.2; }
-.page-subtitle { font-size: 13px; color: #888; margin-top: 4px; max-width: 640px; }
-.page-subtitle code { background: #f5f5f8; border-radius: 4px; padding: 1px 5px; font-size: 12px; }
+.page-subtitle code { background: rgb(var(--color-bg)); border-radius: 4px; padding: 1px 5px; font-size: 12px; }
 
 .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px; }
-.kpi-card { display: flex; flex-direction: column; gap: 6px; background: #fff; border: 1px solid #ebebf0; border-radius: 16px; padding: 18px; box-shadow: 0 1px 4px rgba(0,0,0,.04); }
-.kpi-label { font-size: 12px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: .04em; }
-.kpi-value { font-size: 24px; font-weight: 800; color: #1a1a2e; }
-.kpi-value-sm { font-size: 15px; font-weight: 700; }
-.kpi-hint { font-size: 12px; color: #999; }
 
-.card { background: #fff; border-radius: 16px; border: 1px solid #ebebf0; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.04); margin-bottom: 18px; }
-.card-header { padding: 14px 18px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #f0f0f5; }
-.header-icon { color: rgb(var(--color-primary)); flex-shrink: 0; }
-.card-header h3 { font-size: 15px; font-weight: 700; color: #1a1a2e; }
-.card-header .hint { font-size: 12px; color: #aaa; margin-left: auto; }
-.card-body { padding: 18px; }
-.empty-block { text-align: center; color: #aaa; padding: 28px 0; font-style: italic; font-size: 13px; }
-.empty-block code { background: #f5f5f8; border-radius: 4px; padding: 1px 5px; font-size: 12px; font-style: normal; }
+.hint { font-size: 12px; color: rgb(var(--color-muted)); white-space: nowrap; }
+.empty-hint code { background: rgb(var(--color-bg)); border-radius: 4px; padding: 1px 5px; font-size: 12px; }
 
 .rows { display: flex; flex-direction: column; gap: 6px; }
-.row { display: flex; align-items: center; gap: 16px; padding: 12px 14px; border: 1px solid #f0f0f5; border-radius: 10px; background: #fafafc; flex-wrap: wrap; }
-.row-date { font-size: 13px; font-weight: 600; color: #1a1a2e; min-width: 150px; }
-.row-trigger { font-size: 12px; color: #999; }
-.row-duration { font-size: 12.5px; color: #555; }
-.row-size { font-size: 12.5px; color: #555; font-weight: 600; margin-left: auto; }
-.row-error { font-size: 12px; color: #dc2626; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-.status-badge { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 20px; color: #fff; white-space: nowrap; }
-.status-badge.rate-good { background: #16a34a; }
-.status-badge.rate-warn { background: #f59e0b; }
-.status-badge.rate-bad { background: #dc2626; }
-.status-badge.rate-neutral { background: #9ca3af; }
-
-.kpi-value.rate-good { color: #16a34a; }
-.kpi-value.rate-warn { color: #f59e0b; }
-.kpi-value.rate-bad { color: #dc2626; }
-.kpi-value.rate-neutral { color: #9ca3af; }
-
-.btn { border: none; border-radius: 8px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; }
-.btn-primary { background: rgb(var(--color-primary)); color: #fff; }
-.btn-primary:disabled { opacity: .6; cursor: not-allowed; }
-.btn-sm { padding: 8px 14px; font-size: 12.5px; }
+.row { display: flex; align-items: center; gap: 16px; padding: 12px 14px; border: 1px solid rgb(var(--color-border)); border-radius: 10px; background: rgb(var(--color-bg) / .5); flex-wrap: wrap; }
+.row-date { font-size: 13px; font-weight: 600; color: rgb(var(--color-ink)); min-width: 150px; }
+.row-trigger { font-size: 12px; color: rgb(var(--color-muted)); }
+.row-duration { font-size: 12.5px; color: rgb(var(--color-muted)); }
+.row-size { font-size: 12.5px; color: rgb(var(--color-muted)); font-weight: 600; margin-left: auto; }
+.row-error { font-size: 12px; color: rgb(var(--color-danger)); max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 @media (max-width: 700px) {
-	.page-header { flex-wrap: wrap; }
 	.row { flex-wrap: wrap; }
 	.row-date { min-width: 0; width: 100%; }
 	.row-size { margin-left: 0; }
