@@ -97,11 +97,8 @@
 			<!-- Sağ form -->
 			<main class="sa-content">
 				<!-- 1. GENEL -->
-				<section v-if="activeSection === 'general'" class="sa-section">
-					<header class="sa-section-head">
-						<h2>Genel Ayarlar</h2>
-						<p>Sistem adı, dil, zaman dilimi gibi temel platform ayarları</p>
-					</header>
+				<Card v-if="activeSection === 'general'" title="Genel Ayarlar" body-class="sa-section">
+					<p class="section-sub">Sistem adı, dil, zaman dilimi gibi temel platform ayarları</p>
 
 					<div class="field-row">
 						<div class="field">
@@ -176,14 +173,11 @@
 						<label>Bakım Mesajı</label>
 						<textarea v-model="form.general.maintenanceMessage" class="form-textarea" rows="3"></textarea>
 					</div>
-				</section>
+				</Card>
 
 				<!-- 2. GÜVENLİK -->
-				<section v-if="activeSection === 'security'" class="sa-section">
-					<header class="sa-section-head">
-						<h2>Güvenlik</h2>
-						<p>Parola politikası, iki faktörlü kimlik, oturum yönetimi</p>
-					</header>
+				<Card v-if="activeSection === 'security'" title="Güvenlik" body-class="sa-section">
+					<p class="section-sub">Parola politikası, iki faktörlü kimlik, oturum yönetimi</p>
 
 					<h3 class="sa-subhead">Parola Politikası</h3>
 					<div class="field-row">
@@ -331,42 +325,37 @@
 							Henüz şifre belirlenmemiş. Log görüntüleyiciye erişim için buradan bir şifre belirleyin.
 						</div>
 					</div>
-				</section>
+				</Card>
 
 				<!-- 2.5 ROLLER & İZİNLER -->
-				<section v-if="activeSection === 'roles'" class="sa-section">
-					<header class="sa-section-head">
-						<div class="role-section-head">
-							<div>
-								<h2>Roller & İzinler</h2>
-								<p>Kullanıcı rollerini ve her rolün izin matrisini yönet</p>
-							</div>
-							<div class="role-view-toggle">
-								<button class="rv-btn" :class="{ active: roleView === 'list' }" @click="roleView = 'list'">
-									<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-										<rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
-										<rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
-									</svg>
-									Roller
-								</button>
-								<button class="rv-btn" :class="{ active: roleView === 'matrix' }" @click="roleView = 'matrix'">
-									<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-										<rect x="3" y="3" width="18" height="18" />
-										<line x1="3" y1="9" x2="21" y2="9" /><line x1="3" y1="15" x2="21" y2="15" />
-										<line x1="9" y1="3" x2="9" y2="21" /><line x1="15" y1="3" x2="15" y2="21" />
-									</svg>
-									İzin Matrisi
-								</button>
-								<button class="rv-btn" :class="{ active: roleView === 'permissions' }" @click="roleView = 'permissions'">
-									<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-										<polyline points="9 11 12 14 22 4" />
-										<path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
-									</svg>
-									İzinler
-								</button>
-							</div>
+				<Card v-if="activeSection === 'roles'" title="Roller & İzinler" body-class="sa-section">
+					<template #actions>
+						<div class="role-view-toggle">
+							<button class="rv-btn" :class="{ active: roleView === 'list' }" @click="roleView = 'list'">
+								<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+									<rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
+									<rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
+								</svg>
+								Roller
+							</button>
+							<button class="rv-btn" :class="{ active: roleView === 'matrix' }" @click="roleView = 'matrix'">
+								<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+									<rect x="3" y="3" width="18" height="18" />
+									<line x1="3" y1="9" x2="21" y2="9" /><line x1="3" y1="15" x2="21" y2="15" />
+									<line x1="9" y1="3" x2="9" y2="21" /><line x1="15" y1="3" x2="15" y2="21" />
+								</svg>
+								İzin Matrisi
+							</button>
+							<button class="rv-btn" :class="{ active: roleView === 'permissions' }" @click="roleView = 'permissions'">
+								<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+									<polyline points="9 11 12 14 22 4" />
+									<path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+								</svg>
+								İzinler
+							</button>
 						</div>
-					</header>
+					</template>
+					<p class="section-sub">Kullanıcı rollerini ve her rolün izin matrisini yönet</p>
 
 					<!-- Liste görünümü -->
 					<div v-if="roleView === 'list'">
@@ -543,14 +532,11 @@
 							</table>
 						</div>
 					</div>
-				</section>
+				</Card>
 
 				<!-- 3. E-POSTA -->
-				<section v-if="activeSection === 'mail'" class="sa-section">
-					<header class="sa-section-head">
-						<h2>E-posta (SMTP)</h2>
-						<p>Sistem e-postalarının gönderim altyapısı</p>
-					</header>
+				<Card v-if="activeSection === 'mail'" title="E-posta (SMTP)" body-class="sa-section">
+					<p class="section-sub">Sistem e-postalarının gönderim altyapısı</p>
 
 					<div class="field-row">
 						<div class="field">
@@ -631,14 +617,11 @@
 						</div>
 						<button class="btn btn-secondary btn-sm" @click="testMail">Test E-postası Gönder</button>
 					</div>
-				</section>
+				</Card>
 
 				<!-- 4. BİLDİRİMLER -->
-				<section v-if="activeSection === 'notifications'" class="sa-section">
-					<header class="sa-section-head">
-						<h2>Bildirimler</h2>
-						<p>Sistem olaylarına bağlı e-posta, Slack ve push bildirimleri</p>
-					</header>
+				<Card v-if="activeSection === 'notifications'" title="Bildirimler" body-class="sa-section">
+					<p class="section-sub">Sistem olaylarına bağlı e-posta, Slack ve push bildirimleri</p>
 
 					<h3 class="sa-subhead">E-posta Bildirimleri</h3>
 					<div class="toggle-card">
@@ -729,14 +712,11 @@
 							<span class="slider"></span>
 						</label>
 					</div>
-				</section>
+				</Card>
 
 				<!-- 5. ÖDEME -->
-				<section v-if="activeSection === 'billing'" class="sa-section">
-					<header class="sa-section-head">
-						<h2>Ödeme & Faturalama</h2>
-						<p>Abonelik tahsilatı ve fatura ayarları</p>
-					</header>
+				<Card v-if="activeSection === 'billing'" title="Ödeme & Faturalama" body-class="sa-section">
+					<p class="section-sub">Abonelik tahsilatı ve fatura ayarları</p>
 
 					<div class="field">
 						<label>Ödeme Sağlayıcısı</label>
@@ -812,14 +792,11 @@
 							<span class="slider"></span>
 						</label>
 					</div>
-				</section>
+				</Card>
 
 				<!-- 6. DEPOLAMA -->
-				<section v-if="activeSection === 'storage'" class="sa-section">
-					<header class="sa-section-head">
-						<h2>Depolama & Yedekleme</h2>
-						<p>Dosya depolama altyapısı ve otomatik yedek planı</p>
-					</header>
+				<Card v-if="activeSection === 'storage'" title="Depolama & Yedekleme" body-class="sa-section">
+					<p class="section-sub">Dosya depolama altyapısı ve otomatik yedek planı</p>
 
 					<h3 class="sa-subhead">Dosya Depolama</h3>
 					<div class="field">
@@ -904,14 +881,11 @@
 							{{ backupBusy ? 'Kuyruğa alınıyor…' : 'Şimdi Yedekle' }}
 						</button>
 					</div>
-				</section>
+				</Card>
 
 				<!-- 8. API -->
-				<section v-if="activeSection === 'api'" class="sa-section">
-					<header class="sa-section-head">
-						<h2>API & Geliştirici</h2>
-						<p>Public API ve webhook ayarları</p>
-					</header>
+				<Card v-if="activeSection === 'api'" title="API & Geliştirici" body-class="sa-section">
+					<p class="section-sub">Public API ve webhook ayarları</p>
 
 					<div class="field-row">
 						<div class="field">
@@ -990,14 +964,11 @@
 							<span class="slider"></span>
 						</label>
 					</div>
-				</section>
+				</Card>
 
 				<!-- 9. PERFORMANS -->
-				<section v-if="activeSection === 'performance'" class="sa-section">
-					<header class="sa-section-head">
-						<h2>Performans & Cache</h2>
-						<p>Önbellek, kuyruk ve log altyapısı</p>
-					</header>
+				<Card v-if="activeSection === 'performance'" title="Performans & Cache" body-class="sa-section">
+					<p class="section-sub">Önbellek, kuyruk ve log altyapısı</p>
 
 					<div class="field-row">
 						<div class="field">
@@ -1074,14 +1045,11 @@
 						<button class="btn btn-secondary btn-sm" :disabled="cacheBusy" @click="cacheAction('route')">Route Cache Yenile</button>
 						<button class="btn btn-secondary btn-sm" :disabled="cacheBusy" @click="cacheAction('view')">View Cache Yenile</button>
 					</div>
-				</section>
+				</Card>
 
 				<!-- 9b. BARKOD (GS1) -->
-				<section v-if="activeSection === 'barcode'" class="sa-section">
-					<header class="sa-section-head">
-						<h2>Barkod (GS1)</h2>
-						<p>Ürün barkodu otomatik üretimi için sabit önek ve seri aralığı</p>
-					</header>
+				<Card v-if="activeSection === 'barcode'" title="Barkod (GS1)" body-class="sa-section">
+					<p class="section-sub">Ürün barkodu otomatik üretimi için sabit önek ve seri aralığı</p>
 
 					<div class="field-row">
 						<div class="field">
@@ -1108,14 +1076,37 @@
 						</div>
 					</div>
 					<p class="sa-hint">Ülke kodu + firma kodu sabit önek olarak kullanılır; barkodun geri kalan haneleri bu aralıktan rastgele seçilen bir seri numarasıyla doldurulur (13. hane GS1 kontrol hanesidir).</p>
-				</section>
+				</Card>
+
+				<!-- 9c. ARAYÜZ (UI tema flag'i) -->
+				<Card v-if="activeSection === 'ui'" title="Arayüz" body-class="sa-section">
+					<p class="section-sub">Admin panelinin hangi kabukla (tema) render olacağını belirler — deploy gerektirmez, anında etkili olur.</p>
+
+					<div class="field">
+						<label>Admin Panel Kabuğu</label>
+						<div class="radio-card-grid">
+							<label
+								v-for="o in adminThemeOptions"
+								:key="o.value"
+								class="radio-card"
+								:class="{ active: form.ui.adminTheme === o.value }"
+							>
+								<input type="radio" :value="o.value" v-model="form.ui.adminTheme" />
+								<div class="rc-content">
+									<div class="rc-label">{{ o.label }}</div>
+									<div class="rc-sub">{{ o.sub }}</div>
+								</div>
+							</label>
+						</div>
+					</div>
+					<p class="sa-hint">V2 şu an yalnızca bir mimari iskelet — TopNav/Sidebar aynı, yalnızca ayrı bir kabuk ve CSS token namespace'i üzerinden render olur. Gerçek görsel tasarım netleşince bu ekrandan risk almadan geri "Klasik"e dönülebilir.</p>
+				</Card>
 
 				<!-- 10. SİSTEM BİLGİSİ -->
-				<section v-if="activeSection === 'system'" class="sa-section">
-					<header class="sa-section-head">
-						<h2>Sistem Bilgisi</h2>
-						<p>Donanım, yazılım sürümleri ve canlı metrikler (salt okunur)</p>
-					</header>
+				<Card v-if="activeSection === 'system'" title="Sistem Bilgisi" body-class="sa-section">
+					<p class="section-sub">Donanım, yazılım sürümleri ve canlı metrikler (salt okunur)</p>
+
+					<p class="sa-hint sa-hint-error" v-if="systemFetchError">Canlı veri alınamadı, son bilinen değerler gösteriliyor.</p>
 
 					<h3 class="sa-subhead">Kullanım Metrikleri</h3>
 					<div class="metric-grid">
@@ -1124,18 +1115,14 @@
 								<span class="metric-label">CPU</span>
 								<strong class="metric-value">%{{ cpuPct }}</strong>
 							</div>
-							<div class="metric-bar">
-								<div class="metric-fill" :class="metricColor(cpuPct)" :style="{ width: cpuPct + '%' }"></div>
-							</div>
+							<ProgressBar :value="cpuPct" :color="metricColor(cpuPct)" />
 						</div>
 						<div class="metric-card">
 							<div class="metric-head">
 								<span class="metric-label">RAM</span>
 								<strong class="metric-value">{{ ramPct }}%</strong>
 							</div>
-							<div class="metric-bar">
-								<div class="metric-fill" :class="metricColor(ramPct)" :style="{ width: ramPct + '%' }"></div>
-							</div>
+							<ProgressBar :value="ramPct" :color="metricColor(ramPct)" />
 							<div class="metric-sub">{{ liveSystem.memoryUsageMB }} / {{ liveSystem.memoryTotalMB }} MB</div>
 						</div>
 						<div class="metric-card">
@@ -1143,9 +1130,7 @@
 								<span class="metric-label">Disk</span>
 								<strong class="metric-value">{{ diskPct }}%</strong>
 							</div>
-							<div class="metric-bar">
-								<div class="metric-fill" :class="metricColor(diskPct)" :style="{ width: diskPct + '%' }"></div>
-							</div>
+							<ProgressBar :value="diskPct" :color="metricColor(diskPct)" />
 							<div class="metric-sub">{{ liveSystem.diskUsageGB }} / {{ liveSystem.diskTotalGB }} GB</div>
 						</div>
 						<div class="metric-card">
@@ -1199,7 +1184,7 @@
 
 					<h3 class="sa-subhead">Servisler</h3>
 					<div class="service-grid">
-						<div class="service-card" :class="reverbCardClass">
+						<div class="service-card">
 							<div class="service-head">
 								<div class="service-icon">
 									<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -1213,10 +1198,7 @@
 									<div class="service-title">Reverb (WebSocket)</div>
 									<div class="service-sub mono">{{ reverbInfo.host }}:{{ reverbInfo.port }}</div>
 								</div>
-								<span class="service-badge" :class="reverbBadgeClass">
-									<span class="service-dot"></span>
-									{{ reverbInfo.running ? 'Çalışıyor' : 'Durmuş' }}
-								</span>
+								<Badge :color="reverbInfo.running ? 'success' : 'danger'" variant="tonal" :label="reverbInfo.running ? 'Çalışıyor' : 'Durmuş'" />
 							</div>
 							<div class="service-body">
 								<div v-if="reverbInfo.running" class="service-note">
@@ -1235,28 +1217,15 @@
 
 					<h3 class="sa-subhead">Platform Sayaçları</h3>
 					<div class="counter-grid">
-						<div class="counter-card">
-							<div class="counter-value">{{ liveSystem.totalTenants.toLocaleString('tr-TR') }}</div>
-							<div class="counter-label">Toplam Tenant</div>
-						</div>
-						<div class="counter-card">
-							<div class="counter-value">{{ liveSystem.totalUsers.toLocaleString('tr-TR') }}</div>
-							<div class="counter-label">Toplam Kullanıcı</div>
-						</div>
-						<div class="counter-card">
-							<div class="counter-value">{{ liveSystem.totalOrders.toLocaleString('tr-TR') }}</div>
-							<div class="counter-label">Toplam Sipariş</div>
-						</div>
-						<div class="counter-card">
-							<div class="counter-value">{{ liveSystem.queueJobsPending.toLocaleString('tr-TR') }}</div>
-							<div class="counter-label">Kuyrukta Bekleyen</div>
-						</div>
-						<div class="counter-card" :class="{ 'counter-danger': liveSystem.queueJobsFailed > 0 }">
-							<div class="counter-value">{{ liveSystem.queueJobsFailed.toLocaleString('tr-TR') }}</div>
-							<div class="counter-label">Başarısız İş</div>
-						</div>
+						<StatWidget :icon="Building2" :value="liveSystem.totalTenants.toLocaleString('tr-TR')" title="Toplam Tenant" color="primary" />
+						<StatWidget :icon="UsersRound" :value="liveSystem.totalUsers.toLocaleString('tr-TR')" title="Toplam Kullanıcı" color="success" />
+						<StatWidget :icon="ShoppingCart" :value="liveSystem.totalOrders.toLocaleString('tr-TR')" title="Toplam Sipariş" color="primary" />
+						<StatWidget :icon="Clock" :value="liveSystem.queueJobsPending.toLocaleString('tr-TR')" title="Kuyrukta Bekleyen" color="warning" />
+						<Link href="/superadmin/failed-jobs" class="counter-link">
+							<StatWidget :icon="AlertCircle" :value="liveSystem.queueJobsFailed.toLocaleString('tr-TR')" title="Başarısız İş" :color="liveSystem.queueJobsFailed > 0 ? 'danger' : 'neutral'" />
+						</Link>
 					</div>
-				</section>
+				</Card>
 			</main>
 		</div>
 
@@ -1424,11 +1393,16 @@
 
 <script setup>
 import { ref, computed, reactive, watch, onBeforeUnmount } from 'vue'
-import { Head, useForm, router } from '@inertiajs/vue3'
+import { Head, Link, useForm, router } from '@inertiajs/vue3'
+import { Building2, UsersRound, ShoppingCart, Clock, AlertCircle } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import CustomSelect from '@/Components/CustomSelect.vue'
 import AppModal from '@/Components/AppModal.vue'
+import Card from '@/Components/Card.vue'
+import Badge from '@/Components/Badge.vue'
+import ProgressBar from '@/Components/ProgressBar.vue'
+import StatWidget from '@/Components/StatWidget.vue'
 import { useCan } from '@/composables/useCan'
 
 defineOptions({ layout: AppLayout })
@@ -1451,7 +1425,13 @@ const sections = [
 	{ key: 'api',            label: 'API & Geliştirici',    sub: 'Rate limit, webhook',           icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>' },
 	{ key: 'performance',    label: 'Performans',           sub: 'Cache, queue, log',             icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>' },
 	{ key: 'barcode',        label: 'Barkod (GS1)',         sub: 'EAN-13 önek ve seri aralığı',   icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="1"/><line x1="7" y1="6" x2="7" y2="18"/><line x1="10" y1="6" x2="10" y2="18"/><line x1="14" y1="6" x2="14" y2="18"/><line x1="17" y1="6" x2="17" y2="18"/></svg>' },
+	{ key: 'ui',             label: 'Arayüz',               sub: 'Admin panel kabuğu (tema)',     icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>' },
 	{ key: 'system',         label: 'Sistem Bilgisi',       sub: 'Sürümler, metrikler',           icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>' },
+]
+
+const adminThemeOptions = [
+	{ value: 'classic', label: 'Klasik', sub: 'Mevcut, üretimde çalışan arayüz.' },
+	{ value: 'v2',      label: 'Yeni SaaS Tasarımı (Beta)', sub: 'Faz 1 iskelet — görsel tasarım henüz doldurulmadı.' },
 ]
 
 const activeSection = ref('general')
@@ -1471,6 +1451,7 @@ const form = useForm({
 	api: { ...props.settings.api },
 	performance: { ...props.settings.performance },
 	barcode: { ...props.settings.barcode },
+	ui: { ...props.settings.ui },
 })
 
 /* Dirty section tespiti */
@@ -1885,6 +1866,7 @@ async function deletePermission(p) {
 /* ── Sistem metrikleri (canlı) ── */
 const liveSystem = ref({ ...props.settings.system })
 const systemFetchedAt = ref(null)
+const systemFetchError = ref(false)
 let systemTimer = null
 const SYSTEM_POLL_MS = 5000
 
@@ -1908,13 +1890,10 @@ const reverbInfo = computed(() => ({
 	port:    liveSystem.value.reverb?.port ?? 8080,
 	error:   liveSystem.value.reverb?.error ?? null,
 }))
-const reverbCardClass  = computed(() => reverbInfo.value.running ? 'service-ok' : 'service-down')
-const reverbBadgeClass = computed(() => reverbInfo.value.running ? 'service-badge-ok' : 'service-badge-down')
-
 function metricColor(pct) {
-	if (pct < 60) return 'mb-good'
-	if (pct < 85) return 'mb-meh'
-	return 'mb-bad'
+	if (pct < 60) return 'success'
+	if (pct < 85) return 'warning'
+	return 'danger'
 }
 
 async function fetchSystemInfo() {
@@ -1923,9 +1902,12 @@ async function fetchSystemInfo() {
 		if (data?.system) {
 			liveSystem.value = data.system
 			systemFetchedAt.value = data.fetchedAt
+			systemFetchError.value = false
 		}
 	} catch (e) {
-		/* sessiz geç — bir sonraki polling yine dener */
+		// Son bilinen değerler ekranda kalır — ama artık bu bir hata olarak işaretlenir,
+		// sessizce "sanki her şey yolunda" gösterilmez.
+		systemFetchError.value = true
 	}
 }
 
@@ -2097,28 +2079,13 @@ onBeforeUnmount(stopSystemPolling)
 .sa-content { min-width: 0; }
 
 .sa-section {
-	background: #fff;
-	border: 1px solid #ebebf0;
-	border-radius: 14px;
 	padding: 20px 22px 24px;
-	box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
 }
 
-.sa-section-head {
-	padding-bottom: 14px;
-	border-bottom: 1px solid #f0f0f5;
-	margin-bottom: 18px;
-}
-.sa-section-head h2 {
-	font-size: 16px;
-	font-weight: 700;
-	color: #1a1a2e;
-	margin: 0;
-}
-.sa-section-head p {
+.section-sub {
 	font-size: 12.5px;
 	color: #888;
-	margin: 4px 0 0;
+	margin: 0 0 18px;
 }
 
 .sa-subhead {
@@ -2257,6 +2224,9 @@ onBeforeUnmount(stopSystemPolling)
 	color: #888;
 	margin-top: 10px;
 	line-height: 1.6;
+}
+.sa-hint-error {
+	color: var(--color-danger, #dc2626);
 }
 
 .danger-pill {
@@ -2513,8 +2483,8 @@ onBeforeUnmount(stopSystemPolling)
 
 .metric-card {
 	padding: 12px 14px;
-	background: #fafafe;
-	border: 1px solid #f0f0f5;
+	background: rgb(var(--color-bg) / .5);
+	border: 1px solid rgb(var(--color-border));
 	border-radius: 11px;
 }
 
@@ -2528,7 +2498,7 @@ onBeforeUnmount(stopSystemPolling)
 .metric-label {
 	font-size: 11px;
 	font-weight: 700;
-	color: #888;
+	color: rgb(var(--color-muted));
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 }
@@ -2536,29 +2506,13 @@ onBeforeUnmount(stopSystemPolling)
 .metric-value {
 	font-size: 18px;
 	font-weight: 800;
-	color: #1a1a2e;
+	color: rgb(var(--color-ink));
 }
-
-.metric-bar {
-	height: 6px;
-	background: #f0f0f5;
-	border-radius: 999px;
-	overflow: hidden;
-	margin-bottom: 6px;
-}
-
-.metric-fill {
-	height: 100%;
-	border-radius: 999px;
-	transition: width .3s ease;
-}
-.mb-good { background: linear-gradient(90deg, #86efac, #16a34a); }
-.mb-meh  { background: linear-gradient(90deg, #fcd34d, #f59e0b); }
-.mb-bad  { background: linear-gradient(90deg, #fca5a5, #dc2626); }
 
 .metric-sub {
 	font-size: 11px;
-	color: #888;
+	color: rgb(var(--color-muted));
+	margin-top: 6px;
 }
 
 /* ── Versions ── */
@@ -2573,19 +2527,19 @@ onBeforeUnmount(stopSystemPolling)
 	justify-content: space-between;
 	align-items: center;
 	padding: 8px 12px;
-	background: #fafafe;
-	border: 1px solid #f0f0f5;
+	background: rgb(var(--color-bg) / .5);
+	border: 1px solid rgb(var(--color-border));
 	border-radius: 8px;
 }
 
 .vr-label {
 	font-size: 12px;
 	font-weight: 600;
-	color: #555;
+	color: rgb(var(--color-muted));
 }
 .vr-value {
 	font-size: 11.5px;
-	color: #1a1a2e;
+	color: rgb(var(--color-ink));
 	font-weight: 700;
 	font-family: 'SF Mono', Menlo, Consolas, monospace;
 }
@@ -2599,14 +2553,11 @@ onBeforeUnmount(stopSystemPolling)
 
 .service-card {
 	padding: 14px 16px;
-	background: #fff;
-	border: 1px solid #ebebf0;
+	background: rgb(var(--color-surface));
+	border: 1px solid rgb(var(--color-border));
 	border-radius: 12px;
 	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
-	transition: border-color .15s, background .15s;
 }
-.service-card.service-ok   { border-color: #bbf7d0; background: linear-gradient(135deg, #f0fdf4, #ffffff); }
-.service-card.service-down { border-color: #fecaca; background: linear-gradient(135deg, #fef2f2, #ffffff); }
 
 .service-head {
 	display: flex;
@@ -2617,68 +2568,37 @@ onBeforeUnmount(stopSystemPolling)
 .service-icon {
 	width: 34px; height: 34px;
 	border-radius: 9px;
-	background: #f5f5fa;
+	background: rgb(var(--color-bg));
 	color: rgb(var(--color-primary));
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
 	flex-shrink: 0;
 }
-.service-ok   .service-icon { background: #dcfce7; color: #16a34a; }
-.service-down .service-icon { background: #fee2e2; color: #dc2626; }
 
 .service-meta { flex: 1; min-width: 0; }
-.service-title { font-size: 13.5px; font-weight: 700; color: #1a1a2e; }
-.service-sub   { font-size: 11.5px; color: #888; margin-top: 2px; }
-
-.service-badge {
-	display: inline-flex;
-	align-items: center;
-	gap: 6px;
-	padding: 4px 10px;
-	border-radius: 999px;
-	font-size: 11px;
-	font-weight: 700;
-	text-transform: uppercase;
-	letter-spacing: 0.04em;
-	flex-shrink: 0;
-}
-.service-badge-ok   { background: #dcfce7; color: #16a34a; }
-.service-badge-down { background: #fee2e2; color: #dc2626; }
-
-.service-dot {
-	width: 7px; height: 7px;
-	border-radius: 50%;
-	background: currentColor;
-	box-shadow: 0 0 0 0 currentColor;
-}
-.service-badge-ok .service-dot { animation: pulse-dot 1.6s infinite; }
-
-@keyframes pulse-dot {
-	0%   { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.5); }
-	70%  { box-shadow: 0 0 0 6px rgba(22, 163, 74, 0); }
-	100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
-}
+.service-title { font-size: 13.5px; font-weight: 700; color: rgb(var(--color-ink)); }
+.service-sub   { font-size: 11.5px; color: rgb(var(--color-muted)); margin-top: 2px; }
 
 .service-body { margin-top: 10px; }
 .service-note {
 	font-size: 12px;
-	color: #555;
+	color: rgb(var(--color-muted));
 	line-height: 1.55;
 }
 .service-note code {
 	display: inline-block;
 	padding: 2px 7px;
-	background: #f5f5fa;
-	border: 1px solid #e8e8f0;
+	background: rgb(var(--color-bg));
+	border: 1px solid rgb(var(--color-border));
 	border-radius: 5px;
 	font-size: 11.5px;
-	color: #1a1a2e;
+	color: rgb(var(--color-ink));
 	margin: 0 2px;
 }
-.service-note-warn { color: #92400e; }
-.service-note-warn code { background: #fef3c7; border-color: #fde68a; color: #78350f; }
-.service-error { color: #dc2626; font-size: 11.5px; margin-left: 4px; }
+.service-note-warn { color: rgb(var(--color-warning)); }
+.service-note-warn code { background: rgb(var(--color-warning) / .12); border-color: rgb(var(--color-warning) / .3); color: rgb(var(--color-warning)); }
+.service-error { color: rgb(var(--color-danger)); font-size: 11.5px; margin-left: 4px; }
 
 /* ── Counters ── */
 .counter-grid {
@@ -2687,45 +2607,15 @@ onBeforeUnmount(stopSystemPolling)
 	gap: 10px;
 }
 
-.counter-card {
-	padding: 14px 16px;
-	background: linear-gradient(135deg, #fafafe, #f5f5fb);
-	border: 1px solid #f0f0f5;
-	border-radius: 12px;
-	text-align: center;
-}
-
-.counter-card.counter-danger {
-	background: linear-gradient(135deg, #fef2f2, #fee2e2);
-	border-color: #fecaca;
-}
-
-.counter-value {
-	font-size: 22px;
-	font-weight: 800;
-	color: #1a1a2e;
-	letter-spacing: -0.01em;
-}
-.counter-danger .counter-value { color: #dc2626; }
-
-.counter-label {
-	font-size: 11.5px;
-	color: #888;
-	font-weight: 600;
-	margin-top: 4px;
+.counter-link {
+	text-decoration: none;
+	color: inherit;
+	display: block;
 }
 
 /* ──────────────────────────────────────── */
 /* ──     ROLLER & İZİNLER BÖLÜMÜ      ── */
 /* ──────────────────────────────────────── */
-
-.role-section-head {
-	display: flex;
-	justify-content: space-between;
-	align-items: flex-start;
-	gap: 16px;
-	flex-wrap: wrap;
-}
 
 .role-view-toggle {
 	display: inline-flex;
@@ -3331,7 +3221,6 @@ onBeforeUnmount(stopSystemPolling)
 	.field-row { grid-template-columns: 1fr; }
 	.flex-2 { grid-column: auto; }
 
-	.role-section-head { flex-wrap: wrap; }
 	.role-view-toggle { flex-wrap: wrap; width: 100%; }
 	.rv-btn { flex: 1 1 auto; justify-content: center; }
 
