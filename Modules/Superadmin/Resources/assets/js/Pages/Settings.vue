@@ -65,7 +65,7 @@
 						height="8"
 						viewBox="0 0 8 8"
 					>
-						<circle cx="4" cy="4" r="4" fill="#f59e0b" />
+						<circle cx="4" cy="4" r="4" fill="rgb(var(--color-warning))" />
 					</svg>
 				</button>
 
@@ -301,7 +301,7 @@
 								</svg>
 							</button>
 						</div>
-						<div v-if="props.settings.security.logAccessPasswordSet" class="field-help" style="color: var(--c-success, #16a34a);">
+						<div v-if="props.settings.security.logAccessPasswordSet" class="field-help" style="color: rgb(var(--color-success));">
 							<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="vertical-align: -1px;">
 								<polyline points="20 6 9 17 4 12" />
 							</svg>
@@ -1931,8 +1931,8 @@ onBeforeUnmount(stopSystemPolling)
 
 /* ── Sol Nav ── */
 .sa-nav {
-	background: #fff;
-	border: 1px solid #ebebf0;
+	background: rgb(var(--color-surface));
+	border: 1px solid rgb(var(--color-border));
 	border-radius: 14px;
 	padding: 8px;
 	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
@@ -1952,16 +1952,16 @@ onBeforeUnmount(stopSystemPolling)
 	border: none;
 	border-radius: 9px;
 	cursor: pointer;
-	color: #555;
+	color: rgb(var(--color-muted));
 	font-family: inherit;
 	text-align: left;
 	transition: background .12s, color .12s;
 	width: 100%;
 }
-.sa-nav-item:hover { background: #fafafe; color: #1a1a2e; }
+.sa-nav-item:hover { background: rgb(var(--color-bg) / .5); color: rgb(var(--color-ink)); }
 .sa-nav-item.active {
 	background: rgb(var(--color-primary-soft));
-	color: #1a1a2e;
+	color: rgb(var(--color-ink));
 }
 .sa-nav-item.active .sa-nav-icon {
 	background: rgb(var(--color-primary-soft));
@@ -1971,8 +1971,8 @@ onBeforeUnmount(stopSystemPolling)
 .sa-nav-icon {
 	width: 28px; height: 28px;
 	border-radius: 7px;
-	background: #fafafe;
-	color: #888;
+	background: rgb(var(--color-bg) / .5);
+	color: rgb(var(--color-muted));
 	display: flex; align-items: center; justify-content: center;
 	flex-shrink: 0;
 	transition: background .12s, color .12s;
@@ -1988,7 +1988,7 @@ onBeforeUnmount(stopSystemPolling)
 }
 .sa-nav-sub {
 	font-size: 10.5px;
-	color: #aaa;
+	color: rgb(var(--color-muted));
 	margin-top: 1px;
 }
 
@@ -2000,7 +2000,7 @@ onBeforeUnmount(stopSystemPolling)
 .sa-nav-footer {
 	margin-top: 8px;
 	padding-top: 8px;
-	border-top: 1px solid #f0f0f5;
+	border-top: 1px solid rgb(var(--color-border));
 }
 
 .sa-version {
@@ -2009,7 +2009,7 @@ onBeforeUnmount(stopSystemPolling)
 	gap: 5px;
 	padding: 6px 11px;
 	font-size: 10.5px;
-	color: #aaa;
+	color: rgb(var(--color-muted));
 }
 
 /* ── Sağ İçerik ── */
@@ -2021,14 +2021,14 @@ onBeforeUnmount(stopSystemPolling)
 
 .section-sub {
 	font-size: 12.5px;
-	color: #888;
+	color: rgb(var(--color-muted));
 	margin: 0 0 18px;
 }
 
 .sa-subhead {
 	font-size: 11px;
 	font-weight: 700;
-	color: #888;
+	color: rgb(var(--color-muted));
 	text-transform: uppercase;
 	letter-spacing: 0.06em;
 	margin: 0 0 10px;
@@ -2036,7 +2036,7 @@ onBeforeUnmount(stopSystemPolling)
 
 .sa-divider {
 	height: 1px;
-	background: #f0f0f5;
+	background: rgb(var(--color-border));
 	margin: 18px 0;
 }
 
@@ -2054,14 +2054,14 @@ onBeforeUnmount(stopSystemPolling)
 .field label {
 	font-size: 11.5px;
 	font-weight: 600;
-	color: #888;
+	color: rgb(var(--color-muted));
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 }
 
 .field-help {
 	font-size: 11px;
-	color: #aaa;
+	color: rgb(var(--color-muted));
 	margin-top: 2px;
 }
 
@@ -2087,14 +2087,14 @@ onBeforeUnmount(stopSystemPolling)
 	background: none;
 	border: none;
 	border-radius: 6px;
-	color: #888;
+	color: rgb(var(--color-muted));
 	cursor: pointer;
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	transition: color .12s, background .12s;
 }
-.pw-toggle:hover { background: #f5f5f8; color: #1a1a2e; }
+.pw-toggle:hover { background: rgb(var(--color-bg)); color: rgb(var(--color-ink)); }
 
 /* Copy input */
 .copy-input {
@@ -2105,17 +2105,17 @@ onBeforeUnmount(stopSystemPolling)
 .copy-btn {
 	height: 36px;
 	padding: 0 12px;
-	background: #fafafe;
-	border: 1.5px solid #e8e8f0;
+	background: rgb(var(--color-bg) / .5);
+	border: 1.5px solid rgb(var(--color-border));
 	border-radius: 9px;
-	color: #555;
+	color: rgb(var(--color-muted));
 	font-family: inherit;
 	font-size: 12px;
 	font-weight: 600;
 	cursor: pointer;
 	transition: all .12s;
 }
-.copy-btn:hover { background: #f5f5fb; border-color: #c0c0d8; color: #1a1a2e; }
+.copy-btn:hover { background: rgb(var(--color-bg)); border-color: rgb(var(--color-muted)); color: rgb(var(--color-ink)); }
 
 /* ── Toggle (switch) ── */
 .toggle-card {
@@ -2123,19 +2123,19 @@ onBeforeUnmount(stopSystemPolling)
 	align-items: center;
 	gap: 14px;
 	padding: 12px 16px;
-	background: #fafafe;
-	border: 1px solid #f0f0f5;
+	background: rgb(var(--color-bg) / .5);
+	border: 1px solid rgb(var(--color-border));
 	border-radius: 11px;
 	margin-bottom: 8px;
 	transition: background .15s, border-color .15s;
 }
 .toggle-card.toggle-warning {
-	background: #fffbeb;
-	border-color: #fde68a;
+	background: rgb(var(--color-warning) / .1);
+	border-color: rgb(var(--color-warning) / .35);
 }
 .toggle-card.toggle-danger {
-	background: #fef2f2;
-	border-color: #fecaca;
+	background: rgb(var(--color-danger) / .08);
+	border-color: rgb(var(--color-danger) / .25);
 }
 
 .toggle-info { flex: 1; min-width: 0; }
@@ -2143,7 +2143,7 @@ onBeforeUnmount(stopSystemPolling)
 .toggle-label {
 	font-size: 13px;
 	font-weight: 700;
-	color: #1a1a2e;
+	color: rgb(var(--color-ink));
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
@@ -2151,25 +2151,25 @@ onBeforeUnmount(stopSystemPolling)
 
 .toggle-sub {
 	font-size: 11.5px;
-	color: #888;
+	color: rgb(var(--color-muted));
 	margin-top: 3px;
 	line-height: 1.5;
 }
 
 .sa-hint {
 	font-size: 12px;
-	color: #888;
+	color: rgb(var(--color-muted));
 	margin-top: 10px;
 	line-height: 1.6;
 }
 .sa-hint-error {
-	color: var(--color-danger, #dc2626);
+	color: rgb(var(--color-danger));
 }
 
 .danger-pill {
 	display: inline-block;
 	padding: 1px 6px;
-	background: #dc2626;
+	background: rgb(var(--color-danger));
 	color: #fff;
 	font-size: 9px;
 	font-weight: 700;
@@ -2180,7 +2180,7 @@ onBeforeUnmount(stopSystemPolling)
 .warning-pill {
 	display: inline-block;
 	padding: 1px 6px;
-	background: #ca8a04;
+	background: rgb(var(--color-warning));
 	color: #fff;
 	font-size: 9px;
 	font-weight: 700;
@@ -2204,7 +2204,7 @@ onBeforeUnmount(stopSystemPolling)
 	position: absolute;
 	cursor: pointer;
 	inset: 0;
-	background: #d8d8e8;
+	background: rgb(var(--color-border));
 	border-radius: 999px;
 	transition: background .15s;
 }
@@ -2221,7 +2221,7 @@ onBeforeUnmount(stopSystemPolling)
 	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 .switch input:checked + .slider {
-	background: #16a34a;
+	background: rgb(var(--color-success));
 }
 .switch input:checked + .slider::before {
 	transform: translateX(16px);
@@ -2240,13 +2240,13 @@ onBeforeUnmount(stopSystemPolling)
 	align-items: flex-start;
 	gap: 10px;
 	padding: 10px 12px;
-	background: #fafafe;
-	border: 1px solid #f0f0f5;
+	background: rgb(var(--color-bg) / .5);
+	border: 1px solid rgb(var(--color-border));
 	border-radius: 10px;
 	cursor: pointer;
 	transition: all .12s;
 }
-.check-card:hover { border-color: #c0c0d8; }
+.check-card:hover { border-color: rgb(var(--color-muted)); }
 .check-card:has(input:checked) {
 	background: rgb(var(--color-primary-soft));
 	border-color: #c4b5fd;
@@ -2260,12 +2260,12 @@ onBeforeUnmount(stopSystemPolling)
 .check-text { display: flex; flex-direction: column; gap: 2px; }
 .check-text strong {
 	font-size: 12.5px;
-	color: #1a1a2e;
+	color: rgb(var(--color-ink));
 	font-weight: 700;
 }
 .check-sub {
 	font-size: 11px;
-	color: #888;
+	color: rgb(var(--color-muted));
 }
 
 /* ── Radio cards ── */
@@ -2279,17 +2279,17 @@ onBeforeUnmount(stopSystemPolling)
 	display: flex;
 	gap: 10px;
 	padding: 12px 14px;
-	background: #fff;
-	border: 1.5px solid #e8e8f0;
+	background: rgb(var(--color-surface));
+	border: 1.5px solid rgb(var(--color-border));
 	border-radius: 10px;
 	cursor: pointer;
 	transition: all .15s;
 }
 .radio-card input { position: absolute; opacity: 0; pointer-events: none; }
-.radio-card:hover { border-color: #c0c0d8; }
+.radio-card:hover { border-color: rgb(var(--color-muted)); }
 .radio-card.active {
-	border-color: #1a1a2e;
-	background: #fafafe;
+	border-color: rgb(var(--color-ink));
+	background: rgb(var(--color-bg) / .5);
 	box-shadow: 0 0 0 3px rgba(26, 26, 46, 0.05);
 }
 
@@ -2297,11 +2297,11 @@ onBeforeUnmount(stopSystemPolling)
 .rc-label {
 	font-size: 12.5px;
 	font-weight: 700;
-	color: #1a1a2e;
+	color: rgb(var(--color-ink));
 }
 .rc-sub {
 	font-size: 11px;
-	color: #888;
+	color: rgb(var(--color-muted));
 	line-height: 1.5;
 }
 
@@ -2311,8 +2311,8 @@ onBeforeUnmount(stopSystemPolling)
 	justify-content: space-between;
 	align-items: center;
 	padding: 12px 16px;
-	background: #fafafe;
-	border: 1px solid #f0f0f5;
+	background: rgb(var(--color-bg) / .5);
+	border: 1px solid rgb(var(--color-border));
 	border-radius: 10px;
 	margin-top: 12px;
 }
@@ -2324,19 +2324,19 @@ onBeforeUnmount(stopSystemPolling)
 	font-size: 12.5px;
 	font-weight: 700;
 }
-.test-success { color: #16a34a; }
-.test-failed  { color: #dc2626; }
+.test-success { color: rgb(var(--color-success)); }
+.test-failed  { color: rgb(var(--color-danger)); }
 
 .test-time {
 	font-size: 11px;
-	color: #888;
+	color: rgb(var(--color-muted));
 	margin-top: 2px;
 }
 
 /* ── Integration card ── */
 .integration-card {
-	background: #fafafe;
-	border: 1px solid #f0f0f5;
+	background: rgb(var(--color-bg) / .5);
+	border: 1px solid rgb(var(--color-border));
 	border-radius: 12px;
 	padding: 14px 16px;
 	margin-bottom: 10px;
@@ -2367,7 +2367,7 @@ onBeforeUnmount(stopSystemPolling)
 .ic-info h4 {
 	font-size: 13.5px;
 	font-weight: 700;
-	color: #1a1a2e;
+	color: rgb(var(--color-ink));
 	margin: 0;
 }
 
@@ -2375,7 +2375,7 @@ onBeforeUnmount(stopSystemPolling)
 	font-size: 11px;
 	font-weight: 600;
 }
-.status-connected { color: #16a34a; }
+.status-connected { color: rgb(var(--color-success)); }
 
 /* ── Info row (backup, etc) ── */
 .info-row {
@@ -2383,8 +2383,8 @@ onBeforeUnmount(stopSystemPolling)
 	align-items: center;
 	gap: 20px;
 	padding: 12px 16px;
-	background: #fafafe;
-	border: 1px solid #f0f0f5;
+	background: rgb(var(--color-bg) / .5);
+	border: 1px solid rgb(var(--color-border));
 	border-radius: 10px;
 	margin-top: 12px;
 	flex-wrap: wrap;
@@ -2394,14 +2394,14 @@ onBeforeUnmount(stopSystemPolling)
 .ir-label {
 	font-size: 10.5px;
 	font-weight: 700;
-	color: #888;
+	color: rgb(var(--color-muted));
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 }
 .ir-value {
 	font-size: 12.5px;
 	font-weight: 700;
-	color: #1a1a2e;
+	color: rgb(var(--color-ink));
 }
 
 /* ── Cache actions ── */
@@ -2556,8 +2556,8 @@ onBeforeUnmount(stopSystemPolling)
 
 .role-view-toggle {
 	display: inline-flex;
-	background: #fafafe;
-	border: 1px solid #ebebf0;
+	background: rgb(var(--color-bg) / .5);
+	border: 1px solid rgb(var(--color-border));
 	border-radius: 9px;
 	padding: 3px;
 	gap: 2px;
@@ -2570,17 +2570,17 @@ onBeforeUnmount(stopSystemPolling)
 	background: none;
 	border: none;
 	border-radius: 7px;
-	color: #888;
+	color: rgb(var(--color-muted));
 	font-family: inherit;
 	font-size: 11.5px;
 	font-weight: 600;
 	cursor: pointer;
 	transition: background .12s, color .12s;
 }
-.rv-btn:hover { color: #1a1a2e; }
+.rv-btn:hover { color: rgb(var(--color-ink)); }
 .rv-btn.active {
-	background: #fff;
-	color: #1a1a2e;
+	background: rgb(var(--color-surface));
+	color: rgb(var(--color-ink));
 	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
@@ -2605,17 +2605,17 @@ onBeforeUnmount(stopSystemPolling)
 .role-search svg {
 	position: absolute;
 	left: 11px;
-	color: #aaa;
+	color: rgb(var(--color-muted));
 	pointer-events: none;
 }
 .role-search-input {
 	width: 100%;
 	height: 34px;
 	padding: 0 12px 0 32px;
-	background: #fafafe;
-	border: 1px solid #ebebf0;
+	background: rgb(var(--color-bg) / .5);
+	border: 1px solid rgb(var(--color-border));
 	border-radius: 9px;
-	color: #1a1a2e;
+	color: rgb(var(--color-ink));
 	font-family: inherit;
 	font-size: 12.5px;
 	transition: border-color .15s, background .15s;
@@ -2623,7 +2623,7 @@ onBeforeUnmount(stopSystemPolling)
 .role-search-input:focus {
 	outline: none;
 	border-color: #c4b5fd;
-	background: #fff;
+	background: rgb(var(--color-surface));
 }
 
 /* — Rol kartları — */
@@ -2637,13 +2637,13 @@ onBeforeUnmount(stopSystemPolling)
 	display: flex;
 	gap: 12px;
 	padding: 14px;
-	background: #fff;
-	border: 1px solid #ebebf0;
+	background: rgb(var(--color-surface));
+	border: 1px solid rgb(var(--color-border));
 	border-radius: 12px;
 	transition: border-color .15s, box-shadow .15s, transform .15s;
 }
 .role-card:hover {
-	border-color: #d0d0e0;
+	border-color: rgb(var(--color-muted));
 	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
 }
 
@@ -2679,7 +2679,7 @@ onBeforeUnmount(stopSystemPolling)
 .role-card-title h4 {
 	font-size: 13.5px;
 	font-weight: 700;
-	color: #1a1a2e;
+	color: rgb(var(--color-ink));
 	margin: 0;
 	line-height: 1.3;
 }
@@ -2697,7 +2697,7 @@ onBeforeUnmount(stopSystemPolling)
 
 .role-card-desc {
 	font-size: 11.5px;
-	color: #888;
+	color: rgb(var(--color-muted));
 	line-height: 1.45;
 	margin: 0;
 	display: -webkit-box;
@@ -2716,10 +2716,10 @@ onBeforeUnmount(stopSystemPolling)
 	align-items: center;
 	gap: 4px;
 	font-size: 11px;
-	color: #777;
+	color: rgb(var(--color-muted));
 	font-weight: 600;
 }
-.rc-meta-item svg { color: #aaa; }
+.rc-meta-item svg { color: rgb(var(--color-muted)); }
 
 .role-card-actions {
 	display: flex;
@@ -2731,9 +2731,9 @@ onBeforeUnmount(stopSystemPolling)
 	width: 28px;
 	height: 28px;
 	background: none;
-	border: 1px solid #ebebf0;
+	border: 1px solid rgb(var(--color-border));
 	border-radius: 7px;
-	color: #777;
+	color: rgb(var(--color-muted));
 	cursor: pointer;
 	display: flex;
 	align-items: center;
@@ -2741,18 +2741,18 @@ onBeforeUnmount(stopSystemPolling)
 	transition: all .12s;
 }
 .rc-action:hover:not(:disabled) {
-	background: #fafafe;
-	border-color: #c0c0d8;
-	color: #1a1a2e;
+	background: rgb(var(--color-bg) / .5);
+	border-color: rgb(var(--color-muted));
+	color: rgb(var(--color-ink));
 }
 .rc-action:disabled {
 	opacity: .35;
 	cursor: not-allowed;
 }
 .rc-action.rc-danger:hover:not(:disabled) {
-	background: #fef2f2;
-	border-color: #fecaca;
-	color: #dc2626;
+	background: rgb(var(--color-danger) / .08);
+	border-color: rgb(var(--color-danger) / .25);
+	color: rgb(var(--color-danger));
 }
 
 .role-empty {
@@ -2761,12 +2761,12 @@ onBeforeUnmount(stopSystemPolling)
 	align-items: center;
 	justify-content: center;
 	padding: 40px 20px;
-	color: #aaa;
-	background: #fafafe;
-	border: 1px dashed #e0e0e8;
+	color: rgb(var(--color-muted));
+	background: rgb(var(--color-bg) / .5);
+	border: 1px dashed rgb(var(--color-border));
 	border-radius: 12px;
 }
-.role-empty svg { color: #c0c0d0; margin-bottom: 8px; }
+.role-empty svg { color: rgb(var(--color-muted)); margin-bottom: 8px; }
 .role-empty p { margin: 0; font-size: 12.5px; }
 
 /* ── İzin Matrisi ── */
@@ -2790,9 +2790,9 @@ onBeforeUnmount(stopSystemPolling)
 
 .matrix-scroll {
 	overflow-x: auto;
-	border: 1px solid #ebebf0;
+	border: 1px solid rgb(var(--color-border));
 	border-radius: 11px;
-	background: #fff;
+	background: rgb(var(--color-surface));
 }
 
 .perm-matrix {
@@ -2805,13 +2805,13 @@ onBeforeUnmount(stopSystemPolling)
 .perm-matrix thead th {
 	position: sticky;
 	top: 0;
-	background: #fafafe;
-	border-bottom: 1px solid #ebebf0;
+	background: rgb(var(--color-bg) / .5);
+	border-bottom: 1px solid rgb(var(--color-border));
 	padding: 10px 12px;
 	font-size: 11px;
 	font-weight: 700;
 	text-align: left;
-	color: #888;
+	color: rgb(var(--color-muted));
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 	white-space: nowrap;
@@ -2840,7 +2840,7 @@ onBeforeUnmount(stopSystemPolling)
 	flex-shrink: 0;
 }
 .m-role-name {
-	color: #1a1a2e;
+	color: rgb(var(--color-ink));
 	font-weight: 700;
 	text-transform: none;
 	letter-spacing: 0;
@@ -2866,27 +2866,27 @@ onBeforeUnmount(stopSystemPolling)
 	font-weight: 600;
 }
 
-.m-perm-row td { border-bottom: 1px solid #f5f5fa; }
-.m-perm-row:hover td { background: #fafafe; }
+.m-perm-row td { border-bottom: 1px solid rgb(var(--color-border)); }
+.m-perm-row:hover td { background: rgb(var(--color-bg) / .5); }
 
 .m-perm-cell {
 	padding: 9px 12px;
 	position: sticky;
 	left: 0;
-	background: #fff;
+	background: rgb(var(--color-surface));
 	z-index: 1;
 }
-.m-perm-row:hover .m-perm-cell { background: #fafafe; }
+.m-perm-row:hover .m-perm-cell { background: rgb(var(--color-bg) / .5); }
 
 .m-perm-name {
 	font-size: 12.5px;
 	font-weight: 600;
-	color: #1a1a2e;
+	color: rgb(var(--color-ink));
 	line-height: 1.3;
 }
 .m-perm-key {
 	font-size: 10.5px;
-	color: #aaa;
+	color: rgb(var(--color-muted));
 	font-family: 'SF Mono', Menlo, Consolas, monospace;
 	margin-top: 1px;
 }
@@ -2916,9 +2916,9 @@ onBeforeUnmount(stopSystemPolling)
 .m-checkbox {
 	width: 18px;
 	height: 18px;
-	border: 1.5px solid #d8d8e8;
+	border: 1.5px solid rgb(var(--color-border));
 	border-radius: 5px;
-	background: #fff;
+	background: rgb(var(--color-surface));
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -2957,7 +2957,7 @@ onBeforeUnmount(stopSystemPolling)
 }
 .color-swatch:hover { transform: scale(1.08); }
 .color-swatch.active {
-	border-color: #1a1a2e;
+	border-color: rgb(var(--color-ink));
 	box-shadow: 0 0 0 2px #fff inset;
 }
 
@@ -2969,10 +2969,10 @@ onBeforeUnmount(stopSystemPolling)
 }
 .perm-stats {
 	font-size: 12px;
-	color: #888;
+	color: rgb(var(--color-muted));
 }
 .perm-stats strong {
-	color: #1a1a2e;
+	color: rgb(var(--color-ink));
 	font-weight: 700;
 }
 
@@ -2985,11 +2985,11 @@ onBeforeUnmount(stopSystemPolling)
 	padding-right: 4px;
 }
 .perm-modules::-webkit-scrollbar { width: 6px; }
-.perm-modules::-webkit-scrollbar-thumb { background: #d8d8e8; border-radius: 3px; }
+.perm-modules::-webkit-scrollbar-thumb { background: rgb(var(--color-border)); border-radius: 3px; }
 
 .perm-module {
-	background: #fafafe;
-	border: 1px solid #f0f0f5;
+	background: rgb(var(--color-bg) / .5);
+	border: 1px solid rgb(var(--color-border));
 	border-radius: 10px;
 	padding: 10px 12px;
 }
@@ -3007,12 +3007,12 @@ onBeforeUnmount(stopSystemPolling)
 }
 .pmh-info strong {
 	font-size: 12.5px;
-	color: #1a1a2e;
+	color: rgb(var(--color-ink));
 	font-weight: 700;
 }
 .pmh-count {
 	font-size: 11px;
-	color: #aaa;
+	color: rgb(var(--color-muted));
 	font-weight: 600;
 }
 
@@ -3042,8 +3042,8 @@ onBeforeUnmount(stopSystemPolling)
 	align-items: flex-start;
 	gap: 8px;
 	padding: 8px 10px;
-	background: #fff;
-	border: 1px solid #f0f0f5;
+	background: rgb(var(--color-surface));
+	border: 1px solid rgb(var(--color-border));
 	border-radius: 8px;
 	cursor: pointer;
 	transition: border-color .12s, background .12s;
@@ -3064,27 +3064,27 @@ onBeforeUnmount(stopSystemPolling)
 .perm-check-name {
 	font-size: 12px;
 	font-weight: 600;
-	color: #1a1a2e;
+	color: rgb(var(--color-ink));
 	line-height: 1.3;
 }
 .perm-check-desc {
 	font-size: 10.5px;
-	color: #888;
+	color: rgb(var(--color-muted));
 	line-height: 1.4;
 }
 
 /* ── Silme Modalı ── */
 .delete-msg {
 	font-size: 13px;
-	color: #555;
+	color: rgb(var(--color-muted));
 	line-height: 1.55;
 	margin: 0 0 12px;
 }
-.delete-msg strong { color: #1a1a2e; font-weight: 700; }
+.delete-msg strong { color: rgb(var(--color-ink)); font-weight: 700; }
 
 .delete-detail {
-	background: #fef2f2;
-	border: 1px solid #fecaca;
+	background: rgb(var(--color-danger) / .08);
+	border: 1px solid rgb(var(--color-danger) / .25);
 	border-radius: 9px;
 	padding: 10px 12px;
 }
@@ -3093,8 +3093,8 @@ onBeforeUnmount(stopSystemPolling)
 	justify-content: space-between;
 	padding: 4px 0;
 }
-.dd-label { font-size: 12px; color: #991b1b; }
-.dd-value { font-size: 12px; color: #1a1a2e; font-weight: 700; }
+.dd-label { font-size: 12px; color: rgb(var(--color-danger)); }
+.dd-value { font-size: 12px; color: rgb(var(--color-ink)); font-weight: 700; }
 
 /* ── İzinler Listesi (CRUD) ── */
 .perm-list {
@@ -3103,8 +3103,8 @@ onBeforeUnmount(stopSystemPolling)
 	gap: 12px;
 }
 .perm-list-module {
-	background: #fff;
-	border: 1px solid #ebebf0;
+	background: rgb(var(--color-surface));
+	border: 1px solid rgb(var(--color-border));
 	border-radius: 10px;
 	overflow: hidden;
 }
@@ -3113,12 +3113,12 @@ onBeforeUnmount(stopSystemPolling)
 	justify-content: space-between;
 	align-items: center;
 	padding: 10px 14px;
-	background: #fafafe;
-	border-bottom: 1px solid #f0f0f5;
+	background: rgb(var(--color-bg) / .5);
+	border-bottom: 1px solid rgb(var(--color-border));
 }
 .perm-list-module-head strong {
 	font-size: 13px;
-	color: #1a1a2e;
+	color: rgb(var(--color-ink));
 	font-weight: 700;
 }
 .perm-list-rows {
@@ -3130,14 +3130,14 @@ onBeforeUnmount(stopSystemPolling)
 	justify-content: space-between;
 	align-items: center;
 	padding: 9px 14px;
-	border-bottom: 1px solid #f5f5fa;
+	border-bottom: 1px solid rgb(var(--color-border));
 	transition: background .12s;
 }
 .perm-list-row:last-child { border-bottom: none; }
-.perm-list-row:hover { background: #fafafe; }
+.perm-list-row:hover { background: rgb(var(--color-bg) / .5); }
 .perm-list-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.perm-list-name { font-size: 13px; color: #1a1a2e; font-weight: 600; }
-.perm-list-key { font-size: 11px; color: #888; font-family: 'SF Mono', Monaco, monospace; }
+.perm-list-name { font-size: 13px; color: rgb(var(--color-ink)); font-weight: 600; }
+.perm-list-key { font-size: 11px; color: rgb(var(--color-muted)); font-family: 'SF Mono', Monaco, monospace; }
 .perm-list-actions { display: flex; gap: 4px; }
 .field code {
 	font-family: 'SF Mono', Monaco, monospace;
@@ -3173,17 +3173,17 @@ onBeforeUnmount(stopSystemPolling)
 		justify-content: space-between;
 		width: 100%;
 		padding: 9px 12px;
-		background: #fff;
-		border: 1px solid #ebebf0;
+		background: rgb(var(--color-surface));
+		border: 1px solid rgb(var(--color-border));
 		border-radius: 12px;
 		cursor: pointer;
 		font-family: inherit;
 		font-size: 12.5px;
 		font-weight: 600;
-		color: #1a1a2e;
+		color: rgb(var(--color-ink));
 		margin-bottom: 8px;
 	}
-	.sa-mobile-nav-toggle svg { flex-shrink: 0; color: #888; transition: transform .15s; }
+	.sa-mobile-nav-toggle svg { flex-shrink: 0; color: rgb(var(--color-muted)); transition: transform .15s; }
 	.sa-mobile-nav-toggle.open svg { transform: rotate(90deg); }
 	.sa-mobile-nav-current { display: flex; align-items: center; gap: 8px; }
 	.sa-mobile-nav-current .sa-nav-icon { width: 24px; height: 24px; }
