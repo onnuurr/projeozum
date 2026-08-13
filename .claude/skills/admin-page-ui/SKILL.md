@@ -20,6 +20,13 @@ assets/js/Pages/`) yeni component kit'ine geçirilirken çıkarıldı — aynı
 de tekrarlanıyor (grep ile doğrulandı, 40+ sayfa), yani buradaki kurallar
 Superadmin'e özel değil, genel bir "admin sayfası" sözleşmesi.
 
+**Ürün seviyesinde onaylanmış tam standart:** `docs/page-layout-ui-standard.md`.
+O doküman breadcrumb yerleşimini (zaten tutarlı, sadece kodlanıyor), page
+header'ı, ve — bu skill'in ilk sürümünde eksik olan — **kaydet/iptal
+butonunun iki kanonik yerleşimini** (modal footer vs. tam-sayfa "form
+topbar") tanımlıyor. Herhangi bir modülde form/kaydet akışı içeren bir
+sayfa açıyorsan önce o dokümanın §3'ünü oku.
+
 ## Page header
 
 Ham `<div class="page-header">...<h1 class="page-title">...` kopyalama —
@@ -42,6 +49,25 @@ Ham `<div class="page-header">...<h1 class="page-title">...` kopyalama —
   slot geçersiz kılar.
 - Sağ taraftaki buton/durum alanı için tek slot adı `#actions` — eski
   sayfalarda görülen `.header-meta` gibi isim farklarını tekrar etme.
+
+## Kaydet / İptal butonu yerleşimi
+
+`docs/page-layout-ui-standard.md`'nin §3'ünde tanımlı, iki sanctioned şekil —
+başka bir yerleşim **icat etme**:
+
+1. **Modal içi CRUD** (liste sayfasında "+ Yeni"/"Düzenle" modalı): `AppModal`'ın
+   `#footer` slot'u — İptal solda (`variant="ghost"`), Kaydet sağda
+   (`variant="primary"`).
+2. **Tam-sayfa form** (kendi route'u olan, uzun/çok bölümlü form — `ProductForm.vue`
+   örneği): sayfanın kendi sticky "form topbar"ı, sağ üstte İptal + Kaydet.
+   Liste-sayfası `PageHeader`'ından farklı bir desen — badge yok, genelde bir
+   geri-oku var; `PageHeader.vue` henüz bunu üretmiyor (`backHref`/`sticky`
+   prop'u yok), o yüzden bu durumda component'i zorlama, sayfanın kendi
+   topbar'ını (mevcut `ProductForm.vue`'daki gibi) kullan.
+
+Sayfa-içi form kartının altına gömülü bir Kaydet butonu (header'dan bağımsız)
+veya header-actions içine "gizlice" bir kaydet işlevi koymak yeni kodda
+**kullanılmaz**.
 
 ## "Hangi UI şekli → hangi component" tablosu
 
@@ -74,7 +100,11 @@ sadeleştirmek için `Button.vue` seçildi):
   (`app.css`'teki global `.btn-*` sınıflarıyla birebir eşleşir).
 - `loading` dahili spinner'ı gösterir (`.btn-spinner`, global CSS'te tanımlı)
   — sayfa bazlı "Kaydediliyor…" gibi metin-değiştirme mantığı **kurma**,
-  `loading` prop'u yeterli; buton metni sabit kalabilir.
+  `loading` prop'u yeterli; buton metni sabit kalabilir. Bu, sadece
+  Superadmin'in değil (denetimde Tenant/Atelier/Finance/Creative/Product'ın
+  hemen hepsinin hâlâ metin-değiştirme veya sadece `:disabled` kullandığı
+  görüldü) — `docs/page-layout-ui-standard.md`'nin resmen kararlaştırdığı
+  **tüm modüller için geçerli** standart budur.
 - `#leading`/`#trailing` slot + `with-icon` prop ikonlu butonlar için.
 - **İstisna:** `<Link>` bir butona benziyorsa (`class="btn ..."` ile
   stillenmiş navigasyon linki) `Button`'a zorlama — `Button`'ın href/link
@@ -143,10 +173,11 @@ arka planı) bu kuralın dışında — zorla token'a bağlama.
 
 ## Checklist
 
-- [ ] `<Breadcrumb>` var ve 3 seviyeli desene uyuyor (Ana Sayfa → modül → sayfa)
-- [ ] Header `PageHeader` component'i ile kuruldu (badge sadece gerçekten gerekiyorsa)
+- [ ] `<Breadcrumb>` var ve 3 seviyeli desene uyuyor (Ana Sayfa → modül → sayfa) — kök/Dashboard sayfaları dahil (Portal hariç)
+- [ ] Header `PageHeader` component'i ile kuruldu (badge sadece gerçekten gerekiyorsa) — tam-sayfa form ise yerine sticky form-topbar deseni (bkz. yukarı)
+- [ ] Kaydet/İptal `docs/page-layout-ui-standard.md` §3'teki iki yerleşimden birinde (modal footer / form topbar), üçüncü bir yerleşim icat edilmedi
 - [ ] Sayı/durum/ilerleme/panel/boş-durum için yukarıdaki tablodan doğru component seçildi
-- [ ] Her sıradan `<button>` `Button` component'i (Link-as-button istisnası hariç)
+- [ ] Her sıradan `<button>` `Button` component'i (Link-as-button istisnası hariç), kaydet butonu `:loading` prop'u kullanıyor (metin-değiştirme yok)
 - [ ] Hiç emoji ikon yok, hepsi `lucide-vue-next`
 - [ ] `<style scoped>`'da yeni eklenen hiçbir kural ham hex içermiyor (JS/chart istisnası hariç)
 - [ ] Değişiklik `@vue/compiler-sfc` ile statik doğrulandı (`vite build`/`dev` bu repoda **yasak** — `public/` canlı docroot)
