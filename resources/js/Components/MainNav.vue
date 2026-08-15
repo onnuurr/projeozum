@@ -37,6 +37,51 @@ function closePanel() {
 	activePanel.value = null;
 }
 
+/* ── Kök menü satırı sürükle-kaydır (ActionBar.vue'daki mekanizmanın aynısı) ──
+   menuItems DB'den geliyor ve kutu başına sabit genişlik kullanıyor; birden
+   fazla kök menü varsa taşan öğeler görünmez/kırpılır oluyordu, scroll yoktu. */
+const navScrollRef = ref(null);
+const navDragging = ref(false);
+let navStartX = 0;
+let navStartScrollLeft = 0;
+let navDidDrag = false;
+
+function onNavMouseDown(e) {
+	const el = navScrollRef.value;
+	if (!el || e.button !== 0) return;
+	navDragging.value = true;
+	navDidDrag = false;
+	navStartX = e.clientX;
+	navStartScrollLeft = el.scrollLeft;
+	document.body.classList.add('select-none');
+}
+function onNavMouseMove(e) {
+	if (!navDragging.value) return;
+	const el = navScrollRef.value;
+	if (!el) return;
+	el.scrollLeft = navStartScrollLeft - (e.clientX - navStartX);
+	if (Math.abs(e.clientX - navStartX) > 5) navDidDrag = true;
+}
+function stopNavDrag() {
+	if (!navDragging.value) return;
+	navDragging.value = false;
+	document.body.classList.remove('select-none');
+}
+function onNavClickCapture(e) {
+	if (navDidDrag) {
+		e.preventDefault();
+		e.stopPropagation();
+		navDidDrag = false;
+	}
+}
+function onNavWheel(e) {
+	const el = e.currentTarget;
+	if (el.scrollWidth <= el.clientWidth) return;
+	if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+	e.preventDefault();
+	el.scrollLeft += e.deltaY;
+}
+
 function userMenuHtml(item) {
 	return `${item.icon}<span>${item.label}</span>`;
 }
@@ -83,13 +128,23 @@ onBeforeUnmount(() => {
 
 			<AppLogo class="mr-6 2xl:mr-10 flex-shrink-0" />
 
-			<div class="hidden lg:flex items-end h-full gap-1 min-w-0">
+			<div
+				ref="navScrollRef"
+				:class="navDragging ? 'cursor-grabbing' : 'cursor-grab'"
+				class="hidden lg:flex items-end h-full gap-1 min-w-0 overflow-x-auto no-scrollbar select-none"
+				@wheel="onNavWheel"
+				@mousedown="onNavMouseDown"
+				@mousemove="onNavMouseMove"
+				@mouseup="stopNavDrag"
+				@mouseleave="stopNavDrag"
+				@click.capture="onNavClickCapture"
+			>
 				<Link
 					v-for="item in menuItems"
 					:key="item.label"
 					:href="item.to || '#'"
 					:class="[
-						'flex flex-col items-center justify-center px-4 transition-all cursor-pointer',
+						'flex flex-col items-center justify-center px-4 flex-shrink-0 transition-all cursor-pointer',
 						item.active
 							? 'h-[64px] bg-white text-primary rounded-t-lg'
 							: 'h-[64px] text-white opacity-80 hover:opacity-100',
