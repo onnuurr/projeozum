@@ -1,40 +1,39 @@
 <template>
-	<nav class="breadcrumb" aria-label="Sayfa konumu">
-		<template v-for="(item, idx) in items" :key="item.label">
+	<nav class="flex items-center flex-wrap gap-1.5" aria-label="Sayfa konumu">
+		<template v-for="(item, idx) in displayItems" :key="idx">
+			<!-- Daraltılmış ara öğeler ("…") -->
+			<span v-if="item.collapsed" class="breadcrumb-item breadcrumb-static select-none">
+				{{ item.label }}
+			</span>
+
 			<!-- Tıklanabilir ara öğeler -->
 			<Link
-				v-if="item.to && idx < items.length - 1"
+				v-else-if="item.to && idx < displayItems.length - 1"
 				:href="item.to"
 				class="breadcrumb-item"
 			>
-				<svg v-if="item.icon === 'home'" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-					<path d="M3 9l9-7 9 7v11a2 2 0 01-2 2h-4M9 22V12h6v10" />
-				</svg>
+				<UiIcon v-if="item.icon" :name="item.icon" :size="13" />
 				<span>{{ item.label }}</span>
 			</Link>
 
 			<!-- Tıklanamaz ara öğeler -->
 			<span
-				v-else-if="idx < items.length - 1"
+				v-else-if="idx < displayItems.length - 1"
 				class="breadcrumb-item breadcrumb-static"
 			>
-				<svg v-if="item.icon === 'home'" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-					<path d="M3 9l9-7 9 7v11a2 2 0 01-2 2h-4M9 22V12h6v10" />
-				</svg>
+				<UiIcon v-if="item.icon" :name="item.icon" :size="13" />
 				<span>{{ item.label }}</span>
 			</span>
 
 			<!-- Aktif (son) öğe -->
 			<span v-else class="breadcrumb-item breadcrumb-active" aria-current="page">
-				<svg v-if="item.icon === 'home'" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-					<path d="M3 9l9-7 9 7v11a2 2 0 01-2 2h-4M9 22V12h6v10" />
-				</svg>
+				<UiIcon v-if="item.icon" :name="item.icon" :size="13" />
 				<span>{{ item.label }}</span>
 			</span>
 
 			<!-- Ayraç -->
 			<svg
-				v-if="idx < items.length - 1"
+				v-if="idx < displayItems.length - 1"
 				class="breadcrumb-separator"
 				width="12"
 				height="12"
@@ -50,10 +49,25 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { Link } from '@inertiajs/vue3'
+import UiIcon from '@/Components/UiIcon.vue'
 
-defineProps({
+const props = defineProps({
 	items: { type: Array, required: true },
+	// 0 = sınırsız (varsayılan). Verilirse baş + "…" + kuyruk şeklinde daraltılır.
+	maxVisible: { type: Number, default: 0 },
+})
+
+const displayItems = computed(() => {
+	if (!props.maxVisible || props.items.length <= props.maxVisible) {
+		return props.items
+	}
+
+	const tailCount = Math.max(1, props.maxVisible - 1)
+	const tail = props.items.slice(-tailCount)
+
+	return [props.items[0], { label: '…', collapsed: true }, ...tail]
 })
 </script>
 
@@ -64,7 +78,7 @@ defineProps({
 	gap: 4px;
 	padding: 6px 12px;
 	background: #fff;
-	border: 1px solid #ebebf0;
+	border: 1px solid var(--color-line);
 	border-radius: 999px;
 	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
 	margin-bottom: 14px;
@@ -78,7 +92,7 @@ defineProps({
 	border-radius: 7px;
 	font-size: 12px;
 	font-weight: 500;
-	color: #888;
+	color: var(--color-muted);
 	text-decoration: none;
 	line-height: 1;
 	transition: background .12s, color .12s;
@@ -88,7 +102,7 @@ defineProps({
 	line-height: 1;
 }
 
-.breadcrumb-item svg {
+.breadcrumb-item :deep(svg) {
 	flex-shrink: 0;
 	opacity: .75;
 	transition: opacity .12s;
@@ -96,32 +110,32 @@ defineProps({
 
 /* Linklere hover */
 a.breadcrumb-item:hover {
-	background: rgb(var(--color-primary-soft));
-	color: rgb(var(--color-primary));
+	background: var(--color-primary-soft);
+	color: var(--color-primary);
 }
-a.breadcrumb-item:hover svg {
+a.breadcrumb-item:hover :deep(svg) {
 	opacity: 1;
 }
 
 /* Statik (tıklanamaz) öğeler */
 .breadcrumb-static {
-	color: #888;
+	color: var(--color-muted);
 	cursor: default;
 }
 
 /* Aktif öğe */
 .breadcrumb-active {
-	color: #1a1a2e;
+	color: var(--color-ink);
 	font-weight: 600;
-	background: #f0f0f5;
+	background: var(--color-canvas);
 	cursor: default;
 }
-.breadcrumb-active svg {
+.breadcrumb-active :deep(svg) {
 	opacity: 1;
 }
 
 .breadcrumb-separator {
-	color: #ccc;
+	color: var(--color-line);
 	flex-shrink: 0;
 	margin: 0 1px;
 }
