@@ -3,7 +3,7 @@
 	<div class="page-sa-dashboard">
 		<Breadcrumb
 			:items="[
-				{ label: 'Ana Sayfa', to: '/workflow', icon: 'home' },
+				{ label: 'Ana Sayfa', href: '/workflow', icon: 'home' },
 				{ label: 'Süper Admin' },
 			]"
 		/>
