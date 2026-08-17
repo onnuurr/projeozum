@@ -72,51 +72,12 @@ class TryonController extends Controller
                 'preview_url' => $this->url($p->preview_image_path),
             ]);
 
-        $results = TryonResult::query()
-            ->with([
-                'product:id,name', 'mannequin:id,name', 'pose:id,label',
-                'productImage:id,path,is_cover', 'creator:id,name', 'reviewer:id,name',
-                'reviewChats' => fn ($q) => $q->orderBy('created_at')->with('user:id,name'),
-            ])
-            ->latest()
-            ->limit(60)
-            ->get()
-            ->map(fn (TryonResult $r) => [
-                'id'              => $r->id,
-                'status'          => $r->status,
-                'tryon_driver'    => $r->tryon_driver,
-                'tryon_model'     => $r->tryon_model,
-                'error'           => $r->error,
-                'product_id'      => $r->product_id,
-                'product_name'    => $r->product?->name,
-                'mannequin_name'  => $r->mannequin?->name,
-                'pose_id'         => $r->pose_id,
-                'pose_label'      => $r->pose?->label,
-                // Onaydan önce henüz product_images satırı yok; staged (bekleyen) önizleme gösterilir.
-                'image_url'       => $r->productImage?->url ?? Media::url($r->staged_image_path),
-                'is_cover'        => (bool) $r->productImage?->is_cover,
-                'created_at'      => $r->created_at?->toDateTimeString(),
-                'created_by'      => $r->created_by,
-                'creator_name'    => $r->creator?->name,
-                'review_status'   => $r->review_status,
-                'review_note'     => $r->review_note,
-                'review_tags'     => $r->review_tags ?? [],
-                'reviewer_name'   => $r->reviewer?->name,
-                'can_review'      => auth()->user()?->can('creative.approve')
-                    && $r->created_by !== auth()->id()
-                    && $r->review_status === TryonResult::REVIEW_PENDING,
-                'is_own'          => $r->created_by === auth()->id(),
-                'can_chat'        => $r->review_status === TryonResult::REVIEW_REJECTED
-                    && ($r->created_by === auth()->id() || auth()->user()?->can('creative.approve')),
-                'review_chats'    => $r->reviewChats->map(fn ($c) => [
-                    'id'         => $c->id,
-                    'role'       => $c->role,
-                    'content'    => $c->content,
-                    'user_name'  => $c->user?->name,
-                    'created_at' => $c->created_at?->toDateTimeString(),
-                ]),
-                'chat_suggestion' => $r->meta['chat_suggested_instruction'] ?? null,
-            ]);
+        // Ürün seçilmeden önce (ör. yalnız 'creative.approve' yetkisiyle onay bekleyen
+        // her ürünü inceleyen bir onaylayıcı için) genel/global son giydirmeler akışı —
+        // ürüne özel liste {@see results()} uç noktasından axios ile ayrıca çekilir.
+        $results = $this->mapTryonResults(
+            $this->tryonResultsQuery()->latest()->limit(60)->get(),
+        );
 
         return Inertia::render('Creative::CreativeTryon', [
             'products'         => $products,
@@ -144,11 +105,84 @@ class TryonController extends Controller
         return response()->json(['data' => $products]);
     }
 
+    /**
+     * Belirli bir ürünün TÜM giydirme geçmişi (axios ile çağrılır) — index()'teki
+     * global son-60 listesi ürüne özel değildir; bir ürün seçildiğinde galeri bu
+     * uç noktadan gelen ürüne-özel listeye geçer, böylece başka ürünlerin
+     * giydirmeleri karışmaz.
+     */
+    public function results(Request $request): JsonResponse
+    {
+        $data = $request->validate(['product_id' => ['required', 'integer', 'exists:products,id']]);
+
+        $results = $this->mapTryonResults(
+            $this->tryonResultsQuery()
+                ->where('product_id', $data['product_id'])
+                ->latest()
+                ->limit(200)
+                ->get(),
+        );
+
+        return response()->json(['data' => $results]);
+    }
+
+    private function tryonResultsQuery(): Builder
+    {
+        return TryonResult::query()->with([
+            'product:id,name', 'mannequin:id,name', 'pose:id,label',
+            'productImage:id,path,is_cover', 'creator:id,name', 'reviewer:id,name',
+            'reviewChats' => fn ($q) => $q->orderBy('created_at')->with('user:id,name'),
+        ]);
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int,TryonResult>  $results
+     * @return \Illuminate\Support\Collection<int,array<string,mixed>>
+     */
+    private function mapTryonResults(\Illuminate\Support\Collection $results)
+    {
+        return $results->map(fn (TryonResult $r) => [
+            'id'              => $r->id,
+            'status'          => $r->status,
+            'tryon_driver'    => $r->tryon_driver,
+            'tryon_model'     => $r->tryon_model,
+            'error'           => $r->error,
+            'product_id'      => $r->product_id,
+            'product_name'    => $r->product?->name,
+            'mannequin_name'  => $r->mannequin?->name,
+            'pose_id'         => $r->pose_id,
+            'pose_label'      => $r->pose?->label,
+            // Onaydan önce henüz product_images satırı yok; staged (bekleyen) önizleme gösterilir.
+            'image_url'       => $r->productImage?->url ?? Media::url($r->staged_image_path),
+            'is_cover'        => (bool) $r->productImage?->is_cover,
+            'created_at'      => $r->created_at?->toDateTimeString(),
+            'created_by'      => $r->created_by,
+            'creator_name'    => $r->creator?->name,
+            'review_status'   => $r->review_status,
+            'review_note'     => $r->review_note,
+            'review_tags'     => $r->review_tags ?? [],
+            'reviewer_name'   => $r->reviewer?->name,
+            'can_review'      => auth()->user()?->can('creative.approve')
+                && $r->review_status === TryonResult::REVIEW_PENDING,
+            'is_own'          => $r->created_by === auth()->id(),
+            'can_chat'        => $r->review_status === TryonResult::REVIEW_REJECTED
+                && ($r->created_by === auth()->id() || auth()->user()?->can('creative.approve')),
+            'review_chats'    => $r->reviewChats->map(fn ($c) => [
+                'id'         => $c->id,
+                'role'       => $c->role,
+                'content'    => $c->content,
+                'user_name'  => $c->user?->name,
+                'created_at' => $c->created_at?->toDateTimeString(),
+            ]),
+            'chat_suggestion' => $r->meta['chat_suggested_instruction'] ?? null,
+        ]);
+    }
+
     private function searchProducts(?string $q): Builder
     {
         return Product::query()
             ->when($q, fn ($query) => $query->where('name', 'ilike', "%{$q}%"))
-            ->with(['images' => fn ($iq) => $iq->orderByDesc('is_cover')->orderBy('sort_order')])
+            ->with(['images' => fn ($iq) => $iq->reorder()->orderByDesc('is_cover')->orderBy('sort_order')])
             ->orderBy('name');
     }
 
@@ -307,8 +341,6 @@ class TryonController extends Controller
 
     public function approve(TryonResult $result, ProductOnModelService $service, ReviewNotifier $notifier): RedirectResponse
     {
-        $this->guardNotOwnWork($result);
-
         if ($result->review_status !== TryonResult::REVIEW_PENDING) {
             return back()->with('error', 'Bu sonuç onay bekliyor durumda değil.');
         }
@@ -328,8 +360,6 @@ class TryonController extends Controller
 
     public function reject(TryonResult $result, Request $request, ReviewNotifier $notifier): RedirectResponse
     {
-        $this->guardNotOwnWork($result);
-
         if ($result->review_status !== TryonResult::REVIEW_PENDING) {
             return back()->with('error', 'Bu sonuç onay bekliyor durumda değil.');
         }

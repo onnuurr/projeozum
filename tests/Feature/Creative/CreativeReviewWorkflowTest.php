@@ -20,8 +20,10 @@ use Tests\TestCase;
 
 /**
  * Manken/giydirme görsellerinin insan onay akışını doğrular: üretici hariç
- * yöneticilere bildirim, onay/ret geçişleri, üreticinin kendi işini
- * onaylayamaması, ve Tryon onayının product_images'ı ANCAK onay anında yazması.
+ * yöneticilere bildirim, onay/ret geçişleri, mannequin üreticisinin kendi
+ * işini onaylayamaması (tryon'da bu kısıt yok — üretici kendi giydirme
+ * sonucunu da onaylayıp reddedebilir), ve Tryon onayının product_images'ı
+ * ANCAK onay anında yazması.
  */
 class CreativeReviewWorkflowTest extends TestCase
 {
@@ -213,7 +215,7 @@ class CreativeReviewWorkflowTest extends TestCase
         $this->assertDatabaseCount('product_images', 0);
     }
 
-    public function test_creator_cannot_review_own_tryon_result(): void
+    public function test_creator_can_review_own_tryon_result(): void
     {
         $creator = $this->creator();
         $creator->givePermissionTo('creative.approve');
@@ -221,7 +223,11 @@ class CreativeReviewWorkflowTest extends TestCase
 
         $this->actingAs($creator)
             ->post("/creative/tryon/{$r->id}/approve")
-            ->assertForbidden();
+            ->assertRedirect();
+
+        $r->refresh();
+        $this->assertSame(TryonResult::REVIEW_APPROVED, $r->review_status);
+        $this->assertSame($creator->id, $r->reviewed_by);
     }
 
     public function test_tryon_mannequin_picker_excludes_unapproved_identities(): void

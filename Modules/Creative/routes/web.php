@@ -88,6 +88,8 @@ Route::middleware(['auth', 'verified'])
         ->middleware('can:creative.view')->name('tryon.index');
     Route::get('/tryon/products', [TryonController::class, 'products'])
         ->middleware('can:creative.view')->name('tryon.products');
+    Route::get('/tryon/results', [TryonController::class, 'results'])
+        ->middleware('can:creative.view')->name('tryon.results');
     Route::post('/tryon', [TryonController::class, 'store'])
         ->middleware('can:creative.asset.manage')->name('tryon.store');
     Route::post('/tryon/classify-detail', [TryonController::class, 'classifyDetail'])

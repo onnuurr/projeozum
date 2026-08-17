@@ -12,9 +12,11 @@ use Modules\Creative\Models\TryonResult;
 /**
  * MannequinController, TryonController ve CreativeStudioController'ın onay/ret
  * aksiyonlarında paylaştığı yetkilendirme ve validasyon mantığı. Route zaten
- * 'can:creative.approve' ile korunur; burada EK olarak "üretici kendi işini
- * onaylayamaz/reddedemez" kuralı uygulanır (route middleware bunu tek başına
- * ifade edemez).
+ * 'can:creative.approve' ile korunur; guardNotOwnWork() EK olarak "üretici
+ * kendi işini onaylayamaz/reddedemez" kuralını uygular (route middleware bunu
+ * tek başına ifade edemez) — MannequinController ve CreativeStudioController
+ * bunu kullanır. TryonController KULLANMAZ: giydirme sonucunu üreten kişi
+ * kendi sonucunu da onaylayıp reddedebilir.
  */
 trait HandlesCreativeReview
 {

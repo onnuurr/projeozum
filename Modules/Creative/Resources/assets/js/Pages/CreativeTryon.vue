@@ -20,26 +20,28 @@
 			</template>
 		</PageHeader>
 
-		<!-- Seçim bağlamı: uzun sayfada yukarı kaydırmadan hangi adımda ne seçili olduğunu gösterir. -->
-		<div v-if="can('creative.asset.manage')" class="context-bar">
-			<a href="#step-1" class="context-item" :class="{ filled: selectedProduct !== null }">
-				<span class="context-label">1 · Ürün</span>
-				<span class="context-value">{{ selectedProductObj?.name || 'Seçilmedi' }}</span>
-			</a>
-			<span class="context-sep">→</span>
-			<a href="#step-2" class="context-item" :class="{ filled: selectedMannequin !== null }">
-				<span class="context-label">2 · Manken</span>
-				<span class="context-value">{{ selectedMannequinObj?.name || 'Seçilmedi' }}</span>
-			</a>
-			<span class="context-sep">→</span>
-			<a href="#step-3" class="context-item" :class="{ filled: selectedPoses.size > 0 }">
-				<span class="context-label">3 · Pozlar</span>
-				<span class="context-value">{{ selectedPoses.size ? `${selectedPoses.size} seçili` : 'Seçilmedi' }}</span>
-			</a>
+		<!-- Adım göstergesi: sırayla kilitli/açık/tamam adımlar — bir adım tamamlanmadan sonrakine geçilemez. -->
+		<div v-if="can('creative.asset.manage')" class="wizard-steps">
+			<template v-for="(s, i) in wizardSteps" :key="s.n">
+				<button
+					type="button"
+					class="wizard-step"
+					:class="{ done: s.complete, current: currentStep === s.n, locked: s.n > maxUnlockedStep }"
+					:disabled="s.n > maxUnlockedStep"
+					@click="goToStep(s.n)"
+				>
+					<span class="wizard-step-num">
+						<Check v-if="s.complete && currentStep !== s.n" :size="12" />
+						<template v-else>{{ s.n }}</template>
+					</span>
+					<span class="wizard-step-label">{{ s.label }}</span>
+				</button>
+				<span v-if="i < wizardSteps.length - 1" class="wizard-step-line" :class="{ done: s.complete }"></span>
+			</template>
 		</div>
 
 		<!-- Adım 1: Ürün -->
-		<Card v-if="can('creative.asset.manage')" id="step-1" title="1. Ürün Seç">
+		<Card v-if="can('creative.asset.manage') && currentStep === 1" title="1. Ürün Seç">
 			<template #actions>
 				<div class="product-search">
 					<Search :size="13" class="search-icon" />
@@ -87,45 +89,67 @@
 				</button>
 			</div>
 
-			<div v-if="selectedProduct !== null" class="garment-upload">
+			<div class="step-nav">
+				<span class="step-nav-spacer"></span>
+				<Button variant="primary" with-icon :disabled="!step1Complete" @click="nextStep">
+					Devam Et
+					<template #trailing><ChevronRight :size="14" /></template>
+				</Button>
+			</div>
+		</Card>
+
+		<!-- Adım 2: Görseller -->
+		<Card v-if="can('creative.asset.manage') && currentStep === 2" title="2. Görselleri Ekle">
+			<template #actions>
+				<span class="hint">{{ selectedProductObj?.name }}</span>
+			</template>
+
+			<div class="garment-upload">
 				<div class="garment-upload-head">
-					<strong>{{ selectedProductHasGarment ? 'Farklı bir ürün görseli kullan (opsiyonel)' : 'Ürün görseli yükle' }}</strong>
-					<span v-if="!selectedProductHasGarment" class="hint">Bu ürünün fotoğrafı yok — giydirmek için bir görsel yükleyin.</span>
+					<strong>Ürün Görseli <span class="required-mark" title="Zorunlu">*</span></strong>
+					<span v-if="!selectedProductHasGarment" class="hint hint-warning">Bu ürünün fotoğrafı yok — devam etmek için bir görsel yükleyin.</span>
+					<span v-else class="hint">Ürünün mevcut fotoğrafı kullanılacak — farklısını kullanmak için yeni bir görsel yükleyin.</span>
 				</div>
 				<div class="garment-upload-body">
-					<label class="upload-drop" v-if="!garmentPreview">
+					<!-- Kart üründe zaten fotoğraf olsa bile hep boş başlar — yalnız burada elle
+					     yüklenen görsel kartın içinde gösterilir, ürünün mevcut fotoğrafı önizlenmez. -->
+					<label class="garment-select-card" :class="{ 'required-empty': !selectedProductHasGarment }" v-if="!garmentPreview">
 						<input type="file" accept="image/*" @change="onGarmentFileChange" hidden />
-						<span>Görsel seç…</span>
+						<ImagePlus :size="24" />
+						<span>Görsel Seç</span>
 					</label>
-					<div v-else class="garment-preview">
+					<div v-else class="garment-select-card has-image">
 						<img :src="garmentPreview" alt="Yüklenen ürün görseli" />
-						<Button variant="ghost" size="sm" @click="clearGarmentFile">Kaldır</Button>
+						<button type="button" class="garment-remove-badge" title="Kaldır" @click="clearGarmentFile"><X :size="13" /></button>
 					</div>
 					<span class="upload-hint">JPG, PNG veya WEBP · en fazla 8MB</span>
 				</div>
 			</div>
 
-			<div v-if="selectedProduct !== null" class="garment-details">
+			<div class="garment-details">
 				<div class="garment-upload-head">
 					<strong>Detay görselleri (opsiyonel)</strong>
 					<span class="hint">Arkadan, yandan, yaka/dikiş, kumaş detayı vb. — AI giydirirken hepsini dikkate alır. JPG/PNG/WEBP, en fazla 8MB.</span>
 				</div>
 
-				<div class="detail-presets">
-					<button
-						v-for="preset in detailPresets"
-						:key="preset"
-						type="button"
-						class="preset-chip"
-						@click="addDetailSlot(preset)"
-					>
-						+ {{ preset }}
-					</button>
-					<button type="button" class="preset-chip" @click="addDetailSlot('')">+ Serbest başlıklı</button>
+				<!-- Sabit kategoriler her zaman görünür kartlardır — açmak için tıklamaya gerek yok, doldurmak opsiyoneldir. -->
+				<div class="detail-fixed-grid">
+					<div v-for="d in fixedDetailSlots" :key="d.id" class="detail-fixed-item">
+						<label class="garment-select-card sm" v-if="!d.preview">
+							<input type="file" accept="image/*" @change="onDetailFileChange(d.id, $event)" hidden />
+							<ImagePlus :size="18" />
+						</label>
+						<div v-else class="garment-select-card sm has-image">
+							<img :src="d.preview" :alt="d.label" />
+							<button type="button" class="garment-remove-badge" title="Kaldır" @click="clearFixedDetailSlot(d)"><X :size="12" /></button>
+						</div>
+						<span class="detail-fixed-label">{{ d.label }}</span>
+					</div>
 				</div>
 
-				<div v-if="garmentDetails.length" class="detail-list">
-					<div v-for="d in garmentDetails" :key="d.id" class="detail-item">
+				<!-- Sabit kategorilere girmeyen ek görseller (opsiyonel, isteğe bağlı eklenir). -->
+				<div v-if="customDetailSlots.length" class="detail-list">
+					<div v-for="d in customDetailSlots" :key="d.id" class="detail-item">
 						<label class="detail-thumb" v-if="!d.preview">
 							<input type="file" accept="image/*" @change="onDetailFileChange(d.id, $event)" hidden />
 							<span>Görsel seç…</span>
@@ -139,21 +163,34 @@
 								type="text"
 								class="detail-label-input"
 								:class="{ 'is-suggested': d.suggested }"
-								placeholder="Etiket (ör. Arkadan)"
+								placeholder="Etiket (ör. Kol Ucu)"
 								maxlength="60"
 								@input="d.suggested = false"
 							/>
 							<span v-if="d.classifying" class="detail-label-hint">tahmin ediliyor…</span>
 							<span v-else-if="d.suggested" class="detail-label-hint">öneri, %{{ Math.round(d.suggestionScore * 100) }}</span>
 						</div>
-						<Button variant="ghost" size="sm" @click="removeDetailSlot(d.id)">Kaldır</Button>
+						<Button variant="ghost" size="sm" @click="removeCustomDetailSlot(d.id)">Kaldır</Button>
 					</div>
 				</div>
+
+				<button type="button" class="preset-chip" @click="addCustomDetailSlot">+ Serbest başlıklı</button>
+			</div>
+
+			<div class="step-nav">
+				<Button variant="ghost" with-icon @click="prevStep">
+					<template #leading><ChevronLeft :size="14" /></template>
+					Geri
+				</Button>
+				<Button variant="primary" with-icon :disabled="!step2Complete" @click="nextStep">
+					Devam Et
+					<template #trailing><ChevronRight :size="14" /></template>
+				</Button>
 			</div>
 		</Card>
 
-		<!-- Adım 2: Manken -->
-		<Card v-if="can('creative.asset.manage')" id="step-2" title="2. Manken Seç">
+		<!-- Adım 3: Manken -->
+		<Card v-if="can('creative.asset.manage') && currentStep === 3" title="3. Manken Seç">
 			<template #actions>
 				<span class="hint">{{ mannequins.length }} uygun manken</span>
 			</template>
@@ -177,10 +214,21 @@
 					<span>{{ m.name }}</span>
 				</button>
 			</div>
+
+			<div class="step-nav">
+				<Button variant="ghost" with-icon @click="prevStep">
+					<template #leading><ChevronLeft :size="14" /></template>
+					Geri
+				</Button>
+				<Button variant="primary" with-icon :disabled="!step3Complete" @click="nextStep">
+					Devam Et
+					<template #trailing><ChevronRight :size="14" /></template>
+				</Button>
+			</div>
 		</Card>
 
-		<!-- Adım 3: Pozlar (bağımsız kütüphane) -->
-		<Card v-if="can('creative.asset.manage')" id="step-3" title="3. Pozlar Seç">
+		<!-- Adım 4: Pozlar (bağımsız kütüphane) -->
+		<Card v-if="can('creative.asset.manage') && currentStep === 4" title="4. Pozlar Seç">
 			<template #actions>
 				<Button v-if="poses.length" variant="ghost" size="sm" @click="toggleAllPoses">
 					{{ allPosesSelected ? 'Seçimi kaldır' : 'Tümünü seç' }}
@@ -212,16 +260,43 @@
 					<span class="pose-check" :class="{ on: selectedPoses.has(pose.id) }"></span>
 				</button>
 			</div>
+
+			<div class="step-nav">
+				<Button variant="ghost" with-icon @click="prevStep">
+					<template #leading><ChevronLeft :size="14" /></template>
+					Geri
+				</Button>
+				<Button variant="primary" with-icon :disabled="!step4Complete" @click="nextStep">
+					Devam Et
+					<template #trailing><ChevronRight :size="14" /></template>
+				</Button>
+			</div>
 		</Card>
 
-		<!-- Aksiyon -->
-		<div v-if="can('creative.asset.manage')" class="action-bar-wrap">
+		<!-- Adım 5: Üret -->
+		<Card v-if="can('creative.asset.manage') && currentStep === 5" title="5. Giydir ve Üret">
+			<div class="review-summary">
+				<div class="review-summary-item">
+					<span class="review-summary-label">Ürün</span>
+					<span class="review-summary-value">{{ selectedProductObj?.name }}</span>
+				</div>
+				<div class="review-summary-item">
+					<span class="review-summary-label">Manken</span>
+					<span class="review-summary-value">{{ selectedMannequinObj?.name }}</span>
+				</div>
+				<div class="review-summary-item">
+					<span class="review-summary-label">Pozlar</span>
+					<span class="review-summary-value">{{ selectedPoses.size }} seçili</span>
+				</div>
+			</div>
+
 			<Alert
 				v-if="overlapCount > 0"
 				variant="warning"
 				title="Onaylı görsel yeniden üretilecek"
 				:message="`Seçtiğiniz pozlardan ${overlapCount} tanesi için zaten onaylı bir giydirme görseli var. Yeniden üretirseniz bu görsellerin onay durumu sıfırlanır (ürün kapağı değişmez, ama tekrar onay bekler).`"
 			/>
+
 			<div class="action-bar">
 				<div class="selection-summary">
 					<strong>{{ selectedPoses.size }}</strong> poz ×
@@ -236,15 +311,27 @@
 					{{ busy ? 'Kuyruğa alınıyor…' : 'Giydir ve Ürün Görseli Yap' }}
 				</Button>
 			</div>
-		</div>
+
+			<div class="step-nav">
+				<Button variant="ghost" with-icon @click="prevStep">
+					<template #leading><ChevronLeft :size="14" /></template>
+					Geri
+				</Button>
+				<span class="step-nav-spacer"></span>
+			</div>
+		</Card>
 
 		<!-- Sonuçlar -->
-		<Card title="Son Giydirmeler">
+		<Card :title="resultsProductObj ? `${resultsProductObj.name} — Giydirmeler` : 'Son Giydirmeler (tüm ürünler)'">
 			<template #actions>
-				<span class="hint">{{ filteredResults.length }}/{{ results.length }} kayıt</span>
+				<button v-if="resultsProductObj !== null" type="button" class="link-btn" @click="clearProductFilter">
+					Tüm ürünleri göster
+				</button>
+				<Loader2 v-if="productResultsLoading" :size="13" class="search-spin" />
+				<span class="hint">{{ filteredResults.length }}/{{ displayResults.length }} kayıt</span>
 			</template>
 
-			<div v-if="results.length" class="filter-row">
+			<div v-if="displayResults.length" class="filter-row">
 				<button
 					v-for="f in STATUS_FILTERS"
 					:key="f.key"
@@ -264,7 +351,11 @@
 				>{{ f.label }}</button>
 			</div>
 
-			<EmptyState v-if="results.length === 0" :icon="ImageOff" title="Henüz giydirme yok." />
+			<EmptyState
+				v-if="displayResults.length === 0"
+				:icon="ImageOff"
+				:title="resultsProductObj ? `${resultsProductObj.name} için henüz giydirme yok.` : 'Henüz giydirme yok.'"
+			/>
 			<EmptyState
 				v-else-if="filteredResults.length === 0"
 				:icon="ImageOff"
@@ -300,8 +391,8 @@
 							<Button variant="success" size="sm" :disabled="busyReview === r.id" @click="approve(r)"><template #leading><Check :size="11" /></template>Onayla</Button>
 							<Button variant="danger" size="sm" :disabled="busyReview === r.id" @click="reject(r)"><template #leading><X :size="11" /></template>Reddet</Button>
 						</div>
-						<div v-if="r.status === 'done' && can('creative.asset.manage')" class="result-actions">
-							<template v-if="r.review_status === 'approved'">
+						<div v-if="(r.status === 'done' || r.status === 'failed') && can('creative.asset.manage')" class="result-actions">
+							<template v-if="r.status === 'done' && r.review_status === 'approved'">
 								<button v-if="!r.is_cover" type="button" class="link-btn" @click="setCover(r)">Kapak yap</button>
 								<span v-else class="is-cover-note">Kapak</span>
 							</template>
@@ -366,7 +457,7 @@ import { ref, reactive, computed, watch, inject, onMounted, onUnmounted } from '
 import { Head, Link, router } from '@inertiajs/vue3'
 import {
 	RefreshCw, Play, Maximize2, Star, AlertTriangle, Check, X, ClipboardList, MessageCircle, Download,
-	Search, Loader2, PackageSearch, Users, Footprints, ImageOff, ShieldCheck, Info,
+	Search, Loader2, PackageSearch, Users, Footprints, ImageOff, ShieldCheck, Info, ChevronRight, ChevronLeft, ImagePlus,
 } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
@@ -451,27 +542,38 @@ const garmentPreview = ref(null)
 function selectProduct(p) {
 	selectedProduct.value = p.id
 	selectedProductObj.value = p
+	resultsProductObj.value = p
+	fetchProductResults(p.id)
 }
 
 const selectedMannequinObj = computed(() => props.mannequins.find(m => m.id === selectedMannequin.value) ?? null)
 
 // Detay görselleri (opsiyonel) — arkadan/yandan/yaka-dikiş/kumaş vb. Her giriş
 // { id, label, file, preview }; sadece 'file' seçili olanlar gönderime dahil edilir.
-const detailPresets = ['Arkadan', 'Yandan', 'Yaka / Dikiş Detayı', 'Kumaş Detayı', 'Yakın Çekim']
-const garmentDetails = reactive([])
+// Bilinen kategoriler (fixedDetailSlots) sabit, her zaman görünen kartlardır —
+// ana ürün görseli kartıyla aynı görünümde, tıklamayla "açılmaları" gerekmez.
+// Bunların dışında kalan serbest başlıklı ek görseller customDetailSlots'ta.
+const DETAIL_PRESETS = ['Arkadan', 'Yandan', 'Yaka / Dikiş Detayı', 'Kumaş Detayı', 'Yakın Çekim']
 let detailSeq = 0
 
-function addDetailSlot(presetLabel) {
-	if (garmentDetails.length >= 6) return
-	garmentDetails.push({
-		id: ++detailSeq, label: presetLabel, file: null, preview: null,
+function makeDetailSlot(label) {
+	return {
+		id: ++detailSeq, label, file: null, preview: null,
 		suggested: false, suggestionScore: null, classifying: false, detectedLabels: [],
-	})
+	}
+}
+
+const fixedDetailSlots = reactive(DETAIL_PRESETS.map(makeDetailSlot))
+const customDetailSlots = reactive([])
+
+function addCustomDetailSlot() {
+	if (customDetailSlots.length >= 6) return
+	customDetailSlots.push(makeDetailSlot(''))
 }
 
 function onDetailFileChange(id, e) {
 	const file = e.target.files?.[0] || null
-	const slot = garmentDetails.find(d => d.id === id)
+	const slot = fixedDetailSlots.find(d => d.id === id) || customDetailSlots.find(d => d.id === id)
 	if (!slot) return
 	if (slot.preview) URL.revokeObjectURL(slot.preview)
 	slot.file = file
@@ -508,16 +610,28 @@ async function classifyDetailSuggestion(slot) {
 	}
 }
 
-function removeDetailSlot(id) {
-	const idx = garmentDetails.findIndex(d => d.id === id)
+// Sabit kategori kartı kaldırılamaz (her zaman görünür kalır) — yalnız
+// içindeki dosya/önizleme temizlenip kart boş duruma döner.
+function clearFixedDetailSlot(slot) {
+	if (slot.preview) URL.revokeObjectURL(slot.preview)
+	slot.file = null
+	slot.preview = null
+	slot.suggested = false
+	slot.suggestionScore = null
+	slot.detectedLabels = []
+}
+
+function removeCustomDetailSlot(id) {
+	const idx = customDetailSlots.findIndex(d => d.id === id)
 	if (idx === -1) return
-	if (garmentDetails[idx].preview) URL.revokeObjectURL(garmentDetails[idx].preview)
-	garmentDetails.splice(idx, 1)
+	if (customDetailSlots[idx].preview) URL.revokeObjectURL(customDetailSlots[idx].preview)
+	customDetailSlots.splice(idx, 1)
 }
 
 function clearGarmentDetails() {
-	garmentDetails.forEach(d => { if (d.preview) URL.revokeObjectURL(d.preview) })
-	garmentDetails.splice(0, garmentDetails.length)
+	fixedDetailSlots.forEach(clearFixedDetailSlot)
+	customDetailSlots.forEach(d => { if (d.preview) URL.revokeObjectURL(d.preview) })
+	customDetailSlots.splice(0, customDetailSlots.length)
 }
 
 const selectedProductHasGarment = computed(() => !!selectedProductObj.value?.has_garment)
@@ -541,13 +655,90 @@ const missingRequirements = computed(() => {
 	return missing
 })
 
+// ── Adımlı akış (Progress with Steps) ──
+// Bir adım tamamlanmadan sonrakine geçilemez: step-N-complete koşulu sağlanana
+// kadar hem ilgili "Devam Et" butonu disabled kalır hem de üstteki adım
+// göstergesinde o adımın sonrası kilitli (tıklanamaz) görünür.
+const currentStep = ref(1)
+const step1Complete = computed(() => selectedProduct.value !== null)
+const step2Complete = computed(() => selectedProductHasGarment.value || garmentFile.value !== null)
+const step3Complete = computed(() => selectedMannequin.value !== null)
+const step4Complete = computed(() => selectedPoses.size > 0)
+
+const wizardSteps = computed(() => [
+	{ n: 1, label: 'Ürün', complete: step1Complete.value },
+	{ n: 2, label: 'Görseller', complete: step2Complete.value },
+	{ n: 3, label: 'Manken', complete: step3Complete.value },
+	{ n: 4, label: 'Pozlar', complete: step4Complete.value },
+	{ n: 5, label: 'Üret', complete: false },
+])
+
+// En ileri erişilebilir adım — ilk tamamlanmamış adımın bir sonrasıdır.
+const maxUnlockedStep = computed(() => {
+	if (!step1Complete.value) return 1
+	if (!step2Complete.value) return 2
+	if (!step3Complete.value) return 3
+	if (!step4Complete.value) return 4
+	return 5
+})
+
+function goToStep(n) {
+	if (n <= maxUnlockedStep.value) currentStep.value = n
+}
+function nextStep() {
+	if (currentStep.value < 5) goToStep(currentStep.value + 1)
+}
+function prevStep() {
+	if (currentStep.value > 1) currentStep.value -= 1
+}
+
+// Bir önceki adımdaki seçim geçersiz hale gelirse (ör. ürün değiştirilip
+// giysi görseli kalktı) mevcut adım artık kilitli kalan bir adımın ötesinde
+// olabilir — bu durumda son açık adıma geri çeker.
+watch(maxUnlockedStep, (max) => { if (currentStep.value > max) currentStep.value = max })
+
+// ── Ürüne özel giydirme geçmişi ──
+// index()'in gönderdiği `results` global akıştır (tüm ürünlerin son 60 kaydı) —
+// yalnız 'creative.approve' yetkili, ürün seçme adımını görmeyen onaylayıcılar
+// için bu genel akış gösterilir. Bir ürün seçildiğinde galeri, o ürünün TÜM
+// geçmişini döndüren /creative/tryon/results uç noktasına geçer.
+// Wizard'daki `selectedProduct`'tan KASITLI olarak ayrı tutulur: "Tüm ürünleri
+// göster" yalnız bu galeriyi etkilesin, üretim akışındaki (1-5. adım) seçimi
+// sıfırlamasın.
+const productResults = ref(null)
+const productResultsLoading = ref(false)
+const resultsProductObj = ref(null)
+
+async function fetchProductResults(productId) {
+	productResultsLoading.value = true
+	try {
+		const { data } = await window.axios.get('/creative/tryon/results', { params: { product_id: productId } })
+		productResults.value = data?.data || []
+	} catch {
+		productResults.value = []
+	} finally {
+		productResultsLoading.value = false
+	}
+}
+
+function clearProductFilter() {
+	resultsProductObj.value = null
+	productResults.value = null
+}
+
+function refetchProductResultsIfActive() {
+	if (resultsProductObj.value !== null) fetchProductResults(resultsProductObj.value.id)
+}
+
+const displayResults = computed(() => productResults.value ?? props.results)
+
 // Zaten onaylanmış (ve ürün kapağı olarak yayınlanmış) bir poz yeniden
 // kuyruğa alınırsa ProductOnModelService::queue() onay durumunu sessizce
 // sıfırlıyor — burada bunu seçim aşamasında görünür kılıyoruz.
 const approvedPoseIdsForSelectedProduct = computed(() => {
 	const set = new Set()
 	if (selectedProduct.value === null) return set
-	for (const r of props.results) {
+	for (const r of displayResults.value) {
 		if (r.product_id === selectedProduct.value && r.review_status === 'approved' && r.pose_id) set.add(r.pose_id)
 	}
 	return set
@@ -573,7 +764,7 @@ function clearGarmentFile() {
 
 // Ürün değişince önceki yüklenen görsel(ler) başka bir ürüne taşınmasın.
 watch(selectedProduct, () => { clearGarmentFile(); clearGarmentDetails() })
-const hasPending = computed(() => props.results.some(r => r.status === 'queued' || r.status === 'generating'))
+const hasPending = computed(() => displayResults.value.some(r => r.status === 'queued' || r.status === 'generating'))
 
 const STATUS_LABELS = { queued: 'Sırada', generating: 'Üretiliyor', done: 'Hazır', failed: 'Başarısız' }
 const REVIEW_LABELS = { pending: 'Onay Bekliyor', approved: 'Onaylı', rejected: 'Reddedildi' }
@@ -601,7 +792,7 @@ const REVIEW_FILTERS = [
 ]
 const statusFilter = ref('all')
 const reviewFilter = ref('all')
-const filteredResults = computed(() => props.results.filter(r =>
+const filteredResults = computed(() => displayResults.value.filter(r =>
 	(statusFilter.value === 'all' || r.status === statusFilter.value)
 	&& (reviewFilter.value === 'all' || r.review_status === reviewFilter.value),
 ))
@@ -613,7 +804,7 @@ function approve(r) {
 		preserveScroll: true,
 		preserveState: false,
 		onError: (errs) => showToast?.({ type: 'error', title: 'Onaylanamadı', message: Object.values(errs)[0] || 'Sunucu hatası.' }),
-		onFinish: () => { busyReview.value = null },
+		onFinish: () => { busyReview.value = null; refetchProductResultsIfActive() },
 	})
 }
 
@@ -626,7 +817,7 @@ async function reject(r) {
 		preserveScroll: true,
 		preserveState: false,
 		onError: (errs) => showToast?.({ type: 'error', title: 'Reddedilemedi', message: Object.values(errs)[0] || 'Sunucu hatası.' }),
-		onFinish: () => { busyReview.value = null },
+		onFinish: () => { busyReview.value = null; refetchProductResultsIfActive() },
 	})
 }
 
@@ -669,7 +860,7 @@ async function generate() {
 		mannequin_id: selectedMannequin.value,
 		pose_ids: Array.from(selectedPoses),
 		garment_image: garmentFile.value,
-		garment_details: garmentDetails
+		garment_details: [...fixedDetailSlots, ...customDetailSlots]
 			.filter(d => d.file)
 			.map(d => ({ image: d.file, label: d.label?.trim() || null, detected_labels: d.detectedLabels || [] })),
 	}, {
@@ -678,6 +869,8 @@ async function generate() {
 			selectedPoses.clear()
 			clearGarmentFile()
 			clearGarmentDetails()
+			refetchProductResultsIfActive()
+			currentStep.value = 4
 		},
 		onError: (errs) => showToast?.({ type: 'error', title: 'Başlatılamadı', message: Object.values(errs)[0] || 'Doğrulama hatası.' }),
 		onFinish: () => { busy.value = false },
@@ -688,6 +881,7 @@ function setCover(r) {
 	router.post(`/creative/tryon/${r.id}/cover`, {}, {
 		preserveScroll: true,
 		onError: (errs) => showToast?.({ type: 'error', title: 'Yapılamadı', message: Object.values(errs)[0] || 'Hata.' }),
+		onFinish: () => refetchProductResultsIfActive(),
 	})
 }
 
@@ -701,11 +895,13 @@ async function destroyResult(r) {
 	if (!ok) return
 	router.delete(`/creative/tryon/${r.id}`, {
 		preserveScroll: true,
+		onFinish: () => refetchProductResultsIfActive(),
 	})
 }
 
 function refresh() {
 	router.reload({ only: ['results'] })
+	refetchProductResultsIfActive()
 }
 
 // Büyük önizleme (lightbox) + zoom/pan
@@ -827,13 +1023,28 @@ onUnmounted(() => {
 .link-btn { background: none; border: none; color: var(--color-primary); font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; padding: 0; }
 
 /* Seçim bağlamı çubuğu */
-.context-bar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--color-surface); border: 1px solid var(--color-outline-variant); border-radius: 12px; padding: 8px 16px; margin-bottom: 18px; box-shadow: 0 1px 4px rgba(0,0,0,.04); }
-.context-item { display: flex; flex-direction: column; gap: 1px; text-decoration: none; padding: 3px 8px; border-radius: 8px; }
-.context-item:hover { background: var(--color-surface-container-low); }
-.context-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--color-muted); }
-.context-value { font-size: 12.5px; font-weight: 600; color: var(--color-muted); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.context-item.filled .context-value { color: var(--color-ink); }
-.context-sep { color: var(--color-muted); font-size: 12px; }
+/* Adım göstergesi (Progress with Steps) */
+.wizard-steps { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; background: var(--color-surface); border: 1px solid var(--color-outline-variant); border-radius: 12px; padding: 10px 16px; margin-bottom: 18px; box-shadow: 0 1px 4px rgba(0,0,0,.04); }
+.wizard-step { display: flex; align-items: center; gap: 7px; border: none; background: none; font-family: inherit; padding: 4px 8px; border-radius: 8px; cursor: pointer; }
+.wizard-step:not(:disabled):hover { background: var(--color-surface-container-low); }
+.wizard-step:disabled { cursor: not-allowed; opacity: .45; }
+.wizard-step-num { display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--color-outline-variant); font-size: 11px; font-weight: 700; color: var(--color-muted); flex-shrink: 0; }
+.wizard-step.current .wizard-step-num { border-color: var(--color-primary); background: var(--color-primary); color: #fff; }
+.wizard-step.done .wizard-step-num { border-color: var(--color-success); background: var(--color-success); color: #fff; }
+.wizard-step-label { font-size: 12.5px; font-weight: 600; color: var(--color-muted); white-space: nowrap; }
+.wizard-step.current .wizard-step-label { color: var(--color-ink); }
+.wizard-step-line { flex: 1; min-width: 12px; height: 2px; background: var(--color-outline-variant); border-radius: 2px; }
+.wizard-step-line.done { background: var(--color-success); }
+
+/* Adım içi ileri/geri navigasyonu */
+.step-nav { display: flex; align-items: center; gap: 10px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--color-outline-variant); }
+.step-nav-spacer { flex: 1; }
+
+/* Adım 5 seçim özeti */
+.review-summary { display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid var(--color-outline-variant); }
+.review-summary-item { display: flex; flex-direction: column; gap: 2px; }
+.review-summary-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--color-muted); }
+.review-summary-value { font-size: 14px; font-weight: 600; color: var(--color-ink); }
 
 /* Ürün arama */
 .product-search { display: flex; align-items: center; gap: 6px; background: var(--color-surface-container-low); border: 1px solid var(--color-outline-variant); border-radius: 8px; padding: 5px 10px; min-width: 220px; }
@@ -860,22 +1071,30 @@ onUnmounted(() => {
 .product-name { font-size: 12px; font-weight: 600; color: var(--color-ink); line-height: 1.3; }
 
 /* Ürün görseli yükleme */
-.garment-upload { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--color-outline-variant); }
+.garment-upload { }
 .garment-upload-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; margin-bottom: 10px; font-size: 13px; color: var(--color-ink); }
-.garment-upload-head .hint { color: var(--color-warning); }
+.required-mark { color: var(--color-warning); font-weight: 700; margin-left: 2px; }
+.garment-upload-head .hint-warning { color: var(--color-warning); }
 .garment-upload-body { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
-.upload-drop { display: inline-flex; align-items: center; justify-content: center; width: 120px; height: 120px; border: 2px dashed var(--color-outline-variant); border-radius: 12px; color: var(--color-muted); font-size: 12px; font-weight: 600; cursor: pointer; }
-.upload-drop:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.garment-select-card { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; width: 160px; height: 160px; padding: 0; border: 2px dashed var(--color-outline-variant); border-radius: 14px; background: var(--color-surface); color: var(--color-muted); font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; overflow: hidden; }
+.garment-select-card:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.garment-select-card.has-image { border-style: solid; border-color: var(--color-primary); cursor: default; }
+.garment-select-card.has-image img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.garment-select-card.sm { width: 108px; height: 108px; border-radius: 12px; }
+.garment-select-card.required-empty { border-color: var(--color-warning); }
+.garment-select-card.required-empty:hover { border-color: var(--color-warning); color: var(--color-warning); }
+.garment-remove-badge { position: absolute; top: 6px; right: 6px; width: 26px; height: 26px; border: none; border-radius: 8px; background: rgba(26,26,46,.6); color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.garment-remove-badge:hover { background: rgba(26,26,46,.85); }
 .upload-hint { font-size: 11px; color: var(--color-muted); }
-.garment-preview { display: flex; align-items: center; gap: 12px; }
-.garment-preview img { width: 90px; height: 90px; border-radius: 10px; object-fit: cover; border: 1px solid var(--color-outline-variant); }
 
 /* Detay görselleri */
 .garment-details { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--color-outline-variant); }
-.detail-presets { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 14px; }
+.detail-fixed-grid { display: flex; flex-wrap: wrap; gap: 16px; margin: 12px 0 16px; }
+.detail-fixed-item { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.detail-fixed-label { font-size: 11.5px; font-weight: 600; color: var(--color-muted); text-align: center; max-width: 108px; }
 .preset-chip { border: 1.5px dashed var(--color-outline-variant); background: var(--color-surface); color: var(--color-muted); font-family: inherit; font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 20px; cursor: pointer; }
 .preset-chip:hover { border-color: var(--color-primary); color: var(--color-primary); }
-.detail-list { display: flex; flex-direction: column; gap: 10px; }
+.detail-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
 .detail-item { display: flex; align-items: center; gap: 10px; }
 .detail-thumb { display: inline-flex; align-items: center; justify-content: center; width: 60px; height: 60px; border: 2px dashed var(--color-outline-variant); border-radius: 10px; color: var(--color-muted); font-size: 10px; font-weight: 600; cursor: pointer; text-align: center; flex-shrink: 0; overflow: hidden; }
 .detail-thumb:hover { border-color: var(--color-primary); color: var(--color-primary); }
@@ -904,8 +1123,7 @@ onUnmounted(() => {
 .pose-approved-flag { position: absolute; top: 6px; left: 6px; width: 20px; height: 20px; border-radius: 50%; background: var(--color-success); color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
 
 /* Aksiyon */
-.action-bar-wrap { position: sticky; bottom: 0; display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; z-index: 4; }
-.action-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; background: var(--color-surface); border: 1px solid var(--color-outline-variant); border-radius: 14px; padding: 14px 18px; box-shadow: 0 -2px 12px rgba(0,0,0,.05); }
+.action-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 4px; }
 .selection-summary { font-size: 13px; color: var(--color-muted); }
 .selection-summary strong { color: var(--color-ink); }
 .missing-hint { display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--color-warning); margin-top: 4px; }
@@ -956,7 +1174,8 @@ onUnmounted(() => {
 
 /* ── Dar ekran (telefon) ── */
 @media (max-width: 640px) {
-	.context-bar { display: none; } /* alttaki sticky action-bar zaten aynı özeti taşıyor; iki sticky çubuk küçük ekranda yer israfı olur */
+	.wizard-steps { position: static; }
+	.wizard-step-label { display: none; }
 
 	.product-search { min-width: 0; width: 100%; }
 
