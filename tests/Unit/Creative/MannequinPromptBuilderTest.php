@@ -111,8 +111,23 @@ class MannequinPromptBuilderTest extends TestCase
         $prompt = strtolower($this->build($r));
 
         $this->assertStringContainsString('anatolian turkish', $prompt);
-        $this->assertStringContainsString('buğday', $prompt);
-        $this->assertStringContainsString('badem', $prompt);
+
+        // identityProfile() her bölüm (skin/eyes/...) için config'teki varyant
+        // havuzundan RASTGELE birini seçer (bkz. MannequinPromptBuilder::pickVariant),
+        // bu yüzden tek bir sabit varyant metni (ör. yalnız "buğday" içeren skin
+        // varyantı) beklemek flaky olur — seçilenin havuzdaki varyantlardan BİRİ
+        // olduğunu doğruluyoruz.
+        $skinVariants = (array) config('creative.ai.prompt.identity_profiles.turkish_anatolian.skin');
+        $eyeVariants  = (array) config('creative.ai.prompt.identity_profiles.turkish_anatolian.eyes');
+
+        $this->assertTrue(
+            collect($skinVariants)->contains(fn ($v) => str_contains($prompt, strtolower($v))),
+            'Prompt skin varyant havuzundaki hiçbir seçenekle eşleşmedi.',
+        );
+        $this->assertTrue(
+            collect($eyeVariants)->contains(fn ($v) => str_contains($prompt, strtolower($v))),
+            'Prompt eyes varyant havuzundaki hiçbir seçenekle eşleşmedi.',
+        );
     }
 
     public function test_explicit_skin_tone_overrides_profile_complexion(): void

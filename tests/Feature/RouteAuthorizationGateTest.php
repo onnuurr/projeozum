@@ -28,6 +28,7 @@ class RouteAuthorizationGateTest extends TestCase
         'verification.verify' => 'Breeze auth akışı',
         'logout' => 'Breeze auth akışı',
         'dashboard' => 'girişli her kullanıcı için genel karşılama sayfası',
+        'component-showcase' => 'geliştirici için statik UI bileşen galerisi, veri göstermez',
         'notifications.read' => 'kullanıcı kendi bildirimini okur',
         'notifications.read-all' => 'kullanıcı kendi bildirimlerini okur',
         'POST confirm-password' => 'Breeze auth akışı (isimsiz route)',

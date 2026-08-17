@@ -76,7 +76,11 @@ class ProfileTest extends TestCase
             ->assertRedirect('/');
 
         $this->assertGuest();
-        $this->assertNull($user->fresh());
+        // User modeli SoftDeletes kullanıyor; Model::fresh() global scope'ları
+        // (soft-delete scope dahil) bilerek atlar, bu yüzden silinmiş bir kaydı
+        // yine de döner — assertNull() burada hiçbir zaman geçemez. Doğru kontrol
+        // deleted_at'in DB'de set edildiğini doğrulamak.
+        $this->assertSoftDeleted($user);
     }
 
     public function test_correct_password_must_be_provided_to_delete_account(): void
