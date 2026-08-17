@@ -369,8 +369,22 @@ class ProductOnModelService
             throw new RuntimeException('Giydirme çıktısı okunamadı.');
         }
 
-        $rel = sprintf('products/%d/onmodel_staged_%d.png', $product->id, $result->id);
-        Storage::disk(Media::disk())->put($rel, $bytes);
+        $encoded = ImageFile::encode(
+            $bytes,
+            (string) config('creative.image_output.format', 'webp'),
+            (int) config('creative.image_output.quality', 90),
+        );
+
+        $rel  = sprintf('products/%d/onmodel_staged_%d.%s', $product->id, $result->id, $encoded['ext']);
+        $disk = Storage::disk(Media::disk());
+
+        // Format (uzantı) değiştiyse eski dosya yetim kalmasın diye önce silinir.
+        $old = $result->staged_image_path;
+        if ($old && $old !== $rel) {
+            $disk->delete($old);
+        }
+
+        $disk->put($rel, $encoded['bytes']);
 
         return $rel;
     }

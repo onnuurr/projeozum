@@ -11,84 +11,26 @@
 
 		<AtelierNav current="boms" />
 
-		<div class="page-header">
-			<div>
-				<h1 class="page-title">Reçeteler (BOM)</h1>
-				<p class="page-subtitle"><strong>{{ boms.length }}</strong> reçete tanımı</p>
-			</div>
-		</div>
-
-		<!-- New BOM form card -->
-		<div v-if="can('atelier.bom.manage')" class="card" style="margin-bottom: 18px;">
-			<div class="card-header">
-				<h3>Yeni Reçete</h3>
-			</div>
-			<div class="form-section">
-				<form @submit.prevent="submit" class="form-grid">
-					<div class="form-row-inline">
-						<div class="form-row">
-							<label class="form-label">Ürün <span class="req">*</span></label>
-							<select v-model="form.product_id" class="form-input">
-								<option value="">Seçin…</option>
-								<option v-for="p in products" :key="p.id" :value="p.id">{{ p.name }} ({{ p.sku }})</option>
-							</select>
-						</div>
-						<div class="form-row" style="flex: 1">
-							<label class="form-label">Reçete Adı <span class="req">*</span></label>
-							<input v-model="form.name" type="text" class="form-input" placeholder="örn. Varsayılan Reçete" />
-						</div>
-					</div>
-
-					<!-- Lines -->
-					<div class="bom-lines">
-						<div class="bom-lines-header">
-							<span class="form-label">Malzeme Satırları</span>
-						</div>
-						<div v-for="(line, i) in form.lines" :key="i" class="bom-line">
-							<div class="form-row" style="flex: 2">
-								<label class="form-label">Malzeme</label>
-								<select v-model="line.material_id" class="form-input">
-									<option value="">Seçin…</option>
-									<option v-for="m in materials" :key="m.id" :value="m.id">{{ m.name }} ({{ m.unit }})</option>
-								</select>
-							</div>
-							<div class="form-row">
-								<label class="form-label">Birim/adet</label>
-								<input v-model="line.quantity_per_unit" type="number" step="0.0001" class="form-input" />
-							</div>
-							<div class="form-row">
-								<label class="form-label">Fire %</label>
-								<input v-model="line.waste_pct" type="number" step="0.01" class="form-input" />
-							</div>
-							<div class="form-row form-row-actions">
-								<label class="form-label">&nbsp;</label>
-								<button type="button" class="btn btn-ghost btn-sm" @click="removeLine(i)">Kaldır</button>
-							</div>
-						</div>
-					</div>
-
-					<div class="form-actions">
-						<button type="button" class="btn btn-ghost" @click="addLine">+ Satır Ekle</button>
-						<button type="submit" class="btn btn-primary" :disabled="form.processing">Kaydet</button>
-					</div>
-				</form>
-			</div>
-		</div>
+		<PageHeader title="Reçeteler (BOM)">
+			<template #subtitle><strong>{{ boms.length }}</strong> reçete tanımı</template>
+			<template v-if="can('atelier.bom.manage')" #actions>
+				<Button variant="primary" with-icon @click="openCreate">
+					<template #leading><Plus :size="13" /></template>
+					Yeni Reçete
+				</Button>
+			</template>
+		</PageHeader>
 
 		<!-- BOM list -->
-		<div v-if="boms.length === 0" class="card">
-			<div class="empty-state">Henüz reçete tanımlanmamış.</div>
-		</div>
+		<EmptyState v-if="boms.length === 0" :icon="ClipboardList" title="Henüz reçete tanımlanmamış." />
 
-		<div v-for="b in boms" :key="b.id" class="card bom-card">
-			<div class="card-header">
-				<div class="bom-card-title">
-					<span class="bom-product">{{ b.productName }}</span>
-					<span class="bom-name-badge">{{ b.name }}</span>
+		<Card v-for="b in boms" :key="b.id" :title="b.productName" class="bom-card">
+			<template #actions>
+				<div class="bom-card-actions">
+					<Badge color="info" :label="b.name" variant="tonal" />
+					<Button v-if="can('atelier.bom.manage')" variant="danger" size="sm" @click="remove(b)">Sil</Button>
 				</div>
-				<button v-if="can('atelier.bom.manage')" class="btn btn-ghost btn-sm btn-danger-ghost" @click="remove(b)">Sil</button>
-			</div>
-			<div class="table-scroll">
+			</template>
 			<table class="data-table">
 				<thead>
 					<tr>
@@ -105,16 +47,77 @@
 					</tr>
 				</tbody>
 			</table>
-			</div>
-		</div>
+		</Card>
+
+		<AppModal v-model="modalOpen" title="Yeni Reçete" size="lg">
+			<form id="bom-form" class="form-grid" @submit.prevent="submit">
+				<div class="form-row-inline">
+					<div class="form-row">
+						<label class="form-label">Ürün <span class="req">*</span></label>
+						<select v-model="form.product_id" class="form-input">
+							<option value="">Seçin…</option>
+							<option v-for="p in products" :key="p.id" :value="p.id">{{ p.name }} ({{ p.sku }})</option>
+						</select>
+						<span v-if="form.errors.product_id" class="form-error">{{ form.errors.product_id }}</span>
+					</div>
+					<div class="form-row" style="flex: 1">
+						<label class="form-label">Reçete Adı <span class="req">*</span></label>
+						<input v-model="form.name" type="text" class="form-input" placeholder="örn. Varsayılan Reçete" />
+					</div>
+				</div>
+
+				<!-- Lines -->
+				<div class="bom-lines">
+					<div class="bom-lines-header">
+						<span class="form-label">Malzeme Satırları</span>
+					</div>
+					<div v-for="(line, i) in form.lines" :key="i" class="bom-line">
+						<div class="form-row" style="flex: 2">
+							<label class="form-label">Malzeme</label>
+							<select v-model="line.material_id" class="form-input">
+								<option value="">Seçin…</option>
+								<option v-for="m in materials" :key="m.id" :value="m.id">{{ m.name }} ({{ m.unit }})</option>
+							</select>
+						</div>
+						<div class="form-row">
+							<label class="form-label">Birim/adet</label>
+							<input v-model="line.quantity_per_unit" type="number" step="0.0001" class="form-input" />
+						</div>
+						<div class="form-row">
+							<label class="form-label">Fire %</label>
+							<input v-model="line.waste_pct" type="number" step="0.01" class="form-input" />
+						</div>
+						<div class="form-row form-row-actions">
+							<label class="form-label">&nbsp;</label>
+							<Button type="button" variant="ghost" size="sm" @click="removeLine(i)">Kaldır</Button>
+						</div>
+					</div>
+					<Button type="button" variant="ghost" with-icon @click="addLine">
+						<template #leading><Plus :size="13" /></template>
+						Satır Ekle
+					</Button>
+				</div>
+			</form>
+			<template #footer="{ close }">
+				<Button variant="ghost" :disabled="form.processing" @click="close">İptal</Button>
+				<Button type="submit" form="bom-form" variant="primary" :loading="form.processing">Kaydet</Button>
+			</template>
+		</AppModal>
 	</div>
 </template>
 
 <script setup>
-import { inject } from 'vue'
+import { ref, inject, watch } from 'vue'
 import { Head, useForm, router } from '@inertiajs/vue3'
+import { Plus, ClipboardList } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
+import PageHeader from '@/Components/PageHeader.vue'
+import Card from '@/Components/Card.vue'
+import Badge from '@/Components/Badge.vue'
+import Button from '@/Components/Button.vue'
+import AppModal from '@/Components/AppModal.vue'
+import EmptyState from '@/Components/EmptyState.vue'
 import AtelierNav from '../Components/AtelierNav.vue'
 import { useCan } from '@/composables/useCan'
 
@@ -122,15 +125,44 @@ defineOptions({ layout: AppLayout })
 
 const { can } = useCan()
 const $swal = inject('$swal')
+const showToast = inject('showToast', null)
 
 const props = defineProps({ boms: Array, products: Array, materials: Array })
 
-const form = useForm({ product_id: '', name: 'Varsayılan Reçete', lines: [{ material_id: '', quantity_per_unit: 1, waste_pct: 0 }] })
+function emptyForm() {
+	return { product_id: '', name: 'Varsayılan Reçete', lines: [{ material_id: '', quantity_per_unit: 1, waste_pct: 0 }] }
+}
+
+const form = useForm(emptyForm())
+const modalOpen = ref(false)
+
+function openCreate() {
+	reset()
+	modalOpen.value = true
+}
+
+function reset() {
+	form.reset()
+	Object.assign(form, emptyForm())
+	form.clearErrors()
+}
+
+watch(modalOpen, (open) => {
+	if (!open) setTimeout(reset, 250)
+})
 
 function addLine() { form.lines.push({ material_id: '', quantity_per_unit: 1, waste_pct: 0 }) }
 function removeLine(i) { form.lines.splice(i, 1) }
 function submit() {
-  form.post('/atelier/boms', { onSuccess: () => { form.reset(); form.lines = [{ material_id: '', quantity_per_unit: 1, waste_pct: 0 }] } })
+	form.post('/atelier/boms', {
+		onSuccess: () => {
+			showToast?.({ type: 'success', title: 'Reçete eklendi', message: form.name })
+			modalOpen.value = false
+		},
+		onError: () => {
+			showToast?.({ type: 'error', title: 'Kayıt başarısız', message: Object.values(form.errors)[0] || 'Doğrulama hatası.' })
+		},
+	})
 }
 async function remove(b) {
   const ok = await $swal.dangerConfirm({ title: 'Reçete silinsin mi?', html: 'Bu reçete kalıcı olarak silinecek.' })
@@ -139,15 +171,8 @@ async function remove(b) {
 </script>
 
 <style scoped>
-.page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; gap: 16px; }
-.page-title { font-size: 22px; font-weight: 700; color: #1a1a2e; }
-.page-subtitle { font-size: 13px; color: #888; margin-top: 4px; }
+.bom-card { margin-bottom: 14px; }
 
-.card { background: #fff; border-radius: 16px; border: 1px solid #ebebf0; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.04); margin-bottom: 14px; }
-.card-header { padding: 14px 18px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #f0f0f5; }
-.card-header h3 { font-size: 15px; font-weight: 700; color: #1a1a2e; }
-
-.form-section { padding: 16px 18px; }
 .form-grid { display: flex; flex-direction: column; gap: 14px; }
 .form-row-inline { display: flex; gap: 12px; flex-wrap: wrap; }
 .form-row { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 150px; }
@@ -155,8 +180,8 @@ async function remove(b) {
 .form-label { font-size: 12px; font-weight: 600; color: #1a1a2e; }
 .form-label .req { color: #ef4444; }
 .form-input { padding: 9px 12px; border: 1px solid #e8e8f0; border-radius: 8px; font-family: inherit; font-size: 13px; color: #1a1a2e; background: #fff; outline: none; transition: border-color .15s; }
-.form-input:focus { border-color: rgb(var(--color-primary)); }
-.form-actions { display: flex; gap: 10px; justify-content: flex-end; padding-top: 4px; }
+.form-input:focus { border-color: var(--color-primary); }
+.form-error { font-size: 11.5px; color: var(--color-danger); }
 
 .bom-lines { display: flex; flex-direction: column; gap: 10px; }
 .bom-lines-header { margin-bottom: 2px; }
@@ -172,12 +197,5 @@ async function remove(b) {
 .dim { color: #888; font-weight: 500; }
 .unit-tag { font-size: 10.5px; color: #888; background: #f0f0f5; padding: 1px 6px; border-radius: 4px; margin-left: 5px; }
 
-.empty-state { text-align: center; color: #aaa; padding: 32px; font-style: italic; font-size: 13px; }
-
-.bom-card-title { display: flex; align-items: center; gap: 10px; flex: 1; }
-.bom-product { font-weight: 700; color: #1a1a2e; font-size: 14px; }
-.bom-name-badge { font-size: 11px; font-weight: 600; background: #eff6ff; color: #3b82f6; padding: 2px 9px; border-radius: 6px; }
-
-.btn-danger-ghost { color: #dc2626 !important; }
-.btn-danger-ghost:hover { background: #fee2e2 !important; }
+.bom-card-actions { display: flex; align-items: center; gap: 10px; }
 </style>

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Creative\Http\Controllers\Concerns\HandlesCreativeReview;
@@ -85,15 +86,16 @@ class CreativeStudioController extends Controller
 
         foreach ($productIds as $productId) {
             $asset = CreativeAsset::create([
-                'product_id'    => (int) $productId,
-                'template_id'   => $templateId,
-                'created_by'    => auth()->id(),
-                'status'        => CreativeAsset::STATUS_QUEUED,
-                'review_status' => CreativeAsset::REVIEW_PENDING,
-                'meta'          => $meta,
+                'product_id'       => (int) $productId,
+                'template_id'      => $templateId,
+                'created_by'       => auth()->id(),
+                'status'           => CreativeAsset::STATUS_QUEUED,
+                'generation_token' => (string) Str::uuid(),
+                'review_status'    => CreativeAsset::REVIEW_PENDING,
+                'meta'             => $meta,
             ]);
 
-            GenerateCreativeJob::dispatch($asset->id);
+            GenerateCreativeJob::dispatch($asset->id, $asset->generation_token);
         }
 
         return redirect()->route('creative.gallery')
@@ -230,7 +232,9 @@ class CreativeStudioController extends Controller
             $base  = sprintf('%s-%d', $slug, $asset->id);
 
             // addFromString disk-bağımsızdır (yerel ve R2/S3 için aynı çalışır).
-            $zip->addFromString($base . '.png', (string) $disk->get($asset->image_path));
+            // Uzantı gerçek dosyadan okunur — üretim formatı webp/jpg/png olabilir.
+            $ext = pathinfo($asset->image_path, PATHINFO_EXTENSION) ?: 'png';
+            $zip->addFromString($base . '.' . $ext, (string) $disk->get($asset->image_path));
 
             $caption  = $asset->meta['caption'] ?? null;
             $hashtags = $asset->meta['hashtags'] ?? [];
@@ -257,6 +261,14 @@ class CreativeStudioController extends Controller
             return back()->with('error', 'Bu görsel onay bekliyor durumda değil.');
         }
 
+        // regenerate() review_status'u PENDING'de bırakıp status'u QUEUED yapar —
+        // asset hâlâ render'daysa onaylanan görsel, job bitince ezilecek eski
+        // görsel olur. status kontrolü olmadan bu onay CreativeRenderService::generate()
+        // tarafından sessizce REVIEW_PENDING'e geri döndürülür.
+        if ($asset->status !== CreativeAsset::STATUS_DONE) {
+            return back()->with('error', 'Görsel yeniden üretiliyor, işlem tamamlanana kadar onaylanamaz.');
+        }
+
         $asset->update([
             'review_status' => CreativeAsset::REVIEW_APPROVED,
             'reviewed_by'   => auth()->id(),
@@ -276,6 +288,10 @@ class CreativeStudioController extends Controller
             return back()->with('error', 'Bu görsel onay bekliyor durumda değil.');
         }
 
+        if ($asset->status !== CreativeAsset::STATUS_DONE) {
+            return back()->with('error', 'Görsel yeniden üretiliyor, işlem tamamlanana kadar reddedilemez.');
+        }
+
         $review = $this->validatedReview($request);
 
         $asset->update([
@@ -293,17 +309,21 @@ class CreativeStudioController extends Controller
 
     public function regenerate(CreativeAsset $asset): RedirectResponse
     {
+        // Yeni bir generation_token: ProductOnModelService::queue() ile aynı korumaya
+        // katılır — bu satır için eskiden kuyruğa alınmış (henüz bitmemiş) bir iş varsa
+        // onun çıktısı bu daha yeni isteğin üstüne yazılmaz. Bkz. GenerateCreativeJob.
         $asset->update([
-            'status'        => CreativeAsset::STATUS_QUEUED,
-            'review_status' => CreativeAsset::REVIEW_PENDING,
-            'review_note'   => null,
-            'review_tags'   => null,
-            'reviewed_by'   => null,
-            'reviewed_at'   => null,
-            'error'         => null,
+            'status'           => CreativeAsset::STATUS_QUEUED,
+            'generation_token' => (string) Str::uuid(),
+            'review_status'    => CreativeAsset::REVIEW_PENDING,
+            'review_note'      => null,
+            'review_tags'      => null,
+            'reviewed_by'      => null,
+            'reviewed_at'      => null,
+            'error'            => null,
         ]);
 
-        GenerateCreativeJob::dispatch($asset->id);
+        GenerateCreativeJob::dispatch($asset->id, $asset->generation_token);
 
         return back()->with('success', 'Görsel yeniden üretim kuyruğuna alındı.');
     }

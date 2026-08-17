@@ -86,6 +86,7 @@ class Order extends Model
         'due_date',
         'status',
         'order_type',
+        'bagisto_order_id',
     ];
 
     protected $casts = [

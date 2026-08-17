@@ -121,7 +121,7 @@ function onChange(evt) {
 }
 .mt-children {
     margin-left: 22px;
-    border-left: 1px dashed rgb(var(--color-border));
+    border-left: 1px dashed var(--color-outline-variant);
     padding-left: 8px;
 }
 .mt-node {
@@ -132,20 +132,20 @@ function onChange(evt) {
     align-items: center;
     gap: 8px;
     padding: 7px 10px;
-    background: rgb(var(--color-surface));
-    border: 1px solid rgb(var(--color-border));
+    background: var(--color-surface);
+    border: 1px solid var(--color-outline-variant);
     border-radius: 8px;
     transition: border-color 0.12s;
 }
 .mt-row:hover {
-    border-color: rgb(var(--color-muted));
+    border-color: var(--color-muted);
 }
 .mt-row.inactive {
     opacity: 0.5;
 }
 .mt-handle {
     cursor: grab;
-    color: rgb(var(--color-muted));
+    color: var(--color-muted);
     user-select: none;
     display: inline-flex;
     align-items: center;
@@ -160,13 +160,13 @@ function onChange(evt) {
     border: none;
     background: transparent;
     cursor: pointer;
-    color: rgb(var(--color-muted));
+    color: var(--color-muted);
     font-size: 10px;
     line-height: 1;
     padding: 0;
 }
 .mt-toggle:hover {
-    color: rgb(var(--color-ink));
+    color: var(--color-ink);
 }
 .mt-toggle-spacer {
     width: 18px;
@@ -175,20 +175,20 @@ function onChange(evt) {
 .mt-label {
     font-size: 13px;
     font-weight: 500;
-    color: rgb(var(--color-ink));
+    color: var(--color-ink);
 }
 .mt-count {
     font-size: 10px;
-    color: rgb(var(--color-muted));
-    background: rgb(var(--color-bg));
+    color: var(--color-muted);
+    background: var(--color-canvas);
     border-radius: 999px;
     padding: 1px 7px;
     font-weight: 600;
 }
 .mt-badge {
     font-size: 10px;
-    color: rgb(var(--color-warning));
-    background: rgb(var(--color-warning) / .12);
+    color: var(--color-warning);
+    background: color-mix(in srgb, var(--color-warning) 12%, transparent);
     border-radius: 4px;
     padding: 1px 6px;
 }
@@ -203,20 +203,20 @@ function onChange(evt) {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border: 1px solid rgb(var(--color-border));
-    background: rgb(var(--color-surface));
+    border: 1px solid var(--color-outline-variant);
+    background: var(--color-surface);
     border-radius: 6px;
     cursor: pointer;
-    color: rgb(var(--color-muted));
+    color: var(--color-muted);
 }
 .mt-actions button:hover {
-    background: rgb(var(--color-bg));
-    color: rgb(var(--color-ink));
+    background: var(--color-canvas);
+    color: var(--color-ink);
 }
 .mt-actions button.danger:hover {
-    background: rgb(var(--color-danger) / .1);
-    color: rgb(var(--color-danger));
-    border-color: rgb(var(--color-danger) / .3);
+    background: color-mix(in srgb, var(--color-danger) 10%, transparent);
+    color: var(--color-danger);
+    border-color: color-mix(in srgb, var(--color-danger) 30%, transparent);
 }
 
 @media (max-width: 640px) {

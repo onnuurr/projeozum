@@ -35,6 +35,7 @@ return static function (DeptracConfig $config): void {
     // her modülün üzerine oturduğu bir "kernel" katmanı; tüm modüller buna bağımlı olabilir.
     $app = Layer::withName('App')->collectors(DirectoryConfig::create('/app/'));
     $atelier = Layer::withName('Modules_Atelier')->collectors(DirectoryConfig::create('Modules/Atelier/'));
+    $bagisto = Layer::withName('Modules_Bagisto')->collectors(DirectoryConfig::create('Modules/Bagisto/'));
     $finance = Layer::withName('Modules_Finance')->collectors(DirectoryConfig::create('Modules/Finance/'));
     $marketplace = Layer::withName('Modules_Marketplace')->collectors(DirectoryConfig::create('Modules/Marketplace/'));
     $product = Layer::withName('Modules_Product')->collectors(DirectoryConfig::create('Modules/Product/'));
@@ -47,6 +48,7 @@ return static function (DeptracConfig $config): void {
         ->layers(
             $app,
             $atelier,
+            $bagisto,
             $creativeAiInfra,
             $creativeDomain,
             $finance,
@@ -59,12 +61,17 @@ return static function (DeptracConfig $config): void {
             // App, Laravel'in kompozisyon kökü — tüm modüllere bağımlı olabilir (base
             // Controller/User modeli, HandleInertiaRequests gibi cross-cutting wiring).
             Ruleset::forLayer($app)->accesses(
-                $atelier, $creativeAiInfra, $creativeDomain, $finance, $marketplace,
+                $atelier, $bagisto, $creativeAiInfra, $creativeDomain, $finance, $marketplace,
                 $product, $superadmin, $tenant,
             ),
             // Marketplace ve AI infra katmanı tamamen bağımsız — hiçbir şeye bağımlı olamaz
             // (App dahil — mevcut kodda da hiç kullanmıyorlar, bu yüzden istisna eklenmedi).
             Ruleset::forLayer($marketplace),
+            // Bagisto: Modules/Marketplace pattern'inden kasıtlı olarak bağımsız, ayrı bir
+            // senkron modülü (bkz. Product event'lerini dinler, Marketplace contract/DTO'larını
+            // kullanmaz). Product'ın domain event'lerine/modeline VE Tenant'ın domain
+            // event'lerine/modeline (owner ilişkisi dahil) bağımlı — başka bir şeye değil.
+            Ruleset::forLayer($bagisto)->accesses($product, $tenant, $app),
             Ruleset::forLayer($creativeAiInfra),
             Ruleset::forLayer($creativeDomain)->accesses($creativeAiInfra, $product, $app),
             Ruleset::forLayer($atelier)->accesses($product, $creativeAiInfra, $app),

@@ -13,7 +13,7 @@ class SystemInfoService
     private const CACHE_KEY        = 'superadmin:system-info';
     private const CACHE_KEY_STATIC = 'superadmin:system-info:static';
     private const CACHE_KEY_REVERB = 'superadmin:system-info:reverb';
-    private const CACHE_TTL        = 60;   // canlı (CPU/RAM/uptime) — saniye
+    private const CACHE_TTL        = 8;    // canlı (CPU/RAM/uptime) — saniye (frontend 5sn'de bir poll eder)
     private const CACHE_TTL_STATIC = 300;  // statik (versiyon/sayım/disk) — saniye
     private const CACHE_TTL_REVERB = 10;   // reverb TCP probe — saniye
 
@@ -119,6 +119,15 @@ class SystemInfoService
                 }
                 return 0;
             }
+
+            // /proc/stat'tan iki örnekleme arasındaki delta — `top` ile aynı yöntem.
+            // 1 dakikalık load average'ı yüzdeye çevirmekten (I/O bekleyen prosesleri de
+            // sayar, anlık CPU kullanımını yansıtmaz) daha doğru bir sonuç verir.
+            $pct = $this->cpuUsageFromProcStat();
+            if ($pct !== null) {
+                return $pct;
+            }
+
             if (function_exists('sys_getloadavg')) {
                 $load = sys_getloadavg();
                 $cores = (int) @shell_exec('nproc') ?: 1;
@@ -127,6 +136,45 @@ class SystemInfoService
         } catch (Throwable) {
         }
         return 0;
+    }
+
+    private function cpuUsageFromProcStat(): ?int
+    {
+        if (! is_readable('/proc/stat')) {
+            return null;
+        }
+
+        $read = static function (): ?array {
+            $line = strtok((string) file_get_contents('/proc/stat'), "\n");
+            if (! $line || ! str_starts_with($line, 'cpu ')) {
+                return null;
+            }
+            $fields = preg_split('/\s+/', trim($line));
+            array_shift($fields); // "cpu" etiketini at
+            return array_map('intval', $fields);
+        };
+
+        $first = $read();
+        if ($first === null) {
+            return null;
+        }
+        usleep(200_000); // 200ms örnekleme aralığı
+        $second = $read();
+        if ($second === null) {
+            return null;
+        }
+
+        // Alanlar: user, nice, system, idle, iowait, irq, softirq, steal, ...
+        $idleFirst  = ($first[3] ?? 0) + ($first[4] ?? 0);
+        $idleSecond = ($second[3] ?? 0) + ($second[4] ?? 0);
+        $totalDelta = array_sum($second) - array_sum($first);
+        $idleDelta  = $idleSecond - $idleFirst;
+
+        if ($totalDelta <= 0) {
+            return null;
+        }
+
+        return (int) max(0, min(100, round((1 - $idleDelta / $totalDelta) * 100)));
     }
 
     /** @return array{0:int,1:int} [usedMB, totalMB] */

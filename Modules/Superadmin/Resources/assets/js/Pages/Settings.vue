@@ -3,13 +3,13 @@
 	<div class="page-sa-settings">
 		<Breadcrumb
 			:items="[
-				{ label: 'Ana Sayfa', to: '/workflow', icon: 'home' },
+				{ label: 'Ana Sayfa', to: '/dashboard'},
 				{ label: 'Süper Admin' },
 				{ label: 'Sistem Ayarları' },
 			]"
 		/>
 
-		<PageHeader badge="Süper Admin" title="Sistem Ayarları" subtitle="Tüm SaaS platformunu etkileyen genel ayarlar. Değişiklikler tüm tenant'lara yansır.">
+		<PageHeader  title="Sistem Ayarları" subtitle="Tüm SaaS platformunu etkileyen genel ayarlar. Değişiklikler tüm tenant'lara yansır.">
 			<template #actions>
 				<Button v-if="form.isDirty" variant="ghost" :disabled="form.processing" @click="resetForm">
 					Değişiklikleri İptal Et
@@ -35,12 +35,10 @@
 				@click="mobileNavOpen = !mobileNavOpen"
 			>
 				<span class="sa-mobile-nav-current">
-					<span class="sa-nav-icon" v-html="activeSectionObj?.icon"></span>
+					<span class="sa-nav-icon"><component :is="activeSectionObj?.icon" :size="14" /></span>
 					{{ activeSectionObj?.label }}
 				</span>
-				<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.3" viewBox="0 0 24 24">
-					<line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
-				</svg>
+				<Menu :size="14" :stroke-width="2.3" />
 			</button>
 			<div v-if="mobileNavOpen" class="sa-mobile-nav-backdrop" @click="mobileNavOpen = false"></div>
 
@@ -53,7 +51,7 @@
 					:class="{ active: activeSection === s.key }"
 					@click="activeSection = s.key; mobileNavOpen = false"
 				>
-					<span class="sa-nav-icon" v-html="s.icon"></span>
+					<span class="sa-nav-icon"><component :is="s.icon" :size="14" /></span>
 					<div class="sa-nav-text">
 						<div class="sa-nav-label">{{ s.label }}</div>
 						<div class="sa-nav-sub">{{ s.sub }}</div>
@@ -65,16 +63,13 @@
 						height="8"
 						viewBox="0 0 8 8"
 					>
-						<circle cx="4" cy="4" r="4" fill="rgb(var(--color-warning))" />
+						<circle cx="4" cy="4" r="4" fill="var(--color-warning)" />
 					</svg>
 				</button>
 
 				<div class="sa-nav-footer">
 					<div class="sa-version">
-						<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-							<circle cx="12" cy="12" r="10" />
-							<polyline points="12 6 12 12 16 14" />
-						</svg>
+						<Clock :size="11" />
 						Son güncelleme: 13.05.2026
 					</div>
 				</div>
@@ -83,7 +78,7 @@
 			<!-- Sağ form -->
 			<main class="sa-content">
 				<!-- 1. GENEL -->
-				<Card v-if="activeSection === 'general'" title="Genel Ayarlar" body-class="sa-section">
+				<Card v-if="activeSection === 'general'" title="Genel Ayarlar" body-class="sa-section m-2">
 					<p class="section-sub">Sistem adı, dil, zaman dilimi gibi temel platform ayarları</p>
 
 					<div class="field-row">
@@ -162,7 +157,7 @@
 				</Card>
 
 				<!-- 2. GÜVENLİK -->
-				<Card v-if="activeSection === 'security'" title="Güvenlik" body-class="sa-section">
+				<Card v-if="activeSection === 'security'" title="Güvenlik" body-class="sa-section m-2">
 					<p class="section-sub">Parola politikası, iki faktörlü kimlik, oturum yönetimi</p>
 
 					<h3 class="sa-subhead">Parola Politikası</h3>
@@ -291,20 +286,12 @@
 								autocomplete="new-password"
 							/>
 							<button type="button" class="pw-toggle" @click="showLogAccessPassword = !showLogAccessPassword">
-								<svg v-if="showLogAccessPassword" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-									<path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24" />
-									<line x1="1" y1="1" x2="23" y2="23" />
-								</svg>
-								<svg v-else width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-									<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-									<circle cx="12" cy="12" r="3" />
-								</svg>
+								<EyeOff v-if="showLogAccessPassword" :size="13" />
+								<Eye v-else :size="13" />
 							</button>
 						</div>
-						<div v-if="props.settings.security.logAccessPasswordSet" class="field-help" style="color: rgb(var(--color-success));">
-							<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="vertical-align: -1px;">
-								<polyline points="20 6 9 17 4 12" />
-							</svg>
+						<div v-if="props.settings.security.logAccessPasswordSet" class="field-help" style="color: var(--color-success);">
+							<Check :size="11" style="vertical-align: -1px;" />
 							Log erişim şifresi belirlenmiş. Değiştirmek için yeni şifreyi girin.
 						</div>
 						<div v-else class="field-help">
@@ -314,29 +301,19 @@
 				</Card>
 
 				<!-- 2.5 ROLLER & İZİNLER -->
-				<Card v-if="activeSection === 'roles'" title="Roller & İzinler" body-class="sa-section">
+				<Card v-if="activeSection === 'roles'" title="Roller & İzinler" body-class="sa-section m-2">
 					<template #actions>
 						<div class="role-view-toggle">
 							<button class="rv-btn" :class="{ active: roleView === 'list' }" @click="roleView = 'list'">
-								<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-									<rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
-									<rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
-								</svg>
+								<LayoutGrid :size="11" />
 								Roller
 							</button>
 							<button class="rv-btn" :class="{ active: roleView === 'matrix' }" @click="roleView = 'matrix'">
-								<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-									<rect x="3" y="3" width="18" height="18" />
-									<line x1="3" y1="9" x2="21" y2="9" /><line x1="3" y1="15" x2="21" y2="15" />
-									<line x1="9" y1="3" x2="9" y2="21" /><line x1="15" y1="3" x2="15" y2="21" />
-								</svg>
+								<Grid3x3 :size="11" />
 								İzin Matrisi
 							</button>
 							<button class="rv-btn" :class="{ active: roleView === 'permissions' }" @click="roleView = 'permissions'">
-								<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-									<polyline points="9 11 12 14 22 4" />
-									<path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
-								</svg>
+								<ClipboardCheck :size="11" />
 								İzinler
 							</button>
 						</div>
@@ -347,9 +324,7 @@
 					<div v-if="roleView === 'list'">
 						<div class="role-list-head">
 							<div class="role-search">
-								<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-									<circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
-								</svg>
+								<Search :size="13" />
 								<input v-model="roleSearch" type="text" placeholder="Rol ara..." class="role-search-input" />
 							</div>
 							<Button v-if="can('rbac.manage')" variant="primary" size="sm" with-icon @click="openAddRole">
@@ -359,9 +334,7 @@
 						</div>
 
 						<div v-if="filteredRoles.length === 0" class="role-empty">
-							<svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-								<circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
-							</svg>
+							<Search :size="32" :stroke-width="1.5" />
 							<p>"{{ roleSearch }}" için sonuç yok</p>
 						</div>
 
@@ -378,33 +351,21 @@
 									<p class="role-card-desc">{{ r.desc }}</p>
 									<div class="role-card-meta">
 										<span class="rc-meta-item">
-											<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-												<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" />
-												<path d="M23 21v-2a4 4 0 00-3-3.87" /><path d="M16 3.13a4 4 0 010 7.75" />
-											</svg>
+											<Users :size="11" />
 											{{ r.userCount }} kullanıcı
 										</span>
 										<span class="rc-meta-item">
-											<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-												<polyline points="9 11 12 14 22 4" />
-												<path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
-											</svg>
+											<ClipboardCheck :size="11" />
 											{{ getPermLabel(r) }}
 										</span>
 									</div>
 								</div>
 								<div v-if="can('rbac.manage')" class="role-card-actions">
 									<button class="rc-action" @click="openEditRole(r)" :disabled="r.key === 'superadmin'" :title="r.key === 'superadmin' ? 'Süper Admin rolü düzenlenemez' : 'Düzenle'">
-										<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-											<path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-											<path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-										</svg>
+										<Pencil :size="13" />
 									</button>
 									<button class="rc-action rc-danger" @click="confirmDeleteRole(r)" :disabled="r.system" :title="r.system ? 'Sistem rolü silinemez' : 'Sil'">
-										<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-											<polyline points="3 6 5 6 21 6" />
-											<path d="M19 6l-2 14a2 2 0 01-2 2H9a2 2 0 01-2-2L5 6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
-										</svg>
+										<Trash2 :size="13" />
 									</button>
 								</div>
 							</div>
@@ -415,9 +376,7 @@
 					<div v-else-if="roleView === 'permissions'">
 						<div class="role-list-head">
 							<div class="role-search">
-								<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-									<circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
-								</svg>
+								<Search :size="13" />
 								<input v-model="permSearch" type="text" placeholder="İzin ara..." class="role-search-input" />
 							</div>
 							<Button v-if="can('rbac.manage')" variant="primary" size="sm" with-icon @click="openAddPermission">
@@ -444,16 +403,10 @@
 										</div>
 										<div v-if="can('rbac.manage')" class="perm-list-actions">
 											<button class="rc-action" title="Düzenle" @click="openEditPermission(p)">
-												<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-													<path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-													<path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-												</svg>
+												<Pencil :size="13" />
 											</button>
 											<button class="rc-action rc-danger" title="Sil" @click="deletePermission(p)">
-												<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-													<polyline points="3 6 5 6 21 6" />
-													<path d="M19 6l-2 14a2 2 0 01-2 2H9a2 2 0 01-2-2L5 6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
-												</svg>
+												<Trash2 :size="13" />
 											</button>
 										</div>
 									</div>
@@ -502,9 +455,7 @@
 														@change="togglePermission(r, p.key)"
 													/>
 													<span class="m-checkbox">
-														<svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
-															<polyline points="20 6 9 17 4 12" />
-														</svg>
+														<Check :size="10" :stroke-width="3" />
 													</span>
 												</label>
 											</td>
@@ -517,7 +468,7 @@
 				</Card>
 
 				<!-- 3. E-POSTA -->
-				<Card v-if="activeSection === 'mail'" title="E-posta (SMTP)" body-class="sa-section">
+				<Card v-if="activeSection === 'mail'" title="E-posta (SMTP)" body-class="sa-section m-2">
 					<p class="section-sub">Sistem e-postalarının gönderim altyapısı</p>
 
 					<div class="field-row">
@@ -557,14 +508,8 @@
 									@focus="clearMask('mail', 'password')"
 								/>
 								<button type="button" class="pw-toggle" @click="showMailPassword = !showMailPassword">
-									<svg v-if="showMailPassword" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-										<path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24" />
-										<line x1="1" y1="1" x2="23" y2="23" />
-									</svg>
-									<svg v-else width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-										<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-										<circle cx="12" cy="12" r="3" />
-									</svg>
+									<EyeOff v-if="showMailPassword" :size="13" />
+									<Eye v-else :size="13" />
 								</button>
 							</div>
 						</div>
@@ -587,12 +532,8 @@
 					<div class="test-block">
 						<div>
 							<div class="test-status" :class="`test-${form.mail.lastTestResult}`">
-								<svg v-if="form.mail.lastTestResult === 'success'" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-									<polyline points="20 6 9 17 4 12" />
-								</svg>
-								<svg v-else width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-									<circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
-								</svg>
+								<Check v-if="form.mail.lastTestResult === 'success'" :size="13" :stroke-width="2.5" />
+								<AlertCircle v-else :size="13" :stroke-width="2.5" />
 								{{ form.mail.lastTestResult === 'success' ? 'Son test başarılı' : 'Son test başarısız' }}
 							</div>
 							<div class="test-time">{{ form.mail.lastTestedAt }}</div>
@@ -602,7 +543,7 @@
 				</Card>
 
 				<!-- 4. BİLDİRİMLER -->
-				<Card v-if="activeSection === 'notifications'" title="Bildirimler" body-class="sa-section">
+				<Card v-if="activeSection === 'notifications'" title="Bildirimler" body-class="sa-section m-2">
 					<p class="section-sub">Sistem olaylarına bağlı e-posta, Slack ve push bildirimleri</p>
 
 					<h3 class="sa-subhead">E-posta Bildirimleri</h3>
@@ -697,7 +638,7 @@
 				</Card>
 
 				<!-- 5. ÖDEME -->
-				<Card v-if="activeSection === 'billing'" title="Ödeme & Faturalama" body-class="sa-section">
+				<Card v-if="activeSection === 'billing'" title="Ödeme & Faturalama" body-class="sa-section m-2">
 					<p class="section-sub">Abonelik tahsilatı ve fatura ayarları</p>
 
 					<div class="field">
@@ -777,7 +718,7 @@
 				</Card>
 
 				<!-- 6. DEPOLAMA -->
-				<Card v-if="activeSection === 'storage'" title="Depolama & Yedekleme" body-class="sa-section">
+				<Card v-if="activeSection === 'storage'" title="Depolama & Yedekleme" body-class="sa-section m-2">
 					<p class="section-sub">Dosya depolama altyapısı ve otomatik yedek planı</p>
 
 					<h3 class="sa-subhead">Dosya Depolama</h3>
@@ -858,7 +799,7 @@
 							<div class="ir-label">Boyut</div>
 							<div class="ir-value">{{ form.storage.lastBackupSize ?? '—' }}</div>
 						</div>
-						<a href="/superadmin/backups" class="btn btn-secondary btn-sm">Tüm Geçmiş</a>
+						<Button variant="secondary" size="sm" @click="router.visit('/superadmin/backups')">Tüm Geçmiş</Button>
 						<Button v-if="can('backups.manage')" variant="secondary" size="sm" :loading="backupBusy" @click="runBackup">
 							Şimdi Yedekle
 						</Button>
@@ -866,7 +807,7 @@
 				</Card>
 
 				<!-- 8. API -->
-				<Card v-if="activeSection === 'api'" title="API & Geliştirici" body-class="sa-section">
+				<Card v-if="activeSection === 'api'" title="API & Geliştirici" body-class="sa-section m-2">
 					<p class="section-sub">Public API ve webhook ayarları</p>
 
 					<div class="field-row">
@@ -949,7 +890,7 @@
 				</Card>
 
 				<!-- 9. PERFORMANS -->
-				<Card v-if="activeSection === 'performance'" title="Performans & Cache" body-class="sa-section">
+				<Card v-if="activeSection === 'performance'" title="Performans & Cache" body-class="sa-section m-2">
 					<p class="section-sub">Önbellek, kuyruk ve log altyapısı</p>
 
 					<div class="field-row">
@@ -1030,7 +971,7 @@
 				</Card>
 
 				<!-- 9b. BARKOD (GS1) -->
-				<Card v-if="activeSection === 'barcode'" title="Barkod (GS1)" body-class="sa-section">
+				<Card v-if="activeSection === 'barcode'" title="Barkod (GS1)" body-class="sa-section m-2">
 					<p class="section-sub">Ürün barkodu otomatik üretimi için sabit önek ve seri aralığı</p>
 
 					<div class="field-row">
@@ -1060,32 +1001,8 @@
 					<p class="sa-hint">Ülke kodu + firma kodu sabit önek olarak kullanılır; barkodun geri kalan haneleri bu aralıktan rastgele seçilen bir seri numarasıyla doldurulur (13. hane GS1 kontrol hanesidir).</p>
 				</Card>
 
-				<!-- 9c. ARAYÜZ (UI tema flag'i) -->
-				<Card v-if="activeSection === 'ui'" title="Arayüz" body-class="sa-section">
-					<p class="section-sub">Admin panelinin hangi kabukla (tema) render olacağını belirler — deploy gerektirmez, anında etkili olur.</p>
-
-					<div class="field">
-						<label>Admin Panel Kabuğu</label>
-						<div class="radio-card-grid">
-							<label
-								v-for="o in adminThemeOptions"
-								:key="o.value"
-								class="radio-card"
-								:class="{ active: form.ui.adminTheme === o.value }"
-							>
-								<input type="radio" :value="o.value" v-model="form.ui.adminTheme" />
-								<div class="rc-content">
-									<div class="rc-label">{{ o.label }}</div>
-									<div class="rc-sub">{{ o.sub }}</div>
-								</div>
-							</label>
-						</div>
-					</div>
-					<p class="sa-hint">V2 şu an yalnızca bir mimari iskelet — TopNav/Sidebar aynı, yalnızca ayrı bir kabuk ve CSS token namespace'i üzerinden render olur. Gerçek görsel tasarım netleşince bu ekrandan risk almadan geri "Klasik"e dönülebilir.</p>
-				</Card>
-
 				<!-- 10. SİSTEM BİLGİSİ -->
-				<Card v-if="activeSection === 'system'" title="Sistem Bilgisi" body-class="sa-section">
+				<Card v-if="activeSection === 'system'" title="Sistem Bilgisi" body-class="sa-section m-2">
 					<p class="section-sub">Donanım, yazılım sürümleri ve canlı metrikler (salt okunur)</p>
 
 					<p class="sa-hint sa-hint-error" v-if="systemFetchError">Canlı veri alınamadı, son bilinen değerler gösteriliyor.</p>
@@ -1169,12 +1086,7 @@
 						<div class="service-card">
 							<div class="service-head">
 								<div class="service-icon">
-									<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-										<path d="M5 12.55a11 11 0 0114 0" />
-										<path d="M1.42 9a16 16 0 0121.16 0" />
-										<path d="M8.53 16.11a6 6 0 016.95 0" />
-										<line x1="12" y1="20" x2="12.01" y2="20" />
-									</svg>
+									<Wifi :size="18" />
 								</div>
 								<div class="service-meta">
 									<div class="service-title">Reverb (WebSocket)</div>
@@ -1219,10 +1131,7 @@
 			size="lg"
 		>
 			<template #icon>
-				<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-					<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" />
-					<path d="M23 21v-2a4 4 0 00-3-3.87" /><path d="M16 3.13a4 4 0 010 7.75" />
-				</svg>
+				<Users :size="18" />
 			</template>
 
 			<div v-if="editingRole" class="role-modal-body">
@@ -1313,10 +1222,7 @@
 			size="md"
 		>
 			<template #icon>
-				<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-					<polyline points="9 11 12 14 22 4" />
-					<path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
-				</svg>
+				<ClipboardCheck :size="18" />
 			</template>
 
 			<div v-if="editingPermission">
@@ -1374,7 +1280,11 @@
 <script setup>
 import { ref, computed, reactive, watch, onBeforeUnmount } from 'vue'
 import { Head, Link, useForm, router } from '@inertiajs/vue3'
-import { Building2, UsersRound, ShoppingCart, Clock, AlertCircle, Check, Plus } from 'lucide-vue-next'
+import {
+	Building2, UsersRound, ShoppingCart, Clock, AlertCircle, Check, Plus,
+	Menu, Eye, EyeOff, Search, Pencil, Trash2, Users, LayoutGrid, Grid3x3, ClipboardCheck,
+	Wifi, Settings, Shield, Mail, Bell, CreditCard, Database, Code, Zap, Barcode, Info,
+} from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import CustomSelect from '@/Components/CustomSelect.vue'
@@ -1397,23 +1307,17 @@ const props = defineProps({
 })
 
 const sections = [
-	{ key: 'general',        label: 'Genel',                sub: 'Sistem adı, dil, zaman dilimi',  icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>' },
-	{ key: 'security',       label: 'Güvenlik',             sub: 'Parola, 2FA, oturum',           icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>' },
-	{ key: 'roles',          label: 'Roller & İzinler',     sub: 'Roller, izin matrisi',          icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>' },
-	{ key: 'mail',           label: 'E-posta',              sub: 'SMTP ve gönderici',             icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>' },
-	{ key: 'notifications',  label: 'Bildirimler',          sub: 'E-posta, Slack, push',          icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>' },
-	{ key: 'billing',        label: 'Ödeme & Faturalama',   sub: 'iyzico, Stripe, KDV',           icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>' },
-	{ key: 'storage',        label: 'Depolama & Yedek',     sub: 'S3, CDN, backup',               icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6"/></svg>' },
-	{ key: 'api',            label: 'API & Geliştirici',    sub: 'Rate limit, webhook',           icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>' },
-	{ key: 'performance',    label: 'Performans',           sub: 'Cache, queue, log',             icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>' },
-	{ key: 'barcode',        label: 'Barkod (GS1)',         sub: 'EAN-13 önek ve seri aralığı',   icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="1"/><line x1="7" y1="6" x2="7" y2="18"/><line x1="10" y1="6" x2="10" y2="18"/><line x1="14" y1="6" x2="14" y2="18"/><line x1="17" y1="6" x2="17" y2="18"/></svg>' },
-	{ key: 'ui',             label: 'Arayüz',               sub: 'Admin panel kabuğu (tema)',     icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>' },
-	{ key: 'system',         label: 'Sistem Bilgisi',       sub: 'Sürümler, metrikler',           icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>' },
-]
-
-const adminThemeOptions = [
-	{ value: 'classic', label: 'Klasik', sub: 'Mevcut, üretimde çalışan arayüz.' },
-	{ value: 'v2',      label: 'Yeni SaaS Tasarımı (Beta)', sub: 'Faz 1 iskelet — görsel tasarım henüz doldurulmadı.' },
+	{ key: 'general',        label: 'Genel',                sub: 'Sistem adı, dil, zaman dilimi',  icon: Settings },
+	{ key: 'security',       label: 'Güvenlik',             sub: 'Parola, 2FA, oturum',           icon: Shield },
+	{ key: 'roles',          label: 'Roller & İzinler',     sub: 'Roller, izin matrisi',          icon: Users },
+	{ key: 'mail',           label: 'E-posta',              sub: 'SMTP ve gönderici',             icon: Mail },
+	{ key: 'notifications',  label: 'Bildirimler',          sub: 'E-posta, Slack, push',          icon: Bell },
+	{ key: 'billing',        label: 'Ödeme & Faturalama',   sub: 'iyzico, Stripe, KDV',           icon: CreditCard },
+	{ key: 'storage',        label: 'Depolama & Yedek',     sub: 'S3, CDN, backup',               icon: Database },
+	{ key: 'api',            label: 'API & Geliştirici',    sub: 'Rate limit, webhook',           icon: Code },
+	{ key: 'performance',    label: 'Performans',           sub: 'Cache, queue, log',             icon: Zap },
+	{ key: 'barcode',        label: 'Barkod (GS1)',         sub: 'EAN-13 önek ve seri aralığı',   icon: Barcode },
+	{ key: 'system',         label: 'Sistem Bilgisi',       sub: 'Sürümler, metrikler',           icon: Info },
 ]
 
 const activeSection = ref('general')
@@ -1433,7 +1337,6 @@ const form = useForm({
 	api: { ...props.settings.api },
 	performance: { ...props.settings.performance },
 	barcode: { ...props.settings.barcode },
-	ui: { ...props.settings.ui },
 })
 
 /* Dirty section tespiti */
@@ -1931,8 +1834,8 @@ onBeforeUnmount(stopSystemPolling)
 
 /* ── Sol Nav ── */
 .sa-nav {
-	background: rgb(var(--color-surface));
-	border: 1px solid rgb(var(--color-border));
+	background: var(--color-surface);
+	border: 1px solid var(--color-outline-variant);
 	border-radius: 14px;
 	padding: 8px;
 	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
@@ -1952,27 +1855,27 @@ onBeforeUnmount(stopSystemPolling)
 	border: none;
 	border-radius: 9px;
 	cursor: pointer;
-	color: rgb(var(--color-muted));
+	color: var(--color-muted);
 	font-family: inherit;
 	text-align: left;
 	transition: background .12s, color .12s;
 	width: 100%;
 }
-.sa-nav-item:hover { background: rgb(var(--color-bg) / .5); color: rgb(var(--color-ink)); }
+.sa-nav-item:hover { background: var(--color-surface-container-low); color: var(--color-ink); }
 .sa-nav-item.active {
-	background: rgb(var(--color-primary-soft));
-	color: rgb(var(--color-ink));
+	background: var(--color-primary-soft);
+	color: var(--color-ink);
 }
 .sa-nav-item.active .sa-nav-icon {
-	background: rgb(var(--color-primary-soft));
-	color: rgb(var(--color-primary));
+	background: var(--color-primary-soft);
+	color: var(--color-primary);
 }
 
 .sa-nav-icon {
 	width: 28px; height: 28px;
 	border-radius: 7px;
-	background: rgb(var(--color-bg) / .5);
-	color: rgb(var(--color-muted));
+	background: var(--color-surface-container-low);
+	color: var(--color-muted);
 	display: flex; align-items: center; justify-content: center;
 	flex-shrink: 0;
 	transition: background .12s, color .12s;
@@ -1988,7 +1891,7 @@ onBeforeUnmount(stopSystemPolling)
 }
 .sa-nav-sub {
 	font-size: 10.5px;
-	color: rgb(var(--color-muted));
+	color: var(--color-muted);
 	margin-top: 1px;
 }
 
@@ -2000,7 +1903,7 @@ onBeforeUnmount(stopSystemPolling)
 .sa-nav-footer {
 	margin-top: 8px;
 	padding-top: 8px;
-	border-top: 1px solid rgb(var(--color-border));
+	border-top: 1px solid var(--color-outline-variant);
 }
 
 .sa-version {
@@ -2009,7 +1912,7 @@ onBeforeUnmount(stopSystemPolling)
 	gap: 5px;
 	padding: 6px 11px;
 	font-size: 10.5px;
-	color: rgb(var(--color-muted));
+	color: var(--color-muted);
 }
 
 /* ── Sağ İçerik ── */
@@ -2021,14 +1924,14 @@ onBeforeUnmount(stopSystemPolling)
 
 .section-sub {
 	font-size: 12.5px;
-	color: rgb(var(--color-muted));
+	color: var(--color-muted);
 	margin: 0 0 18px;
 }
 
 .sa-subhead {
 	font-size: 11px;
 	font-weight: 700;
-	color: rgb(var(--color-muted));
+	color: var(--color-muted);
 	text-transform: uppercase;
 	letter-spacing: 0.06em;
 	margin: 0 0 10px;
@@ -2036,7 +1939,7 @@ onBeforeUnmount(stopSystemPolling)
 
 .sa-divider {
 	height: 1px;
-	background: rgb(var(--color-border));
+	background: var(--color-outline-variant);
 	margin: 18px 0;
 }
 
@@ -2054,14 +1957,14 @@ onBeforeUnmount(stopSystemPolling)
 .field label {
 	font-size: 11.5px;
 	font-weight: 600;
-	color: rgb(var(--color-muted));
+	color: var(--color-muted);
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 }
 
 .field-help {
 	font-size: 11px;
-	color: rgb(var(--color-muted));
+	color: var(--color-muted);
 	margin-top: 2px;
 }
 
@@ -2087,14 +1990,14 @@ onBeforeUnmount(stopSystemPolling)
 	background: none;
 	border: none;
 	border-radius: 6px;
-	color: rgb(var(--color-muted));
+	color: var(--color-muted);
 	cursor: pointer;
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	transition: color .12s, background .12s;
 }
-.pw-toggle:hover { background: rgb(var(--color-bg)); color: rgb(var(--color-ink)); }
+.pw-toggle:hover { background: var(--color-canvas); color: var(--color-ink); }
 
 /* Copy input */
 .copy-input {
@@ -2105,17 +2008,17 @@ onBeforeUnmount(stopSystemPolling)
 .copy-btn {
 	height: 36px;
 	padding: 0 12px;
-	background: rgb(var(--color-bg) / .5);
-	border: 1.5px solid rgb(var(--color-border));
+	background: var(--color-surface-container-low);
+	border: 1.5px solid var(--color-outline-variant);
 	border-radius: 9px;
-	color: rgb(var(--color-muted));
+	color: var(--color-muted);
 	font-family: inherit;
 	font-size: 12px;
 	font-weight: 600;
 	cursor: pointer;
 	transition: all .12s;
 }
-.copy-btn:hover { background: rgb(var(--color-bg)); border-color: rgb(var(--color-muted)); color: rgb(var(--color-ink)); }
+.copy-btn:hover { background: var(--color-canvas); border-color: var(--color-muted); color: var(--color-ink); }
 
 /* ── Toggle (switch) ── */
 .toggle-card {
@@ -2123,19 +2026,19 @@ onBeforeUnmount(stopSystemPolling)
 	align-items: center;
 	gap: 14px;
 	padding: 12px 16px;
-	background: rgb(var(--color-bg) / .5);
-	border: 1px solid rgb(var(--color-border));
+	background: var(--color-surface-container-low);
+	border: 1px solid var(--color-outline-variant);
 	border-radius: 11px;
 	margin-bottom: 8px;
 	transition: background .15s, border-color .15s;
 }
 .toggle-card.toggle-warning {
-	background: rgb(var(--color-warning) / .1);
-	border-color: rgb(var(--color-warning) / .35);
+	background: color-mix(in srgb, var(--color-warning) 10%, transparent);
+	border-color: color-mix(in srgb, var(--color-warning) 35%, transparent);
 }
 .toggle-card.toggle-danger {
-	background: rgb(var(--color-danger) / .08);
-	border-color: rgb(var(--color-danger) / .25);
+	background: color-mix(in srgb, var(--color-danger) 8%, transparent);
+	border-color: color-mix(in srgb, var(--color-danger) 25%, transparent);
 }
 
 .toggle-info { flex: 1; min-width: 0; }
@@ -2143,7 +2046,7 @@ onBeforeUnmount(stopSystemPolling)
 .toggle-label {
 	font-size: 13px;
 	font-weight: 700;
-	color: rgb(var(--color-ink));
+	color: var(--color-ink);
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
@@ -2151,25 +2054,25 @@ onBeforeUnmount(stopSystemPolling)
 
 .toggle-sub {
 	font-size: 11.5px;
-	color: rgb(var(--color-muted));
+	color: var(--color-muted);
 	margin-top: 3px;
 	line-height: 1.5;
 }
 
 .sa-hint {
 	font-size: 12px;
-	color: rgb(var(--color-muted));
+	color: var(--color-muted);
 	margin-top: 10px;
 	line-height: 1.6;
 }
 .sa-hint-error {
-	color: rgb(var(--color-danger));
+	color: var(--color-danger);
 }
 
 .danger-pill {
 	display: inline-block;
 	padding: 1px 6px;
-	background: rgb(var(--color-danger));
+	background: var(--color-danger);
 	color: #fff;
 	font-size: 9px;
 	font-weight: 700;
@@ -2180,7 +2083,7 @@ onBeforeUnmount(stopSystemPolling)
 .warning-pill {
 	display: inline-block;
 	padding: 1px 6px;
-	background: rgb(var(--color-warning));
+	background: var(--color-warning);
 	color: #fff;
 	font-size: 9px;
 	font-weight: 700;
@@ -2204,7 +2107,7 @@ onBeforeUnmount(stopSystemPolling)
 	position: absolute;
 	cursor: pointer;
 	inset: 0;
-	background: rgb(var(--color-border));
+	background: var(--color-outline-variant);
 	border-radius: 999px;
 	transition: background .15s;
 }
@@ -2221,7 +2124,7 @@ onBeforeUnmount(stopSystemPolling)
 	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 .switch input:checked + .slider {
-	background: rgb(var(--color-success));
+	background: var(--color-success);
 }
 .switch input:checked + .slider::before {
 	transform: translateX(16px);
@@ -2240,32 +2143,32 @@ onBeforeUnmount(stopSystemPolling)
 	align-items: flex-start;
 	gap: 10px;
 	padding: 10px 12px;
-	background: rgb(var(--color-bg) / .5);
-	border: 1px solid rgb(var(--color-border));
+	background: var(--color-surface-container-low);
+	border: 1px solid var(--color-outline-variant);
 	border-radius: 10px;
 	cursor: pointer;
 	transition: all .12s;
 }
-.check-card:hover { border-color: rgb(var(--color-muted)); }
+.check-card:hover { border-color: var(--color-muted); }
 .check-card:has(input:checked) {
-	background: rgb(var(--color-primary-soft));
+	background: var(--color-primary-soft);
 	border-color: #c4b5fd;
 }
 .check-card input {
 	margin-top: 2px;
-	accent-color: rgb(var(--color-primary));
+	accent-color: var(--color-primary);
 	width: 14px;
 	height: 14px;
 }
 .check-text { display: flex; flex-direction: column; gap: 2px; }
 .check-text strong {
 	font-size: 12.5px;
-	color: rgb(var(--color-ink));
+	color: var(--color-ink);
 	font-weight: 700;
 }
 .check-sub {
 	font-size: 11px;
-	color: rgb(var(--color-muted));
+	color: var(--color-muted);
 }
 
 /* ── Radio cards ── */
@@ -2279,17 +2182,17 @@ onBeforeUnmount(stopSystemPolling)
 	display: flex;
 	gap: 10px;
 	padding: 12px 14px;
-	background: rgb(var(--color-surface));
-	border: 1.5px solid rgb(var(--color-border));
+	background: var(--color-surface);
+	border: 1.5px solid var(--color-outline-variant);
 	border-radius: 10px;
 	cursor: pointer;
 	transition: all .15s;
 }
 .radio-card input { position: absolute; opacity: 0; pointer-events: none; }
-.radio-card:hover { border-color: rgb(var(--color-muted)); }
+.radio-card:hover { border-color: var(--color-muted); }
 .radio-card.active {
-	border-color: rgb(var(--color-ink));
-	background: rgb(var(--color-bg) / .5);
+	border-color: var(--color-ink);
+	background: var(--color-surface-container-low);
 	box-shadow: 0 0 0 3px rgba(26, 26, 46, 0.05);
 }
 
@@ -2297,11 +2200,11 @@ onBeforeUnmount(stopSystemPolling)
 .rc-label {
 	font-size: 12.5px;
 	font-weight: 700;
-	color: rgb(var(--color-ink));
+	color: var(--color-ink);
 }
 .rc-sub {
 	font-size: 11px;
-	color: rgb(var(--color-muted));
+	color: var(--color-muted);
 	line-height: 1.5;
 }
 
@@ -2311,8 +2214,8 @@ onBeforeUnmount(stopSystemPolling)
 	justify-content: space-between;
 	align-items: center;
 	padding: 12px 16px;
-	background: rgb(var(--color-bg) / .5);
-	border: 1px solid rgb(var(--color-border));
+	background: var(--color-surface-container-low);
+	border: 1px solid var(--color-outline-variant);
 	border-radius: 10px;
 	margin-top: 12px;
 }
@@ -2324,19 +2227,19 @@ onBeforeUnmount(stopSystemPolling)
 	font-size: 12.5px;
 	font-weight: 700;
 }
-.test-success { color: rgb(var(--color-success)); }
-.test-failed  { color: rgb(var(--color-danger)); }
+.test-success { color: var(--color-success); }
+.test-failed  { color: var(--color-danger); }
 
 .test-time {
 	font-size: 11px;
-	color: rgb(var(--color-muted));
+	color: var(--color-muted);
 	margin-top: 2px;
 }
 
 /* ── Integration card ── */
 .integration-card {
-	background: rgb(var(--color-bg) / .5);
-	border: 1px solid rgb(var(--color-border));
+	background: var(--color-surface-container-low);
+	border: 1px solid var(--color-outline-variant);
 	border-radius: 12px;
 	padding: 14px 16px;
 	margin-bottom: 10px;
@@ -2367,7 +2270,7 @@ onBeforeUnmount(stopSystemPolling)
 .ic-info h4 {
 	font-size: 13.5px;
 	font-weight: 700;
-	color: rgb(var(--color-ink));
+	color: var(--color-ink);
 	margin: 0;
 }
 
@@ -2375,7 +2278,7 @@ onBeforeUnmount(stopSystemPolling)
 	font-size: 11px;
 	font-weight: 600;
 }
-.status-connected { color: rgb(var(--color-success)); }
+.status-connected { color: var(--color-success); }
 
 /* ── Info row (backup, etc) ── */
 .info-row {
@@ -2383,8 +2286,8 @@ onBeforeUnmount(stopSystemPolling)
 	align-items: center;
 	gap: 20px;
 	padding: 12px 16px;
-	background: rgb(var(--color-bg) / .5);
-	border: 1px solid rgb(var(--color-border));
+	background: var(--color-surface-container-low);
+	border: 1px solid var(--color-outline-variant);
 	border-radius: 10px;
 	margin-top: 12px;
 	flex-wrap: wrap;
@@ -2394,14 +2297,14 @@ onBeforeUnmount(stopSystemPolling)
 .ir-label {
 	font-size: 10.5px;
 	font-weight: 700;
-	color: rgb(var(--color-muted));
+	color: var(--color-muted);
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 }
 .ir-value {
 	font-size: 12.5px;
 	font-weight: 700;
-	color: rgb(var(--color-ink));
+	color: var(--color-ink);
 }
 
 /* ── Cache actions ── */
@@ -2420,8 +2323,8 @@ onBeforeUnmount(stopSystemPolling)
 
 .metric-card {
 	padding: 12px 14px;
-	background: rgb(var(--color-bg) / .5);
-	border: 1px solid rgb(var(--color-border));
+	background: var(--color-surface-container-low);
+	border: 1px solid var(--color-outline-variant);
 	border-radius: 11px;
 }
 
@@ -2435,7 +2338,7 @@ onBeforeUnmount(stopSystemPolling)
 .metric-label {
 	font-size: 11px;
 	font-weight: 700;
-	color: rgb(var(--color-muted));
+	color: var(--color-muted);
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 }
@@ -2443,12 +2346,12 @@ onBeforeUnmount(stopSystemPolling)
 .metric-value {
 	font-size: 18px;
 	font-weight: 800;
-	color: rgb(var(--color-ink));
+	color: var(--color-ink);
 }
 
 .metric-sub {
 	font-size: 11px;
-	color: rgb(var(--color-muted));
+	color: var(--color-muted);
 	margin-top: 6px;
 }
 
@@ -2464,19 +2367,19 @@ onBeforeUnmount(stopSystemPolling)
 	justify-content: space-between;
 	align-items: center;
 	padding: 8px 12px;
-	background: rgb(var(--color-bg) / .5);
-	border: 1px solid rgb(var(--color-border));
+	background: var(--color-surface-container-low);
+	border: 1px solid var(--color-outline-variant);
 	border-radius: 8px;
 }
 
 .vr-label {
 	font-size: 12px;
 	font-weight: 600;
-	color: rgb(var(--color-muted));
+	color: var(--color-muted);
 }
 .vr-value {
 	font-size: 11.5px;
-	color: rgb(var(--color-ink));
+	color: var(--color-ink);
 	font-weight: 700;
 	font-family: 'SF Mono', Menlo, Consolas, monospace;
 }
@@ -2490,8 +2393,8 @@ onBeforeUnmount(stopSystemPolling)
 
 .service-card {
 	padding: 14px 16px;
-	background: rgb(var(--color-surface));
-	border: 1px solid rgb(var(--color-border));
+	background: var(--color-surface);
+	border: 1px solid var(--color-outline-variant);
 	border-radius: 12px;
 	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
 }
@@ -2505,8 +2408,8 @@ onBeforeUnmount(stopSystemPolling)
 .service-icon {
 	width: 34px; height: 34px;
 	border-radius: 9px;
-	background: rgb(var(--color-bg));
-	color: rgb(var(--color-primary));
+	background: var(--color-canvas);
+	color: var(--color-primary);
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -2514,28 +2417,28 @@ onBeforeUnmount(stopSystemPolling)
 }
 
 .service-meta { flex: 1; min-width: 0; }
-.service-title { font-size: 13.5px; font-weight: 700; color: rgb(var(--color-ink)); }
-.service-sub   { font-size: 11.5px; color: rgb(var(--color-muted)); margin-top: 2px; }
+.service-title { font-size: 13.5px; font-weight: 700; color: var(--color-ink); }
+.service-sub   { font-size: 11.5px; color: var(--color-muted); margin-top: 2px; }
 
 .service-body { margin-top: 10px; }
 .service-note {
 	font-size: 12px;
-	color: rgb(var(--color-muted));
+	color: var(--color-muted);
 	line-height: 1.55;
 }
 .service-note code {
 	display: inline-block;
 	padding: 2px 7px;
-	background: rgb(var(--color-bg));
-	border: 1px solid rgb(var(--color-border));
+	background: var(--color-canvas);
+	border: 1px solid var(--color-outline-variant);
 	border-radius: 5px;
 	font-size: 11.5px;
-	color: rgb(var(--color-ink));
+	color: var(--color-ink);
 	margin: 0 2px;
 }
-.service-note-warn { color: rgb(var(--color-warning)); }
-.service-note-warn code { background: rgb(var(--color-warning) / .12); border-color: rgb(var(--color-warning) / .3); color: rgb(var(--color-warning)); }
-.service-error { color: rgb(var(--color-danger)); font-size: 11.5px; margin-left: 4px; }
+.service-note-warn { color: var(--color-warning); }
+.service-note-warn code { background: color-mix(in srgb, var(--color-warning) 12%, transparent); border-color: color-mix(in srgb, var(--color-warning) 30%, transparent); color: var(--color-warning); }
+.service-error { color: var(--color-danger); font-size: 11.5px; margin-left: 4px; }
 
 /* ── Counters ── */
 .counter-grid {
@@ -2556,8 +2459,8 @@ onBeforeUnmount(stopSystemPolling)
 
 .role-view-toggle {
 	display: inline-flex;
-	background: rgb(var(--color-bg) / .5);
-	border: 1px solid rgb(var(--color-border));
+	background: var(--color-surface-container-low);
+	border: 1px solid var(--color-outline-variant);
 	border-radius: 9px;
 	padding: 3px;
 	gap: 2px;
@@ -2570,17 +2473,17 @@ onBeforeUnmount(stopSystemPolling)
 	background: none;
 	border: none;
 	border-radius: 7px;
-	color: rgb(var(--color-muted));
+	color: var(--color-muted);
 	font-family: inherit;
 	font-size: 11.5px;
 	font-weight: 600;
 	cursor: pointer;
 	transition: background .12s, color .12s;
 }
-.rv-btn:hover { color: rgb(var(--color-ink)); }
+.rv-btn:hover { color: var(--color-ink); }
 .rv-btn.active {
-	background: rgb(var(--color-surface));
-	color: rgb(var(--color-ink));
+	background: var(--color-surface);
+	color: var(--color-ink);
 	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
@@ -2605,17 +2508,17 @@ onBeforeUnmount(stopSystemPolling)
 .role-search svg {
 	position: absolute;
 	left: 11px;
-	color: rgb(var(--color-muted));
+	color: var(--color-muted);
 	pointer-events: none;
 }
 .role-search-input {
 	width: 100%;
 	height: 34px;
 	padding: 0 12px 0 32px;
-	background: rgb(var(--color-bg) / .5);
-	border: 1px solid rgb(var(--color-border));
+	background: var(--color-surface-container-low);
+	border: 1px solid var(--color-outline-variant);
 	border-radius: 9px;
-	color: rgb(var(--color-ink));
+	color: var(--color-ink);
 	font-family: inherit;
 	font-size: 12.5px;
 	transition: border-color .15s, background .15s;
@@ -2623,7 +2526,7 @@ onBeforeUnmount(stopSystemPolling)
 .role-search-input:focus {
 	outline: none;
 	border-color: #c4b5fd;
-	background: rgb(var(--color-surface));
+	background: var(--color-surface);
 }
 
 /* — Rol kartları — */
@@ -2637,13 +2540,13 @@ onBeforeUnmount(stopSystemPolling)
 	display: flex;
 	gap: 12px;
 	padding: 14px;
-	background: rgb(var(--color-surface));
-	border: 1px solid rgb(var(--color-border));
+	background: var(--color-surface);
+	border: 1px solid var(--color-outline-variant);
 	border-radius: 12px;
 	transition: border-color .15s, box-shadow .15s, transform .15s;
 }
 .role-card:hover {
-	border-color: rgb(var(--color-muted));
+	border-color: var(--color-muted);
 	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
 }
 
@@ -2679,7 +2582,7 @@ onBeforeUnmount(stopSystemPolling)
 .role-card-title h4 {
 	font-size: 13.5px;
 	font-weight: 700;
-	color: rgb(var(--color-ink));
+	color: var(--color-ink);
 	margin: 0;
 	line-height: 1.3;
 }
@@ -2687,8 +2590,8 @@ onBeforeUnmount(stopSystemPolling)
 .system-pill {
 	display: inline-block;
 	padding: 1px 6px;
-	background: rgb(var(--color-primary-soft));
-	color: rgb(var(--color-primary));
+	background: var(--color-primary-soft);
+	color: var(--color-primary);
 	font-size: 9px;
 	font-weight: 700;
 	letter-spacing: 0.06em;
@@ -2697,7 +2600,7 @@ onBeforeUnmount(stopSystemPolling)
 
 .role-card-desc {
 	font-size: 11.5px;
-	color: rgb(var(--color-muted));
+	color: var(--color-muted);
 	line-height: 1.45;
 	margin: 0;
 	display: -webkit-box;
@@ -2716,10 +2619,10 @@ onBeforeUnmount(stopSystemPolling)
 	align-items: center;
 	gap: 4px;
 	font-size: 11px;
-	color: rgb(var(--color-muted));
+	color: var(--color-muted);
 	font-weight: 600;
 }
-.rc-meta-item svg { color: rgb(var(--color-muted)); }
+.rc-meta-item svg { color: var(--color-muted); }
 
 .role-card-actions {
 	display: flex;
@@ -2731,9 +2634,9 @@ onBeforeUnmount(stopSystemPolling)
 	width: 28px;
 	height: 28px;
 	background: none;
-	border: 1px solid rgb(var(--color-border));
+	border: 1px solid var(--color-outline-variant);
 	border-radius: 7px;
-	color: rgb(var(--color-muted));
+	color: var(--color-muted);
 	cursor: pointer;
 	display: flex;
 	align-items: center;
@@ -2741,18 +2644,18 @@ onBeforeUnmount(stopSystemPolling)
 	transition: all .12s;
 }
 .rc-action:hover:not(:disabled) {
-	background: rgb(var(--color-bg) / .5);
-	border-color: rgb(var(--color-muted));
-	color: rgb(var(--color-ink));
+	background: var(--color-surface-container-low);
+	border-color: var(--color-muted);
+	color: var(--color-ink);
 }
 .rc-action:disabled {
 	opacity: .35;
 	cursor: not-allowed;
 }
 .rc-action.rc-danger:hover:not(:disabled) {
-	background: rgb(var(--color-danger) / .08);
-	border-color: rgb(var(--color-danger) / .25);
-	color: rgb(var(--color-danger));
+	background: color-mix(in srgb, var(--color-danger) 8%, transparent);
+	border-color: color-mix(in srgb, var(--color-danger) 25%, transparent);
+	color: var(--color-danger);
 }
 
 .role-empty {
@@ -2761,12 +2664,12 @@ onBeforeUnmount(stopSystemPolling)
 	align-items: center;
 	justify-content: center;
 	padding: 40px 20px;
-	color: rgb(var(--color-muted));
-	background: rgb(var(--color-bg) / .5);
-	border: 1px dashed rgb(var(--color-border));
+	color: var(--color-muted);
+	background: var(--color-surface-container-low);
+	border: 1px dashed var(--color-outline-variant);
 	border-radius: 12px;
 }
-.role-empty svg { color: rgb(var(--color-muted)); margin-bottom: 8px; }
+.role-empty svg { color: var(--color-muted); margin-bottom: 8px; }
 .role-empty p { margin: 0; font-size: 12.5px; }
 
 /* ── İzin Matrisi ── */
@@ -2778,21 +2681,21 @@ onBeforeUnmount(stopSystemPolling)
 	gap: 6px;
 	padding: 9px 12px;
 	margin-bottom: 10px;
-	background: rgb(var(--color-primary-soft));
+	background: var(--color-primary-soft);
 	border: 1px solid #e9d5ff;
 	border-radius: 9px;
 }
 .ml-text {
 	font-size: 11.5px;
-	color: rgb(var(--color-primary-hover));
+	color: var(--color-primary-hover);
 	font-weight: 500;
 }
 
 .matrix-scroll {
 	overflow-x: auto;
-	border: 1px solid rgb(var(--color-border));
+	border: 1px solid var(--color-outline-variant);
 	border-radius: 11px;
-	background: rgb(var(--color-surface));
+	background: var(--color-surface);
 }
 
 .perm-matrix {
@@ -2805,13 +2708,13 @@ onBeforeUnmount(stopSystemPolling)
 .perm-matrix thead th {
 	position: sticky;
 	top: 0;
-	background: rgb(var(--color-bg) / .5);
-	border-bottom: 1px solid rgb(var(--color-border));
+	background: var(--color-surface-container-low);
+	border-bottom: 1px solid var(--color-outline-variant);
 	padding: 10px 12px;
 	font-size: 11px;
 	font-weight: 700;
 	text-align: left;
-	color: rgb(var(--color-muted));
+	color: var(--color-muted);
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 	white-space: nowrap;
@@ -2840,53 +2743,53 @@ onBeforeUnmount(stopSystemPolling)
 	flex-shrink: 0;
 }
 .m-role-name {
-	color: rgb(var(--color-ink));
+	color: var(--color-ink);
 	font-weight: 700;
 	text-transform: none;
 	letter-spacing: 0;
 }
 
 .m-module-row td {
-	background: rgb(var(--color-primary-soft));
+	background: var(--color-primary-soft);
 	padding: 8px 14px;
-	border-bottom: 1px solid rgb(var(--color-primary-soft));
-	border-top: 1px solid rgb(var(--color-primary-soft));
+	border-bottom: 1px solid var(--color-primary-soft);
+	border-top: 1px solid var(--color-primary-soft);
 }
 .m-module-name {
 	font-size: 11px;
 	font-weight: 700;
-	color: rgb(var(--color-primary-hover));
+	color: var(--color-primary-hover);
 	text-transform: uppercase;
 	letter-spacing: 0.06em;
 }
 .m-module-count {
 	margin-left: 8px;
 	font-size: 10.5px;
-	color: rgb(var(--color-primary) / .5);
+	color: color-mix(in srgb, var(--color-primary) 50%, transparent);
 	font-weight: 600;
 }
 
-.m-perm-row td { border-bottom: 1px solid rgb(var(--color-border)); }
-.m-perm-row:hover td { background: rgb(var(--color-bg) / .5); }
+.m-perm-row td { border-bottom: 1px solid var(--color-outline-variant); }
+.m-perm-row:hover td { background: var(--color-surface-container-low); }
 
 .m-perm-cell {
 	padding: 9px 12px;
 	position: sticky;
 	left: 0;
-	background: rgb(var(--color-surface));
+	background: var(--color-surface);
 	z-index: 1;
 }
-.m-perm-row:hover .m-perm-cell { background: rgb(var(--color-bg) / .5); }
+.m-perm-row:hover .m-perm-cell { background: var(--color-surface-container-low); }
 
 .m-perm-name {
 	font-size: 12.5px;
 	font-weight: 600;
-	color: rgb(var(--color-ink));
+	color: var(--color-ink);
 	line-height: 1.3;
 }
 .m-perm-key {
 	font-size: 10.5px;
-	color: rgb(var(--color-muted));
+	color: var(--color-muted);
 	font-family: 'SF Mono', Menlo, Consolas, monospace;
 	margin-top: 1px;
 }
@@ -2916,23 +2819,23 @@ onBeforeUnmount(stopSystemPolling)
 .m-checkbox {
 	width: 18px;
 	height: 18px;
-	border: 1.5px solid rgb(var(--color-border));
+	border: 1.5px solid var(--color-outline-variant);
 	border-radius: 5px;
-	background: rgb(var(--color-surface));
+	background: var(--color-surface);
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	color: transparent;
 	transition: all .12s;
 }
-.m-check:hover .m-checkbox { border-color: rgb(var(--color-primary)); }
+.m-check:hover .m-checkbox { border-color: var(--color-primary); }
 .m-check input:checked + .m-checkbox {
-	background: rgb(var(--color-primary));
-	border-color: rgb(var(--color-primary));
+	background: var(--color-primary);
+	border-color: var(--color-primary);
 	color: #fff;
 }
 .m-check input:disabled + .m-checkbox {
-	background: rgb(var(--color-primary-soft));
+	background: var(--color-primary-soft);
 	border-color: #c4b5fd;
 	color: #fff;
 	opacity: .7;
@@ -2957,7 +2860,7 @@ onBeforeUnmount(stopSystemPolling)
 }
 .color-swatch:hover { transform: scale(1.08); }
 .color-swatch.active {
-	border-color: rgb(var(--color-ink));
+	border-color: var(--color-ink);
 	box-shadow: 0 0 0 2px #fff inset;
 }
 
@@ -2969,10 +2872,10 @@ onBeforeUnmount(stopSystemPolling)
 }
 .perm-stats {
 	font-size: 12px;
-	color: rgb(var(--color-muted));
+	color: var(--color-muted);
 }
 .perm-stats strong {
-	color: rgb(var(--color-ink));
+	color: var(--color-ink);
 	font-weight: 700;
 }
 
@@ -2985,11 +2888,11 @@ onBeforeUnmount(stopSystemPolling)
 	padding-right: 4px;
 }
 .perm-modules::-webkit-scrollbar { width: 6px; }
-.perm-modules::-webkit-scrollbar-thumb { background: rgb(var(--color-border)); border-radius: 3px; }
+.perm-modules::-webkit-scrollbar-thumb { background: var(--color-outline-variant); border-radius: 3px; }
 
 .perm-module {
-	background: rgb(var(--color-bg) / .5);
-	border: 1px solid rgb(var(--color-border));
+	background: var(--color-surface-container-low);
+	border: 1px solid var(--color-outline-variant);
 	border-radius: 10px;
 	padding: 10px 12px;
 }
@@ -3007,12 +2910,12 @@ onBeforeUnmount(stopSystemPolling)
 }
 .pmh-info strong {
 	font-size: 12.5px;
-	color: rgb(var(--color-ink));
+	color: var(--color-ink);
 	font-weight: 700;
 }
 .pmh-count {
 	font-size: 11px;
-	color: rgb(var(--color-muted));
+	color: var(--color-muted);
 	font-weight: 600;
 }
 
@@ -3023,12 +2926,12 @@ onBeforeUnmount(stopSystemPolling)
 	cursor: pointer;
 	font-size: 11px;
 	font-weight: 600;
-	color: rgb(var(--color-primary));
+	color: var(--color-primary);
 }
 .perm-module-toggle input {
 	width: 13px;
 	height: 13px;
-	accent-color: rgb(var(--color-primary));
+	accent-color: var(--color-primary);
 }
 
 .perm-grid {
@@ -3042,49 +2945,49 @@ onBeforeUnmount(stopSystemPolling)
 	align-items: flex-start;
 	gap: 8px;
 	padding: 8px 10px;
-	background: rgb(var(--color-surface));
-	border: 1px solid rgb(var(--color-border));
+	background: var(--color-surface);
+	border: 1px solid var(--color-outline-variant);
 	border-radius: 8px;
 	cursor: pointer;
 	transition: border-color .12s, background .12s;
 }
 .perm-check:hover { border-color: #c4b5fd; }
 .perm-check:has(input:checked) {
-	background: rgb(var(--color-primary-soft));
+	background: var(--color-primary-soft);
 	border-color: #c4b5fd;
 }
 .perm-check input {
 	margin-top: 1px;
 	width: 13px;
 	height: 13px;
-	accent-color: rgb(var(--color-primary));
+	accent-color: var(--color-primary);
 	flex-shrink: 0;
 }
 .perm-check-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .perm-check-name {
 	font-size: 12px;
 	font-weight: 600;
-	color: rgb(var(--color-ink));
+	color: var(--color-ink);
 	line-height: 1.3;
 }
 .perm-check-desc {
 	font-size: 10.5px;
-	color: rgb(var(--color-muted));
+	color: var(--color-muted);
 	line-height: 1.4;
 }
 
 /* ── Silme Modalı ── */
 .delete-msg {
 	font-size: 13px;
-	color: rgb(var(--color-muted));
+	color: var(--color-muted);
 	line-height: 1.55;
 	margin: 0 0 12px;
 }
-.delete-msg strong { color: rgb(var(--color-ink)); font-weight: 700; }
+.delete-msg strong { color: var(--color-ink); font-weight: 700; }
 
 .delete-detail {
-	background: rgb(var(--color-danger) / .08);
-	border: 1px solid rgb(var(--color-danger) / .25);
+	background: color-mix(in srgb, var(--color-danger) 8%, transparent);
+	border: 1px solid color-mix(in srgb, var(--color-danger) 25%, transparent);
 	border-radius: 9px;
 	padding: 10px 12px;
 }
@@ -3093,8 +2996,8 @@ onBeforeUnmount(stopSystemPolling)
 	justify-content: space-between;
 	padding: 4px 0;
 }
-.dd-label { font-size: 12px; color: rgb(var(--color-danger)); }
-.dd-value { font-size: 12px; color: rgb(var(--color-ink)); font-weight: 700; }
+.dd-label { font-size: 12px; color: var(--color-danger); }
+.dd-value { font-size: 12px; color: var(--color-ink); font-weight: 700; }
 
 /* ── İzinler Listesi (CRUD) ── */
 .perm-list {
@@ -3103,8 +3006,8 @@ onBeforeUnmount(stopSystemPolling)
 	gap: 12px;
 }
 .perm-list-module {
-	background: rgb(var(--color-surface));
-	border: 1px solid rgb(var(--color-border));
+	background: var(--color-surface);
+	border: 1px solid var(--color-outline-variant);
 	border-radius: 10px;
 	overflow: hidden;
 }
@@ -3113,12 +3016,12 @@ onBeforeUnmount(stopSystemPolling)
 	justify-content: space-between;
 	align-items: center;
 	padding: 10px 14px;
-	background: rgb(var(--color-bg) / .5);
-	border-bottom: 1px solid rgb(var(--color-border));
+	background: var(--color-surface-container-low);
+	border-bottom: 1px solid var(--color-outline-variant);
 }
 .perm-list-module-head strong {
 	font-size: 13px;
-	color: rgb(var(--color-ink));
+	color: var(--color-ink);
 	font-weight: 700;
 }
 .perm-list-rows {
@@ -3130,20 +3033,20 @@ onBeforeUnmount(stopSystemPolling)
 	justify-content: space-between;
 	align-items: center;
 	padding: 9px 14px;
-	border-bottom: 1px solid rgb(var(--color-border));
+	border-bottom: 1px solid var(--color-outline-variant);
 	transition: background .12s;
 }
 .perm-list-row:last-child { border-bottom: none; }
-.perm-list-row:hover { background: rgb(var(--color-bg) / .5); }
+.perm-list-row:hover { background: var(--color-surface-container-low); }
 .perm-list-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.perm-list-name { font-size: 13px; color: rgb(var(--color-ink)); font-weight: 600; }
-.perm-list-key { font-size: 11px; color: rgb(var(--color-muted)); font-family: 'SF Mono', Monaco, monospace; }
+.perm-list-name { font-size: 13px; color: var(--color-ink); font-weight: 600; }
+.perm-list-key { font-size: 11px; color: var(--color-muted); font-family: 'SF Mono', Monaco, monospace; }
 .perm-list-actions { display: flex; gap: 4px; }
 .field code {
 	font-family: 'SF Mono', Monaco, monospace;
 	font-size: 11.5px;
-	background: rgb(var(--color-primary-soft));
-	color: rgb(var(--color-primary));
+	background: var(--color-primary-soft);
+	color: var(--color-primary);
 	padding: 1px 5px;
 	border-radius: 4px;
 }
@@ -3173,17 +3076,17 @@ onBeforeUnmount(stopSystemPolling)
 		justify-content: space-between;
 		width: 100%;
 		padding: 9px 12px;
-		background: rgb(var(--color-surface));
-		border: 1px solid rgb(var(--color-border));
+		background: var(--color-surface);
+		border: 1px solid var(--color-outline-variant);
 		border-radius: 12px;
 		cursor: pointer;
 		font-family: inherit;
 		font-size: 12.5px;
 		font-weight: 600;
-		color: rgb(var(--color-ink));
+		color: var(--color-ink);
 		margin-bottom: 8px;
 	}
-	.sa-mobile-nav-toggle svg { flex-shrink: 0; color: rgb(var(--color-muted)); transition: transform .15s; }
+	.sa-mobile-nav-toggle svg { flex-shrink: 0; color: var(--color-muted); transition: transform .15s; }
 	.sa-mobile-nav-toggle.open svg { transform: rotate(90deg); }
 	.sa-mobile-nav-current { display: flex; align-items: center; gap: 8px; }
 	.sa-mobile-nav-current .sa-nav-icon { width: 24px; height: 24px; }

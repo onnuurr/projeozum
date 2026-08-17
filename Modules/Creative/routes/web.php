@@ -86,6 +86,8 @@ Route::middleware(['auth', 'verified'])
     // ─── Ürün Giydirme (try-on → product_images) ─────────────────────────
     Route::get('/tryon', [TryonController::class, 'index'])
         ->middleware('can:creative.view')->name('tryon.index');
+    Route::get('/tryon/products', [TryonController::class, 'products'])
+        ->middleware('can:creative.view')->name('tryon.products');
     Route::post('/tryon', [TryonController::class, 'store'])
         ->middleware('can:creative.asset.manage')->name('tryon.store');
     Route::post('/tryon/classify-detail', [TryonController::class, 'classifyDetail'])

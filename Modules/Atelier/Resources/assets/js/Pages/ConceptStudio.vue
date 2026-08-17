@@ -11,26 +11,16 @@
 
 		<AtelierNav current="concepts" />
 
-		<div class="page-header">
-			<div>
-				<h1 class="page-title">AI Konsept Stüdyosu</h1>
-				<p class="page-subtitle">
-					Tariften görsel konsept üret, beğendiğini bir kalıba bağla.
-				</p>
-			</div>
-			<span class="driver-badge" :class="driver">
-				<span class="dot"></span>
-				{{ driver === 'gemini' ? 'Gemini' : 'Demo modu' }}
-			</span>
-		</div>
+		<PageHeader title="AI Konsept Stüdyosu" subtitle="Tariften görsel konsept üret, beğendiğini bir kalıba bağla.">
+			<template #actions>
+				<Badge :color="driver === 'gemini' ? 'success' : 'warning'" :label="driver === 'gemini' ? 'Gemini' : 'Demo modu'" variant="tonal" />
+			</template>
+		</PageHeader>
 
 		<div class="studio-grid">
 			<!-- Sol: Tarif tezgâhı -->
-			<aside v-if="can('atelier.design.manage')" class="composer card">
-				<div class="card-header">
-					<h3>Tarif</h3>
-				</div>
-				<form @submit.prevent="generate" class="composer-body">
+			<Card v-if="can('atelier.design.manage')" title="Tarif" class="composer">
+				<form @submit.prevent="generate" class="composer-form">
 					<!-- Akış seçimi -->
 					<div class="flow-toggle" role="tablist">
 						<button
@@ -111,15 +101,14 @@
 						</div>
 					</div>
 
-					<button type="submit" class="btn btn-primary generate-btn" :disabled="form.processing || !canGenerate">
-						<span v-if="form.processing" class="gen-spinner"></span>
+					<Button type="submit" variant="primary" block class="generate-btn" :disabled="!canGenerate" :loading="form.processing">
 						{{ form.processing ? 'Üretiliyor…' : 'Konsept üret' }}
-					</button>
+					</Button>
 					<p v-if="form.processing" class="processing-note">
 						AI görselleri hazırlanıyor, bu birkaç saniye sürebilir.
 					</p>
 				</form>
-			</aside>
+			</Card>
 
 			<!-- Sağ: Konsept galerisi -->
 			<section class="gallery">
@@ -128,11 +117,7 @@
 					<span class="gallery-count">{{ cards.length }}</span>
 				</div>
 
-				<div v-if="cards.length === 0" class="gallery-empty">
-					<div class="empty-art">✦</div>
-					<p>Henüz konsept yok.</p>
-					<span>Soldaki tarifi doldurup “Konsept üret”e bas.</span>
-				</div>
+				<EmptyState v-if="cards.length === 0" :icon="Sparkles" title="Henüz konsept yok." hint="Soldaki tarifi doldurup “Konsept üret”e bas." class="gallery-empty" />
 
 				<div v-else class="concept-grid">
 					<article v-for="card in cards" :key="card.id" class="concept-card">
@@ -154,11 +139,9 @@
 						</div>
 						<div class="concept-meta">
 							<div class="meta-row">
-								<span class="source-badge" :class="card.source">
-									{{ card.source === 'pattern_first' ? 'Akış X' : 'Akış Y' }}
-								</span>
-								<span class="type-pill">{{ card.productType }}</span>
-								<span v-if="card.targetSize" class="size-chip">{{ card.targetSize }}</span>
+								<Badge :color="card.source === 'pattern_first' ? 'success' : 'primary'" :label="card.source === 'pattern_first' ? 'Akış X' : 'Akış Y'" variant="tonal" />
+								<Tag :label="card.productType" color="neutral" />
+								<Tag v-if="card.targetSize" class="font-mono" :label="card.targetSize" color="neutral" />
 							</div>
 							<p v-if="card.prompt" class="concept-prompt">{{ card.prompt }}</p>
 
@@ -167,12 +150,12 @@
 									<button v-if="card.generationStatus === 'failed'" class="btn-link" @click="regenerate(card)">Yeniden dene</button>
 									<span v-else-if="card.generationStatus === 'processing'" class="foot-muted">hazırlanıyor…</span>
 									<span v-else-if="card.pattern" class="matched-link">
-										⟶ {{ card.pattern.name }}
+										<ArrowRight :size="12" /> {{ card.pattern.name }}
 									</span>
 									<button v-else class="btn-link" @click="openMatch(card)">Kalıba eşle</button>
-									<button class="archive-btn" @click="archive(card)" title="Arşivle">🗑️</button>
+									<button class="archive-btn" title="Arşivle" @click="archive(card)"><Trash2 :size="13" /></button>
 								</template>
-								<span v-else-if="card.pattern" class="matched-link">⟶ {{ card.pattern.name }}</span>
+								<span v-else-if="card.pattern" class="matched-link"><ArrowRight :size="12" /> {{ card.pattern.name }}</span>
 							</div>
 						</div>
 					</article>
@@ -181,28 +164,21 @@
 		</div>
 
 		<!-- Eşleme modalı (Akış Y) -->
-		<div v-if="match.card" class="modal-overlay" @click.self="closeMatch">
-			<div class="modal-box">
-				<div class="modal-head">
-					<span class="modal-title">Kalıba eşle</span>
-					<button class="modal-close" @click="closeMatch">✕</button>
+		<AppModal v-model="matchOpen" title="Kalıba eşle" subtitle="Konsepti kütüphanedeki en yakın kalıba bağla." size="sm">
+			<form id="match-form" class="form-grid" @submit.prevent="submitMatch">
+				<div class="form-row">
+					<label class="form-label">Kalıp <span class="req">*</span></label>
+					<select v-model="match.form.pattern_id" class="form-input">
+						<option :value="null" disabled>Seç…</option>
+						<option v-for="p in patterns" :key="p.id" :value="p.id">{{ p.name }} · {{ p.productType }}</option>
+					</select>
 				</div>
-				<p class="match-sub">Konsepti kütüphanedeki en yakın kalıba bağla.</p>
-				<form @submit.prevent="submitMatch" class="form-grid">
-					<div class="form-row">
-						<label class="form-label">Kalıp <span class="req">*</span></label>
-						<select v-model="match.form.pattern_id" class="form-input">
-							<option :value="null" disabled>Seç…</option>
-							<option v-for="p in patterns" :key="p.id" :value="p.id">{{ p.name }} · {{ p.productType }}</option>
-						</select>
-					</div>
-					<div class="modal-foot">
-						<button type="button" class="btn btn-ghost" @click="closeMatch">Kapat</button>
-						<button type="submit" class="btn btn-primary" :disabled="match.form.processing || !match.form.pattern_id">Eşle</button>
-					</div>
-				</form>
-			</div>
-		</div>
+			</form>
+			<template #footer="{ close }">
+				<Button variant="ghost" :disabled="match.form.processing" @click="close">Kapat</Button>
+				<Button type="submit" form="match-form" variant="primary" :disabled="!match.form.pattern_id" :loading="match.form.processing">Eşle</Button>
+			</template>
+		</AppModal>
 
 		<!-- Görsel yakınlaştırma -->
 		<div v-if="zoom" class="zoom-overlay" @click="zoom = null">
@@ -214,8 +190,16 @@
 <script setup>
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { Head, router, useForm } from '@inertiajs/vue3'
+import { Sparkles, ArrowRight, Trash2 } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
+import PageHeader from '@/Components/PageHeader.vue'
+import Card from '@/Components/Card.vue'
+import Badge from '@/Components/Badge.vue'
+import Tag from '@/Components/Tag.vue'
+import Button from '@/Components/Button.vue'
+import AppModal from '@/Components/AppModal.vue'
+import EmptyState from '@/Components/EmptyState.vue'
 import AtelierNav from '../Components/AtelierNav.vue'
 import { useCan } from '@/composables/useCan'
 
@@ -276,6 +260,10 @@ function generate() {
 }
 
 const match = ref({ card: null, form: useForm({ pattern_id: null }) })
+const matchOpen = computed({
+	get: () => !!match.value.card,
+	set: (v) => { if (!v) closeMatch() },
+})
 function openMatch(card) {
 	match.value.card = card
 	match.value.form.pattern_id = null
@@ -322,31 +310,16 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer) })
 </script>
 
 <style scoped>
-.page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; gap: 16px; }
-.page-title { font-size: 22px; font-weight: 700; color: #1a1a2e; }
-.page-subtitle { font-size: 13px; color: #888; margin-top: 4px; }
-
-.driver-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 5px 11px; border-radius: 20px; }
-.driver-badge .dot { width: 7px; height: 7px; border-radius: 50%; }
-.driver-badge.gemini { background: #ecfdf5; color: #059669; }
-.driver-badge.gemini .dot { background: #10b981; }
-.driver-badge.mock { background: #fff7ed; color: #c2410c; }
-.driver-badge.mock .dot { background: #f97316; }
-
-.card { background: #fff; border-radius: 16px; border: 1px solid #ebebf0; box-shadow: 0 1px 4px rgba(0,0,0,.04); }
-.card-header { padding: 14px 18px; border-bottom: 1px solid #f0f0f5; }
-.card-header h3 { font-size: 15px; font-weight: 700; color: #1a1a2e; }
-
 /* Layout */
 .studio-grid { display: grid; grid-template-columns: 360px 1fr; gap: 18px; align-items: start; }
 .composer { position: sticky; top: 16px; overflow: hidden; }
-.composer-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 14px; }
+.composer-form { display: flex; flex-direction: column; gap: 14px; }
 
 .form-row { display: flex; flex-direction: column; gap: 6px; }
 .form-label { font-size: 12px; font-weight: 600; color: #1a1a2e; }
 .form-label .req { color: #ef4444; }
 .form-input { padding: 9px 12px; border: 1px solid #e8e8f0; border-radius: 8px; font-family: inherit; font-size: 13px; color: #1a1a2e; background: #fff; outline: none; transition: border-color .15s; width: 100%; }
-.form-input:focus { border-color: rgb(var(--color-primary)); }
+.form-input:focus { border-color: var(--color-primary); }
 textarea.form-input { resize: vertical; }
 .form-error { font-size: 11.5px; color: #ef4444; }
 
@@ -354,12 +327,12 @@ textarea.form-input { resize: vertical; }
 .flow-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; background: #f4f4f8; padding: 4px; border-radius: 10px; }
 .flow-toggle button { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 8px 6px; border: none; background: transparent; border-radius: 7px; font-size: 12.5px; font-weight: 600; color: #888; cursor: pointer; transition: all .15s; }
 .flow-toggle button small { font-size: 10px; font-weight: 600; opacity: .65; }
-.flow-toggle button.active { background: #fff; color: rgb(var(--color-primary)); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.flow-toggle button.active { background: #fff; color: var(--color-primary); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
 .flow-hint { font-size: 11.5px; color: #999; line-height: 1.4; margin-top: -6px; }
 
 .count-pills { display: flex; gap: 6px; }
 .count-pill { width: 38px; height: 34px; border: 1px solid #e8e8f0; background: #fff; border-radius: 8px; font-size: 13px; font-weight: 600; color: #888; cursor: pointer; transition: all .15s; }
-.count-pill.active { background: rgb(var(--color-primary)); border-color: rgb(var(--color-primary)); color: #fff; }
+.count-pill.active { background: var(--color-primary); border-color: var(--color-primary); color: var(--color-on-primary); }
 
 .generate-btn { margin-top: 4px; width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
 .gen-spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.45); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; }
@@ -372,10 +345,7 @@ textarea.form-input { resize: vertical; }
 .gallery-head h3 { font-size: 15px; font-weight: 700; color: #1a1a2e; }
 .gallery-count { font-size: 12px; font-weight: 600; color: #888; background: #f0f0f5; padding: 2px 9px; border-radius: 20px; }
 
-.gallery-empty { background: #fff; border: 1px dashed #dcdce6; border-radius: 16px; padding: 56px 20px; text-align: center; color: #999; }
-.gallery-empty .empty-art { font-size: 34px; color: rgb(var(--color-primary)); opacity: .5; margin-bottom: 10px; }
-.gallery-empty p { font-size: 14px; font-weight: 600; color: #555; }
-.gallery-empty span { font-size: 12.5px; }
+.gallery-empty { background: #fff; border: 1px dashed #dcdce6; border-radius: 16px; }
 
 .concept-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
 .concept-card { background: #fff; border: 1px solid #ebebf0; border-radius: 14px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.04); transition: box-shadow .15s, transform .15s; }
@@ -391,45 +361,27 @@ textarea.form-input { resize: vertical; }
 .thumb-state { aspect-ratio: 4 / 3; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; font-size: 12.5px; font-weight: 600; }
 .thumb-state.processing { background: #f4f4f8; color: #6b7280; }
 .thumb-state.failed { background: #fef2f2; color: #dc2626; cursor: help; }
-.thumb-state .gen-spinner { border-color: rgba(0,0,0,.12); border-top-color: rgb(var(--color-primary)); width: 20px; height: 20px; }
+.thumb-state .gen-spinner { border-color: rgba(0,0,0,.12); border-top-color: var(--color-primary); width: 20px; height: 20px; }
 .fail-mark { width: 24px; height: 24px; border-radius: 50%; background: #dc2626; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; }
 .foot-muted { font-size: 12px; color: #aaa; }
 
 .concept-meta { padding: 12px 13px; display: flex; flex-direction: column; gap: 9px; }
 .meta-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.source-badge { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 6px; letter-spacing: .02em; }
-.source-badge.concept_first { background: #eef2ff; color: #4f46e5; }
-.source-badge.pattern_first { background: #ecfdf5; color: #059669; }
-.type-pill { display: inline-block; padding: 2px 9px; background: #f4f4f8; color: #555; border-radius: 6px; font-size: 11px; font-weight: 600; }
-.size-chip { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 10.5px; color: #888; background: #f7f7fb; padding: 2px 7px; border-radius: 5px; }
 .concept-prompt { font-size: 12px; color: #777; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
 .concept-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; border-top: 1px solid #f5f5f8; padding-top: 9px; }
-.matched-link { font-size: 12px; font-weight: 600; color: #059669; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.btn-link { background: none; border: none; padding: 0; font-size: 12.5px; font-weight: 600; color: rgb(var(--color-primary)); cursor: pointer; }
+.matched-link { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; font-weight: 600; color: #059669; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.btn-link { background: none; border: none; padding: 0; font-size: 12.5px; font-weight: 600; color: var(--color-primary); cursor: pointer; }
 .btn-link:hover { text-decoration: underline; }
-.archive-btn { background: #f3f4f6; border: none; cursor: pointer; font-size: 12px; padding: 5px 8px; border-radius: 6px; transition: all .15s; }
+.archive-btn { display: inline-flex; align-items: center; background: #f3f4f6; border: none; cursor: pointer; padding: 5px 8px; border-radius: 6px; transition: all .15s; }
 .archive-btn:hover { background: #fee2e2; }
 
 /* Modal */
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; z-index: 9000; }
-.modal-box { background: #fff; border-radius: 16px; padding: 24px; width: 380px; max-width: calc(100vw - 32px); display: flex; flex-direction: column; gap: 14px; box-shadow: 0 8px 40px rgba(0,0,0,.15); }
-.modal-head { display: flex; align-items: center; justify-content: space-between; }
-.modal-title { font-size: 16px; font-weight: 700; color: #1a1a2e; }
-.modal-close { background: none; border: none; cursor: pointer; font-size: 15px; color: #888; padding: 2px 6px; border-radius: 6px; }
-.modal-close:hover { background: #f0f0f5; color: #1a1a2e; }
-.match-sub { font-size: 12.5px; color: #888; margin-top: -4px; }
 .form-grid { display: flex; flex-direction: column; gap: 14px; }
-.modal-foot { display: flex; gap: 8px; justify-content: flex-end; }
 
 /* Zoom */
 .zoom-overlay { position: fixed; inset: 0; background: rgba(15,15,25,.82); display: flex; align-items: center; justify-content: center; z-index: 9500; cursor: zoom-out; padding: 32px; }
 .zoom-overlay img { max-width: 90vw; max-height: 90vh; border-radius: 10px; box-shadow: 0 12px 50px rgba(0,0,0,.5); }
-
-.btn { padding: 9px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid transparent; transition: all .15s; }
-.btn-primary { background: rgb(var(--color-primary)); color: #fff; }
-.btn-primary:disabled { opacity: .55; cursor: not-allowed; }
-.btn-ghost { background: #f3f4f6; color: #555; }
 
 @media (max-width: 900px) {
 	.studio-grid { grid-template-columns: 1fr; }
@@ -437,7 +389,6 @@ textarea.form-input { resize: vertical; }
 }
 
 @media (max-width: 640px) {
-	.page-header { flex-wrap: wrap; }
 	.count-pills { flex-wrap: wrap; }
 	.concept-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
 }

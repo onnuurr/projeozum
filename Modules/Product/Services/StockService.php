@@ -5,6 +5,7 @@ namespace Modules\Product\Services;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use Modules\Product\Events\StockChanged;
 use Modules\Product\Exceptions\InsufficientStockException;
 use Modules\Product\Models\Order;
 use Modules\Product\Models\ProductVariant;
@@ -37,7 +38,7 @@ class StockService
         ?string $note = null,
         ?int $userId = null,
     ): StockMovement {
-        return DB::transaction(function () use ($variantId, $warehouseId, $type, $qty, $reference, $note, $userId) {
+        $movement = DB::transaction(function () use ($variantId, $warehouseId, $type, $qty, $reference, $note, $userId) {
             $stock = Stock::query()
                 ->where('product_variant_id', $variantId)
                 ->where('warehouse_id', $warehouseId)
@@ -89,6 +90,16 @@ class StockService
 
             return $movement;
         });
+
+        // `move()` genellikle bir dış transaction'ın (decrementForOrder gibi)
+        // içinden çağrılır; bu durumda kendi DB::transaction()'ı sadece bir
+        // savepoint'tir ve dış transaction hâlâ açık olabilir. afterCommit,
+        // dispatch'i en dıştaki transaction gerçekten commit olana kadar
+        // erteler — aksi halde kuyruğa giren listener (Bagisto push) henüz
+        // commit edilmemiş/bayat stok değerini okuyabilir.
+        DB::afterCommit(fn () => StockChanged::dispatch(ProductVariant::findOrFail($variantId)));
+
+        return $movement;
     }
 
     /**

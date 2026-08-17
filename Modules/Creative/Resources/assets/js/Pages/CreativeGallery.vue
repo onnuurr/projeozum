@@ -11,52 +11,81 @@
 
 		<CreativeNav current="gallery" />
 
-		<div class="page-header">
-			<div>
-				<h1 class="page-title">Creative Galeri</h1>
-				<p class="page-subtitle"><strong>{{ assets.total }}</strong> üretilmiş görsel</p>
-			</div>
-			<div class="header-btns">
+		<PageHeader title="Creative Galeri">
+			<template #subtitle><strong>{{ assets.total }}</strong> üretilmiş görsel</template>
+			<template #actions>
 				<a
 					v-if="stats.approved > 0"
 					href="/creative/export"
 					class="btn btn-ghost btn-with-icon"
 					title="Onaylanmış görselleri ZIP olarak indir"
 				>
-					<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-						<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
-					</svg>
+					<Download :size="14" />
 					ZIP indir ({{ stats.approved }})
 				</a>
-				<Link href="/creative/studio" class="btn btn-primary btn-with-icon">
-					<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-						<path d="M12 5v14M5 12h14" />
-					</svg>
+				<Button variant="primary" with-icon @click="router.visit('/creative/studio')">
+					<template #leading><Plus :size="13" /></template>
 					Yeni Üretim
-				</Link>
+				</Button>
+			</template>
+		</PageHeader>
+
+		<!-- Analitik üst barı -->
+		<div v-if="stats.total > 0" class="counter-grid">
+			<div class="counter-card">
+				<div class="counter-icon ci-primary">
+					<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>
+				</div>
+				<div><div class="counter-value">{{ stats.total }}</div><div class="counter-label">Toplam</div></div>
+			</div>
+			<div class="counter-card">
+				<div class="counter-icon ci-green">
+					<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" /></svg>
+				</div>
+				<div><div class="counter-value">{{ stats.done }}</div><div class="counter-label">Hazır</div></div>
+			</div>
+			<div class="counter-card">
+				<div class="counter-icon ci-amber">
+					<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+				</div>
+				<div><div class="counter-value">{{ stats.pending }}</div><div class="counter-label">İşlemde</div></div>
+			</div>
+			<div class="counter-card" :class="{ 'counter-danger': stats.failed > 0 }">
+				<div class="counter-icon ci-red">
+					<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
+				</div>
+				<div><div class="counter-value">{{ stats.failed }}</div><div class="counter-label">Başarısız</div></div>
+			</div>
+			<div class="counter-card">
+				<div class="counter-icon ci-primary">
+					<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
+				</div>
+				<div><div class="counter-value">{{ stats.approved }}</div><div class="counter-label">Onaylı</div></div>
+			</div>
+			<div class="counter-card" v-if="stats.success_rate !== null">
+				<div class="counter-icon ci-green">
+					<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" /></svg>
+				</div>
+				<div><div class="counter-value">%{{ stats.success_rate }}</div><div class="counter-label">Başarı</div></div>
+			</div>
+			<div class="counter-card" v-if="stats.avg_render_ms !== null">
+				<div class="counter-icon ci-purple">
+					<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>
+				</div>
+				<div><div class="counter-value">{{ fmtMs(stats.avg_render_ms) }}</div><div class="counter-label">Ort. süre</div></div>
 			</div>
 		</div>
 
-		<!-- Analitik üst barı -->
-		<div v-if="stats.total > 0" class="stats-bar">
-			<div class="stat"><span class="stat-val">{{ stats.total }}</span><span class="stat-lbl">Toplam</span></div>
-			<div class="stat"><span class="stat-val ok">{{ stats.done }}</span><span class="stat-lbl">Hazır</span></div>
-			<div class="stat"><span class="stat-val warn">{{ stats.pending }}</span><span class="stat-lbl">İşlemde</span></div>
-			<div class="stat"><span class="stat-val bad">{{ stats.failed }}</span><span class="stat-lbl">Başarısız</span></div>
-			<div class="stat"><span class="stat-val">{{ stats.approved }}</span><span class="stat-lbl">Onaylı</span></div>
-			<div class="stat" v-if="stats.success_rate !== null"><span class="stat-val">%{{ stats.success_rate }}</span><span class="stat-lbl">Başarı</span></div>
-			<div class="stat" v-if="stats.avg_render_ms !== null"><span class="stat-val">{{ fmtMs(stats.avg_render_ms) }}</span><span class="stat-lbl">Ort. süre</span></div>
-			<div class="stat-templates" v-if="stats.per_template.length">
-				<span class="stat-lbl">Şablon performansı</span>
-				<div class="tpl-bars">
-					<div v-for="t in stats.per_template" :key="t.name" class="tpl-bar" :title="`${t.name}: ${t.done}/${t.total} hazır`">
-						<span class="tpl-bar-name">{{ t.name }}</span>
-						<span class="tpl-bar-track"><span class="tpl-bar-fill" :style="{ width: (t.total ? t.done / t.total * 100 : 0) + '%' }"></span></span>
-						<span class="tpl-bar-num">{{ t.done }}/{{ t.total }}</span>
-					</div>
+		<section v-if="stats.total > 0 && stats.per_template.length" class="sa-panel">
+			<header class="sa-panel-head"><h2>Şablon Performansı</h2></header>
+			<div class="tpl-bars">
+				<div v-for="t in stats.per_template" :key="t.name" class="tpl-bar" :title="`${t.name}: ${t.done}/${t.total} hazır`">
+					<span class="tpl-bar-name">{{ t.name }}</span>
+					<span class="tpl-bar-track"><span class="tpl-bar-fill" :style="{ width: (t.total ? t.done / t.total * 100 : 0) + '%' }"></span></span>
+					<span class="tpl-bar-num">{{ t.done }}/{{ t.total }}</span>
 				</div>
 			</div>
-		</div>
+		</section>
 
 		<div v-if="assets.data.length === 0" class="card">
 			<div class="empty-block">Henüz görsel üretilmedi. Stüdyodan başlayın.</div>
@@ -66,28 +95,32 @@
 			<div v-for="a in assets.data" :key="a.id" class="asset-card" :class="reviewClass(a)">
 				<div class="asset-image">
 					<img v-if="a.image_url" :src="a.image_url" :alt="a.product?.name" class="clickable" @click="openPreview(a)" />
-					<button v-if="a.image_url" class="zoom-badge" title="Büyük önizleme" @click="openPreview(a)">⤢</button>
+					<button v-if="a.image_url" class="zoom-badge" title="Büyük önizleme" @click="openPreview(a)"><Maximize2 :size="14" /></button>
 					<div v-else class="asset-placeholder">
-						<span v-if="a.status === 'failed'" class="status-icon failed">⚠️</span>
-						<span v-else class="status-icon spin">⏳</span>
+						<AlertTriangle v-if="a.status === 'failed'" class="status-icon failed" :size="24" />
+						<Loader2 v-else class="status-icon spin" :size="24" />
 						<span class="status-text">{{ statusLabel(a.status) }}</span>
 					</div>
-					<span class="status-chip" :class="`s-${a.status}`">{{ statusLabel(a.status) }}</span>
-					<span v-if="a.review_status !== 'pending'" class="review-chip" :class="`r-${a.review_status}`">
-						{{ reviewLabel(a.review_status) }}
-					</span>
+					<Badge class="status-chip" :color="statusColor(a.status)" :label="statusLabel(a.status)" variant="tonal" />
+					<Badge
+						v-if="a.review_status !== 'pending'"
+						class="review-chip"
+						:color="reviewColor(a.review_status)"
+						:label="reviewLabel(a.review_status)"
+						variant="filled"
+					/>
 				</div>
 
 				<div class="asset-meta">
 					<span class="asset-product">{{ a.product?.name ?? '—' }}</span>
 					<span class="asset-template">
 						{{ a.template?.name ?? '—' }}
-						<span v-if="a.format_label" class="asset-format">{{ a.format_label }}</span>
+						<Tag v-if="a.format_label" class="asset-format" :label="a.format_label" color="primary" />
 					</span>
 					<span v-if="a.error" class="asset-error" :title="a.error">{{ a.error }}</span>
 					<span class="asset-date">{{ a.created_at }}</span>
 					<div v-if="a.review_tags && a.review_tags.length" class="review-tags">
-						<span v-for="t in a.review_tags" :key="t" class="review-tag">{{ t }}</span>
+						<Tag v-for="t in a.review_tags" :key="t" :label="t" color="danger" />
 					</div>
 				</div>
 
@@ -110,7 +143,7 @@
 						class="act-btn save-caption"
 						:disabled="busy === a.id || !isDirty(a)"
 						@click="saveCaption(a)"
-					>💾 Caption kaydet</button>
+					><Save :size="12" /> Caption kaydet</button>
 				</div>
 
 				<div class="asset-actions">
@@ -119,22 +152,22 @@
 							class="act-btn approve"
 							:disabled="busy === a.id"
 							@click="action(a, 'approve')"
-						>✓ Onayla</button>
+						><Check :size="12" /> Onayla</button>
 						<button
 							class="act-btn reject"
 							:disabled="busy === a.id"
 							@click="reject(a)"
-						>✕ Reddet</button>
+						><X :size="12" /> Reddet</button>
 					</template>
 					<button
 						v-if="can('creative.generate')"
 						class="act-btn regen"
 						:disabled="busy === a.id || a.status === 'queued' || a.status === 'processing'"
 						@click="action(a, 'regenerate')"
-					>↻ Yeniden</button>
+					><RotateCw :size="12" /> Yeniden</button>
 				</div>
 				<Link v-if="a.can_chat" :href="`/creative/assets/${a.id}/review-chat`" class="chat-link">
-					💬 AI ile Konuş <span v-if="a.review_chats?.length">({{ a.review_chats.length }} mesaj)</span>
+					<MessageCircle :size="13" /> AI ile Konuş <span v-if="a.review_chats?.length">({{ a.review_chats.length }} mesaj)</span>
 				</Link>
 			</div>
 		</div>
@@ -143,21 +176,21 @@
 		<Teleport to="body">
 			<div v-if="preview" class="lightbox" @click.self="closePreview">
 				<div class="lb-box">
-					<button class="lb-close" @click="closePreview">✕</button>
+					<button class="lb-close" @click="closePreview"><X :size="16" /></button>
 					<div class="lb-img-wrap">
 						<img :src="preview.image_url" :alt="preview.product?.name" />
 					</div>
 					<div class="lb-side">
 						<h3 class="lb-title">{{ preview.product?.name ?? '—' }}</h3>
 						<div class="lb-tags-meta">
-							<span v-if="preview.format_label" class="lb-chip">{{ preview.format_label }}</span>
-							<span v-if="preview.width" class="lb-chip dim">{{ preview.width }}×{{ preview.height }}</span>
-							<span v-if="preview.template?.name" class="lb-chip ghost">{{ preview.template.name }}</span>
+							<Tag v-if="preview.format_label" :label="preview.format_label" color="primary" />
+							<Tag v-if="preview.width" class="font-mono" :label="`${preview.width}×${preview.height}`" color="neutral" />
+							<Tag v-if="preview.template?.name" :label="preview.template.name" color="neutral" />
 						</div>
 						<div v-if="preview.caption" class="lb-caption">{{ preview.caption }}</div>
 						<div v-if="preview.hashtags?.length" class="lb-hashtags">{{ preview.hashtags.join(' ') }}</div>
-						<a :href="preview.image_url" target="_blank" :download="`creative-${preview.id}.png`" class="btn btn-primary lb-download">
-							<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
+						<a :href="preview.image_url" target="_blank" :download="`creative-${preview.id}.${extOf(preview.image_url)}`" class="btn btn-primary lb-download">
+							<Download :size="14" />
 							İndir
 						</a>
 					</div>
@@ -183,11 +216,17 @@
 <script setup>
 import { ref, reactive, inject, onMounted, onUnmounted } from 'vue'
 import { Head, Link, router } from '@inertiajs/vue3'
+import { Download, Plus, Maximize2, AlertTriangle, Loader2, Save, Check, X, RotateCw, MessageCircle } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
+import PageHeader from '@/Components/PageHeader.vue'
+import Button from '@/Components/Button.vue'
+import Badge from '@/Components/Badge.vue'
+import Tag from '@/Components/Tag.vue'
 import CreativeNav from '../Components/CreativeNav.vue'
 import { useCan } from '@/composables/useCan'
 import { openRejectDialog } from '../support/rejectDialog'
+import { extOf } from '../support/mediaExt'
 
 defineOptions({ layout: AppLayout })
 
@@ -268,6 +307,11 @@ function statusLabel(s) { return STATUS_LABELS[s] ?? s }
 function reviewLabel(r) { return REVIEW_LABELS[r] ?? r }
 function reviewClass(a) { return a.review_status === 'approved' ? 'is-approved' : a.review_status === 'rejected' ? 'is-rejected' : '' }
 
+const STATUS_COLORS = { queued: 'warning', processing: 'info', done: 'success', failed: 'danger' }
+const REVIEW_COLORS = { approved: 'success', rejected: 'danger' }
+function statusColor(s) { return STATUS_COLORS[s] ?? 'neutral' }
+function reviewColor(r) { return REVIEW_COLORS[r] ?? 'neutral' }
+
 function action(a, kind) {
 	if (busy.value) return
 	busy.value = a.id
@@ -303,32 +347,36 @@ function goTo(url) {
 </script>
 
 <style scoped>
-.page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; gap: 16px; }
-.page-title { font-size: 22px; font-weight: 700; color: #1a1a2e; line-height: 1.2; }
-.page-subtitle { font-size: 13px; color: #888; margin-top: 4px; }
-.header-btns { display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
+/* Analitik üst barı — sayım kartları (bkz. Superadmin/Dashboard.vue .counter-grid) */
+.counter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.counter-card { display: flex; align-items: center; gap: 12px; background: #fff; border: 1px solid #ebebf0; border-radius: 12px; padding: 14px 16px; }
+.counter-card.counter-danger { border-color: #fca5a5; background: rgba(220,38,38,.04); }
+.counter-icon { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; flex-shrink: 0; }
+.ci-primary { background: var(--color-primary-soft); color: var(--color-primary); }
+.ci-green { background: rgba(22,163,74,.12); color: #16a34a; }
+.ci-amber { background: rgba(202,138,4,.14); color: #ca8a04; }
+.ci-red { background: rgba(220,38,38,.12); color: #dc2626; }
+.ci-purple { background: var(--color-primary-soft); color: var(--color-primary-hover); }
+.counter-value { font-size: 20px; font-weight: 700; line-height: 1.1; color: #1a1a2e; }
+.counter-label { font-size: 12px; color: #888; margin-top: 2px; }
 
-/* Analitik üst barı */
-.stats-bar { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; background: #fff; border: 1px solid #ebebf0; border-radius: 14px; padding: 14px 20px; margin-bottom: 18px; box-shadow: 0 1px 4px rgba(0,0,0,.04); }
-.stat { display: flex; flex-direction: column; gap: 2px; }
-.stat-val { font-size: 20px; font-weight: 700; color: #1a1a2e; line-height: 1; }
-.stat-val.ok { color: #15803d; }
-.stat-val.warn { color: #b45309; }
-.stat-val.bad { color: #b91c1c; }
-.stat-lbl { font-size: 11px; color: #999; text-transform: uppercase; letter-spacing: .03em; }
-.stat-templates { margin-left: auto; min-width: 240px; max-width: 360px; }
-.tpl-bars { display: flex; flex-direction: column; gap: 4px; margin-top: 5px; }
-.tpl-bar { display: flex; align-items: center; gap: 8px; font-size: 11px; }
-.tpl-bar-name { width: 90px; color: #555; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tpl-bar-track { flex: 1; height: 6px; background: #f0f0f5; border-radius: 3px; overflow: hidden; }
-.tpl-bar-fill { display: block; height: 100%; background: rgb(var(--color-primary)); border-radius: 3px; }
+/* Panel bölümü (bkz. Superadmin/Dashboard.vue .sa-panel) */
+.sa-panel { background: #fff; border: 1px solid #ebebf0; border-radius: 12px; padding: 18px 20px; margin-bottom: 18px; }
+.sa-panel-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; }
+.sa-panel-head h2 { font-size: 15px; font-weight: 600; margin: 0; color: #1a1a2e; }
+.tpl-bars { display: flex; flex-direction: column; gap: 8px; }
+.tpl-bar { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+.tpl-bar-name { width: 110px; color: #555; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tpl-bar-track { flex: 1; height: 6px; background: #ebebf0; border-radius: 999px; overflow: hidden; }
+.tpl-bar-fill { display: block; height: 100%; background: var(--color-primary); border-radius: 999px; transition: width .4s ease; }
 .tpl-bar-num { color: #999; font-family: 'SF Mono', Menlo, Consolas, monospace; white-space: nowrap; }
 
-.card { background: #fff; border-radius: 16px; border: 1px solid #ebebf0; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.04); }
+.card { background: #fff; border-radius: 12px; border: 1px solid #ebebf0; overflow: hidden; }
 .empty-block { text-align: center; color: #aaa; padding: 48px 0; font-style: italic; font-size: 13px; }
 
 .asset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
-.asset-card { background: #fff; border: 1px solid #ebebf0; border-radius: 14px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.04); display: flex; flex-direction: column; transition: border-color .15s; }
+.asset-card { background: #fff; border: 1px solid #ebebf0; border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; transition: border-color .15s, box-shadow .15s; }
+.asset-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.06); }
 .asset-card.is-approved { border-color: #bbf7d0; }
 .asset-card.is-rejected { border-color: #fecaca; opacity: .75; }
 
@@ -338,21 +386,15 @@ function goTo(url) {
 .zoom-badge { position: absolute; bottom: 8px; right: 8px; width: 28px; height: 28px; border: none; border-radius: 8px; background: rgba(26,26,46,.6); color: #fff; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity .15s; }
 .asset-card:hover .zoom-badge { opacity: 1; }
 .zoom-badge:hover { background: rgba(26,26,46,.85); }
-.asset-format { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 5px; background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary-hover)); font-size: 10px; font-weight: 700; }
+.asset-format { margin-left: 6px; }
 .asset-placeholder { display: flex; flex-direction: column; align-items: center; gap: 8px; color: #aaa; }
-.status-icon { font-size: 28px; }
-.status-icon.spin { animation: pulse 1.4s ease-in-out infinite; }
-@keyframes pulse { 0%,100% { opacity: .4 } 50% { opacity: 1 } }
+.status-icon.failed { color: #dc2626; }
+.status-icon.spin { animation: spin 1.1s linear infinite; }
+@keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
 .status-text { font-size: 12px; }
 
-.status-chip { position: absolute; top: 8px; left: 8px; padding: 3px 8px; border-radius: 6px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
-.s-queued { background: #fef3c7; color: #b45309; }
-.s-processing { background: #dbeafe; color: #1d4ed8; }
-.s-done { background: #dcfce7; color: #15803d; }
-.s-failed { background: #fee2e2; color: #b91c1c; }
-.review-chip { position: absolute; top: 8px; right: 8px; padding: 3px 8px; border-radius: 6px; font-size: 10.5px; font-weight: 700; }
-.r-approved { background: #16a34a; color: #fff; }
-.r-rejected { background: #dc2626; color: #fff; }
+.status-chip { position: absolute; top: 8px; left: 8px; }
+.review-chip { position: absolute; top: 8px; right: 8px; }
 
 .asset-meta { padding: 11px 13px; display: flex; flex-direction: column; gap: 3px; }
 .asset-product { font-size: 13px; font-weight: 600; color: #1a1a2e; }
@@ -362,14 +404,14 @@ function goTo(url) {
 
 .asset-caption { padding: 0 13px 10px; display: flex; flex-direction: column; gap: 6px; }
 .caption-input { width: 100%; resize: vertical; border: 1px solid #e8e8f0; border-radius: 8px; padding: 7px 9px; font-size: 12px; font-family: inherit; color: #333; line-height: 1.4; }
-.caption-input:focus { outline: none; border-color: rgb(var(--color-primary) / .35); background: rgb(var(--color-primary-soft)); }
-.hashtag-input { width: 100%; border: 1px solid #e8e8f0; border-radius: 8px; padding: 6px 9px; font-size: 11.5px; font-family: 'SF Mono', Menlo, Consolas, monospace; color: rgb(var(--color-primary)); }
-.hashtag-input:focus { outline: none; border-color: rgb(var(--color-primary) / .35); background: rgb(var(--color-primary-soft)); }
-.act-btn.save-caption { background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary-hover)); }
+.caption-input:focus { outline: none; border-color: color-mix(in srgb, var(--color-primary) 35%, transparent); background: var(--color-primary-soft); }
+.hashtag-input { width: 100%; border: 1px solid #e8e8f0; border-radius: 8px; padding: 6px 9px; font-size: 11.5px; font-family: 'SF Mono', Menlo, Consolas, monospace; color: var(--color-primary); }
+.hashtag-input:focus { outline: none; border-color: color-mix(in srgb, var(--color-primary) 35%, transparent); background: var(--color-primary-soft); }
+.act-btn.save-caption { background: var(--color-primary-soft); color: var(--color-primary-hover); }
 .act-btn.save-caption:hover:not(:disabled) { background: #ddd6fe; }
 
 .asset-actions { display: flex; gap: 6px; padding: 0 13px 13px; flex-wrap: wrap; }
-.act-btn { flex: 1; min-width: 70px; border: none; cursor: pointer; font-size: 12px; font-weight: 600; padding: 7px 6px; border-radius: 8px; font-family: inherit; transition: all .15s; }
+.act-btn { flex: 1; min-width: 70px; border: none; cursor: pointer; font-size: 12px; font-weight: 600; padding: 7px 6px; border-radius: 8px; font-family: inherit; transition: all .15s; display: inline-flex; align-items: center; justify-content: center; gap: 4px; }
 .act-btn:disabled { opacity: .45; cursor: not-allowed; }
 .act-btn.approve { background: #dcfce7; color: #15803d; }
 .act-btn.approve:hover:not(:disabled) { background: #bbf7d0; }
@@ -379,14 +421,13 @@ function goTo(url) {
 .act-btn.regen:hover:not(:disabled) { background: #e5e5ee; }
 
 .review-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
-.review-tag { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 10px; background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
-.chat-link { display: block; text-align: center; padding: 8px 12px; margin: 0 13px 13px; background: #eef2ff; color: #4338ca; border-radius: 8px; font-size: 12px; font-weight: 600; text-decoration: none; }
+.chat-link { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 12px; margin: 0 13px 13px; background: #eef2ff; color: #4338ca; border-radius: 8px; font-size: 12px; font-weight: 600; text-decoration: none; }
 .chat-link:hover { background: #e0e7ff; }
 
 .pagination { display: flex; gap: 4px; justify-content: center; margin-top: 24px; flex-wrap: wrap; }
 .page-btn { min-width: 34px; height: 34px; padding: 0 10px; border: 1px solid #e8e8f0; background: #fff; border-radius: 8px; font-size: 13px; color: #555; cursor: pointer; font-family: inherit; }
-.page-btn:hover:not(.disabled):not(.active) { background: rgb(var(--color-primary-soft)); border-color: rgb(var(--color-primary) / .35); }
-.page-btn.active { background: rgb(var(--color-primary)); border-color: rgb(var(--color-primary)); color: #fff; font-weight: 700; }
+.page-btn:hover:not(.disabled):not(.active) { background: var(--color-primary-soft); border-color: color-mix(in srgb, var(--color-primary) 35%, transparent); }
+.page-btn.active { background: var(--color-primary); border-color: var(--color-primary); color: #fff; font-weight: 700; }
 .page-btn.disabled { opacity: .4; cursor: not-allowed; }
 
 /* Lightbox */
@@ -399,20 +440,14 @@ function goTo(url) {
 .lb-side { width: 300px; flex-shrink: 0; padding: 22px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }
 .lb-title { font-size: 17px; font-weight: 700; color: #1a1a2e; }
 .lb-tags-meta { display: flex; flex-wrap: wrap; gap: 6px; }
-.lb-chip { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 6px; background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary-hover)); }
-.lb-chip.dim { background: #f0f0f5; color: #555; font-family: 'SF Mono', Menlo, Consolas, monospace; }
-.lb-chip.ghost { background: #f5f5f8; color: #888; }
 .lb-caption { font-size: 13px; line-height: 1.5; color: #333; white-space: pre-wrap; }
-.lb-hashtags { font-size: 12px; color: rgb(var(--color-primary)); font-family: 'SF Mono', Menlo, Consolas, monospace; line-height: 1.5; }
+.lb-hashtags { font-size: 12px; color: var(--color-primary); font-family: 'SF Mono', Menlo, Consolas, monospace; line-height: 1.5; }
 .lb-download { margin-top: auto; justify-content: center; }
 @media (max-width: 820px) { .lb-box { flex-direction: column; } .lb-img-wrap img { max-width: 86vw; max-height: 50vh; } .lb-side { width: auto; } }
 
 /* ── Dar ekran (telefon) ── */
 @media (max-width: 640px) {
-	.page-header { flex-wrap: wrap; }
-	.header-btns { width: 100%; flex-wrap: wrap; }
-	.header-btns .btn { flex: 1 1 auto; justify-content: center; }
-	.stat-templates { min-width: 0; max-width: none; width: 100%; margin-left: 0; }
+	.counter-grid { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
 	.asset-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
 }
 </style>

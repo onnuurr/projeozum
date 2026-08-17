@@ -8,10 +8,10 @@
 <script setup>
 import { ref, nextTick, onMounted, onBeforeUnmount } from 'vue';
 import { Link } from '@inertiajs/vue3';
-import { ChevronRight } from 'lucide-vue-next';
 
 const props = defineProps({
 	title: { type: String, default: '' },
+	icon: { type: String, default: '' },
 	tabs: { type: Array, default: () => [] },
 });
 
@@ -112,7 +112,12 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocumentClick));
 
 <template>
 	<div ref="wrapRef" class="bg-surface h-11 sm:h-14 px-2 sm:px-3 md:px-6 flex items-center justify-between gap-2 sm:gap-6 border-b border-line">
-		<h1 v-if="title" class="hidden sm:block text-md font-bold text-ink tracking-tight leading-none whitespace-nowrap flex-shrink-0">{{ title }}</h1>
+		<div v-if="title" class="hidden sm:flex items-center gap-2 flex-shrink-0">
+			<div v-if="icon" class="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center flex-shrink-0">
+				<span class="w-3.5 h-3.5 text-primary" v-html="icon"></span>
+			</div>
+			<h1 class="text-md font-bold text-ink tracking-tight leading-none whitespace-nowrap">{{ title }}</h1>
+		</div>
 
 		<div
 			ref="scrollRef"
@@ -135,8 +140,14 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocumentClick));
 						tab.active ? 'bg-primary/10 text-primary' : 'text-muted hover:bg-canvas hover:text-ink',
 					]"
 				>
-					<span class="w-3.5 h-3.5" v-html="tab.icon"></span>
 					{{ tab.name }}
+					<span
+						v-if="tab.count != null"
+						class="px-1.5 py-0.5 rounded-full text-2xs font-medium"
+						:class="tab.active ? 'bg-primary text-white' : 'bg-canvas text-muted'"
+					>
+						{{ tab.count }}
+					</span>
 				</Link>
 				<button
 					v-else
@@ -147,9 +158,14 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocumentClick));
 					]"
 					@click.stop="toggleFlyout(tab)"
 				>
-					<span class="w-3.5 h-3.5" v-html="tab.icon"></span>
 					{{ tab.name }}
-					<ChevronRight :size="12" class="transition-transform" :class="activeFlyout === tabKey(tab) ? 'rotate-90' : ''" />
+					<span
+						v-if="tab.count != null"
+						class="px-1.5 py-0.5 rounded-full text-2xs font-medium"
+						:class="tab.active || activeFlyout === tabKey(tab) ? 'bg-primary text-white' : 'bg-canvas text-muted'"
+					>
+						{{ tab.count }}
+					</span>
 				</button>
 
 				<div
@@ -166,7 +182,6 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocumentClick));
 							class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-surface transition-colors cursor-pointer text-xs text-ink"
 							@click="activeFlyout = null"
 						>
-							<span class="w-3.5 h-3.5 text-muted" v-html="child.icon"></span>
 							{{ child.label }}
 						</Link>
 						<button
@@ -176,9 +191,7 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocumentClick));
 							:class="activeSubFlyout === child.label ? 'bg-surface' : ''"
 							@click.stop="toggleSubFlyout(child)"
 						>
-							<span class="w-3.5 h-3.5 text-muted" v-html="child.icon"></span>
 							<span class="flex-1 text-left">{{ child.label }}</span>
-							<ChevronRight :size="12" />
 						</button>
 
 						<div
@@ -193,7 +206,6 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocumentClick));
 									class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-surface transition-colors cursor-pointer text-xs text-ink"
 									@click="activeFlyout = null; activeSubFlyout = null"
 								>
-									<span class="w-3.5 h-3.5 text-muted" v-html="sub.icon"></span>
 									{{ sub.label }}
 								</Link>
 							</template>

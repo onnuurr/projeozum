@@ -18,7 +18,7 @@
 				@user-action="handleUserAction"
 			/>
 
-			<ActionBar :title="activeRoot?.label" :tabs="navItems" />
+			<ActionBar :title="activeRoot?.label" :icon="activeRoot?.icon ? renderMenuIcon(activeRoot.icon) : ''" :tabs="navItems" />
 		</header>
 
 		<main class="flex-1 min-h-0 mx-1 sm:mx-2 my-1 sm:my-2 bg-surface rounded-xl sm:rounded-2xl shadow-sm overflow-hidden">
@@ -57,6 +57,7 @@ import CartDrawer from '@/Components/CartDrawer.vue'
 import SearchModal from '@/Components/SearchModal.vue'
 import ToastContainer from '@/Components/ToastContainer.vue'
 import { useAppShell } from '@/composables/useAppShell.js'
+import { renderMenuIcon } from '@/menuIcons.js'
 
 const {
 	navItems,

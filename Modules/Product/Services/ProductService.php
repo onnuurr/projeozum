@@ -10,6 +10,7 @@ use Modules\Product\Events\MaterialChanged;
 use Modules\Product\Events\MediaUploaded;
 use Modules\Product\Events\ProductArchived;
 use Modules\Product\Events\ProductCreated;
+use Modules\Product\Events\ProductDeleted;
 use Modules\Product\Events\ProductPublished;
 use Modules\Product\Events\ProductUpdated;
 use Modules\Product\Events\ProductVariantsSynced;
@@ -156,26 +157,34 @@ class ProductService
     public function delete(Product $product): void
     {
         $product->delete();
+
+        ProductDeleted::dispatch($product);
     }
 
     /**
      * Birden çok ürünü topluca siler (model olayları tetiklensin diye döngüyle).
+     * Event dispatch, transaction commit'inden SONRA yapılır (bkz. dispatchWriteEvents).
      *
      * @param  array<int, int>  $ids
      * @return int  Silinen ürün sayısı.
      */
     public function bulkDelete(array $ids): int
     {
-        $count = 0;
+        $deleted = DB::transaction(function () use ($ids) {
+            $products = Product::whereIn('id', $ids)->get();
 
-        DB::transaction(function () use ($ids, &$count) {
-            foreach (Product::whereIn('id', $ids)->get() as $product) {
+            foreach ($products as $product) {
                 $product->delete();
-                $count++;
             }
+
+            return $products;
         });
 
-        return $count;
+        foreach ($deleted as $product) {
+            ProductDeleted::dispatch($product);
+        }
+
+        return $deleted->count();
     }
 
     /**

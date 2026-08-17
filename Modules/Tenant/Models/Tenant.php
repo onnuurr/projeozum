@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
+use Modules\Product\Models\Carrier;
 
 class Tenant extends Model
 {
@@ -47,6 +48,9 @@ class Tenant extends Model
         'created_by',
         'credit_limit',
         'current_balance',
+        'shipping_agreement_type',
+        'shipping_terms_accepted_at',
+        'carrier_id',
         'payment_term_days',
         'discount_rate',
         'min_order_total',
@@ -67,12 +71,19 @@ class Tenant extends Model
         'payment_term_days' => 'integer',
         'is_active'         => 'boolean',
         'activated_at'      => 'datetime',
+        'shipping_terms_accepted_at' => 'datetime',
         'settings'          => 'json',
     ];
 
     public function type(): BelongsTo
     {
         return $this->belongsTo(TenantType::class, 'tenant_type_id');
+    }
+
+    /** shipping_agreement_type=own iken bayinin kullandığı kargo firması. */
+    public function carrier(): BelongsTo
+    {
+        return $this->belongsTo(Carrier::class);
     }
 
     public function users(): HasMany
@@ -84,6 +95,18 @@ class Tenant extends Model
     public function owner(): HasOne
     {
         return $this->hasOne(User::class, 'tenant_id')->role('tenant');
+    }
+
+    /**
+     * `owner()` ile aynı kullanıcıyı hedefler ama rol tablosuna bağımlı değildir
+     * (permission altyapısı kurulmamış/bozuksa bile çalışır) — tenant'ın ilk
+     * açılan (dolayısıyla owner olan) kullanıcısı, oluşturulma sırasına göre.
+     * Bagisto hesap senkronu (Modules\Bagisto) gibi salt-okunur, best-effort
+     * entegrasyonlar bunu kullanır; yetkilendirme kararları için owner() kalır.
+     */
+    public function primaryUser(): HasOne
+    {
+        return $this->hasOne(User::class, 'tenant_id')->oldestOfMany();
     }
 
     public function accessRules(): HasMany

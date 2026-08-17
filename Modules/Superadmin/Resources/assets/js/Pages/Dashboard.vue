@@ -3,30 +3,30 @@
 	<div class="page-sa-dashboard">
 		<Breadcrumb
 			:items="[
-				{ label: 'Ana Sayfa', href: '/workflow', icon: 'home' },
+				{ label: 'Ana Sayfa', href: '/dashboard'},
 				{ label: 'Süper Admin' },
 			]"
 		/>
 
 		<PageHeader
-			badge="Süper Admin"
+			badge=""
 			title="Sistem Paneli"
 			subtitle="Platformun canlı durumu, kullanım sayıları ve hızlı erişim."
 		>
 			<template #actions>
-				<StatusIndicator :status="systemFetchedAt ? 'online' : 'updating'" :label="systemFetchedAt ? 'Canlı' : 'Yükleniyor…'" />
-				<Link href="/superadmin/settings" class="btn btn-secondary btn-sm btn-with-icon">
-					<Settings :size="13" />
+				<StatusIndicator :status="systemFetchedAt ? 'online' : 'updating'" :label="systemFetchedAt ? 'Sistem Aktif' : 'Yükleniyor…'" />
+				<Button variant="secondary" size="sm" with-icon @click="router.visit('/superadmin/settings')">
+					<template #leading><Settings :size="13" /></template>
 					Sistem Ayarları
-				</Link>
+				</Button>
 			</template>
 		</PageHeader>
 
 		<!-- Kullanım sayıları -->
-		<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
+		<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 mb-6">
 			<StatWidget :icon="Building2" :value="fmt(liveSystem.totalTenants)" title="Kiracı (Tenant)" color="primary" />
 			<StatWidget :icon="UsersRound" :value="fmt(liveSystem.totalUsers)" title="Kullanıcı" color="success" />
-			<StatWidget :icon="ShoppingCart" :value="fmt(liveSystem.totalOrders)" title="Sipariş" color="primary" />
+			<StatWidget :icon="ShoppingCart" :value="fmt(liveSystem.totalOrders)" title="Sipariş" color="info" />
 			<StatWidget :icon="Clock" :value="fmt(liveSystem.queueJobsPending)" title="Bekleyen iş" color="warning" />
 			<Link href="/superadmin/failed-jobs" class="block">
 				<StatWidget :icon="AlertCircle" :value="fmt(liveSystem.queueJobsFailed)" title="Başarısız iş" :color="liveSystem.queueJobsFailed > 0 ? 'danger' : 'neutral'" />
@@ -145,6 +145,7 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import PageHeader from '@/Components/PageHeader.vue'
 import Card from '@/Components/Card.vue'
+import Button from '@/Components/Button.vue'
 import StatWidget from '@/Components/StatWidget.vue'
 import StatusIndicator from '@/Components/StatusIndicator.vue'
 import ProgressBar from '@/Components/ProgressBar.vue'

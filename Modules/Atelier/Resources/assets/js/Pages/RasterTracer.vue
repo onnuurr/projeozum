@@ -11,22 +11,35 @@
     />
     <AtelierNav />
 
-    <div class="rt-head">
-      <h1 class="rt-title">Sayısallaştır: {{ pattern.name }}</h1>
-      <span class="rt-page">Sayfa {{ page + 1 }} / {{ pageCount || '?' }}</span>
-      <button class="btn btn-sm btn-secondary" :disabled="page === 0" @click="changePage(page - 1)">◀ Önceki</button>
-      <button class="btn btn-sm btn-secondary" :disabled="pageCount && page >= pageCount - 1" @click="changePage(page + 1)">Sonraki ▶</button>
-      <label class="rt-dpi">DPI
-        <select v-model.number="dpi" class="form-input rt-select" @change="loadImage">
-          <option :value="150">150</option><option :value="200">200</option><option :value="300">300</option>
-        </select>
-      </label>
-    </div>
+    <PageHeader :title="`Sayısallaştır: ${pattern.name}`">
+      <template #subtitle>Sayfa {{ page + 1 }} / {{ pageCount || '?' }}</template>
+      <template #actions>
+        <Button variant="secondary" size="sm" :disabled="page === 0" @click="changePage(page - 1)">
+          <template #leading><ChevronLeft :size="14" /></template>
+          Önceki
+        </Button>
+        <Button variant="secondary" size="sm" :disabled="pageCount && page >= pageCount - 1" @click="changePage(page + 1)">
+          Sonraki
+          <template #trailing><ChevronRight :size="14" /></template>
+        </Button>
+        <label class="rt-dpi">DPI
+          <select v-model.number="dpi" class="form-input rt-select" @change="loadImage">
+            <option :value="150">150</option><option :value="200">200</option><option :value="300">300</option>
+          </select>
+        </label>
+      </template>
+    </PageHeader>
 
     <div class="rt-tools">
       <span class="rt-tools-label">Araç:</span>
-      <button class="btn btn-sm" :class="tool === 'calibrate' ? 'btn-primary' : 'btn-secondary'" @click="tool = 'calibrate'">📏 Kalibrasyon</button>
-      <button class="btn btn-sm" :class="tool === 'trace' ? 'btn-primary' : 'btn-secondary'" @click="tool = 'trace'">✏️ İzle</button>
+      <Button size="sm" :variant="tool === 'calibrate' ? 'primary' : 'secondary'" with-icon @click="tool = 'calibrate'">
+        <template #leading><Ruler :size="14" /></template>
+        Kalibrasyon
+      </Button>
+      <Button size="sm" :variant="tool === 'trace' ? 'primary' : 'secondary'" with-icon @click="tool = 'trace'">
+        <template #leading><PenLine :size="14" /></template>
+        İzle
+      </Button>
       <span v-if="pxPerMm" class="rt-scale ok">Ölçek: {{ pxPerMm.toFixed(3) }} px/mm</span>
       <span v-else class="rt-scale warn">Ölçek ayarlanmadı — kalibrasyon aracıyla bilinen bir mesafeyi çizin</span>
     </div>
@@ -168,7 +181,7 @@ onMounted(loadImage)
 	display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
 	margin: 14px 0 10px;
 }
-.rt-title { font-size: 17px; font-weight: 700; color: rgb(var(--color-ink, 26 26 46)); }
+.rt-title { font-size: 17px; font-weight: 700; color: var(--color-ink); }
 .rt-page { font-size: 12px; color: #888; }
 .rt-dpi { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #666; }
 .rt-select { height: 30px; width: auto; padding: 0 8px; }

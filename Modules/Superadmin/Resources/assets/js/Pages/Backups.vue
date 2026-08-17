@@ -143,20 +143,20 @@ function rateColor(rate) {
 </script>
 
 <style scoped>
-.page-subtitle code { background: rgb(var(--color-bg)); border-radius: 4px; padding: 1px 5px; font-size: 12px; }
+.page-subtitle code { background: var(--color-canvas); border-radius: 4px; padding: 1px 5px; font-size: 12px; }
 
 .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px; }
 
-.hint { font-size: 12px; color: rgb(var(--color-muted)); white-space: nowrap; }
-.empty-hint code { background: rgb(var(--color-bg)); border-radius: 4px; padding: 1px 5px; font-size: 12px; }
+.hint { font-size: 12px; color: var(--color-muted); white-space: nowrap; }
+.empty-hint code { background: var(--color-canvas); border-radius: 4px; padding: 1px 5px; font-size: 12px; }
 
 .rows { display: flex; flex-direction: column; gap: 6px; }
-.row { display: flex; align-items: center; gap: 16px; padding: 12px 14px; border: 1px solid rgb(var(--color-border)); border-radius: 10px; background: rgb(var(--color-bg) / .5); flex-wrap: wrap; }
-.row-date { font-size: 13px; font-weight: 600; color: rgb(var(--color-ink)); min-width: 150px; }
-.row-trigger { font-size: 12px; color: rgb(var(--color-muted)); }
-.row-duration { font-size: 12.5px; color: rgb(var(--color-muted)); }
-.row-size { font-size: 12.5px; color: rgb(var(--color-muted)); font-weight: 600; margin-left: auto; }
-.row-error { font-size: 12px; color: rgb(var(--color-danger)); max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row { display: flex; align-items: center; gap: 16px; padding: 12px 14px; border: 1px solid var(--color-outline-variant); border-radius: 10px; background: var(--color-surface-container-low); flex-wrap: wrap; }
+.row-date { font-size: 13px; font-weight: 600; color: var(--color-ink); min-width: 150px; }
+.row-trigger { font-size: 12px; color: var(--color-muted); }
+.row-duration { font-size: 12.5px; color: var(--color-muted); }
+.row-size { font-size: 12.5px; color: var(--color-muted); font-weight: 600; margin-left: auto; }
+.row-error { font-size: 12px; color: var(--color-danger); max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 @media (max-width: 700px) {
 	.row { flex-wrap: wrap; }

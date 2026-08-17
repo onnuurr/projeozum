@@ -8,10 +8,9 @@ const STAFF_ROLES = ['designer', 'reviewer', 'superadmin']
 
 /**
  * AppLayout kabuğunun (TopNav/Sidebar/drawer/cart/toast/$swal) tüm state ve
- * provide() sözleşmesini barındırır. Hem AppLayoutClassic hem AppLayoutV2
- * bu composable'ı çağırır — böylece sayfaların inject('showToast')/inject('$swal')/
- * inject('cart')/inject('drawer') beklentisi hangi kabuk aktifse aktif olsun bozulmaz.
- * (bkz. resources/js/Layouts/AppLayout.vue dispatcher)
+ * provide() sözleşmesini barındırır. AppLayoutClassic bu composable'ı çağırır —
+ * böylece sayfaların inject('showToast')/inject('$swal')/inject('cart')/
+ * inject('drawer') beklentisi karşılanır.
  */
 export function useAppShell() {
 	const page = usePage()
@@ -212,6 +211,15 @@ export function useAppShell() {
 	const searchQuick = ref([
 		{ icon: '➕', text: 'Yeni İş Emri Oluştur', sub: 'İş Emirleri' },
 		{ icon: '📊', text: 'Üretim Raporu', sub: 'Raporlar' },
+	])
+
+	// searchRecent/searchQuick emoji ikonları eski TopNav'a özeldi — TopBar.vue (new/)
+	// UiIcon üzerinden isimli ikon bekliyor, eşleşmeyen isim sessizce boş kalır.
+	const SEARCH_ICON_MAP = { '📦': 'package', '👤': 'user', '📋': 'file_text', '➕': 'plus', '📊': 'chart' }
+
+	const searchItems = computed(() => [
+		...searchRecent.value.map((item) => ({ key: item.text, label: item.text, icon: SEARCH_ICON_MAP[item.icon] || 'search', group: item.sub })),
+		...searchQuick.value.map((item) => ({ key: item.text, label: item.text, icon: SEARCH_ICON_MAP[item.icon] || 'search', group: item.sub })),
 	])
 
 	/* ── Toast (shared composable — singleton across all components) ── */
@@ -428,16 +436,8 @@ export function useAppShell() {
 		itemCount: cartItemCount,
 	})
 
-	/* ── Global Ctrl+K ── */
-	function onKey(e) {
-		if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-			e.preventDefault()
-			searchOpen.value = true
-		}
-	}
-
-	onMounted(() => document.addEventListener('keydown', onKey))
-	onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
+	// Global Ctrl+K artık TopBar.vue (new/) kendi içinde dinliyor — burada ikinci bir
+	// keydown listener tutmak aynı anda iki farklı search modalının açılmasına yol açıyordu.
 
 	return {
 		page,
@@ -445,6 +445,7 @@ export function useAppShell() {
 		isStaff,
 		userMenu,
 		navItems,
+		activeRoot,
 		sidebarTop,
 		sidebarBottom,
 		visibleNotifications,
@@ -457,6 +458,7 @@ export function useAppShell() {
 		searchOpen,
 		searchRecent,
 		searchQuick,
+		searchItems,
 		toasts,
 		showToast,
 		dismissToast,

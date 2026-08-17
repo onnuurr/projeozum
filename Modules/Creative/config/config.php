@@ -61,6 +61,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Üretim çıktı formatı (disk boyutu)
+    |--------------------------------------------------------------------------
+    | Manken/tryon/creative üretiminin SON adımı: enhance()'ten çıkan bayt bu
+    | formata kodlanıp öyle diske yazılır (PNG yerine). WebP, fotografik AI
+    | çıktısında gözle ayırt edilemez kalite kaybıyla PNG'ye göre ~%75-85 daha
+    | küçük dosya üretir (bkz. storage/app/public disk analizi, 2026-07-25).
+    | GD'de format desteği yoksa ya da decode başarısız olursa ImageFile::encode
+    | sessizce PNG'ye düşer — hiçbir üretim bu adım yüzünden bozulmaz.
+    */
+    'image_output' => [
+        'format'  => env('CREATIVE_IMAGE_FORMAT', 'webp'), // webp | jpg | png
+        'quality' => (int) env('CREATIVE_IMAGE_QUALITY', 90),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Giydirme öncesi giysi görseli hazırlığı (EXIF + kırpma + boyut)
     |--------------------------------------------------------------------------
     | Ürün giydirme ekranından yüklenen ana/detay görselleri (telefon fotoğrafı

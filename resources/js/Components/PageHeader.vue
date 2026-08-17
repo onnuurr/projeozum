@@ -15,7 +15,7 @@ defineProps({
 			>
 				<slot name="badge">{{ typeof badge === 'string' ? badge : badge?.label }}</slot>
 			</span>
-			<h1 class="text-headline-sm text-ink">{{ title }}</h1>
+			<h1 class="text-headline-sm text-on-surface mt-2">{{ title }}</h1>
 			<p v-if="subtitle || $slots.subtitle" class="text-body-sm text-muted mt-1">
 				<slot name="subtitle">{{ subtitle }}</slot>
 			</p>

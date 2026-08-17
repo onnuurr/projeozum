@@ -11,18 +11,14 @@
 
 		<CreativeNav current="mannequins" />
 
-		<div class="page-header">
-			<div>
-				<h1 class="page-title">Sanal Manken Stüdyosu</h1>
-				<p class="page-subtitle">AI ile manken üret, pozlar oluştur ve ürünlerini giydir</p>
-			</div>
-			<button type="button" class="btn btn-ghost btn-with-icon" @click="refresh">
-				<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-					<path d="M23 4v6h-6M1 20v-6h6" /><path d="M3.5 9a9 9 0 0114.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0020.5 15" />
-				</svg>
-				Yenile
-			</button>
-		</div>
+		<PageHeader title="Sanal Manken Stüdyosu" subtitle="AI ile manken üret, pozlar oluştur ve ürünlerini giydir">
+			<template #actions>
+				<Button variant="ghost" with-icon @click="refresh">
+					<template #leading><RefreshCw :size="14" /></template>
+					Yenile
+				</Button>
+			</template>
+		</PageHeader>
 
 		<!-- Yeni manken formu -->
 		<div class="card">
@@ -112,12 +108,10 @@
 				</div>
 
 				<div class="form-actions">
-					<button class="btn btn-primary btn-with-icon" :disabled="!canCreate || busy" @click="create">
-						<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-							<path d="M12 5v14M5 12h14" />
-						</svg>
+					<Button variant="primary" with-icon :disabled="!canCreate" :loading="busy" @click="create">
+						<template #leading><Plus :size="14" /></template>
 						{{ busy ? 'Kuyruğa alınıyor…' : 'Manken Üret' }}
-					</button>
+					</Button>
 				</div>
 			</div>
 		</div>
@@ -135,11 +129,15 @@
 						<div class="mannequin-thumb">
 							<img v-if="m.reference_url" :src="m.reference_url" :alt="m.name" class="clickable" @click="openPreview(m)" />
 							<span v-else class="no-preview">{{ statusLabel(m.status) }}</span>
-							<button v-if="m.reference_url" class="zoom-badge" title="Büyük önizleme" @click="openPreview(m)">⤢</button>
-							<span class="status-badge" :class="m.status">{{ statusLabel(m.status) }}</span>
-							<span v-if="m.review_status" class="review-badge" :class="`r-${m.review_status}`">
-								{{ reviewLabel(m.review_status) }}
-							</span>
+							<button v-if="m.reference_url" class="zoom-badge" title="Büyük önizleme" @click="openPreview(m)"><Maximize2 :size="14" /></button>
+							<Badge class="status-badge" :color="statusColor(m.status)" :label="statusLabel(m.status)" variant="filled" />
+							<Badge
+								v-if="m.review_status"
+								class="review-badge"
+								:color="reviewColor(m.review_status)"
+								:label="reviewLabel(m.review_status)"
+								variant="filled"
+							/>
 						</div>
 						<div class="mannequin-meta">
 							<span class="mannequin-name">{{ m.name }}</span>
@@ -147,20 +145,20 @@
 							<span v-if="measureLine(m)" class="mannequin-measures">{{ measureLine(m) }}</span>
 							<span v-if="m.creator_name" class="mannequin-creator">Üreten: {{ m.creator_name }}{{ m.is_own ? ' (siz)' : '' }}</span>
 							<div v-if="m.review_tags && m.review_tags.length" class="review-tags">
-								<span v-for="t in m.review_tags" :key="t" class="review-tag">{{ t }}</span>
+								<Tag v-for="t in m.review_tags" :key="t" :label="t" color="danger" />
 							</div>
-							<p v-if="m.error" class="mannequin-error" :title="m.error">⚠ {{ m.error }}</p>
+							<p v-if="m.error" class="mannequin-error" :title="m.error"><AlertTriangle :size="12" /> {{ m.error }}</p>
 						</div>
 						<div v-if="m.can_review" class="mannequin-review-actions">
-							<button type="button" class="act-btn approve" :disabled="busyReview === m.id" @click="approve(m)">✓ Onayla</button>
-							<button type="button" class="act-btn reject" :disabled="busyReview === m.id" @click="reject(m)">✕ Reddet</button>
+							<button type="button" class="act-btn approve" :disabled="busyReview === m.id" @click="approve(m)"><Check :size="12" /> Onayla</button>
+							<button type="button" class="act-btn reject" :disabled="busyReview === m.id" @click="reject(m)"><X :size="12" /> Reddet</button>
 						</div>
 						<div v-if="can('creative.asset.manage')" class="mannequin-actions">
 							<button type="button" class="link-btn" @click="regenerate(m)">Yeniden üret</button>
 							<button type="button" class="link-btn danger" @click="destroy(m)">Sil</button>
 						</div>
 						<Link v-if="m.can_chat" :href="`/creative/mannequins/${m.id}/review-chat`" class="chat-link">
-							💬 AI ile Konuş <span v-if="m.review_chats?.length">({{ m.review_chats.length }} mesaj)</span>
+							<MessageCircle :size="13" /> AI ile Konuş <span v-if="m.review_chats?.length">({{ m.review_chats.length }} mesaj)</span>
 						</Link>
 					</div>
 				</div>
@@ -171,7 +169,7 @@
 		<Teleport to="body">
 			<div v-if="preview" class="lightbox" @click.self="closePreview">
 				<div class="lb-box">
-					<button class="lb-close" @click="closePreview">✕</button>
+					<button class="lb-close" @click="closePreview"><X :size="16" /></button>
 					<div
 						class="lb-img-wrap"
 						:class="{ zoomed: zoom.scale > 1, dragging: zoom.dragging }"
@@ -194,13 +192,13 @@
 					<div class="lb-side">
 						<h3 class="lb-title">{{ preview.name }}</h3>
 						<div class="lb-tags-meta">
-							<span v-if="traitLine(preview)" class="lb-chip">{{ traitLine(preview) }}</span>
-							<span v-if="measureLine(preview)" class="lb-chip dim">{{ measureLine(preview) }}</span>
-							<span class="lb-chip ghost">{{ statusLabel(preview.status) }}</span>
+							<Tag v-if="traitLine(preview)" :label="traitLine(preview)" color="primary" />
+							<Tag v-if="measureLine(preview)" class="font-mono" :label="measureLine(preview)" color="neutral" />
+							<Tag :label="statusLabel(preview.status)" color="neutral" />
 						</div>
 						<span class="lb-hint">Yakınlaştırmak için fare tekerleği veya pinch, gezinmek için sürükleyin.</span>
-						<a :href="preview.reference_url" target="_blank" :download="`manken-${preview.id}.png`" class="btn btn-primary lb-download">
-							<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
+						<a :href="preview.reference_url" target="_blank" :download="`manken-${preview.id}.${extOf(preview.reference_url)}`" class="btn btn-primary lb-download">
+							<Download :size="14" />
 							İndir
 						</a>
 					</div>
@@ -213,10 +211,16 @@
 <script setup>
 import { ref, reactive, computed, inject, onMounted, onUnmounted } from 'vue'
 import { Head, Link, router } from '@inertiajs/vue3'
+import { RefreshCw, Plus, Maximize2, AlertTriangle, Check, X, MessageCircle, Download } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
+import PageHeader from '@/Components/PageHeader.vue'
+import Button from '@/Components/Button.vue'
+import Badge from '@/Components/Badge.vue'
+import Tag from '@/Components/Tag.vue'
 import CreativeNav from '../Components/CreativeNav.vue'
 import { openRejectDialog } from '../support/rejectDialog'
+import { extOf } from '../support/mediaExt'
 import { useCan } from '@/composables/useCan'
 
 defineOptions({ layout: AppLayout })
@@ -281,6 +285,11 @@ const hasPending = computed(() => props.mannequins.some(m => m.status === 'draft
 
 function statusLabel(s) { return STATUS_LABELS[s] || s }
 function reviewLabel(r) { return REVIEW_LABELS[r] || r }
+
+const STATUS_COLORS = { draft: 'neutral', generating: 'warning', ready: 'success', failed: 'danger' }
+const REVIEW_COLORS = { pending: 'warning', approved: 'success', rejected: 'danger' }
+function statusColor(s) { return STATUS_COLORS[s] ?? 'neutral' }
+function reviewColor(r) { return REVIEW_COLORS[r] ?? 'neutral' }
 
 function approve(m) {
 	if (busyReview.value) return
@@ -474,10 +483,6 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; gap: 16px; }
-.page-title { font-size: 22px; font-weight: 700; color: #1a1a2e; line-height: 1.2; }
-.page-subtitle { font-size: 13px; color: #888; margin-top: 4px; }
-
 .card { background: #fff; border-radius: 16px; border: 1px solid #ebebf0; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.04); margin-bottom: 18px; }
 .card-header { padding: 14px 18px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #f0f0f5; }
 .card-header h3 { font-size: 15px; font-weight: 700; color: #1a1a2e; }
@@ -490,9 +495,9 @@ onUnmounted(() => {
 .field { display: flex; flex-direction: column; gap: 5px; }
 .field-wide { grid-column: 1 / -1; }
 .field-label { font-size: 12px; font-weight: 600; color: #555; }
-.field-label em { color: rgb(var(--color-primary)); font-style: normal; }
+.field-label em { color: var(--color-primary); font-style: normal; }
 .field input, .field select, .field textarea { border: 1px solid #e8e8f0; border-radius: 8px; padding: 8px 10px; font-family: inherit; font-size: 13px; color: #1a1a2e; outline: none; background: #fff; }
-.field input:focus, .field select:focus, .field textarea:focus { border-color: rgb(var(--color-primary)); }
+.field input:focus, .field select:focus, .field textarea:focus { border-color: var(--color-primary); }
 .field textarea { resize: vertical; }
 .form-actions { margin-top: 16px; display: flex; justify-content: flex-end; }
 
@@ -500,7 +505,7 @@ onUnmounted(() => {
 .reference-upload-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; margin-bottom: 10px; font-size: 13px; color: #1a1a2e; }
 .reference-upload-head .hint { color: #888; font-weight: 400; }
 .upload-drop { display: inline-flex; align-items: center; justify-content: center; width: 120px; height: 120px; border: 2px dashed #d5d5e0; border-radius: 12px; color: #888; font-size: 12px; font-weight: 600; cursor: pointer; }
-.upload-drop:hover { border-color: rgb(var(--color-primary)); color: rgb(var(--color-primary)); }
+.upload-drop:hover { border-color: var(--color-primary); color: var(--color-primary); }
 .reference-preview { display: flex; align-items: center; gap: 12px; }
 .reference-preview img { width: 90px; height: 90px; border-radius: 10px; object-fit: cover; border: 1px solid #ebebf0; }
 
@@ -513,32 +518,24 @@ onUnmounted(() => {
 .zoom-badge { position: absolute; bottom: 8px; right: 8px; width: 28px; height: 28px; border: none; border-radius: 8px; background: rgba(15,15,25,.55); color: #fff; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity .15s; }
 .mannequin-thumb:hover .zoom-badge { opacity: 1; }
 .no-preview { font-size: 12px; color: #bbb; font-weight: 700; }
-.status-badge { position: absolute; top: 8px; left: 8px; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 20px; color: #fff; text-transform: uppercase; letter-spacing: .03em; }
-.status-badge.draft { background: #9ca3af; }
-.status-badge.generating { background: #f59e0b; }
-.status-badge.ready { background: #16a34a; }
-.status-badge.failed { background: #dc2626; }
-.review-badge { position: absolute; top: 8px; right: 8px; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; }
-.review-badge.r-pending { background: #f59e0b; color: #fff; }
-.review-badge.r-approved { background: #16a34a; color: #fff; }
-.review-badge.r-rejected { background: #dc2626; color: #fff; }
+.status-badge { position: absolute; top: 8px; left: 8px; }
+.review-badge { position: absolute; top: 8px; right: 8px; }
 .mannequin-meta { padding: 10px 12px; display: flex; flex-direction: column; gap: 3px; flex: 1; }
 .mannequin-name { font-size: 13px; font-weight: 700; color: #1a1a2e; }
 .mannequin-traits { font-size: 11px; color: #888; }
-.mannequin-measures { font-size: 11px; color: rgb(var(--color-primary)); font-weight: 600; margin-top: 2px; }
+.mannequin-measures { font-size: 11px; color: var(--color-primary); font-weight: 600; margin-top: 2px; }
 .mannequin-creator { font-size: 10.5px; color: #aaa; }
 .review-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
-.review-tag { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 10px; background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
-.mannequin-error { font-size: 11px; color: #dc2626; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mannequin-error { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #dc2626; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mannequin-review-actions { display: flex; gap: 8px; padding: 0 12px 10px; }
-.act-btn { flex: 1; border: none; cursor: pointer; font-size: 12px; font-weight: 600; padding: 7px 6px; border-radius: 8px; font-family: inherit; transition: all .15s; }
+.act-btn { flex: 1; border: none; cursor: pointer; font-size: 12px; font-weight: 600; padding: 7px 6px; border-radius: 8px; font-family: inherit; transition: all .15s; display: inline-flex; align-items: center; justify-content: center; gap: 4px; }
 .act-btn:disabled { opacity: .45; cursor: not-allowed; }
 .act-btn.approve { background: #dcfce7; color: #15803d; }
 .act-btn.approve:hover:not(:disabled) { background: #bbf7d0; }
 .act-btn.reject { background: #fee2e2; color: #b91c1c; }
 .act-btn.reject:hover:not(:disabled) { background: #fecaca; }
 .mannequin-actions { display: flex; gap: 12px; padding: 10px 12px; border-top: 1px solid #f0f0f5; }
-.link-btn { background: none; border: none; color: rgb(var(--color-primary)); font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; padding: 0; }
+.link-btn { background: none; border: none; color: var(--color-primary); font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; padding: 0; }
 .link-btn.danger { color: #dc2626; margin-left: auto; }
 
 /* Lightbox */
@@ -554,19 +551,14 @@ onUnmounted(() => {
 .lb-side { width: 300px; flex-shrink: 0; padding: 22px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }
 .lb-title { font-size: 17px; font-weight: 700; color: #1a1a2e; }
 .lb-tags-meta { display: flex; flex-wrap: wrap; gap: 6px; }
-.lb-chip { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 6px; background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary-hover)); }
-.lb-chip.dim { background: #f0f0f5; color: #555; font-family: 'SF Mono', Menlo, Consolas, monospace; }
-.lb-chip.ghost { background: #f5f5f8; color: #888; }
 .lb-hint { font-size: 11px; color: #aaa; line-height: 1.4; }
 .lb-download { margin-top: auto; justify-content: center; }
 @media (max-width: 820px) { .lb-box { flex-direction: column; } .lb-img-wrap img { max-width: 86vw; max-height: 50vh; } .lb-side { width: auto; } }
-.chat-link { display: block; text-align: center; padding: 8px 12px; margin: 0 12px 12px; background: #eef2ff; color: #4338ca; border-radius: 8px; font-size: 12px; font-weight: 600; text-decoration: none; }
+.chat-link { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 12px; margin: 0 12px 12px; background: #eef2ff; color: #4338ca; border-radius: 8px; font-size: 12px; font-weight: 600; text-decoration: none; }
 .chat-link:hover { background: #e0e7ff; }
 
 /* ── Dar ekran (telefon) ── */
 @media (max-width: 640px) {
-	.page-header { flex-wrap: wrap; }
-	.page-header .btn { width: 100%; justify-content: center; }
 	.card-header { flex-wrap: wrap; row-gap: 6px; }
 	.card-header .hint { margin-left: 0; }
 	.form-grid { grid-template-columns: 1fr; }

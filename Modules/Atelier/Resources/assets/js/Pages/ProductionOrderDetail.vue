@@ -13,23 +13,20 @@
 		<AtelierNav current="orders" />
 
 		<!-- Page Header -->
-		<div class="page-header">
-			<div>
-				<h1 class="page-title">{{ order.code }} — {{ order.productName }}</h1>
-				<p class="page-subtitle">
-					<span class="status-pill" :class="`status-${order.status}`">
-						<span class="dot"></span>{{ STATUS[order.status] }}
-					</span>
+		<PageHeader :title="`${order.code} — ${order.productName}`">
+			<template #subtitle>
+				<span class="header-subtitle">
+					<Badge :color="STATUS_COLORS[order.status]" :label="STATUS[order.status]" variant="tonal" />
 					<span class="sep">•</span>
 					Depo: {{ order.warehouse }}
-				</p>
-			</div>
-			<div v-if="can('atelier.production.manage')" class="header-actions">
-				<button v-if="order.status === 'draft'" @click="plan" class="btn btn-warning">Planla (Hammadde düş)</button>
-				<button v-if="['planned','in_progress'].includes(order.status)" @click="complete" class="btn btn-success">Tamamla → Stoğa al</button>
-				<button v-if="!['completed','cancelled'].includes(order.status)" @click="cancel" class="btn btn-outline-danger">İptal</button>
-			</div>
-		</div>
+				</span>
+			</template>
+			<template v-if="can('atelier.production.manage')" #actions>
+				<Button v-if="order.status === 'draft'" variant="warning" @click="plan">Planla (Hammadde düş)</Button>
+				<Button v-if="['planned','in_progress'].includes(order.status)" variant="success" @click="complete">Tamamla → Stoğa al</Button>
+				<Button v-if="!['completed','cancelled'].includes(order.status)" variant="outline-danger" @click="cancel">İptal</Button>
+			</template>
+		</PageHeader>
 
 		<!-- Cost Summary -->
 		<div class="stat-row">
@@ -56,85 +53,73 @@
 		</div>
 
 		<!-- Variant Production -->
-		<div class="card" style="margin-bottom: 16px;">
-			<div class="card-header">
-				<h3>Varyant Üretim Miktarları</h3>
-			</div>
-			<div class="items-body">
-				<div v-for="i in order.items" :key="i.id" class="item-row">
-					<span class="item-label">{{ i.size }} / {{ i.colorName }}</span>
-					<span class="item-plan dim">Plan: <strong>{{ i.plannedQty }}</strong></span>
-					<div class="form-row item-field">
-						<label class="form-label">Üretilen</label>
-						<input v-model="itemForms[i.id].produced_qty" type="number" class="form-input" />
-					</div>
-					<div class="form-row item-field">
-						<label class="form-label">Fire</label>
-						<input v-model="itemForms[i.id].scrap_qty" type="number" class="form-input" />
-					</div>
+		<Card title="Varyant Üretim Miktarları" body-class="items-body" style="margin-bottom: 16px;">
+			<div v-for="i in order.items" :key="i.id" class="item-row">
+				<span class="item-label">{{ i.size }} / {{ i.colorName }}</span>
+				<span class="item-plan dim">Plan: <strong>{{ i.plannedQty }}</strong></span>
+				<div class="form-row item-field">
+					<label class="form-label">Üretilen</label>
+					<input v-model="itemForms[i.id].produced_qty" type="number" class="form-input" />
 				</div>
-				<div v-if="can('atelier.production.manage')" class="items-footer">
-					<button @click="saveItems" class="btn btn-primary btn-sm">Üretim Miktarlarını Kaydet</button>
+				<div class="form-row item-field">
+					<label class="form-label">Fire</label>
+					<input v-model="itemForms[i.id].scrap_qty" type="number" class="form-input" />
 				</div>
 			</div>
-		</div>
+			<div v-if="can('atelier.production.manage')" class="items-footer">
+				<Button size="sm" @click="saveItems">Üretim Miktarlarını Kaydet</Button>
+			</div>
+		</Card>
 
 		<!-- Steps / Route -->
-		<div class="card">
-			<div class="card-header">
-				<h3>Rota / Üretim Aşamaları</h3>
-			</div>
-			<div class="steps-body">
-				<div v-for="s in order.steps" :key="s.id" class="step-row">
-					<div class="step-meta">
-						<span class="step-seq">{{ s.sequence }}</span>
-						<div class="step-info">
-							<span class="step-name">{{ s.operationName }}</span>
-							<span class="step-type-pill" :class="s.locationType === 'fason' ? 'pill-fason' : 'pill-inhouse'">
-								{{ s.locationType === 'fason' ? 'Fason' : 'İç' }}
-							</span>
-						</div>
-					</div>
-					<div class="step-fields">
-						<div class="form-row">
-							<label class="form-label">Durum</label>
-							<select v-model="stepForms[s.id].status" class="form-input">
-								<option value="pending">Bekliyor</option>
-								<option value="in_progress">Devam</option>
-								<option value="done">Bitti</option>
-							</select>
-						</div>
-						<div class="form-row">
-							<label class="form-label">Giren</label>
-							<input v-model="stepForms[s.id].input_qty" type="number" class="form-input" />
-						</div>
-						<div class="form-row">
-							<label class="form-label">Çıkan</label>
-							<input v-model="stepForms[s.id].output_qty" type="number" class="form-input" />
-						</div>
-						<div class="form-row">
-							<label class="form-label">Fire</label>
-							<input v-model="stepForms[s.id].scrap_qty" type="number" class="form-input" />
-						</div>
-						<div class="form-row">
-							<label class="form-label">Birim ₺</label>
-							<input v-model="stepForms[s.id].unit_cost" type="number" step="0.01" class="form-input" />
-						</div>
-						<div v-if="s.locationType === 'fason'" class="form-row">
-							<label class="form-label">Fasoncu</label>
-							<select v-model="stepForms[s.id].fason_supplier_id" class="form-input">
-								<option :value="null">Seçin…</option>
-								<option v-for="f in fasonSuppliers" :key="f.id" :value="f.id">{{ f.name }}</option>
-							</select>
-						</div>
-					</div>
-					<div v-if="can('atelier.production.manage')" class="step-save">
-						<button @click="saveStep(s.id)" class="btn btn-primary btn-sm">Kaydet</button>
+		<Card title="Rota / Üretim Aşamaları" body-class="steps-body">
+			<div v-for="s in order.steps" :key="s.id" class="step-row">
+				<div class="step-meta">
+					<span class="step-seq">{{ s.sequence }}</span>
+					<div class="step-info">
+						<span class="step-name">{{ s.operationName }}</span>
+						<Badge :color="s.locationType === 'fason' ? 'warning' : 'info'" :label="s.locationType === 'fason' ? 'Fason' : 'İç'" />
 					</div>
 				</div>
-				<div v-if="!order.steps.length" class="empty-steps">Rota adımı tanımlanmamış.</div>
+				<div class="step-fields">
+					<div class="form-row">
+						<label class="form-label">Durum</label>
+						<select v-model="stepForms[s.id].status" class="form-input">
+							<option value="pending">Bekliyor</option>
+							<option value="in_progress">Devam</option>
+							<option value="done">Bitti</option>
+						</select>
+					</div>
+					<div class="form-row">
+						<label class="form-label">Giren</label>
+						<input v-model="stepForms[s.id].input_qty" type="number" class="form-input" />
+					</div>
+					<div class="form-row">
+						<label class="form-label">Çıkan</label>
+						<input v-model="stepForms[s.id].output_qty" type="number" class="form-input" />
+					</div>
+					<div class="form-row">
+						<label class="form-label">Fire</label>
+						<input v-model="stepForms[s.id].scrap_qty" type="number" class="form-input" />
+					</div>
+					<div class="form-row">
+						<label class="form-label">Birim ₺</label>
+						<input v-model="stepForms[s.id].unit_cost" type="number" step="0.01" class="form-input" />
+					</div>
+					<div v-if="s.locationType === 'fason'" class="form-row">
+						<label class="form-label">Fasoncu</label>
+						<select v-model="stepForms[s.id].fason_supplier_id" class="form-input">
+							<option :value="null">Seçin…</option>
+							<option v-for="f in fasonSuppliers" :key="f.id" :value="f.id">{{ f.name }}</option>
+						</select>
+					</div>
+				</div>
+				<div v-if="can('atelier.production.manage')" class="step-save">
+					<Button size="sm" @click="saveStep(s.id)">Kaydet</Button>
+				</div>
 			</div>
-		</div>
+			<div v-if="!order.steps.length" class="empty-steps">Rota adımı tanımlanmamış.</div>
+		</Card>
 	</div>
 </template>
 
@@ -143,6 +128,10 @@ import { reactive, inject } from 'vue'
 import { Head, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
+import PageHeader from '@/Components/PageHeader.vue'
+import Card from '@/Components/Card.vue'
+import Badge from '@/Components/Badge.vue'
+import Button from '@/Components/Button.vue'
 import AtelierNav from '../Components/AtelierNav.vue'
 import { useCan } from '@/composables/useCan'
 
@@ -154,6 +143,7 @@ const $swal = inject('$swal')
 const props = defineProps({ order: Object, fasonSuppliers: Array })
 
 const STATUS = { draft: 'Taslak', planned: 'Planlandı', in_progress: 'Üretimde', completed: 'Tamamlandı', cancelled: 'İptal' }
+const STATUS_COLORS = { draft: 'neutral', planned: 'info', in_progress: 'success', completed: 'success', cancelled: 'danger' }
 const STEP_STATUS = { pending: 'Bekliyor', in_progress: 'Devam', done: 'Bitti' }
 
 const stepForms = reactive(Object.fromEntries(props.order.steps.map(s => [s.id, {
@@ -181,54 +171,22 @@ async function cancel() {
 </script>
 
 <style scoped>
-.page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; gap: 16px; }
-.page-title { font-size: 22px; font-weight: 700; color: #1a1a2e; }
-.page-subtitle { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #888; margin-top: 6px; flex-wrap: wrap; }
+.header-subtitle { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .sep { color: #d0d0db; }
-.header-actions { display: flex; gap: 8px; flex-shrink: 0; align-items: flex-start; flex-wrap: wrap; }
-
-/* Status pills */
-.status-pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; }
-.status-pill .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
-.status-draft { background: #f0f0f5; color: #888; }
-.status-planned { background: #eff6ff; color: #3b82f6; }
-.status-in_progress { background: #dcfce7; color: #16a34a; }
-.status-completed { background: #f0fdf4; color: #15803d; }
-.status-cancelled { background: #fee2e2; color: #dc2626; }
-
-/* Buttons */
-.btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all .15s; text-decoration: none; }
-.btn-primary { background: rgb(var(--color-primary)); color: #fff; }
-.btn-primary:hover { background: rgb(var(--color-primary-hover, var(--color-primary))); }
-.btn-primary:disabled { opacity: .5; cursor: not-allowed; }
-.btn-ghost { background: #f3f4f6; color: #444; border: none; }
-.btn-ghost:hover { background: #e8e8f0; }
-.btn-success { background: #16a34a; color: #fff; }
-.btn-success:hover { background: #15803d; }
-.btn-warning { background: #d97706; color: #fff; }
-.btn-warning:hover { background: #b45309; }
-.btn-outline-danger { background: #fff; color: #dc2626; border: 1.5px solid #fca5a5; }
-.btn-outline-danger:hover { background: #fee2e2; }
-.btn-sm { padding: 6px 12px; font-size: 12px; }
 
 /* Stat row */
 .stat-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 20px; }
 .stat-card { background: #fff; border-radius: 14px; border: 1px solid #ebebf0; padding: 16px 18px; box-shadow: 0 1px 4px rgba(0,0,0,.04); display: flex; flex-direction: column; gap: 6px; }
-.stat-card-primary { border-color: rgb(var(--color-primary-soft, 230 230 255)); background: rgb(var(--color-primary-soft, 248 248 255)); }
+.stat-card-primary { border-color: var(--color-primary); background: var(--color-primary-soft); }
 .stat-label { font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.04em; }
 .stat-value { font-size: 24px; font-weight: 800; color: #1a1a2e; line-height: 1; }
 .stat-unit { font-size: 14px; font-weight: 500; color: #888; }
-
-/* Cards */
-.card { background: #fff; border-radius: 16px; border: 1px solid #ebebf0; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.04); }
-.card-header { padding: 14px 18px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #f0f0f5; }
-.card-header h3 { font-size: 15px; font-weight: 700; color: #1a1a2e; }
 
 /* Form basics */
 .form-row { display: flex; flex-direction: column; gap: 5px; }
 .form-label { font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.03em; }
 .form-input { padding: 8px 10px; border: 1px solid #e8e8f0; border-radius: 8px; font-family: inherit; font-size: 13px; color: #1a1a2e; background: #fff; outline: none; transition: border-color .15s; width: 100%; box-sizing: border-box; }
-.form-input:focus { border-color: rgb(var(--color-primary)); }
+.form-input:focus { border-color: var(--color-primary); }
 
 /* Variant items */
 .items-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; }
@@ -244,12 +202,9 @@ async function cancel() {
 .step-row { display: flex; align-items: flex-start; gap: 16px; padding: 16px 18px; border-bottom: 1px solid #f5f5f8; flex-wrap: wrap; }
 .step-row:last-child { border-bottom: none; }
 .step-meta { display: flex; align-items: flex-start; gap: 10px; min-width: 200px; flex: 0 0 auto; }
-.step-seq { width: 28px; height: 28px; border-radius: 50%; background: rgb(var(--color-primary)); color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; margin-top: 2px; }
+.step-seq { width: 28px; height: 28px; border-radius: 50%; background: var(--color-primary); color: var(--color-on-primary); display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; margin-top: 2px; }
 .step-info { display: flex; flex-direction: column; gap: 4px; }
 .step-name { font-size: 13px; font-weight: 700; color: #1a1a2e; }
-.step-type-pill { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 10.5px; font-weight: 600; }
-.pill-inhouse { background: #eff6ff; color: #3b82f6; }
-.pill-fason { background: #fef3c7; color: #d97706; }
 .step-fields { display: flex; gap: 10px; flex: 1; flex-wrap: wrap; }
 .step-fields .form-row { min-width: 90px; max-width: 120px; }
 .step-save { display: flex; align-items: flex-end; flex-shrink: 0; padding-bottom: 0; }

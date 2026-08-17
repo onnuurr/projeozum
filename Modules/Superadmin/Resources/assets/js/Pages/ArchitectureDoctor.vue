@@ -202,31 +202,31 @@ function formatDate(iso) {
 </script>
 
 <style scoped>
-.page-subtitle code { background: rgb(var(--color-bg)); border-radius: 4px; padding: 1px 5px; font-size: 12px; }
+.page-subtitle code { background: var(--color-canvas); border-radius: 4px; padding: 1px 5px; font-size: 12px; }
 
 .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px; }
 
 .section-card { margin-bottom: 18px; }
-.hint { font-size: 12px; color: rgb(var(--color-muted)); white-space: nowrap; }
-.empty-hint code { background: rgb(var(--color-bg)); border-radius: 4px; padding: 1px 5px; font-size: 12px; }
+.hint { font-size: 12px; color: var(--color-muted); white-space: nowrap; }
+.empty-hint code { background: var(--color-canvas); border-radius: 4px; padding: 1px 5px; font-size: 12px; }
 
 .rows { display: flex; flex-direction: column; gap: 6px; }
 .rule-block { display: flex; flex-direction: column; }
-.row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid rgb(var(--color-border)); border-radius: 10px; background: rgb(var(--color-bg) / .5); flex-wrap: wrap; }
+.row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--color-outline-variant); border-radius: 10px; background: var(--color-surface-container-low); flex-wrap: wrap; }
 .row.clickable { cursor: pointer; }
-.row.clickable:hover { background: rgb(var(--color-border) / .5); }
-.row-rule-id { font-size: 13px; font-weight: 600; color: rgb(var(--color-ink)); font-family: monospace; }
-.row-count { font-size: 12px; color: rgb(var(--color-muted)); margin-left: auto; }
-.row-toggle { font-size: 12px; color: rgb(var(--color-muted)); }
-.row-date { font-size: 13px; font-weight: 600; color: rgb(var(--color-ink)); }
-.row-branch { font-size: 12px; color: rgb(var(--color-muted)); font-family: monospace; }
+.row.clickable:hover { background: color-mix(in srgb, var(--color-outline-variant) 50%, transparent); }
+.row-rule-id { font-size: 13px; font-weight: 600; color: var(--color-ink); font-family: monospace; }
+.row-count { font-size: 12px; color: var(--color-muted); margin-left: auto; }
+.row-toggle { font-size: 12px; color: var(--color-muted); }
+.row-date { font-size: 13px; font-weight: 600; color: var(--color-ink); }
+.row-branch { font-size: 12px; color: var(--color-muted); font-family: monospace; }
 
 .findings { display: flex; flex-direction: column; gap: 8px; padding: 10px 14px 14px 30px; max-height: 360px; overflow-y: auto; }
-.finding { border-left: 2px solid rgb(var(--color-border)); padding-left: 10px; }
-.finding-message { font-size: 12.5px; color: rgb(var(--color-ink)); }
-.finding-file { font-size: 11.5px; color: rgb(var(--color-muted)); font-family: monospace; margin-top: 2px; }
-.finding-suggestion { font-size: 11.5px; color: rgb(var(--color-info)); margin-top: 2px; }
-.log-output { font-size: 11px; color: rgb(var(--color-ink)); background: rgb(var(--color-bg)); border-radius: 8px; padding: 10px 12px; max-height: 300px; overflow: auto; white-space: pre-wrap; word-break: break-word; }
+.finding { border-left: 2px solid var(--color-outline-variant); padding-left: 10px; }
+.finding-message { font-size: 12.5px; color: var(--color-ink); }
+.finding-file { font-size: 11.5px; color: var(--color-muted); font-family: monospace; margin-top: 2px; }
+.finding-suggestion { font-size: 11.5px; color: var(--color-info); margin-top: 2px; }
+.log-output { font-size: 11px; color: var(--color-ink); background: var(--color-canvas); border-radius: 8px; padding: 10px 12px; max-height: 300px; overflow: auto; white-space: pre-wrap; word-break: break-word; }
 
 @media (max-width: 700px) {
 	.row { flex-wrap: wrap; }

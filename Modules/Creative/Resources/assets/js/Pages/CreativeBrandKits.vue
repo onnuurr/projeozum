@@ -11,21 +11,19 @@
 
 		<CreativeNav current="brandkits" />
 
-		<div class="page-header">
-			<div>
-				<h1 class="page-title">Marka Kiti</h1>
-				<p class="page-subtitle">Render, AI sahne ve caption bu token'lardan beslenir. Varsayılan kit aktif olandır.</p>
-			</div>
-			<button class="btn btn-primary btn-with-icon" @click="newKit">
-				<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
-				Yeni Kit
-			</button>
-		</div>
+		<PageHeader title="Marka Kiti" subtitle="Render, AI sahne ve caption bu token'lardan beslenir. Varsayılan kit aktif olandır.">
+			<template #actions>
+				<Button variant="primary" with-icon @click="newKit">
+					<template #leading><Plus :size="13" /></template>
+					Yeni Kit
+				</Button>
+			</template>
+		</PageHeader>
 
 		<div class="bk-layout">
 			<!-- Kit listesi -->
 			<aside class="bk-list">
-				<div v-if="kits.length === 0" class="empty-block">Henüz kit yok.</div>
+				<EmptyState v-if="kits.length === 0" :icon="Palette" title="Henüz kit yok." />
 				<button
 					v-for="k in kits"
 					:key="k.id"
@@ -44,12 +42,11 @@
 			</aside>
 
 			<!-- Editör -->
-			<section class="card bk-editor">
-				<div class="card-header">
-					<h3>{{ form.id ? 'Kiti Düzenle' : 'Yeni Kit' }}</h3>
+			<Card class="bk-editor" :title="form.id ? 'Kiti Düzenle' : 'Yeni Kit'">
+				<template #actions>
 					<button v-if="form.id && can('creative.brandkit.manage')" class="link-btn danger" @click="remove">Sil</button>
-				</div>
-				<div class="card-body">
+				</template>
+				<div>
 					<div class="field">
 						<label>Kit adı</label>
 						<input v-model="form.name" type="text" placeholder="örn. Ana Marka" />
@@ -72,7 +69,7 @@
 							<input v-model="row.key" class="token-key" type="text" :placeholder="paletteHint(i)" />
 							<input v-model="row.value" class="token-color" type="color" />
 							<input v-model="row.value" class="token-hex" type="text" placeholder="#000000" />
-							<button class="row-del" @click="form.palette.splice(i, 1)">✕</button>
+							<button class="row-del" @click="form.palette.splice(i, 1)"><X :size="12" /></button>
 						</div>
 						<p v-if="form.palette.length === 0" class="muted">Renk yok — varsayılanlar ({{ Object.keys(defaults.palette || {}).join(', ') }}) kullanılır.</p>
 					</div>
@@ -94,8 +91,8 @@
 							<!-- Aynı aileden birden çok stil → klasör (tıkla aç/kapat) -->
 							<template v-if="g.items.length > 1">
 								<button type="button" class="font-folder" @click="toggleFamily(g.family)">
-									<svg class="folder-caret" :class="{ open: isFamilyOpen(g.family) }" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M9 6l6 6-6 6" /></svg>
-									<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" /></svg>
+									<ChevronRight class="folder-caret" :class="{ open: isFamilyOpen(g.family) }" :size="11" :stroke-width="3" />
+									<component :is="isFamilyOpen(g.family) ? FolderOpen : Folder" :size="15" />
 									<span class="ff-name">{{ g.family }}</span>
 									<span class="ff-count">{{ g.items.length }} stil</span>
 								</button>
@@ -103,7 +100,7 @@
 									<div v-for="it in g.items" :key="it.index" class="token-row">
 										<input v-model="it.font.name" class="token-key" style="width:150px" type="text" placeholder="stil adı" />
 										<input :value="it.font.path" class="token-path" type="text" readonly title="Sistemdeki yol" />
-										<button class="row-del" @click="removeFont(it.index)">✕</button>
+										<button class="row-del" @click="removeFont(it.index)"><X :size="12" /></button>
 									</div>
 								</div>
 							</template>
@@ -111,7 +108,7 @@
 							<div v-else class="token-row">
 								<input v-model="g.items[0].font.name" class="token-key" style="width:150px" type="text" placeholder="font adı" />
 								<input :value="g.items[0].font.path" class="token-path" type="text" readonly title="Sistemdeki yol" />
-								<button class="row-del" @click="removeFont(g.items[0].index)">✕</button>
+								<button class="row-del" @click="removeFont(g.items[0].index)"><X :size="12" /></button>
 							</div>
 						</div>
 
@@ -146,7 +143,7 @@
 						<div v-for="(row, i) in form.spacing" :key="'s' + i" class="token-row">
 							<input v-model="row.key" class="token-key" type="text" placeholder="md" />
 							<input v-model.number="row.value" class="token-num" type="number" min="0" placeholder="16" />
-							<button class="row-del" @click="form.spacing.splice(i, 1)">✕</button>
+							<button class="row-del" @click="form.spacing.splice(i, 1)"><X :size="12" /></button>
 						</div>
 					</div>
 
@@ -163,7 +160,7 @@
 								{{ uploading === i ? '…' : 'Yükle' }}
 								<input type="file" accept="image/*" @change="uploadLogo($event, i)" hidden />
 							</label>
-							<button class="row-del" @click="form.logos.splice(i, 1)">✕</button>
+							<button class="row-del" @click="form.logos.splice(i, 1)"><X :size="12" /></button>
 						</div>
 					</div>
 
@@ -191,7 +188,7 @@
 						<p v-if="form.cta_phrases.length === 0" class="muted">Boşsa AI serbest bir CTA üretir.</p>
 						<div v-for="(row, i) in form.cta_phrases" :key="'cta' + i" class="token-row">
 							<input v-model="form.cta_phrases[i]" class="token-path" type="text" placeholder="Şimdi Keşfet" maxlength="60" />
-							<button class="row-del" @click="form.cta_phrases.splice(i, 1)">✕</button>
+							<button class="row-del" @click="form.cta_phrases.splice(i, 1)"><X :size="12" /></button>
 						</div>
 
 						<div class="section-head" style="margin-top:14px">
@@ -200,7 +197,7 @@
 						</div>
 						<div v-for="(row, i) in form.banned_words" :key="'ban' + i" class="token-row">
 							<input v-model="form.banned_words[i]" class="token-path" type="text" placeholder="örn. ücretsiz kargo garantisi" maxlength="60" />
-							<button class="row-del" @click="form.banned_words.splice(i, 1)">✕</button>
+							<button class="row-del" @click="form.banned_words.splice(i, 1)"><X :size="12" /></button>
 						</div>
 
 						<div class="section-head" style="margin-top:14px">
@@ -210,18 +207,18 @@
 						<p class="muted">Buradakiler caption üretiminde her zaman dahil edilir; AI kalanları keşif için serbest üretir.</p>
 						<div v-for="(row, i) in form.hashtag_pool" :key="'ht' + i" class="token-row">
 							<input v-model="form.hashtag_pool[i]" class="token-path" type="text" placeholder="örn. yenisezon" maxlength="60" />
-							<button class="row-del" @click="form.hashtag_pool.splice(i, 1)">✕</button>
+							<button class="row-del" @click="form.hashtag_pool.splice(i, 1)"><X :size="12" /></button>
 						</div>
 					</div>
 
 					<div class="editor-actions">
-						<button class="btn btn-ghost" @click="newKit">Temizle</button>
-						<button v-if="can('creative.brandkit.manage')" class="btn btn-primary" :disabled="busy" @click="save">
-							{{ busy ? 'Kaydediliyor…' : (form.id ? 'Güncelle' : 'Oluştur') }}
-						</button>
+						<Button variant="ghost" @click="newKit">Temizle</Button>
+						<Button v-if="can('creative.brandkit.manage')" variant="primary" :loading="busy" @click="save">
+							{{ form.id ? 'Güncelle' : 'Oluştur' }}
+						</Button>
 					</div>
 				</div>
-			</section>
+			</Card>
 		</div>
 	</div>
 </template>
@@ -229,8 +226,13 @@
 <script setup>
 import { ref, reactive, computed, inject } from 'vue'
 import { Head, router } from '@inertiajs/vue3'
+import { Plus, X, Palette, ChevronRight, Folder, FolderOpen } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
+import PageHeader from '@/Components/PageHeader.vue'
+import Card from '@/Components/Card.vue'
+import Button from '@/Components/Button.vue'
+import EmptyState from '@/Components/EmptyState.vue'
 import CreativeNav from '../Components/CreativeNav.vue'
 import { useCan } from '@/composables/useCan'
 
@@ -479,83 +481,69 @@ async function remove() {
 </script>
 
 <style scoped>
-.page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; gap: 16px; }
-.page-title { font-size: 22px; font-weight: 700; color: #1a1a2e; line-height: 1.2; }
-.page-subtitle { font-size: 13px; color: #888; margin-top: 4px; max-width: 560px; }
-
 .bk-layout { display: grid; grid-template-columns: 260px 1fr; gap: 18px; align-items: start; }
 
 .bk-list { display: flex; flex-direction: column; gap: 8px; }
-.bk-list-item { text-align: left; background: #fff; border: 2px solid #ebebf0; border-radius: 12px; padding: 11px 13px; cursor: pointer; font-family: inherit; transition: border-color .15s; }
-.bk-list-item:hover { border-color: rgb(var(--color-primary) / .35); }
-.bk-list-item.active { border-color: rgb(var(--color-primary)); box-shadow: 0 0 0 3px rgb(var(--color-primary) / .1); }
+.bk-list-item { text-align: left; background: var(--color-surface); border: 2px solid var(--color-outline-variant); border-radius: 12px; padding: 11px 13px; cursor: pointer; font-family: inherit; transition: border-color .15s; }
+.bk-list-item:hover { border-color: color-mix(in srgb, var(--color-primary) 35%, transparent); }
+.bk-list-item.active { border-color: var(--color-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 10%, transparent); }
 .bk-swatches { display: flex; gap: 3px; margin-bottom: 8px; }
 .bk-swatch { width: 100%; height: 18px; border-radius: 4px; border: 1px solid rgba(0,0,0,.06); }
 .bk-list-meta { display: flex; align-items: center; gap: 8px; }
-.bk-list-name { font-size: 13px; font-weight: 600; color: #1a1a2e; }
-.bk-default-chip { font-size: 10px; font-weight: 700; background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary-hover)); padding: 2px 7px; border-radius: 5px; }
-
-.card { background: #fff; border-radius: 16px; border: 1px solid #ebebf0; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.04); }
-.card-header { padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #f0f0f5; }
-.card-header h3 { font-size: 15px; font-weight: 700; color: #1a1a2e; }
-.card-body { padding: 18px; }
-.empty-block { text-align: center; color: #aaa; padding: 28px 0; font-style: italic; font-size: 13px; }
+.bk-list-name { font-size: 13px; font-weight: 600; color: var(--color-ink); }
+.bk-default-chip { font-size: 10px; font-weight: 700; background: var(--color-primary-soft); color: var(--color-primary-hover); padding: 2px 7px; border-radius: 5px; }
 
 .field { margin-bottom: 14px; }
-.field label { display: block; font-size: 12px; font-weight: 600; color: #666; margin-bottom: 5px; }
-.field input, .field select, .field textarea { width: 100%; border: 1px solid #e8e8f0; border-radius: 8px; padding: 8px 10px; font-size: 13px; font-family: inherit; color: #1a1a2e; background: #fff; }
+.field label { display: block; font-size: 12px; font-weight: 600; color: var(--color-on-surface-variant); margin-bottom: 5px; }
+.field input, .field select, .field textarea { width: 100%; border: 1px solid var(--color-outline-variant); border-radius: 8px; padding: 8px 10px; font-size: 13px; font-family: inherit; color: var(--color-ink); background: var(--color-surface); }
 .field textarea { resize: vertical; }
-.field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: rgb(var(--color-primary) / .35); background: rgb(var(--color-primary-soft)); }
+.field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: color-mix(in srgb, var(--color-primary) 35%, transparent); background: var(--color-primary-soft); }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.err { color: #dc2626; font-size: 11.5px; margin-top: 4px; display: block; }
+.err { color: var(--color-danger); font-size: 11.5px; margin-top: 4px; display: block; }
 
-.default-toggle { display: flex; align-items: center; gap: 9px; cursor: pointer; user-select: none; padding: 9px 12px; border: 1px solid #ebebf0; border-radius: 10px; font-size: 12.5px; color: #555; margin-bottom: 18px; }
-.default-toggle.on { border-color: rgb(var(--color-primary)); background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary-hover)); }
+.default-toggle { display: flex; align-items: center; gap: 9px; cursor: pointer; user-select: none; padding: 9px 12px; border: 1px solid var(--color-outline-variant); border-radius: 10px; font-size: 12.5px; color: var(--color-on-surface-variant); margin-bottom: 18px; }
+.default-toggle.on { border-color: var(--color-primary); background: var(--color-primary-soft); color: var(--color-primary-hover); }
 .default-toggle input { display: none; }
-.dt-dot { width: 32px; height: 18px; border-radius: 10px; background: rgb(var(--color-primary) / .35); position: relative; flex-shrink: 0; transition: background .15s; }
-.dt-dot::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: transform .15s; }
-.default-toggle.on .dt-dot { background: rgb(var(--color-primary)); }
+.dt-dot { width: 32px; height: 18px; border-radius: 10px; background: color-mix(in srgb, var(--color-primary) 35%, transparent); position: relative; flex-shrink: 0; transition: background .15s; }
+.dt-dot::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--color-surface); transition: transform .15s; }
+.default-toggle.on .dt-dot { background: var(--color-primary); }
 .default-toggle.on .dt-dot::after { transform: translateX(14px); }
 
-.section { border-top: 1px solid #f0f0f5; padding-top: 16px; margin-top: 16px; }
+.section { border-top: 1px solid var(--color-outline-variant); padding-top: 16px; margin-top: 16px; }
 .section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-.section-head h4 { font-size: 13px; font-weight: 700; color: #1a1a2e; }
-.link-btn { background: none; border: none; color: rgb(var(--color-primary)); font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
-.link-btn.danger { color: #dc2626; }
-.muted { font-size: 12px; color: #aaa; font-style: italic; }
+.section-head h4 { font-size: 13px; font-weight: 700; color: var(--color-ink); }
+.link-btn { background: none; border: none; color: var(--color-primary); font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.link-btn.danger { color: var(--color-danger); }
+.muted { font-size: 12px; color: var(--color-muted); font-style: italic; }
 
 .token-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.token-key { width: 110px; flex-shrink: 0; border: 1px solid #e8e8f0; border-radius: 7px; padding: 7px 9px; font-size: 12.5px; font-family: inherit; }
-.token-color { width: 38px; height: 34px; padding: 2px; border: 1px solid #e8e8f0; border-radius: 7px; cursor: pointer; background: #fff; flex-shrink: 0; }
-.token-hex { width: 100px; flex-shrink: 0; border: 1px solid #e8e8f0; border-radius: 7px; padding: 7px 9px; font-size: 12.5px; font-family: 'SF Mono', Menlo, Consolas, monospace; }
-.token-num { width: 90px; border: 1px solid #e8e8f0; border-radius: 7px; padding: 7px 9px; font-size: 12.5px; font-family: inherit; }
-.token-path { flex: 1; border: 1px solid #e8e8f0; border-radius: 7px; padding: 7px 9px; font-size: 12px; font-family: 'SF Mono', Menlo, Consolas, monospace; }
-.token-key:focus, .token-hex:focus, .token-num:focus, .token-path:focus { outline: none; border-color: rgb(var(--color-primary) / .35); background: rgb(var(--color-primary-soft)); }
-.row-del { width: 28px; height: 28px; border: none; background: #f5f5f8; color: #999; border-radius: 7px; cursor: pointer; font-size: 12px; flex-shrink: 0; }
-.row-del:hover { background: #fee2e2; color: #dc2626; }
-.upload-btn { font-size: 11.5px; font-weight: 600; color: rgb(var(--color-primary-hover)); background: rgb(var(--color-primary-soft)); padding: 7px 11px; border-radius: 7px; cursor: pointer; flex-shrink: 0; }
+.token-key { width: 110px; flex-shrink: 0; border: 1px solid var(--color-outline-variant); border-radius: 7px; padding: 7px 9px; font-size: 12.5px; font-family: inherit; }
+.token-color { width: 38px; height: 34px; padding: 2px; border: 1px solid var(--color-outline-variant); border-radius: 7px; cursor: pointer; background: var(--color-surface); flex-shrink: 0; }
+.token-hex { width: 100px; flex-shrink: 0; border: 1px solid var(--color-outline-variant); border-radius: 7px; padding: 7px 9px; font-size: 12.5px; font-family: 'SF Mono', Menlo, Consolas, monospace; }
+.token-num { width: 90px; border: 1px solid var(--color-outline-variant); border-radius: 7px; padding: 7px 9px; font-size: 12.5px; font-family: inherit; }
+.token-path { flex: 1; border: 1px solid var(--color-outline-variant); border-radius: 7px; padding: 7px 9px; font-size: 12px; font-family: 'SF Mono', Menlo, Consolas, monospace; }
+.token-key:focus, .token-hex:focus, .token-num:focus, .token-path:focus { outline: none; border-color: color-mix(in srgb, var(--color-primary) 35%, transparent); background: var(--color-primary-soft); }
+.row-del { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: none; background: var(--color-surface-container-low); color: var(--color-muted); border-radius: 7px; cursor: pointer; flex-shrink: 0; }
+.row-del:hover { background: color-mix(in srgb, var(--color-danger) 12%, transparent); color: var(--color-danger); }
+.upload-btn { font-size: 11.5px; font-weight: 600; color: var(--color-primary-hover); background: var(--color-primary-soft); padding: 7px 11px; border-radius: 7px; cursor: pointer; flex-shrink: 0; }
 .upload-btn.busy { opacity: .6; }
 
 /* Font ailesi klasörleri */
 .font-group { margin-bottom: 6px; }
-.font-folder { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: #f7f6fb; border: 1px solid #ece9f6; border-radius: 8px; padding: 8px 11px; cursor: pointer; font-family: inherit; color: #4a4458; transition: background .15s; }
-.font-folder:hover { background: #f1eefa; }
-.folder-caret { color: #9b8ec7; transition: transform .15s; flex-shrink: 0; }
+.font-folder { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: var(--color-surface-container-low); border: 1px solid var(--color-outline-variant); border-radius: 8px; padding: 8px 11px; cursor: pointer; font-family: inherit; color: var(--color-on-surface-variant); transition: background .15s; }
+.font-folder:hover { background: var(--color-surface-container-high); }
+.folder-caret { color: var(--color-muted); transition: transform .15s; flex-shrink: 0; }
 .folder-caret.open { transform: rotate(90deg); }
-.ff-name { font-size: 13px; font-weight: 600; color: #1a1a2e; }
-.ff-count { margin-left: auto; font-size: 11px; font-weight: 600; color: #8a7fb0; background: rgb(var(--color-primary-soft)); padding: 2px 8px; border-radius: 10px; }
-.font-children { padding: 8px 0 4px 22px; border-left: 2px solid #ece9f6; margin: 4px 0 4px 16px; display: flex; flex-direction: column; gap: 6px; }
+.ff-name { font-size: 13px; font-weight: 600; color: var(--color-ink); }
+.ff-count { margin-left: auto; font-size: 11px; font-weight: 600; color: var(--color-primary-hover); background: var(--color-primary-soft); padding: 2px 8px; border-radius: 10px; }
+.font-children { padding: 8px 0 4px 22px; border-left: 2px solid var(--color-outline-variant); margin: 4px 0 4px 16px; display: flex; flex-direction: column; gap: 6px; }
 
-.editor-actions { display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #f0f0f5; padding-top: 16px; margin-top: 18px; }
+.editor-actions { display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--color-outline-variant); padding-top: 16px; margin-top: 18px; }
 
 @media (max-width: 900px) {
 	.bk-layout { grid-template-columns: 1fr; }
 }
 @media (max-width: 640px) {
-	.page-header { flex-wrap: wrap; }
-	.page-header .btn { width: 100%; justify-content: center; }
-	.card-header { flex-wrap: wrap; row-gap: 8px; }
-
 	.token-row { flex-wrap: wrap; }
 	.token-key { width: auto; flex: 1 1 90px; }
 	.token-hex { width: auto; flex: 1 1 80px; }

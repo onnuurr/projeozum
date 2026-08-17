@@ -215,18 +215,22 @@ class ReviewChatController extends Controller
             return back()->with('error', 'Henüz uygulanabilir bir düzeltme talimatı yok; sohbete devam edin.');
         }
 
+        // Yeni bir generation_token: ProductOnModelService::queue() ile aynı korumaya
+        // katılır — bu satır için eskiden kuyruğa alınmış (henüz bitmemiş) bir iş varsa
+        // onun çıktısı bu daha yeni isteğin üstüne yazılmaz. Bkz. GenerateCreativeJob.
         $asset->update([
-            'meta'           => array_merge($asset->meta ?? [], ['extra_instructions' => $suggestion]),
-            'status'         => CreativeAsset::STATUS_QUEUED,
-            'error'          => null,
-            'review_status'  => CreativeAsset::REVIEW_PENDING,
-            'review_note'    => null,
-            'review_tags'    => null,
-            'reviewed_by'    => null,
-            'reviewed_at'    => null,
+            'meta'             => array_merge($asset->meta ?? [], ['extra_instructions' => $suggestion]),
+            'status'           => CreativeAsset::STATUS_QUEUED,
+            'generation_token' => (string) Str::uuid(),
+            'error'            => null,
+            'review_status'    => CreativeAsset::REVIEW_PENDING,
+            'review_note'      => null,
+            'review_tags'      => null,
+            'reviewed_by'      => null,
+            'reviewed_at'      => null,
         ]);
 
-        GenerateCreativeJob::dispatch($asset->id);
+        GenerateCreativeJob::dispatch($asset->id, $asset->generation_token);
 
         return redirect('/creative/gallery')->with('success', 'Talimat uygulandı, görsel yeniden üretim kuyruğuna alındı.');
     }

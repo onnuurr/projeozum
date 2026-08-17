@@ -102,15 +102,15 @@ function formatDate(iso) {
 </script>
 
 <style scoped>
-.page-subtitle code { background: rgb(var(--color-bg)); border-radius: 4px; padding: 1px 5px; font-size: 12px; }
+.page-subtitle code { background: var(--color-canvas); border-radius: 4px; padding: 1px 5px; font-size: 12px; }
 
-.hint { font-size: 12px; color: rgb(var(--color-muted)); white-space: nowrap; }
+.hint { font-size: 12px; color: var(--color-muted); white-space: nowrap; }
 
 .rows { display: flex; flex-direction: column; gap: 6px; }
-.row { display: flex; align-items: center; gap: 16px; padding: 12px 14px; border: 1px solid rgb(var(--color-border)); border-radius: 10px; background: rgb(var(--color-bg) / .5); flex-wrap: wrap; }
-.row-job { font-size: 13px; font-weight: 600; color: rgb(var(--color-ink)); min-width: 200px; }
-.row-date { font-size: 12.5px; color: rgb(var(--color-muted)); min-width: 150px; }
-.row-error { font-size: 12px; color: rgb(var(--color-danger)); flex: 1; min-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; }
+.row { display: flex; align-items: center; gap: 16px; padding: 12px 14px; border: 1px solid var(--color-outline-variant); border-radius: 10px; background: var(--color-surface-container-low); flex-wrap: wrap; }
+.row-job { font-size: 13px; font-weight: 600; color: var(--color-ink); min-width: 200px; }
+.row-date { font-size: 12.5px; color: var(--color-muted); min-width: 150px; }
+.row-error { font-size: 12px; color: var(--color-danger); flex: 1; min-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; }
 
 @media (max-width: 700px) {
 	.row { flex-wrap: wrap; }

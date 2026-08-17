@@ -5,5 +5,6 @@
     "Tenant": true,
     "Creative": true,
     "Finance": true,
-    "Marketplace": true
+    "Marketplace": true,
+    "Bagisto": true
 }

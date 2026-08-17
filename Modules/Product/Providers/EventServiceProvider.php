@@ -8,6 +8,7 @@ use Modules\Product\Events\MaterialChanged;
 use Modules\Product\Events\MediaUploaded;
 use Modules\Product\Events\ProductArchived;
 use Modules\Product\Events\ProductCreated;
+use Modules\Product\Events\ProductDeleted;
 use Modules\Product\Events\ProductPublished;
 use Modules\Product\Events\ProductUpdated;
 use Modules\Product\Events\ProductVariantsSynced;
@@ -29,6 +30,7 @@ class EventServiceProvider extends ServiceProvider
         AiAnalysisCompleted::class   => [RecordProductTimelineEntry::class],
         ProductPublished::class      => [RecordProductTimelineEntry::class],
         ProductArchived::class       => [RecordProductTimelineEntry::class],
+        ProductDeleted::class        => [RecordProductTimelineEntry::class],
     ];
 
     /**

@@ -87,8 +87,13 @@ class CreativeRenderService
     /**
      * Tek bir creative_assets satırını render eder, diske yazar ve done işaretler.
      * Hata fırlatırsa çağıran (Job) failed olarak işaretlemekle yükümlüdür.
+     *
+     * $expectedToken verilirse, üretim bitiminde satırın generation_token'ı hâlâ bununla
+     * eşleşmiyorsa (bu satır daha yeni bir regenerate()/applyAsset() çağrısıyla geçersiz
+     * kılınmış) sonuç DB'ye YAZILMAZ — aksi halde uzun süren eski bir üretim, kullanıcının
+     * arada uyguladığı yeni bir düzeltme talimatının üstüne eski çıktıyı yazabilir.
      */
-    public function generate(CreativeAsset $asset): CreativeAsset
+    public function generate(CreativeAsset $asset, ?string $expectedToken = null): CreativeAsset
     {
         $startedAt = microtime(true);
 
@@ -114,7 +119,7 @@ class CreativeRenderService
         // İkinci, opsiyonel render motoru (Faz J): fal.ai Flux ile tam-AI post
         // kompozisyonu. SVG yolu (aşağısı) hiç değişmeden kalır.
         if (($asset->meta['render_engine'] ?? 'svg') === 'ai_compose') {
-            return $this->generateAiComposition($asset, $product, $template, $brand, $format, $briefWithExtra, $startedAt);
+            return $this->generateAiComposition($asset, $product, $template, $brand, $format, $briefWithExtra, $startedAt, $expectedToken);
         }
 
         $imagePaths = [];
@@ -183,14 +188,14 @@ class CreativeRenderService
         $bytes    = (string) file_get_contents($enhanced);
         ImageFile::delete(array_unique([$tmp, $enhanced]));
 
-        $path = sprintf(
-            '%s/%d/%d.png',
-            config('creative.output_dir', 'creatives'),
-            $product->id,
-            $asset->id,
-        );
+        // Render dakikalarca sürebilir; bu süre içinde kullanıcı aynı asset'i yeni bir
+        // düzeltme talimatıyla (applyAsset) ya da regenerate() ile yeniden kuyruğa almış
+        // olabilir. Böyle bir durumda bu üretim ARTIK GEÇERSİZ — DB'yi ezmeden çık.
+        if ($expectedToken !== null && $asset->fresh()?->generation_token !== $expectedToken) {
+            return $asset;
+        }
 
-        Storage::disk($this->disk())->put($path, $bytes);
+        $path = $this->persistImage($asset, $product, $bytes);
 
         // Caption nice-to-have: üretimi başarısız olursa render'ı düşürme.
         $caption = $this->buildCaption($product);
@@ -236,6 +241,7 @@ class CreativeRenderService
         array $format,
         string $briefWithExtra,
         float $startedAt,
+        ?string $expectedToken = null,
     ): CreativeAsset {
         if (! config('creative.composition.ocr.enabled')) {
             // Retry ile çözülmez — bu bir config/operasyon hatası: OCR'sız
@@ -303,14 +309,13 @@ class CreativeRenderService
         $bytes    = (string) file_get_contents($enhanced);
         ImageFile::delete(array_unique([$composedPath, $enhanced]));
 
-        $path = sprintf(
-            '%s/%d/%d.png',
-            config('creative.output_dir', 'creatives'),
-            $product->id,
-            $asset->id,
-        );
+        // Bkz. generate() içindeki aynı kontrol: bu üretim daha yeni bir istekle
+        // geçersiz kılınmışsa DB'yi ezmeden çık.
+        if ($expectedToken !== null && $asset->fresh()?->generation_token !== $expectedToken) {
+            return $asset;
+        }
 
-        Storage::disk($this->disk())->put($path, $bytes);
+        $path = $this->persistImage($asset, $product, $bytes);
 
         $caption = $this->buildCaption($product);
 
@@ -481,6 +486,39 @@ class CreativeRenderService
         $pose = trim((string) ($asset->meta['pose'] ?? ''));
 
         return $pose !== '' ? $pose : null;
+    }
+
+    /**
+     * Render edilmiş nihai görseli hedef formata (creative.image_output)
+     * kodlayıp diske yazar; hem SVG hem ai_compose motoru tarafından kullanılır.
+     * Format (uzantı) değiştiyse asset'in önceki dosyası yetim kalmasın diye
+     * silinir.
+     */
+    private function persistImage(CreativeAsset $asset, Product $product, string $bytes): string
+    {
+        $encoded = ImageFile::encode(
+            $bytes,
+            (string) config('creative.image_output.format', 'webp'),
+            (int) config('creative.image_output.quality', 90),
+        );
+
+        $path = sprintf(
+            '%s/%d/%d.%s',
+            config('creative.output_dir', 'creatives'),
+            $product->id,
+            $asset->id,
+            $encoded['ext'],
+        );
+
+        $disk = Storage::disk($this->disk());
+        $old  = $asset->image_path;
+        if ($old && $old !== $path) {
+            $disk->delete($old);
+        }
+
+        $disk->put($path, $encoded['bytes']);
+
+        return $path;
     }
 
     /**

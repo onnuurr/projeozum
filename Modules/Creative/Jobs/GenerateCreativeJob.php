@@ -27,7 +27,12 @@ class GenerateCreativeJob implements ShouldQueue
     // AI sahne pipeline (Gemini compose + fal poll) uzun sürebilir.
     public int $timeout = 300;
 
-    public function __construct(public int $assetId) {}
+    // Dispatch anındaki generation_token — üretim biterken bu satır başka bir
+    // regenerate()/applyAsset() çağrısıyla geçersiz kılınmışsa (kullanıcı arada
+    // yeni bir düzeltme talimatı uygulayıp yeniden üretime almışsa) eski işin
+    // çıktısının satırı ezmesini engeller. Bkz. CreativeStudioController::regenerate,
+    // ReviewChatController::applyAsset, CreativeRenderService::generate.
+    public function __construct(public int $assetId, public ?string $generationToken = null) {}
 
     /**
      * Denemeler arası bekleme (saniye): 10s, 30s.
@@ -43,20 +48,24 @@ class GenerateCreativeJob implements ShouldQueue
     {
         $asset = CreativeAsset::find($this->assetId);
 
-        if (! $asset) {
+        if (! $asset || ! $this->isCurrent($asset)) {
             return;
         }
 
         $asset->update(['status' => CreativeAsset::STATUS_PROCESSING, 'error' => null]);
 
         try {
-            $service->generate($asset);
+            $service->generate($asset, $this->generationToken);
         } catch (PermanentRenderException $e) {
             // Kalıcı hata: işaretle ve YUTMA değil — retry'ı engellemek için rethrow etme.
             $this->markFailed($asset, $e);
 
             return;
         } catch (Throwable $e) {
+            if (! $this->isCurrent($asset->fresh())) {
+                return;
+            }
+
             // Geçici hata: son deneme değilse retry için rethrow et.
             if ($this->attempts() < $this->tries) {
                 $asset->update([
@@ -77,9 +86,23 @@ class GenerateCreativeJob implements ShouldQueue
     public function failed(Throwable $e): void
     {
         $asset = CreativeAsset::find($this->assetId);
-        if ($asset && $asset->status !== CreativeAsset::STATUS_FAILED) {
+        if ($asset && $asset->status !== CreativeAsset::STATUS_FAILED && $this->isCurrent($asset)) {
             $this->markFailed($asset, $e);
         }
+    }
+
+    /**
+     * Bu işin taşıdığı token hâlâ satırın güncel token'ıyla eşleşiyor mu? Eşleşmiyorsa
+     * (veya token hiç taşınmıyorsa — eski/manuel dispatch) satır başka bir üretimle
+     * geçersiz kılınmamış demektir ya da kontrol devre dışıdır; true döner.
+     */
+    private function isCurrent(?CreativeAsset $asset): bool
+    {
+        if (! $asset || $this->generationToken === null) {
+            return true;
+        }
+
+        return $asset->generation_token === $this->generationToken;
     }
 
     private function markFailed(CreativeAsset $asset, Throwable $e): void

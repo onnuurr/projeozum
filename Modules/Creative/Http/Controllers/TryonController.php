@@ -4,6 +4,7 @@ namespace Modules\Creative\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Support\Media;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -29,24 +30,21 @@ class TryonController extends Controller
 {
     use HandlesCreativeReview;
 
+    /**
+     * İlk sayfa yükünde gösterilen ürün adedi — tüm ürün tablosunu her
+     * seferinde çekmek yerine (katalog büyüdükçe yavaşlayan/ağırlaşan bir
+     * yaklaşım), yalnız ilk N ürün gelir; kalanına {@see products()} arama
+     * uç noktasıyla erişilir.
+     */
+    private const PRODUCT_PAGE_SIZE = 60;
+
     public function index(): Response
     {
-        // Giysi kaynağı ProductOnModelService::pickGarmentSrc ile aynı mantıkta seçilir:
-        // önce kapak, yoksa ilk görsel. Görseli olmayan ürün giydirilemez (has_garment=false).
-        $products = Product::query()
-            ->with(['images' => fn ($q) => $q->orderByDesc('is_cover')->orderBy('sort_order')])
-            ->orderBy('name')
-            ->get(['id', 'name'])
-            ->map(function (Product $p) {
-                $garment = $p->images->first();
+        $productsTotal = Product::query()->count();
 
-                return [
-                    'id'          => $p->id,
-                    'name'        => $p->name,
-                    'cover'       => $garment?->url,
-                    'has_garment' => $garment !== null,
-                ];
-            });
+        $products = $this->mapProducts(
+            $this->searchProducts(null)->take(self::PRODUCT_PAGE_SIZE)->get(['id', 'name']),
+        );
 
         // Kimliği hazır + referans görseli olan VE ONAYLI mankenler giydirmeye uygundur —
         // onaylanmamış bir kimlikle giydirme üretilirse, onay reddedilirse tüm giydirmeler
@@ -89,8 +87,10 @@ class TryonController extends Controller
                 'tryon_driver'    => $r->tryon_driver,
                 'tryon_model'     => $r->tryon_model,
                 'error'           => $r->error,
+                'product_id'      => $r->product_id,
                 'product_name'    => $r->product?->name,
                 'mannequin_name'  => $r->mannequin?->name,
+                'pose_id'         => $r->pose_id,
                 'pose_label'      => $r->pose?->label,
                 // Onaydan önce henüz product_images satırı yok; staged (bekleyen) önizleme gösterilir.
                 'image_url'       => $r->productImage?->url ?? Media::url($r->staged_image_path),
@@ -120,11 +120,57 @@ class TryonController extends Controller
 
         return Inertia::render('Creative::CreativeTryon', [
             'products'         => $products,
+            'productsTotal'    => $productsTotal,
             'mannequins'       => $mannequins,
             'poses'            => $poses,
             'results'          => $results,
             'rejectionReasons' => $this->rejectionReasonGroups('tryon'),
         ]);
+    }
+
+    /**
+     * Ürün seçici arama uç noktası (axios ile çağrılır, Inertia sayfası değil) —
+     * {@see index()}'in yalnız ilk {@see PRODUCT_PAGE_SIZE} ürünü göndermesinin
+     * karşılığı: kullanıcı arama kutusuna yazınca kalan katalog buradan gelir.
+     */
+    public function products(Request $request): JsonResponse
+    {
+        $q = $request->string('q')->trim()->value() ?: null;
+
+        $products = $this->mapProducts(
+            $this->searchProducts($q)->take(self::PRODUCT_PAGE_SIZE)->get(['id', 'name']),
+        );
+
+        return response()->json(['data' => $products]);
+    }
+
+    private function searchProducts(?string $q): Builder
+    {
+        return Product::query()
+            ->when($q, fn ($query) => $query->where('name', 'ilike', "%{$q}%"))
+            ->with(['images' => fn ($iq) => $iq->orderByDesc('is_cover')->orderBy('sort_order')])
+            ->orderBy('name');
+    }
+
+    /**
+     * Giysi kaynağı ProductOnModelService::pickGarmentSrc ile aynı mantıkta seçilir:
+     * önce kapak, yoksa ilk görsel. Görseli olmayan ürün giydirilemez (has_garment=false).
+     *
+     * @param  \Illuminate\Support\Collection<int,Product>  $products
+     * @return \Illuminate\Support\Collection<int,array<string,mixed>>
+     */
+    private function mapProducts(\Illuminate\Support\Collection $products)
+    {
+        return $products->map(function (Product $p) {
+            $garment = $p->images->first();
+
+            return [
+                'id'          => $p->id,
+                'name'        => $p->name,
+                'cover'       => $garment?->url,
+                'has_garment' => $garment !== null,
+            ];
+        });
     }
 
     public function store(GenerateTryonRequest $request, ProductOnModelService $service): RedirectResponse

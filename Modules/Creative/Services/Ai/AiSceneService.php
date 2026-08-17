@@ -72,14 +72,23 @@ class AiSceneService
 
         Storage::disk($disk)->put($rel, $bytes);
 
+        // KRİTİK: $resultPath bir geçici dosyadır ve generate()'teki finally
+        // bloğu (ImageFile::delete($temps)) bu fonksiyon dönüşünden hemen
+        // sonra siler — o yolu döndürmek render'a artık var olmayan bir
+        // dosya verirdi (Python compositor sessizce atlar, ürün görseli
+        // boş kalır). Bunun yerine az önce kalıcı diske yazdığımız `$rel`i
+        // yerel okunabilir yola çözüyoruz (uzak diskte kalıcı cache'e iner).
+        $local = Media::localPath($rel, $disk);
+        if ($local === null) {
+            // Uzak diskte (S3/R2) put() sonrası exists() nadiren yarışa girip
+            // false dönebilir (eventual consistency) — null'u sessizce ileri
+            // taşımak yerine burada fail-fast: aksi halde compositor bu yolu
+            // sessizce atlar ve ürün görseli boş kalırdı (bkz. yukarıdaki not).
+            throw new RuntimeException("AI sahne çıktısı diske yazıldı ama yerel yola çözülemedi: {$rel}");
+        }
+
         return [
-            // KRİTİK: $resultPath bir geçici dosyadır ve generate()'teki finally
-            // bloğu (ImageFile::delete($temps)) bu fonksiyon dönüşünden hemen
-            // sonra siler — o yolu döndürmek render'a artık var olmayan bir
-            // dosya verirdi (Python compositor sessizce atlar, ürün görseli
-            // boş kalır). Bunun yerine az önce kalıcı diske yazdığımız `$rel`i
-            // yerel okunabilir yola çözüyoruz (uzak diskte kalıcı cache'e iner).
-            'path'   => Media::localPath($rel, $disk),
+            'path'   => $local,
             'stored' => $rel,
         ];
     }

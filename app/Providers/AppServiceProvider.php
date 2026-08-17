@@ -36,9 +36,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        if ($this->app->runningInConsole()) {
-            $this->commands([ArchitectureDoctorCommand::class]);
-        }
+        // runningInConsole() şartına bağlanmaz: Superadmin panelindeki "Şimdi Tara"
+        // butonu bu komutu Artisan::call() ile bir web isteği içinden tetikler
+        // (bkz. Modules/Superadmin/Http/Controllers/ArchitectureDoctorController::scan).
+        // Sadece console'da kayıtlıyken web'den çağrılırsa CommandNotFoundException (500) alınır.
+        $this->commands([ArchitectureDoctorCommand::class]);
 
         Vite::prefetch(concurrency: 3);
 

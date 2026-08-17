@@ -1,488 +1,796 @@
-/* ============================================================
-   TekstilERP — Global Stiller
-   Sadece ortak/reset + birden çok komponentte kullanılan stiller.
-   Komponent-spesifik stiller ilgili .vue içinde scoped olarak yer alır.
-   ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
+@import url('https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css');
+@import "tailwindcss";
+@plugin "@tailwindcss/forms";
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-@import 'sweetalert2/dist/sweetalert2.min.css';
+@theme {
+  --color-primary: #1e7787;
+  --color-primary-hover: #17606c;
+  --color-primary-soft: #e6f2f4;
+  --color-on-primary: #ffffff;
+  --color-secondary: #4a7a82;
+  --color-on-secondary: #ffffff;
 
-* {
-	margin: 0;
-	padding: 0;
-	box-sizing: border-box;
+  --color-ink: #1a1a1e;
+  --color-muted: #8a8a94;
+  --color-surface: #ffffff;
+  --color-canvas: #f5f5f7;
+  --color-line: #ececef;
+
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f7f7f8;
+  --color-surface-container: #f1f1f3;
+  --color-surface-container-high: #e6e6ea;
+  --color-surface-container-highest: #d9d9de;
+  --color-on-surface: #1a1a1e;
+  --color-on-surface-variant: #8a8a94;
+  --color-outline: #e4e4e7;
+  --color-outline-variant: #ececef;
+
+  --color-success: #16a34a;
+  --color-warning: #f59e0b;
+  --color-danger: #dc2626;
+  --color-info: #2563eb;
+
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  --text-2xs: 0.65rem;
+  --text-2xs--line-height: 0.9rem;
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1rem;
+  --text-sm: 0.8125rem;
+  --text-sm--line-height: 1.25rem;
+  --text-base: 0.9375rem;
+  --text-base--line-height: 1.5rem;
+  --text-md: 1rem;
+  --text-md--line-height: 1.5rem;
+  --text-lg: 1.125rem;
+  --text-lg--line-height: 1.75rem;
+  --text-xl: 1.25rem;
+  --text-xl--line-height: 1.75rem;
+
+  /* Tasarım sistemi tipografi ölçeği — sayfa şablonlarında kullanılan
+     headline/title/body/label token'ları (v4'te eksik kalmıştı). */
+  --text-headline-lg: 2rem;
+  --text-headline-lg--line-height: 2.5rem;
+  --text-headline-md: 1.75rem;
+  --text-headline-md--line-height: 2.25rem;
+  --text-headline-sm: 1.5rem;
+  --text-headline-sm--line-height: 2rem;
+  --text-title-lg: 1.375rem;
+  --text-title-lg--line-height: 1.875rem;
+  --text-title-md: 1rem;
+  --text-title-md--line-height: 1.5rem;
+  --text-title-sm: 0.875rem;
+  --text-title-sm--line-height: 1.25rem;
+  --text-body-lg: 1rem;
+  --text-body-lg--line-height: 1.5rem;
+  --text-body-md: 0.875rem;
+  --text-body-md--line-height: 1.25rem;
+  --text-body-sm: 0.75rem;
+  --text-body-sm--line-height: 1.125rem;
+  --text-label-lg: 0.875rem;
+  --text-label-lg--line-height: 1.25rem;
+  --text-label-md: 0.75rem;
+  --text-label-md--line-height: 1rem;
+  --text-label-sm: 0.6875rem;
+  --text-label-sm--line-height: 0.9375rem;
+
+ 
+  --radius-xs: 0.125rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.5rem;
+  --radius-2xl: 0.5rem;
+  --radius-3xl: 0.5rem;
+  --radius-4xl: 0.5rem;
 }
 
-/* ============================================================
-   Tema renk sistemi — TEK KAYNAK.
-   Değerler RGB triplet (Tailwind alpha-value uyumu için):
-   CSS'te  rgb(var(--color-primary))         → düz renk
-           rgb(var(--color-primary) / .12)   → şeffaf
-   Tailwind'de  bg-primary / text-primary / bg-primary/10 …
-   Tema değiştirmek için yalnızca buradaki değerleri değiştir.
-   ============================================================ */
-:root {
-	/* Birincil — canlı turuncu (referans: Salesify dashboard) */
-	--color-primary: 249 106 33;        /* #F96A21 */
-	--color-primary-hover: 226 86 20;   /* #E25614 */
-	--color-primary-soft: 255 240 230;  /* #FFF0E6 açık turuncu zemin */
+@layer components {
+  .btn {
+    height: 36px;
+    padding: 0 18px;
+    border-radius: 9px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all .15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn:disabled { opacity: .4; cursor: not-allowed; pointer-events: none; }
+  .btn svg { pointer-events: none; }
+  .btn-with-icon { display: inline-flex; align-items: center; gap: 6px; }
 
-	/* Nötr / yüzey */
-	--color-ink: 26 26 30;              /* #1A1A1E güçlü metin */
-	--color-muted: 138 138 148;        /* #8A8A94 ikincil metin */
-	--color-surface: 255 255 255;      /* kart/panel */
-	--color-bg: 245 245 247;           /* uygulama arka planı */
-	--color-border: 236 236 239;       /* kenarlık */
+  .btn-primary { background: var(--color-primary); color: #fff; }
+  .btn-primary:hover { background: var(--color-primary-hover); }
+  .btn-secondary { background: none; color: #666; border: 1.5px solid var(--color-line); }
+  .btn-secondary:hover { background: #f5f5f8; color: #333; }
+  .btn-success { background: var(--color-success); color: #fff; }
+  .btn-success:hover { background: color-mix(in srgb, var(--color-success) 85%, transparent); }
+  .btn-warning { background: var(--color-warning); color: #fff; }
+  .btn-warning:hover { background: color-mix(in srgb, var(--color-warning) 85%, transparent); }
+  .btn-info { background: var(--color-info); color: #fff; }
+  .btn-info:hover { background: color-mix(in srgb, var(--color-info) 85%, transparent); }
+  .btn-danger { background: color-mix(in srgb, var(--color-danger) 12%, transparent); color: var(--color-danger); }
+  .btn-danger:hover { background: color-mix(in srgb, var(--color-danger) 20%, transparent); }
+  .btn-ghost { background: none; color: #666; border: none; }
+  .btn-ghost:hover { background: #f0f0f5; color: var(--color-ink); }
 
-	/* Semantik */
-	--color-success: 22 163 74;        /* #16A34A */
-	--color-warning: 245 158 11;       /* #F59E0B */
-	--color-danger: 220 38 38;         /* #DC2626 */
-	--color-info: 37 99 235;           /* #2563EB */
+  .btn-outline-primary { background: none; color: var(--color-primary); border: 1.5px solid var(--color-primary); }
+  .btn-outline-primary:hover { background: var(--color-primary); color: #fff; }
+  .btn-outline-success { background: none; color: #16a34a; border: 1.5px solid #16a34a; }
+  .btn-outline-success:hover { background: #16a34a; color: #fff; }
+  .btn-outline-danger { background: none; color: #dc2626; border: 1.5px solid #dc2626; }
+  .btn-outline-danger:hover { background: #dc2626; color: #fff; }
+  .btn-outline-info { background: none; color: #2563eb; border: 1.5px solid #2563eb; }
+  .btn-outline-info:hover { background: #2563eb; color: #fff; }
+  .btn-outline-warning { background: none; color: #d97706; border: 1.5px solid #d97706; }
+  .btn-outline-warning:hover { background: #d97706; color: #fff; }
+
+  /* Tasarım sistemi varyant alias'ları — v3'ten v4'e geçerken kaybolan
+     isimler (filled/outlined/text) ve boyut alias'ı (small) için. */
+  .btn-filled { background: var(--color-primary); color: #fff; }
+  .btn-filled:hover { background: var(--color-primary-hover); }
+  .btn-outlined { background: none; color: var(--color-ink); border: 1.5px solid var(--color-line); }
+  .btn-outlined:hover { background: #f5f5f8; color: var(--color-primary); border-color: var(--color-primary); }
+  .btn-text { background: none; color: var(--color-ink); border: none; }
+  .btn-text:hover { background: var(--color-surface-container-high); color: var(--color-primary); }
+
+  .btn-small { height: 30px; padding: 0 12px; font-size: 12px; border-radius: 7px; }
+  .btn-icon.btn-small { width: 30px; height: 30px; border-radius: 7px; }
+
+  .btn-xs { height: 26px; padding: 0 10px; font-size: 11px; border-radius: 6px; }
+  .btn-sm { height: 30px; padding: 0 12px; font-size: 12px; border-radius: 7px; }
+  .btn-lg { height: 42px; padding: 0 22px; font-size: 14px; border-radius: 10px; }
+
+  .btn-icon { width: 36px; height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 9px; }
+  .btn-icon.btn-sm { width: 30px; height: 30px; border-radius: 7px; }
+  .btn-icon.btn-lg { width: 42px; height: 42px; border-radius: 10px; }
+
+  .btn-pill { border-radius: 999px; }
+
+  .btn-loading { opacity: .75; cursor: not-allowed; pointer-events: none; }
+  .btn-spinner {
+    width: 13px; height: 13px; border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, .3);
+    border-top-color: #fff;
+    animation: btn-spin .6s linear infinite;
+    flex-shrink: 0;
+  }
+
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-label {
+    font-size: 11.5px; font-weight: 600; color: #888;
+    text-transform: uppercase; letter-spacing: .04em;
+  }
+  .form-input {
+    height: 36px; padding: 0 12px;
+    border: 1.5px solid #e8e8f0; border-radius: 9px;
+    font-family: inherit; font-size: 13px; color: var(--color-ink);
+    background: #fafafe; outline: none;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .form-input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 12%, transparent);
+    background: #fff;
+  }
+  .form-input::placeholder { color: #bbb; }
+  .form-input:disabled { opacity: .6; cursor: not-allowed; }
+
+  .form-input-wrap { position: relative; }
+  .form-input-wrap .form-input { padding-left: 34px; width: 100%; }
+  .form-input-icon {
+    position: absolute; left: 10px; top: 50%;
+    transform: translateY(-50%); color: #bbb; pointer-events: none;
+  }
+
+  .form-textarea {
+    padding: 10px 12px; min-height: 80px; resize: vertical;
+    border: 1.5px solid #e8e8f0; border-radius: 9px;
+    font-family: inherit; font-size: 13px; color: var(--color-ink);
+    background: #fafafe; outline: none; line-height: 1.5;
+    transition: border-color .15s, box-shadow .15s;
+    width: 100%;
+  }
+  .form-textarea:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 12%, transparent);
+    background: #fff;
+  }
+  .form-textarea::placeholder { color: #bbb; }
 }
 
-/* ============================================================
-   Bayi Portalı teması ("İndigo & Graphite") — TEK KAYNAK.
-   Ana panelin turuncu kimliğinden kasıtlı olarak ayrışır (tenant'lar için
-   ayrı bir ürün kimliği); ama semantik renkler (--color-success/warning/
-   danger) ana paletle paylaşılır. Modules/Tenant/.../Pages/Portal/*.vue ve
-   resources/js/Layouts/TenantPortalLayout.vue rgb(var(--portal-*)) olarak kullanır.
-   ============================================================ */
-:root {
-	--portal-sidebar-bg: 17 24 39;           /* #111827 gray-900 */
-	--portal-sidebar-hover: 31 41 55;        /* #1F2937 gray-800 */
-	--portal-sidebar-border: 31 41 55;       /* #1F2937 */
-	--portal-sidebar-text: 209 213 219;      /* #D1D5DB gray-300 */
-	--portal-sidebar-text-dim: 107 114 128;  /* #6B7280 gray-500 */
+@keyframes btn-spin { to { transform: rotate(360deg); } }
 
-	--portal-accent: 79 70 229;              /* #4F46E5 indigo-600 */
-	--portal-accent-hover: 67 56 202;        /* #4338CA indigo-700 */
-	--portal-accent-soft: 238 242 255;       /* #EEF2FF indigo-50 */
-	--portal-accent-soft-2: 224 231 255;     /* #E0E7FF indigo-100 */
-	--portal-accent-soft-border: 199 210 254; /* #C7D2FE indigo-200 */
+@layer base {
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
 
-	--portal-ink: 17 24 39;                  /* #111827 */
-	--portal-text-secondary: 75 85 99;       /* #4B5563 gray-600 */
-	--portal-text-muted: 107 114 128;        /* #6B7280 gray-500 */
-	--portal-border: 229 231 235;            /* #E5E7EB gray-200 */
-	--portal-bg: 249 250 251;                /* #F9FAFB gray-50 */
-	--portal-bg-soft: 243 244 246;           /* #F3F4F6 gray-100 */
-	--portal-surface: 255 255 255;           /* kart zemini */
+  html {
+    overflow-x: hidden;
+  }
+
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  img, video, svg {
+    max-width: 100%;
+    height: auto;
+  }
 }
 
-/* ============================================================
-   Admin Panel V2 teması (deneysel, placeholder) — TEK KAYNAK.
-   resources/js/Layouts/AppLayout.vue dispatcher'ı, Superadmin → Ayarlar →
-   Arayüz sekimindeki ui.adminTheme flag'i 'v2' olduğunda <html> etiketine
-   data-theme="v2" ekliyor. Şimdilik ana paletle birebir aynı — asıl amaç
-   flag mekanizmasını kanıtlamak. Gerçek tasarım kaynağı netleşince yalnızca
-   buradaki değerler değiştirilecek, JS/PHP tarafına dokunulmayacak.
-   ============================================================ */
-[data-theme="v2"] {
-	--color-primary: 249 106 33;
-	--color-primary-hover: 226 86 20;
-	--color-primary-soft: 255 240 230;
+@layer components {
+  .nav-item-active {
+    background-color: #ffffff;
+    color: var(--color-primary) !important;
+    border-radius: 8px 8px 0 0;
+  }
+  .nav-item-active .material-symbols-outlined,
+  .nav-item-active .ri {
+    color: var(--color-primary) !important;
+  }
 
-	--color-ink: 26 26 30;
-	--color-muted: 138 138 148;
-	--color-surface: 255 255 255;
-	--color-bg: 245 245 247;
-	--color-border: 236 236 239;
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 
-	--color-success: 22 163 74;
-	--color-warning: 245 158 11;
-	--color-danger: 220 38 38;
-	--color-info: 37 99 235;
+  .scroll-snap-x {
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+  .scroll-snap-x > * {
+    scroll-snap-align: start;
+  }
+
+  .main-scrollable {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+    transition: scrollbar-color 0.2s;
+  }
+  .main-scrollable:hover {
+    scrollbar-color: color-mix(in srgb, var(--color-primary) 50%, transparent) #ffffff;
+  }
+  .main-scrollable::-webkit-scrollbar {
+    width: 4px;
+  }
+  .main-scrollable::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .main-scrollable::-webkit-scrollbar-thumb {
+    background-color: transparent;
+    border-radius: 20px;
+    transition: background-color 0.2s;
+  }
+  .main-scrollable:hover::-webkit-scrollbar-thumb {
+    background-color: color-mix(in srgb, var(--color-primary) 50%, transparent);
+  }
+  .main-scrollable::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-primary);
+  }
+  .main-scrollable::-webkit-scrollbar-button {
+    display: none;
+    height: 0;
+    width: 0;
+  }
 }
 
-html, body {
-	font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-	color: rgb(var(--color-ink));
-}
-
-body {
-	background: rgb(var(--color-bg));
-	height: 100vh;
-	height: 100dvh;
-	overflow: hidden;
-}
-
-/* ── Layout grid (Üst seviye yerleşim) ── */
-.layout-root {
-	display: grid;
-	grid-template-columns: 48px 1fr;
-	grid-template-rows: auto 1fr;
-	height: 100vh;
-	height: 100dvh;
-	padding: 12px;
-	gap: 8px;
-}
-
-/* Dar ekranlarda (telefon) kenar boşluklarını daralt — içerik alanını büyüt.
-   Sol sidebar mobilde gizlendiği (bkz. LeftSidebar.vue) için sütun kaldırılır. */
+/* Mobile responsive helpers */
 @media (max-width: 640px) {
-	.layout-root {
-		grid-template-columns: 1fr;
-		padding: 6px;
-		gap: 6px;
-	}
+  .swal2-popup {
+    width: calc(100vw - 2rem) !important;
+    max-width: 360px !important;
+    margin: 1rem !important;
+    padding: 16px !important;
+  }
+  .swal2-title {
+    font-size: 16px !important;
+  }
+  .swal2-styled {
+    padding: 8px 20px !important;
+    font-size: 12px !important;
+  }
 }
 
-/* ── Genel buton temel sınıfı ── */
-.btn {
-	height: 36px;
-	padding: 0 18px;
-	border-radius: 9px;
-	font-family: inherit;
-	font-size: 13px;
-	font-weight: 600;
-	cursor: pointer;
-	border: none;
-	transition: all .15s;
-	display: inline-flex;
-	align-items: center;
-	gap: 6px;
-}
-.btn:disabled { opacity: .4; cursor: not-allowed; pointer-events: none; }
-.btn svg { pointer-events: none; }
-.btn-with-icon { display: inline-flex; align-items: center; gap: 6px; }
-
-/* Renkler */
-.btn-primary { background: rgb(var(--color-primary)); color: #fff; }
-.btn-primary:hover { background: rgb(var(--color-primary-hover)); }
-.btn-secondary { background: none; color: #666; border: 1.5px solid rgb(var(--color-border)); }
-.btn-secondary:hover { background: #f5f5f8; color: #333; }
-.btn-success { background: rgb(var(--color-success)); color: #fff; }
-.btn-success:hover { background: rgb(var(--color-success) / .85); }
-.btn-warning { background: rgb(var(--color-warning)); color: #fff; }
-.btn-warning:hover { background: rgb(var(--color-warning) / .85); }
-.btn-info { background: rgb(var(--color-info)); color: #fff; }
-.btn-info:hover { background: rgb(var(--color-info) / .85); }
-.btn-danger { background: rgb(var(--color-danger) / .12); color: rgb(var(--color-danger)); }
-.btn-danger:hover { background: rgb(var(--color-danger) / .2); }
-.btn-ghost { background: none; color: #666; border: none; }
-.btn-ghost:hover { background: #f0f0f5; color: rgb(var(--color-ink)); }
-
-/* Outline */
-.btn-outline-primary { background: none; color: rgb(var(--color-primary)); border: 1.5px solid rgb(var(--color-primary)); }
-.btn-outline-primary:hover { background: rgb(var(--color-primary)); color: #fff; }
-.btn-outline-success { background: none; color: #16a34a; border: 1.5px solid #16a34a; }
-.btn-outline-success:hover { background: #16a34a; color: #fff; }
-.btn-outline-danger { background: none; color: #dc2626; border: 1.5px solid #dc2626; }
-.btn-outline-danger:hover { background: #dc2626; color: #fff; }
-.btn-outline-info { background: none; color: #2563eb; border: 1.5px solid #2563eb; }
-.btn-outline-info:hover { background: #2563eb; color: #fff; }
-
-/* Boyutlar */
-.btn-xs { height: 26px; padding: 0 10px; font-size: 11px; border-radius: 6px; }
-.btn-sm { height: 30px; padding: 0 12px; font-size: 12px; border-radius: 7px; }
-.btn-lg { height: 42px; padding: 0 22px; font-size: 14px; border-radius: 10px; }
-
-/* Ikon-only */
-.btn-icon { width: 36px; height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 9px; }
-.btn-icon.btn-sm { width: 30px; height: 30px; border-radius: 7px; }
-.btn-icon.btn-lg { width: 42px; height: 42px; border-radius: 10px; }
-
-/* Pill */
-.btn-pill { border-radius: 999px; }
-
-/* Loading */
-.btn-loading { opacity: .75; cursor: not-allowed; pointer-events: none; }
-.btn-spinner {
-	width: 13px; height: 13px; border-radius: 50%;
-	border: 2px solid rgba(255, 255, 255, .3);
-	border-top-color: #fff;
-	animation: spin .6s linear infinite;
-	flex-shrink: 0;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-
-/* ── Form temel stilleri (birden fazla komponentte) ── */
-.form-label {
-	font-size: 11.5px; font-weight: 600; color: #888;
-	text-transform: uppercase; letter-spacing: .04em;
-}
-.form-input {
-	height: 36px; padding: 0 12px;
-	border: 1.5px solid #e8e8f0; border-radius: 9px;
-	font-family: inherit; font-size: 13px; color: #1a1a2e;
-	background: #fafafe; outline: none;
-	transition: border-color .15s, box-shadow .15s;
-}
-.form-input:focus {
-	border-color: rgb(var(--color-primary));
-	box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.12);
-	background: #fff;
-}
-.form-input::placeholder { color: #bbb; }
-.form-textarea {
-	padding: 10px 12px; min-height: 80px; resize: vertical;
-	border: 1.5px solid #e8e8f0; border-radius: 9px;
-	font-family: inherit; font-size: 13px; color: #1a1a2e;
-	background: #fafafe; outline: none; line-height: 1.5;
-	transition: border-color .15s, box-shadow .15s;
-}
-.form-textarea:focus {
-	border-color: rgb(var(--color-primary));
-	box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.12);
-	background: #fff;
-}
-.form-textarea::placeholder { color: #bbb; }
-
-/* ── Ortak kart başlıkları (workflow / bottom-card / form-card) ── */
-.wf-action-btn {
-	width: 30px; height: 30px;
-	background: none; border: 1.5px solid #e0e0ea;
-	border-radius: 8px; cursor: pointer;
-	display: flex; align-items: center; justify-content: center;
-	color: #888; font-size: 13px;
-	transition: border-color .15s, color .15s;
-}
-.wf-action-btn:hover { border-color: #aaa; color: #555; }
-
-/* ── Status badge (tablo) ── */
-.status-badge {
-	display: inline-block;
-	padding: 3px 10px;
-	border-radius: 20px;
-	font-size: 10px;
-	font-weight: 700;
-}
-.status-done { background: #dcfce7; color: #16a34a; }
-.status-scheduled { background: #fef9c3; color: #ca8a04; }
-.status-active { background: #fee2e2; color: #dc2626; }
-.status-progress { background: #dbeafe; color: #2563eb; }
-
-/* ── Tablo yatay kaydırma sarmalayıcı (dar ekranda taşan tabloları scroll'a al) ── */
-.table-scroll {
-	overflow-x: auto;
-	-webkit-overflow-scrolling: touch;
+.material-symbols-outlined {
+  font-size: 17px;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  vertical-align: middle;
 }
 
-/* ============================================================
-   SweetAlert2 — design system override (tek-swal)
-   ============================================================ */
-
-@keyframes swal2-animate-error-icon {
-	0% { transform: rotateX(0); }
-	10% { transform: rotateX(-30deg); }
-	20% { transform: rotateX(30deg); }
-	30% { transform: rotateX(-20deg); }
-	40% { transform: rotateX(20deg); }
-	50% { transform: rotateX(-10deg); }
-	60% { transform: rotateX(10deg); }
-	70% { transform: rotateX(0); }
-	100% { transform: rotateX(0); }
+.ri {
+  vertical-align: middle;
+  font-size: 24px;
 }
 
-/* Container — drawer/overlay üzerinde kalsın, toast'ın altında */
-.swal2-container {
-	z-index: 99998;
+/* SweetAlert2 Modern Overrides */
+.swal2-popup {
+  font-family: 'Inter', system-ui, sans-serif !important;
+  border-radius: 12px !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.06) !important;
+  border: 1px solid rgba(0, 0, 0, 0.06) !important;
+  padding: 24px !important;
+  width: 360px !important;
+  backdrop-filter: blur(20px);
+}
+.swal2-title {
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  color: #18181b !important;
+  padding: 0 0 4px 0 !important;
+}
+.swal2-html-container {
+  font-size: 13px !important;
+  color: #52525b !important;
+  margin: 8px 0 0 0 !important;
+  line-height: 1.6 !important;
+}
+.swal2-icon {
+  margin: 0 auto 12px auto !important;
+  border: none !important;
+  background: transparent !important;
+}
+.swal2-icon .swal2-icon-content {
+  font-size: inherit !important;
+}
+.swal2-styled {
+  border-radius: 10px !important;
+  font-weight: 600 !important;
+  font-size: 13px !important;
+  padding: 10px 28px !important;
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--color-primary) 20%, transparent) !important;
+  transition: all 0.2s ease !important;
+  --swal2-action-button-focus-box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 35%, transparent);
+}
+.swal2-styled:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--color-primary) 28%, transparent) !important;
+}
+.swal2-styled:active {
+  transform: translateY(0) !important;
+}
+.swal2-confirm {
+  background: var(--color-primary) !important;
+  color: #fff !important;
+}
+.swal2-cancel {
+  background: #fafafa !important;
+  color: #52525b !important;
+  box-shadow: none !important;
+}
+.swal2-cancel:hover {
+  background: #e4e4e7 !important;
+}
+.swal2-deny {
+  background: #ba1a1a !important;
+  color: #fff !important;
+}
+.swal2-actions {
+  margin-top: 16px !important;
+  gap: 8px !important;
+}
+.swal2-close {
+  color: #52525b !important;
+  font-weight: 400 !important;
+  font-size: 24px !important;
+  top: 12px !important;
+  right: 12px !important;
+  transition: color 0.2s !important;
+}
+.swal2-close:hover {
+  color: #18181b !important;
+}
+
+/* Toast Specific Styles */
+.swal2-popup.swal2-toast {
+  border-radius: 10px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04) !important;
+  padding: 14px 18px !important;
+  align-items: center !important;
+  width: auto !important;
+  min-width: 300px !important;
+  max-width: 420px !important;
+}
+.swal2-popup.swal2-toast .swal2-icon {
+  margin: 0 12px 0 0 !important;
+  width: 36px !important;
+  height: 36px !important;
+}
+.swal2-popup.swal2-toast .swal2-icon .swal2-icon-content {
+  font-size: 22px !important;
+}
+.swal2-popup.swal2-toast .swal2-title {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+.swal2-popup.swal2-toast .swal2-html-container {
+  font-size: 12px !important;
+  margin: 2px 0 0 0 !important;
+  padding: 0 !important;
+}
+.swal2-popup.swal2-toast .swal2-timer-progress-bar {
+  background: var(--color-primary) !important;
+  height: 3px !important;
+}
+
+/* Timer Progress Bar */
+.swal2-timer-progress-bar {
+  background: var(--color-primary) !important;
+  height: 4px !important;
+}
+
+/* Input Styles */
+.swal2-input, .swal2-select, .swal2-textarea {
+  border-radius: 10px !important;
+  border: 1.5px solid #e4e4e7 !important;
+  font-size: 13px !important;
+  font-family: 'Inter', system-ui, sans-serif !important;
+  padding: 10px 14px !important;
+  transition: all 0.2s ease !important;
+  box-shadow: none !important;
+}
+.swal2-input:focus, .swal2-select:focus, .swal2-textarea:focus {
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 12%, transparent) !important;
+  outline: none !important;
+}
+.swal2-input::placeholder {
+  color: #52525b !important;
 }
 
 /* Backdrop */
-.swal2-container.swal2-backdrop-show {
-	background: rgba(20, 20, 40, 0.42);
-	backdrop-filter: blur(2px);
-	-webkit-backdrop-filter: blur(2px);
+.swal2-backdrop {
+  background: rgba(24, 24, 27, 0.5) !important;
+  backdrop-filter: blur(4px) !important;
 }
 
-/* Popup gövde */
-.swal2-popup.tek-swal {
-	font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-	background: #fff;
-	border: 1px solid #ebebf0;
-	border-radius: 16px;
-	box-shadow: 0 24px 60px rgba(20, 20, 40, 0.18), 0 1px 4px rgba(0, 0, 0, 0.04);
-	padding: 28px 28px 22px;
-	width: 440px;
-	max-width: calc(100vw - 24px);
-	color: #1a1a2e;
+/* Animations */
+@keyframes swal2-toast-slide-in {
+  0% { transform: translateX(100%); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
 }
-.swal2-popup.tek-swal.tek-swal-danger {
-	border-top: 3px solid #dc2626;
+@keyframes swal2-toast-slide-out {
+  0% { transform: translateX(0); opacity: 1; }
+  100% { transform: translateX(100%); opacity: 0; }
 }
-.swal2-popup.tek-swal.tek-swal-warning {
-	border-top: 3px solid #ca8a04;
+.swal2-popup.swal2-toast.swal2-show {
+  animation: swal2-toast-slide-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+.swal2-popup.swal2-toast.swal2-hide {
+  animation: swal2-toast-slide-out 0.25s ease-in !important;
 }
 
-/* Başlık */
-.swal2-popup.tek-swal .tek-swal-title {
-	font-size: 18px;
-	font-weight: 700;
-	color: #1a1a2e;
-	letter-spacing: -0.01em;
-	padding: 14px 0 4px;
-	margin: 0;
-	line-height: 1.3;
+@keyframes swal2-modal-pop-in {
+  0% { transform: scale(0.92) translateY(12px); opacity: 0; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+@keyframes swal2-modal-pop-out {
+  0% { transform: scale(1) translateY(0); opacity: 1; }
+  100% { transform: scale(0.95) translateY(8px); opacity: 0; }
+}
+.swal2-popup.swal2-show {
+  animation: swal2-modal-pop-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+.swal2-popup.swal2-hide {
+  animation: swal2-modal-pop-out 0.2s ease-in !important;
 }
 
-/* İçerik metni */
-.swal2-popup.tek-swal .tek-swal-body {
-	font-size: 13.5px;
-	color: #555;
-	line-height: 1.6;
-	margin: 8px 0 4px;
-	padding: 0;
+.swal2-backdrop.swal2-show {
+  animation: swal2-backdrop-fade-in 0.25s ease-out forwards !important;
 }
-.swal2-popup.tek-swal .tek-swal-body strong {
-	color: #1a1a2e;
-	font-weight: 700;
+.swal2-backdrop.swal2-hide {
+  animation: swal2-backdrop-fade-out 0.2s ease-in forwards !important;
 }
-
-/* Close button */
-.swal2-popup.tek-swal .tek-swal-close,
-.swal2-popup.tek-swal .swal2-close {
-	width: 30px;
-	height: 30px;
-	border-radius: 8px;
-	background: #fafafe;
-	color: #888;
-	font-size: 22px;
-	line-height: 1;
-	transition: background .15s, color .15s;
-	box-shadow: none;
-	top: 14px;
-	right: 14px;
+@keyframes swal2-backdrop-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
-.swal2-popup.tek-swal .tek-swal-close:hover,
-.swal2-popup.tek-swal .swal2-close:hover {
-	background: #f0f0f5;
-	color: #1a1a2e;
+@keyframes swal2-backdrop-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
 }
 
-/* Icon kutuları — design'a uygun pastel arka plan + koyu sembol.
-   ÖNEMLİ: width/height değiştirilmez — SweetAlert'in çizgi (checkmark, X, ring) konumları
-   80×80px'e göre piksel bazlı absolute positioned'dır, küçültmek bunları kırar. */
-.swal2-popup.tek-swal .swal2-icon {
-	margin: 8px auto 4px;
-	border-width: 3px;
+@keyframes swal2-icon-pop {
+  0% { transform: scale(0.6); opacity: 0; }
+  60% { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
 }
-.swal2-popup.tek-swal .swal2-icon.swal2-warning {
-	border-color: #fde68a;
-	color: #ca8a04;
-	background: #fffbeb;
-	animation: swal2-animate-warning-icon 0.4s ease-out;
+@keyframes swal2-icon-draw {
+  to { stroke-dashoffset: 0; }
 }
-@keyframes swal2-animate-warning-icon {
-	0% { transform: scale(0); opacity: 0; }
-	30% { transform: scale(1.1); opacity: 1; }
-	50% { transform: scale(0.95); }
-	70% { transform: scale(1.02); }
-	100% { transform: scale(1); }
+.swal2-modern-icon {
+  position: relative;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--icon-from);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 2px 6px -2px var(--icon-glow);
+  animation: swal2-icon-pop 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
-.swal2-popup.tek-swal .swal2-icon.swal2-error {
-	border-color: #fecaca;
-	color: #dc2626;
-	background: #fef2f2;
-	animation: swal2-animate-error-icon 0.4s ease-out;
+.swal2-modern-icon::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.14), transparent 55%);
+  pointer-events: none;
 }
-.swal2-popup.tek-swal .swal2-icon.swal2-error .swal2-x-mark-line-left,
-.swal2-popup.tek-swal .swal2-icon.swal2-error .swal2-x-mark-line-right {
-	background-color: #dc2626;
+.swal2-modern-icon-inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: var(--icon-color);
 }
-
-.swal2-popup.tek-swal .swal2-icon.swal2-success {
-	border-color: #bbf7d0;
-	color: #16a34a;
-	background: #f0fdf4;
+.swal2-modern-icon-inner svg {
+  width: 62%;
+  height: 62%;
+  color: var(--icon-color);
 }
-.swal2-popup.tek-swal .swal2-icon.swal2-success .swal2-success-ring {
-	border-color: #bbf7d0;
+.swal2-modern-icon-inner svg path {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: swal2-icon-draw 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
-.swal2-popup.tek-swal .swal2-icon.swal2-success .swal2-success-line-tip,
-.swal2-popup.tek-swal .swal2-icon.swal2-success .swal2-success-line-long {
-	background-color: #16a34a;
-}
-/* Native success ikonunun "kare" maske kırpıcılarını arka plana eşitle */
-.swal2-popup.tek-swal .swal2-icon.swal2-success .swal2-success-circular-line-left,
-.swal2-popup.tek-swal .swal2-icon.swal2-success .swal2-success-circular-line-right,
-.swal2-popup.tek-swal .swal2-icon.swal2-success .swal2-success-fix {
-	background-color: #f0fdf4;
-}
-
-.swal2-popup.tek-swal .swal2-icon.swal2-info {
-	border-color: rgb(var(--color-primary) / .35);
-	color: rgb(var(--color-primary));
-	background: rgb(var(--color-primary-soft));
-}
-.swal2-popup.tek-swal .swal2-icon.swal2-question {
-	border-color: #c4b5fd;
-	color: #7c3aed;
-	background: #f5f3ff;
+.swal2-modern-icon .material-symbols-outlined {
+  color: var(--icon-color);
+  position: relative;
+  z-index: 1;
+  font-size: 60%;
+  line-height: 1;
 }
 
-
-/* Action butonları — .btn sınıflarını kullanıyor */
-.swal2-popup.tek-swal .tek-swal-actions {
-	display: flex;
-	gap: 8px;
-	margin: 20px 0 0;
-	padding: 16px 0 0;
-	border-top: 1px solid #f0f0f5;
-	justify-content: flex-end;
-	flex-wrap: wrap;
-}
-.swal2-popup.tek-swal .tek-swal-actions .btn {
-	min-width: 96px;
-	justify-content: center;
+@media (prefers-reduced-motion: reduce) {
+  .swal2-popup.swal2-show,
+  .swal2-popup.swal2-hide,
+  .swal2-popup.swal2-toast.swal2-show,
+  .swal2-popup.swal2-toast.swal2-hide,
+  .swal2-backdrop.swal2-show,
+  .swal2-backdrop.swal2-hide,
+  .swal2-modern-icon,
+  .swal2-modern-icon-inner svg path {
+    animation: none !important;
+  }
 }
 
-/* Input (prompt için) */
-.swal2-popup.tek-swal .swal2-input,
-.swal2-popup.tek-swal .swal2-textarea,
-.swal2-popup.tek-swal .swal2-select {
-	font-family: inherit;
-	font-size: 13px;
-	color: #1a1a2e;
-	background: #fafafe;
-	border: 1.5px solid #e8e8f0;
-	border-radius: 9px;
-	height: 36px;
-	padding: 0 12px;
-	box-shadow: none;
-	width: calc(100% - 24px);
-	margin: 10px 12px;
+/* Skeleton shimmer (motion design system) */
+@keyframes app-skeleton-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
 }
-.swal2-popup.tek-swal .swal2-textarea {
-	height: auto;
-	min-height: 80px;
-	padding: 10px 12px;
+.app-skeleton {
+  background: linear-gradient(90deg, var(--color-line) 25%, var(--color-canvas) 37%, var(--color-line) 63%);
+  background-size: 400% 100%;
+  /* ambient loop, not a discrete transition — intentionally not tied to a duration token */
+  animation: app-skeleton-shimmer 1.4s ease infinite;
 }
-.swal2-popup.tek-swal .swal2-input:focus,
-.swal2-popup.tek-swal .swal2-textarea:focus,
-.swal2-popup.tek-swal .swal2-select:focus {
-	border-color: rgb(var(--color-primary));
-	box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.12);
-	outline: none;
-}
-.swal2-popup.tek-swal .swal2-input-label {
-	font-size: 11.5px;
-	font-weight: 600;
-	color: #888;
-	text-transform: uppercase;
-	letter-spacing: 0.04em;
-	margin-top: 8px;
-}
-.swal2-popup.tek-swal .swal2-validation-message {
-	background: #fef2f2;
-	color: #b91c1c;
-	border-radius: 8px;
-	font-size: 12px;
-	margin: 10px 12px 0;
-	padding: 8px 12px;
+@media (prefers-reduced-motion: reduce) {
+  .app-skeleton {
+    animation: none;
+    background: var(--color-line);
+  }
 }
 
-/* Timer progress bar */
-.swal2-popup.tek-swal .swal2-timer-progress-bar {
-	background: linear-gradient(90deg, rgb(var(--color-primary)), rgb(var(--color-primary-hover)));
-	height: 3px;
+/* Indeterminate progress bar slide (motion design system) */
+@keyframes app-progress-indeterminate {
+  0% {
+    left: -40%;
+    width: 40%;
+  }
+  50% {
+    width: 30%;
+  }
+  100% {
+    left: 100%;
+    width: 40%;
+  }
+}
+.app-progress-indeterminate {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  animation: app-progress-indeterminate 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
-/* Loader */
-.swal2-popup.tek-swal .swal2-loader {
-	border-color: rgb(var(--color-primary)) transparent rgb(var(--color-primary)) transparent;
+/* Striped progress bar overlay */
+@keyframes app-progress-stripes {
+  from { background-position: 0 0; }
+  to { background-position: 1rem 0; }
+}
+.app-progress-striped::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.18) 0,
+    rgba(255, 255, 255, 0.18) 0.375rem,
+    transparent 0.375rem,
+    transparent 0.75rem
+  );
+  background-size: 1rem 1rem;
+  animation: app-progress-stripes 1s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-progress-indeterminate,
+  .app-progress-striped::after {
+    animation: none;
+  }
 }
 
-/* Animasyon: SweetAlert2'nin kendi swal2-show / swal2-hide keyframe'leri kullanılır.
-   Bunlar popup + icon (checkmark draw vs.) animasyonlarını koordineli yönetir. */
+/* Online presence pulse (motion design system) */
+@keyframes app-status-ping {
+  0% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5);
+  }
+  70% {
+    box-shadow: 0 0 0 5px rgba(16, 185, 129, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+.app-status-online {
+  animation: app-status-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-status-online {
+    animation: none;
+  }
+}
+
+/* Avatar group spread on hover (motion design system) */
+.avatar-group {
+  display: flex;
+  align-items: center;
+}
+.avatar-group > * {
+  margin-left: -0.625rem;
+  transition: margin 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.avatar-group > *:first-child {
+  margin-left: 0;
+}
+.avatar-group:hover > * {
+  margin-left: 0;
+}
+.avatar-group .app-avatar {
+  cursor: pointer;
+}
+.avatar-group .app-avatar:hover {
+  transform: translateY(-5px);
+  z-index: 20;
+  box-shadow: 0 4px 12px -2px rgba(24, 24, 27, 0.18);
+}
+@media (prefers-reduced-motion: reduce) {
+  .avatar-group > * {
+    transition: none;
+  }
+}
+
+/* Data table row transition (motion design system) */
+.table-row-enter-active {
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.table-row-enter-from {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .table-row-enter-active {
+    transition: none;
+  }
+  .table-row-enter-from {
+    transform: none;
+  }
+}
+
+/* Skeleton -> content cross-fade (motion design system) */
+/* 150ms matches motion/tokens.js duration.fast */
+.skeleton-fade-enter-active,
+.skeleton-fade-leave-active {
+  transition: opacity 0.15s ease;
+}
+.skeleton-fade-enter-from,
+.skeleton-fade-leave-to {
+  opacity: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-fade-enter-active,
+  .skeleton-fade-leave-active {
+    transition: none;
+  }
+}
+
+/* Route/page transition (motion design system) */
+/* 250ms matches motion/tokens.js duration.base */
+.page-enter-active,
+.page-leave-active {
+  transition: opacity 0.25s cubic-bezier(.22,1,.36,1), transform 0.25s cubic-bezier(.22,1,.36,1);
+}
+.page-enter-from,
+.page-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .page-enter-active,
+  .page-leave-active {
+    transition: none;
+  }
+  .page-enter-from,
+  .page-leave-to {
+    transform: none;
+  }
+}
+
+/* Footer Link */
+.swal2-footer {
+  border-top: 1px solid #e4e4e7 !important;
+  margin-top: 12px !important;
+  padding-top: 10px !important;
+}
+.swal2-footer a {
+  color: var(--color-primary) !important;
+  font-weight: 600 !important;
+  text-decoration: none !important;
+}
+.swal2-footer a:hover {
+  text-decoration: underline !important;
+}
+
+/* Mobile responsive touch targets */
+@media (max-width: 768px) {
+  .swal2-styled {
+    min-height: 44px !important;
+    min-width: 44px !important;
+  }
+
+  /* Prevent horizontal overflow on mobile */
+  body {
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Better touch targets for all interactive elements */
+  button, a, input, select, textarea {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Prevent text size adjustment */
+  html {
+    -webkit-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+  }
+
+  /* Smooth scroll */
+  .main-scrollable {
+    -webkit-overflow-scrolling: touch;
+  }
+}

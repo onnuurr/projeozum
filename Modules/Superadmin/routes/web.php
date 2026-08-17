@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use Modules\Superadmin\Http\Controllers\ArchitectureDoctorController;
 use Modules\Superadmin\Http\Controllers\BackupController;
+use Modules\Superadmin\Http\Controllers\FailedJobController;
 use Modules\Superadmin\Http\Controllers\LogAccessController;
 use Modules\Superadmin\Http\Controllers\LogViewerController;
 use Modules\Superadmin\Http\Controllers\MenuController;
@@ -38,6 +39,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Mimari sağlık raporu (architecture:doctor --json çıktısı) — resource'dan ÖNCE tanımlanmalı.
     Route::get('superadmin/architecture-doctor', [ArchitectureDoctorController::class, 'index'])
         ->middleware('can:architecture-doctor.view')->name('superadmin.architecture-doctor.index');
+    Route::post('superadmin/architecture-doctor/scan', [ArchitectureDoctorController::class, 'scan'])
+        ->middleware('can:architecture-doctor.view')->name('superadmin.architecture-doctor.scan');
+    Route::post('superadmin/architecture-doctor/fix', [ArchitectureDoctorController::class, 'fix'])
+        ->middleware('can:architecture-doctor.manage')->name('superadmin.architecture-doctor.fix');
+
+    // Başarısız işler (failed_jobs) — dashboard/ayarlar sayacı buraya link verir.
+    // Route::resource('superadmin')'dan ÖNCE tanımlanmalı.
+    Route::get('superadmin/failed-jobs', [FailedJobController::class, 'index'])
+        ->middleware('can:settings.manage')->name('superadmin.failed-jobs.index');
+    Route::post('superadmin/failed-jobs/retry-all', [FailedJobController::class, 'retryAll'])
+        ->middleware('can:settings.manage')->name('superadmin.failed-jobs.retry-all');
+    Route::post('superadmin/failed-jobs/flush', [FailedJobController::class, 'flush'])
+        ->middleware('can:settings.manage')->name('superadmin.failed-jobs.flush');
 
     // Menüler — Route::resource('superadmin')'dan ÖNCE tanımlanmalı, aksi halde
     // GET superadmin/menus, resource'un superadmin/{superadmin} (show) route'u

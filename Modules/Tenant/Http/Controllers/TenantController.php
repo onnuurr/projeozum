@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Modules\Product\Models\Carrier;
 use Modules\Tenant\Models\Tenant;
 use Modules\Tenant\Models\TenantType;
 use Modules\Tenant\Services\TenantService;
@@ -19,7 +20,7 @@ class TenantController extends Controller
     public function index(Request $request): Response
     {
         $query = Tenant::query()
-            ->with(['type:id,code,name', 'owner:id,tenant_id,name,email'])
+            ->with(['type:id,code,name', 'owner:id,tenant_id,name,email', 'carrier:id,code,name'])
             ->withCount('users');
 
         if ($search = trim((string) $request->query('q', ''))) {
@@ -72,6 +73,13 @@ class TenantController extends Controller
                 'credit_limit'      => (float) $t->credit_limit,
                 'current_balance'   => (float) $t->current_balance,
                 'available_credit'  => $t->available_credit,
+                'shipping_agreement_type'    => $t->shipping_agreement_type,
+                'shipping_terms_accepted_at' => optional($t->shipping_terms_accepted_at)->format('Y-m-d H:i'),
+                'carrier'                    => $t->carrier ? [
+                    'id'   => $t->carrier->id,
+                    'code' => $t->carrier->code,
+                    'name' => $t->carrier->name,
+                ] : null,
                 'payment_term_days' => $t->payment_term_days,
                 'discount_rate'     => (float) $t->discount_rate,
                 'is_active'         => $t->is_active,
@@ -86,9 +94,16 @@ class TenantController extends Controller
             ->orderBy('name')
             ->get(['id', 'code', 'name']);
 
+        $carriers = Carrier::query()
+            ->active()
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get(['id', 'code', 'name']);
+
         return Inertia::render('Tenant::Tenants', [
-            'tenants' => $tenants,
-            'types'   => $types,
+            'tenants'  => $tenants,
+            'types'    => $types,
+            'carriers' => $carriers,
             'filters' => [
                 'q'       => $search ?? '',
                 'type_id' => $typeId ?? '',
@@ -99,7 +114,9 @@ class TenantController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $this->service->create($this->validateTenant($request));
+        $data = $this->applyShippingAgreementTimestamp($this->validateTenant($request), null);
+
+        $this->service->create($data);
 
         // Flash basılmıyor — Tenants.vue onSuccess'te kendi toast'unu gösteriyor.
         return redirect()->route('tenants.index');
@@ -107,17 +124,20 @@ class TenantController extends Controller
 
     public function update(Request $request, Tenant $tenant): RedirectResponse
     {
-        $this->service->update($tenant, $this->validateTenant($request, $tenant));
+        $data = $this->applyShippingAgreementTimestamp($this->validateTenant($request, $tenant), $tenant);
+
+        $this->service->update($tenant, $data);
 
         return redirect()->route('tenants.index');
     }
 
     public function toggleActive(Tenant $tenant): RedirectResponse
     {
-        $tenant->update([
-            'is_active'    => ! $tenant->is_active,
-            'activated_at' => $tenant->is_active ? $tenant->activated_at : now(),
-        ]);
+        if ($tenant->is_active) {
+            $this->service->suspend($tenant);
+        } else {
+            $this->service->activate($tenant);
+        }
 
         return back();
     }
@@ -173,9 +193,39 @@ class TenantController extends Controller
             'discount_rate'     => ['nullable', 'numeric', 'min:0', 'max:100'],
             'is_active'         => ['nullable', 'boolean'],
             'notes'             => ['nullable', 'string', 'max:2000'],
+            'shipping_agreement_type' => ['nullable', 'in:own,platform'],
+            'carrier_id' => ['required_if:shipping_agreement_type,own', 'nullable', 'integer', 'exists:carriers,id'],
+            // Ham onay bayrağı — DB kolonu değil, aşağıda shipping_terms_accepted_at'e çevrilir.
+            'shipping_terms_accepted' => ['accepted_if:shipping_agreement_type,platform'],
         ], [
             'code.regex'        => 'Tenant kodu yalnızca büyük harf, rakam, tire ve alt çizgi içerebilir.',
             'owner_email.unique'=> 'Bu e-posta adresiyle zaten bir kullanıcı hesabı var.',
+            'carrier_id.required_if' => 'Bayi kendi kargo anlaşmasını kullanıyorsa kargo firması seçilmelidir.',
+            'shipping_terms_accepted.accepted_if' => 'Platform kargo anlaşması seçildiyse şartların kabul edildiği onaylanmalı.',
         ]);
+    }
+
+    /**
+     * `shipping_terms_accepted` ham onay bayrağını `shipping_terms_accepted_at`
+     * damgasına çevirir; `own` seçilmişse ya da alan hiç seçilmemişse temizler.
+     * Personel bu kutuyu, elinde SaaS-side imzalı/kabul edilmiş bir onay
+     * olduğunu beyan ederek işaretler (bkz. proje planı: staff-checkbox yeterli).
+     */
+    private function applyShippingAgreementTimestamp(array $data, ?Tenant $tenant): array
+    {
+        $accepted = (bool) ($data['shipping_terms_accepted'] ?? false);
+        unset($data['shipping_terms_accepted']);
+
+        if (($data['shipping_agreement_type'] ?? null) !== 'platform') {
+            $data['shipping_terms_accepted_at'] = null;
+
+            return $data;
+        }
+
+        $data['shipping_terms_accepted_at'] = $accepted
+            ? ($tenant?->shipping_terms_accepted_at ?? now())
+            : null;
+
+        return $data;
     }
 }

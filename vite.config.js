@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import laravel from "laravel-vite-plugin";
 import vue from "@vitejs/plugin-vue";
+import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 
 function pusherWssPatch() {
@@ -28,6 +29,7 @@ export default defineConfig({
     },
     plugins: [
         pusherWssPatch(),
+        tailwindcss(),
         laravel({
             input: ["resources/js/app.js", "resources/css/app.css"],
             refresh: [
@@ -55,6 +57,11 @@ export default defineConfig({
     build: {
         // Uyarı limitini 500kb'dan 1000kb'a çıkarıyoruz
         chunkSizeWarningLimit: 1000,
+        // "computing gzip size" adımı build çıktısını etkilemeyen saf bir raporlama
+        // adımı ama büyük projelerde bellek yoğun — bu sunucuda 3.8GB RAM + dolu swap
+        // var, resources/js/new/ eklenince build OOM-kill ile ölüyordu. Kapatmak
+        // çıktı dosyalarını DEĞİŞTİRMEZ, sadece terminaldeki boyut özetini kaldırır.
+        reportCompressedSize: false,
         rollupOptions: {
             output: {
                 // Büyük kütüphaneleri (Vendor) ayrı bir JS dosyasına ayırıyoruz

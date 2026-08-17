@@ -87,29 +87,29 @@ function cloneRoute(route) {
 	max-height: calc(100vh - 220px);
 	overflow-y: auto;
 }
-.rc-sub { font-size: 12px; color: rgb(var(--color-muted)); margin-bottom: 10px; }
+.rc-sub { font-size: 12px; color: var(--color-muted); margin-bottom: 10px; }
 .rc-search {
 	width: 100%; margin: 12px 0; box-sizing: border-box;
-	border: 1px solid rgb(var(--color-border)); border-radius: 8px; padding: 8px 10px; font-size: 13px;
+	border: 1px solid var(--color-outline-variant); border-radius: 8px; padding: 8px 10px; font-size: 13px;
 }
-.rc-empty { font-size: 12.5px; color: rgb(var(--color-muted)); padding: 12px 4px; }
+.rc-empty { font-size: 12.5px; color: var(--color-muted); padding: 12px 4px; }
 .rc-group { margin-bottom: 14px; }
 .rc-group-title {
 	font-size: 11px; font-weight: 700; text-transform: uppercase;
-	letter-spacing: .04em; color: rgb(var(--color-muted)); margin-bottom: 6px;
+	letter-spacing: .04em; color: var(--color-muted); margin-bottom: 6px;
 }
 .rc-items { display: flex; flex-direction: column; gap: 4px; min-height: 4px; }
 .rc-item {
 	display: flex; align-items: center; gap: 8px;
-	padding: 6px 9px; background: rgb(var(--color-surface));
-	border: 1px solid rgb(var(--color-border)); border-radius: 8px;
+	padding: 6px 9px; background: var(--color-surface);
+	border: 1px solid var(--color-outline-variant); border-radius: 8px;
 	cursor: grab; user-select: none;
 }
-.rc-item:hover { border-color: rgb(var(--color-muted)); }
-.rc-grip { color: rgb(var(--color-muted)); display: inline-flex; align-items: center; }
-.rc-label { font-size: 12.5px; font-weight: 500; color: rgb(var(--color-ink)); }
+.rc-item:hover { border-color: var(--color-muted); }
+.rc-grip { color: var(--color-muted); display: inline-flex; align-items: center; }
+.rc-label { font-size: 12.5px; font-weight: 500; color: var(--color-ink); }
 .rc-uri {
-	margin-left: auto; font-size: 10.5px; color: rgb(var(--color-muted));
+	margin-left: auto; font-size: 10.5px; color: var(--color-muted);
 	font-family: ui-monospace, monospace;
 	max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }

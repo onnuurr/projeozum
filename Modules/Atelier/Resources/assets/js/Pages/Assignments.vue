@@ -11,16 +11,15 @@
 
 		<AtelierNav current="assignments" />
 
-		<div class="page-header">
-			<div>
-				<h1 class="page-title">Atölye İş Akışı</h1>
-				<p class="page-subtitle">Tasarım kartı / kalıp → kalıpçıya ata, teslimi takip et.</p>
-			</div>
-			<div class="head-actions">
-				<button class="toggle-mine" :class="{ active: filters.mine }" @click="toggleMine">Bana atananlar</button>
-				<button v-if="canManage" class="btn btn-primary" @click="openAssign">+ Yeni Atama</button>
-			</div>
-		</div>
+		<PageHeader title="Atölye İş Akışı" subtitle="Tasarım kartı / kalıp → kalıpçıya ata, teslimi takip et.">
+			<template #actions>
+				<Button :variant="filters.mine ? 'primary' : 'secondary'" @click="toggleMine">Bana atananlar</Button>
+				<Button v-if="canManage" variant="primary" with-icon @click="openAssign">
+					<template #leading><Plus :size="13" /></template>
+					Yeni Atama
+				</Button>
+			</template>
+		</PageHeader>
 
 		<!-- İş akışı şeritleri -->
 		<div class="lanes">
@@ -33,13 +32,13 @@
 					<p v-if="lane.items.length === 0" class="lane-empty">—</p>
 					<article v-for="a in lane.items" :key="a.id" class="assign-card" :class="{ late: a.isLate }">
 						<div class="ac-top">
-							<span class="kind-pill" :class="a.kind">{{ a.kind === 'designer' ? 'Tasarımcı' : 'Kalıpçı' }}</span>
+							<Badge :color="a.kind === 'designer' ? 'primary' : 'info'" :label="a.kind === 'designer' ? 'Tasarımcı' : 'Kalıpçı'" variant="tonal" />
 							<span v-if="a.dueDate" class="due" :class="{ late: a.isLate }">{{ a.dueDate }}</span>
 						</div>
 						<h4 class="ac-title">{{ a.title }}</h4>
 						<div class="ac-refs">
-							<span v-if="a.pattern" class="ref">◫ {{ a.pattern.name }}</span>
-							<span v-else-if="a.designCardId" class="ref">✦ konsept #{{ a.designCardId }}</span>
+							<span v-if="a.pattern" class="ref"><Ruler :size="11" /> {{ a.pattern.name }}</span>
+							<span v-else-if="a.designCardId" class="ref"><Sparkles :size="11" /> konsept #{{ a.designCardId }}</span>
 						</div>
 						<p v-if="a.instructions" class="ac-note">{{ a.instructions }}</p>
 						<div class="ac-people">
@@ -48,23 +47,23 @@
 						</div>
 
 						<div v-if="a.reviewNote" class="ac-review">“{{ a.reviewNote }}”</div>
-						<a v-if="a.deliveredUrl" :href="a.deliveredUrl" class="ac-file" download>Teslim dosyası ↓</a>
+						<a v-if="a.deliveredUrl" :href="a.deliveredUrl" class="ac-file" download><Download :size="11" /> Teslim dosyası</a>
 
 						<div class="ac-actions">
 							<template v-if="a.status === 'pending'">
-								<button v-if="a.isMine || canManage" class="btn btn-ok btn-sm" @click="act(a, 'start')">Başla</button>
+								<Button v-if="a.isMine || canManage" variant="success" size="sm" @click="act(a, 'start')">Başla</Button>
 							</template>
 							<template v-else-if="a.status === 'in_progress'">
-								<button v-if="a.isMine || canManage" class="btn btn-ok btn-sm" @click="openDeliver(a)">Teslim et</button>
+								<Button v-if="a.isMine || canManage" variant="success" size="sm" @click="openDeliver(a)">Teslim et</Button>
 							</template>
 							<template v-else-if="a.status === 'delivered'">
-								<button v-if="canManage" class="btn btn-ok btn-sm" @click="act(a, 'accept')">Kabul</button>
-								<button v-if="canManage" class="btn btn-rej btn-sm" @click="openReject(a)">Reddet</button>
+								<Button v-if="canManage" variant="success" size="sm" @click="act(a, 'accept')">Kabul</Button>
+								<Button v-if="canManage" variant="danger" size="sm" @click="openReject(a)">Reddet</Button>
 							</template>
 							<template v-else-if="a.status === 'rejected'">
-								<button v-if="a.isMine || canManage" class="btn btn-ghost btn-sm" @click="act(a, 'start')">Yeniden başla</button>
+								<Button v-if="a.isMine || canManage" variant="ghost" size="sm" @click="act(a, 'start')">Yeniden başla</Button>
 							</template>
-							<span v-else class="done-tag">✓ kabul edildi</span>
+							<span v-else class="done-tag"><CheckCircle2 :size="12" /> kabul edildi</span>
 						</div>
 					</article>
 				</div>
@@ -72,111 +71,107 @@
 		</div>
 
 		<!-- Atama modalı -->
-		<div v-if="assign.open" class="modal-overlay" @click.self="assign.open = false">
-			<div class="modal-box">
-				<div class="modal-head"><span class="modal-title">Yeni Atama</span><button class="modal-close" @click="assign.open = false">✕</button></div>
-				<form @submit.prevent="submitAssign" class="form-grid">
+		<AppModal v-model="assign.open" title="Yeni Atama" size="md">
+			<form id="assign-form" class="form-grid" @submit.prevent="submitAssign">
+				<div class="form-row">
+					<label class="form-label">İş başlığı <span class="req">*</span></label>
+					<input v-model="assign.form.title" class="form-input" placeholder="örn. Kalıbı 116-134 bedene çıkar" />
+					<span v-if="assign.form.errors.title" class="form-error">{{ assign.form.errors.title }}</span>
+				</div>
+				<div class="form-2">
 					<div class="form-row">
-						<label class="form-label">İş başlığı <span class="req">*</span></label>
-						<input v-model="assign.form.title" class="form-input" placeholder="örn. Kalıbı 116-134 bedene çıkar" />
-						<span v-if="assign.form.errors.title" class="form-error">{{ assign.form.errors.title }}</span>
-					</div>
-					<div class="form-2">
-						<div class="form-row">
-							<label class="form-label">Tür</label>
-							<select v-model="assign.form.kind" class="form-input">
-								<option value="pattern_maker">Kalıpçı</option>
-								<option value="designer">Tasarımcı</option>
-							</select>
-						</div>
-						<div class="form-row">
-							<label class="form-label">Atanan kişi <span class="req">*</span></label>
-							<select v-model="assign.form.assigned_to" class="form-input">
-								<option :value="null" disabled>Seç…</option>
-								<option v-for="u in assignees" :key="u.id" :value="u.id">{{ u.name }}</option>
-							</select>
-							<span v-if="assign.form.errors.assigned_to" class="form-error">{{ assign.form.errors.assigned_to }}</span>
-						</div>
-					</div>
-					<div class="form-2">
-						<div class="form-row">
-							<label class="form-label">Kalıp</label>
-							<select v-model="assign.form.pattern_id" class="form-input">
-								<option :value="null">— yok —</option>
-								<option v-for="p in patterns" :key="p.id" :value="p.id">{{ p.name }} · {{ p.product_type }}</option>
-							</select>
-						</div>
-						<div class="form-row">
-							<label class="form-label">Konsept kartı</label>
-							<select v-model="assign.form.design_card_id" class="form-input">
-								<option :value="null">— yok —</option>
-								<option v-for="c in designCards" :key="c.id" :value="c.id">{{ c.label }}</option>
-							</select>
-						</div>
-					</div>
-					<span v-if="assign.form.errors.pattern_id" class="form-error">{{ assign.form.errors.pattern_id }}</span>
-					<div class="form-row">
-						<label class="form-label">Talimat</label>
-						<textarea v-model="assign.form.instructions" rows="2" class="form-input" placeholder="Detaylar (ops.)"></textarea>
+						<label class="form-label">Tür</label>
+						<select v-model="assign.form.kind" class="form-input">
+							<option value="pattern_maker">Kalıpçı</option>
+							<option value="designer">Tasarımcı</option>
+						</select>
 					</div>
 					<div class="form-row">
-						<label class="form-label">Termin</label>
-						<input v-model="assign.form.due_date" type="date" class="form-input" />
+						<label class="form-label">Atanan kişi <span class="req">*</span></label>
+						<select v-model="assign.form.assigned_to" class="form-input">
+							<option :value="null" disabled>Seç…</option>
+							<option v-for="u in assignees" :key="u.id" :value="u.id">{{ u.name }}</option>
+						</select>
+						<span v-if="assign.form.errors.assigned_to" class="form-error">{{ assign.form.errors.assigned_to }}</span>
 					</div>
-					<div class="modal-foot">
-						<button type="button" class="btn btn-ghost" @click="assign.open = false">Vazgeç</button>
-						<button type="submit" class="btn btn-primary" :disabled="assign.form.processing">Ata</button>
+				</div>
+				<div class="form-2">
+					<div class="form-row">
+						<label class="form-label">Kalıp</label>
+						<select v-model="assign.form.pattern_id" class="form-input">
+							<option :value="null">— yok —</option>
+							<option v-for="p in patterns" :key="p.id" :value="p.id">{{ p.name }} · {{ p.product_type }}</option>
+						</select>
 					</div>
-				</form>
-			</div>
-		</div>
+					<div class="form-row">
+						<label class="form-label">Konsept kartı</label>
+						<select v-model="assign.form.design_card_id" class="form-input">
+							<option :value="null">— yok —</option>
+							<option v-for="c in designCards" :key="c.id" :value="c.id">{{ c.label }}</option>
+						</select>
+					</div>
+				</div>
+				<span v-if="assign.form.errors.pattern_id" class="form-error">{{ assign.form.errors.pattern_id }}</span>
+				<div class="form-row">
+					<label class="form-label">Talimat</label>
+					<textarea v-model="assign.form.instructions" rows="2" class="form-input" placeholder="Detaylar (ops.)"></textarea>
+				</div>
+				<div class="form-row">
+					<label class="form-label">Termin</label>
+					<input v-model="assign.form.due_date" type="date" class="form-input" />
+				</div>
+			</form>
+			<template #footer="{ close }">
+				<Button variant="ghost" :disabled="assign.form.processing" @click="close">Vazgeç</Button>
+				<Button type="submit" form="assign-form" variant="primary" :loading="assign.form.processing">Ata</Button>
+			</template>
+		</AppModal>
 
 		<!-- Teslim modalı -->
-		<div v-if="deliver.open" class="modal-overlay" @click.self="deliver.open = false">
-			<div class="modal-box">
-				<div class="modal-head"><span class="modal-title">İşi teslim et</span><button class="modal-close" @click="deliver.open = false">✕</button></div>
-				<form @submit.prevent="submitDeliver" class="form-grid">
-					<label class="file-drop">
-						<span class="fd-label">Teslim dosyası (revize DXF/PDF — ops.)</span>
-						<input type="file" @change="deliver.form.file = $event.target.files[0] || null" />
-						<span class="fd-name">{{ deliver.form.file ? deliver.form.file.name : 'dosya seç' }}</span>
-					</label>
-					<div class="form-row">
-						<label class="form-label">Not</label>
-						<textarea v-model="deliver.form.note" rows="2" class="form-input" placeholder="Teslim notu (ops.)"></textarea>
-					</div>
-					<div class="modal-foot">
-						<button type="button" class="btn btn-ghost" @click="deliver.open = false">Vazgeç</button>
-						<button type="submit" class="btn btn-primary" :disabled="deliver.form.processing">Teslim et</button>
-					</div>
-				</form>
-			</div>
-		</div>
+		<AppModal v-model="deliver.open" title="İşi teslim et" size="md">
+			<form id="deliver-form" class="form-grid" @submit.prevent="submitDeliver">
+				<label class="file-drop">
+					<span class="fd-label">Teslim dosyası (revize DXF/PDF — ops.)</span>
+					<input type="file" @change="deliver.form.file = $event.target.files[0] || null" />
+					<span class="fd-name">{{ deliver.form.file ? deliver.form.file.name : 'dosya seç' }}</span>
+				</label>
+				<div class="form-row">
+					<label class="form-label">Not</label>
+					<textarea v-model="deliver.form.note" rows="2" class="form-input" placeholder="Teslim notu (ops.)"></textarea>
+				</div>
+			</form>
+			<template #footer="{ close }">
+				<Button variant="ghost" :disabled="deliver.form.processing" @click="close">Vazgeç</Button>
+				<Button type="submit" form="deliver-form" variant="primary" :loading="deliver.form.processing">Teslim et</Button>
+			</template>
+		</AppModal>
 
 		<!-- Ret modalı -->
-		<div v-if="reject.open" class="modal-overlay" @click.self="reject.open = false">
-			<div class="modal-box">
-				<div class="modal-head"><span class="modal-title">İşi reddet</span><button class="modal-close" @click="reject.open = false">✕</button></div>
-				<form @submit.prevent="submitReject" class="form-grid">
-					<div class="form-row">
-						<label class="form-label">Ret gerekçesi</label>
-						<textarea v-model="reject.form.note" rows="3" class="form-input" placeholder="Neden geri gönderiliyor?"></textarea>
-					</div>
-					<div class="modal-foot">
-						<button type="button" class="btn btn-ghost" @click="reject.open = false">Vazgeç</button>
-						<button type="submit" class="btn btn-rej" :disabled="reject.form.processing">Reddet</button>
-					</div>
-				</form>
-			</div>
-		</div>
+		<AppModal v-model="reject.open" title="İşi reddet" size="md">
+			<form id="reject-form" class="form-grid" @submit.prevent="submitReject">
+				<div class="form-row">
+					<label class="form-label">Ret gerekçesi</label>
+					<textarea v-model="reject.form.note" rows="3" class="form-input" placeholder="Neden geri gönderiliyor?"></textarea>
+				</div>
+			</form>
+			<template #footer="{ close }">
+				<Button variant="ghost" :disabled="reject.form.processing" @click="close">Vazgeç</Button>
+				<Button type="submit" form="reject-form" variant="danger" :loading="reject.form.processing">Reddet</Button>
+			</template>
+		</AppModal>
 	</div>
 </template>
 
 <script setup>
 import { reactive, computed } from 'vue'
 import { Head, router, useForm } from '@inertiajs/vue3'
+import { Plus, Ruler, Sparkles, CheckCircle2, Download } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
+import PageHeader from '@/Components/PageHeader.vue'
+import Badge from '@/Components/Badge.vue'
+import Button from '@/Components/Button.vue'
+import AppModal from '@/Components/AppModal.vue'
 import AtelierNav from '../Components/AtelierNav.vue'
 
 defineOptions({ layout: AppLayout })
@@ -230,13 +225,6 @@ function submitReject() {
 </script>
 
 <style scoped>
-.page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 18px; gap: 16px; }
-.page-title { font-size: 22px; font-weight: 700; color: #1a1a2e; }
-.page-subtitle { font-size: 13px; color: #888; margin-top: 4px; }
-.head-actions { display: flex; gap: 10px; align-items: center; }
-.toggle-mine { padding: 8px 14px; border: 1px solid #ebebf0; background: #fff; border-radius: 8px; font-size: 12.5px; font-weight: 600; color: #777; cursor: pointer; transition: all .15s; }
-.toggle-mine.active { background: rgb(var(--color-primary)); color: #fff; border-color: rgb(var(--color-primary)); }
-
 /* Şeritler */
 .lanes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; align-items: start; }
 .lane { background: #f7f7fb; border: 1px solid #ededf2; border-radius: 14px; padding: 10px; min-height: 120px; }
@@ -249,61 +237,37 @@ function submitReject() {
 .assign-card { background: #fff; border: 1px solid #ebebf0; border-radius: 11px; padding: 12px; display: flex; flex-direction: column; gap: 7px; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
 .assign-card.late { border-color: #fca5a5; }
 .ac-top { display: flex; align-items: center; justify-content: space-between; }
-.kind-pill { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 6px; }
-.kind-pill.pattern_maker { background: #eff6ff; color: #2563eb; }
-.kind-pill.designer { background: #f5f3ff; color: #7c3aed; }
 .due { font-size: 11px; color: #999; font-family: 'SF Mono', Menlo, Consolas, monospace; }
 .due.late { color: #dc2626; font-weight: 700; }
 .ac-title { font-size: 13.5px; font-weight: 700; color: #1a1a2e; line-height: 1.3; }
 .ac-refs { display: flex; flex-wrap: wrap; gap: 5px; }
-.ref { font-size: 11px; color: #666; background: #f4f4f8; padding: 2px 8px; border-radius: 5px; }
+.ref { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: #666; background: #f4f4f8; padding: 2px 8px; border-radius: 5px; }
 .ac-note { font-size: 12px; color: #888; line-height: 1.4; }
 .ac-people { display: flex; align-items: center; gap: 7px; }
 .who { font-size: 12px; font-weight: 600; color: #555; }
-.mine-tag { font-size: 10px; font-weight: 700; background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary)); padding: 1px 7px; border-radius: 10px; }
+.mine-tag { font-size: 10px; font-weight: 700; background: var(--color-primary-soft); color: var(--color-primary); padding: 1px 7px; border-radius: 10px; }
 .ac-review { font-size: 11.5px; color: #b45309; background: #fffbeb; padding: 5px 8px; border-radius: 6px; font-style: italic; }
-.ac-file { font-size: 11.5px; font-weight: 700; color: #4f46e5; text-decoration: none; }
+.ac-file { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 700; color: #4f46e5; text-decoration: none; }
 .ac-file:hover { text-decoration: underline; }
 .ac-actions { display: flex; gap: 6px; margin-top: 2px; }
-.done-tag { font-size: 11.5px; font-weight: 600; color: #059669; }
-
-.btn { padding: 9px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid transparent; transition: all .15s; }
-.btn-sm { padding: 6px 12px; font-size: 12px; }
-.btn-primary { background: rgb(var(--color-primary)); color: #fff; }
-.btn-primary:disabled { opacity: .55; cursor: not-allowed; }
-.btn-ghost { background: #f3f4f6; color: #555; }
-.btn-ok { background: #059669; color: #fff; }
-.btn-rej { background: #fef2f2; color: #dc2626; }
+.done-tag { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 600; color: #059669; }
 
 /* Modal */
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: flex; align-items: flex-start; justify-content: center; z-index: 9000; padding: 40px 16px; overflow-y: auto; }
-.modal-box { background: #fff; border-radius: 16px; padding: 22px 24px; width: 460px; max-width: calc(100vw - 32px); display: flex; flex-direction: column; gap: 14px; box-shadow: 0 8px 40px rgba(0,0,0,.15); }
-.modal-head { display: flex; align-items: center; justify-content: space-between; }
-.modal-title { font-size: 16px; font-weight: 700; color: #1a1a2e; }
-.modal-close { background: none; border: none; cursor: pointer; font-size: 15px; color: #888; padding: 2px 6px; border-radius: 6px; }
-.modal-close:hover { background: #f0f0f5; }
-.modal-foot { display: flex; gap: 8px; justify-content: flex-end; padding-top: 4px; }
 .form-grid { display: flex; flex-direction: column; gap: 14px; }
 .form-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .form-row { display: flex; flex-direction: column; gap: 6px; }
 .form-label { font-size: 12px; font-weight: 600; color: #1a1a2e; }
 .req { color: #ef4444; }
 .form-input { padding: 9px 12px; border: 1px solid #e8e8f0; border-radius: 8px; font-family: inherit; font-size: 13px; color: #1a1a2e; background: #fff; outline: none; width: 100%; }
-.form-input:focus { border-color: rgb(var(--color-primary)); }
+.form-input:focus { border-color: var(--color-primary); }
 textarea.form-input { resize: vertical; }
 .form-error { font-size: 11.5px; color: #ef4444; }
 .file-drop { display: flex; flex-direction: column; gap: 4px; border: 1px dashed #d8d8e2; border-radius: 9px; padding: 12px; cursor: pointer; }
-.file-drop:hover { border-color: rgb(var(--color-primary)); }
+.file-drop:hover { border-color: var(--color-primary); }
 .file-drop input[type=file] { display: none; }
 .fd-label { font-size: 12px; font-weight: 600; color: #555; }
 .fd-name { font-size: 11.5px; color: #999; }
 
 @media (max-width: 900px) { .lanes { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 560px) { .lanes { grid-template-columns: 1fr; } .form-2 { grid-template-columns: 1fr; } }
-
-@media (max-width: 640px) {
-	.page-header { flex-wrap: wrap; }
-	.head-actions { width: 100%; }
-	.toggle-mine, .head-actions .btn { flex: 1; text-align: center; }
-}
 </style>

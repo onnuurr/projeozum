@@ -1,0 +1,19 @@
+{
+    "name": "Bagisto",
+    "alias": "bagisto",
+    "description": "SaaS <-> Bagisto senkron motoru: ürün + stok push (Faz 1), sipariş/iade webhook alımı (Faz 2), tenant hesap senkronu (Faz 3). Webkul\\SaasSync paketinin karşı ucu. Marketplace pattern'inden bağımsız, ayrı modül.",
+    "keywords": [
+        "bagisto",
+        "sync",
+        "integration",
+        "webhook"
+    ],
+    "priority": 0,
+    "providers": [
+        "Modules\\Bagisto\\Providers\\BagistoServiceProvider"
+    ],
+    "files": [],
+    "architecture": {
+        "allowed_dependencies": ["Product", "Tenant"]
+    }
+}

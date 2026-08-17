@@ -295,11 +295,11 @@ async function removeMenu(menu) {
 	.mp-body { grid-template-columns: 1fr; }
 }
 .mp-form { display: flex; flex-direction: column; gap: 12px; }
-.mp-form label { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; font-weight: 600; color: rgb(var(--color-muted)); }
-.mp-form input[type=text], .mp-form select { border: 1px solid rgb(var(--color-border)); border-radius: 8px; padding: 8px 10px; font-size: 13px; }
+.mp-form label { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; font-weight: 600; color: var(--color-muted); }
+.mp-form input[type=text], .mp-form select { border: 1px solid var(--color-outline-variant); border-radius: 8px; padding: 8px 10px; font-size: 13px; }
 .mp-icon-picker { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; }
-.mp-icon { width: 100%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border: 1px solid rgb(var(--color-border)); border-radius: 8px; background: rgb(var(--color-surface)); color: rgb(var(--color-muted)); cursor: pointer; }
-.mp-icon.active { border-color: rgb(var(--color-primary)); color: rgb(var(--color-primary)); background: rgb(var(--color-primary-soft)); }
+.mp-icon { width: 100%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border: 1px solid var(--color-outline-variant); border-radius: 8px; background: var(--color-surface); color: var(--color-muted); cursor: pointer; }
+.mp-icon.active { border-color: var(--color-primary); color: var(--color-primary); background: var(--color-primary-soft); }
 
 @media (max-width: 640px) {
 	.mp-icon-picker { grid-template-columns: repeat(5, 1fr); }

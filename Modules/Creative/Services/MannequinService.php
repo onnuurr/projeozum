@@ -96,14 +96,27 @@ class MannequinService
             throw new RuntimeException('Manken görseli okunamadı.');
         }
 
-        $disk = config('creative.disk', 'public');
-        $rel  = sprintf(
-            '%s/%d/reference.png',
-            config('creative.mannequin.output_dir', 'mannequins'),
-            $mannequin->id,
+        $encoded = ImageFile::encode(
+            $bytes,
+            (string) config('creative.image_output.format', 'webp'),
+            (int) config('creative.image_output.quality', 90),
         );
 
-        Storage::disk($disk)->put($rel, $bytes);
+        $disk = config('creative.disk', 'public');
+        $rel  = sprintf(
+            '%s/%d/reference.%s',
+            config('creative.mannequin.output_dir', 'mannequins'),
+            $mannequin->id,
+            $encoded['ext'],
+        );
+
+        // Format (uzantı) değiştiyse eski dosya yetim kalmasın diye önce silinir.
+        $old = $mannequin->reference_image_path;
+        if ($old && $old !== $rel) {
+            Storage::disk($disk)->delete($old);
+        }
+
+        Storage::disk($disk)->put($rel, $encoded['bytes']);
 
         return $rel;
     }

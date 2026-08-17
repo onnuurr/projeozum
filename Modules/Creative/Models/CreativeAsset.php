@@ -18,6 +18,7 @@ class CreativeAsset extends Model
         'created_by',
         'image_path',
         'status',
+        'generation_token',
         'review_status',
         'review_note',
         'review_tags',
