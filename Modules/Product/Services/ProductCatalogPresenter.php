@@ -191,7 +191,7 @@ class ProductCatalogPresenter
             'slug'         => $p->slug,
             'sku'          => $p->sku,
             'images'       => $p->images()
-                ->orderByDesc('is_cover')->orderBy('sort_order')
+                ->reorder()->orderByDesc('is_cover')->orderBy('sort_order')
                 ->pluck('path')->map(fn ($path) => Media::url($path))->filter()->values()->all(),
             'brand'        => $p->brand?->name ?? '',
             'brandSlug'    => $p->brand?->slug,

@@ -43,7 +43,7 @@ class ProductController extends Controller
                 'category.marketplaceMappings.marketplace:id,key,name,color,logo_text',
                 'brand:id,slug,name',
                 'variants',
-                'images' => fn ($q) => $q->orderByDesc('is_cover')->orderBy('sort_order'),
+                'images' => fn ($q) => $q->reorder()->orderByDesc('is_cover')->orderBy('sort_order'),
                 'listings.marketplace:id,key',
             ])
             ->withSum('variants as variants_total_stock', 'stock')
@@ -106,7 +106,7 @@ class ProductController extends Controller
     {
         $product->load([
             'variants' => fn ($q) => $q->orderBy('sort_order'),
-            'images'   => fn ($q) => $q->orderByDesc('is_cover')->orderBy('sort_order'),
+            'images'   => fn ($q) => $q->reorder()->orderByDesc('is_cover')->orderBy('sort_order'),
             'descriptionMaterials.material:id,code,name,type,unit,specs',
         ]);
 
@@ -195,7 +195,7 @@ class ProductController extends Controller
                 'brand:id,slug,name',
                 'category:id,name,slug',
                 'variants',
-                'images' => fn ($q) => $q->orderByDesc('is_cover')->orderBy('sort_order'),
+                'images' => fn ($q) => $q->reorder()->orderByDesc('is_cover')->orderBy('sort_order'),
             ])
             ->withSum('variants as variants_total_stock', 'stock')
             ->where('category_id', $product->category_id)

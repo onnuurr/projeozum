@@ -20,7 +20,7 @@ class ProductMarketplaceListingController extends Controller
             'category.parent:id,name',
             'brand:id,name',
             'variants',
-            'images' => fn ($q) => $q->orderByDesc('is_cover')->orderBy('sort_order'),
+            'images' => fn ($q) => $q->reorder()->orderByDesc('is_cover')->orderBy('sort_order'),
         ]);
 
         $listing = ProductMarketplaceListing::query()
