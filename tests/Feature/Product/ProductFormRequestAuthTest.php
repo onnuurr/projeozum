@@ -4,6 +4,7 @@ namespace Tests\Feature\Product;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Modules\Product\Models\ProductVariant;
 use Modules\Product\Models\StockMovement;
 use Modules\Product\Models\Warehouse;
@@ -17,6 +18,15 @@ use Tests\TestCase;
 class ProductFormRequestAuthTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // StockChanged → PushStockToBagisto, QUEUE_CONNECTION=sync (phpunit.xml)
+        // altında fake edilmeden gerçek bir HTTP isteğine çıkıyordu.
+        Queue::fake();
+    }
 
     private function user(array $permissions = []): User
     {

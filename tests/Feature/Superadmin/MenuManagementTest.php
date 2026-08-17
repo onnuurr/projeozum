@@ -97,6 +97,10 @@ class MenuManagementTest extends TestCase
         $a = Menu::create(['label' => 'A', 'sort_order' => 0]);
         $b = Menu::create(['label' => 'B', 'sort_order' => 1]);
 
+        // MenuController::reorder her zaman JSON döner (Inertia redirect değil):
+        // Menus.vue sürükle-bırak sonrası saveOrder()'ı düz axios ile çağırır, bkz.
+        // oradaki yorum — Inertia'nın router.post + tüm sayfa yeniden render akışı
+        // gözle görülür yavaş olduğu için kasıtlı olarak bu uçtan kaçınılmış.
         $this->actingAs($this->superadmin)
             ->post('/superadmin/menus/reorder', [
                 'items' => [
@@ -104,7 +108,8 @@ class MenuManagementTest extends TestCase
                     ['id' => $b->id, 'parent_id' => $a->id, 'sort_order' => 0],
                 ],
             ])
-            ->assertRedirect();
+            ->assertOk()
+            ->assertJson(['saved' => true]);
 
         $this->assertDatabaseHas('superadmin_menus', ['id' => $a->id, 'sort_order' => 1, 'parent_id' => null]);
         $this->assertDatabaseHas('superadmin_menus', ['id' => $b->id, 'sort_order' => 0, 'parent_id' => $a->id]);
@@ -115,14 +120,17 @@ class MenuManagementTest extends TestCase
         $parent = Menu::create(['label' => 'Parent', 'sort_order' => 0]);
         $child  = Menu::create(['parent_id' => $parent->id, 'label' => 'Child', 'sort_order' => 0]);
 
-        // parent'ı kendi çocuğunun altına taşımak döngü yaratır → reddedilmeli
+        // parent'ı kendi çocuğunun altına taşımak döngü yaratır → reddedilmeli.
+        // Bu uç JSON API gibi davrandığından (yukarıdaki teste bkz.) hata da
+        // session $errors bag'i değil, ham JSON gövdesiyle (422 + message) döner.
         $this->actingAs($this->superadmin)
             ->post('/superadmin/menus/reorder', [
                 'items' => [
                     ['id' => $parent->id, 'parent_id' => $child->id, 'sort_order' => 0],
                 ],
             ])
-            ->assertSessionHasErrors('items');
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Bir menü kendi alt menüsünün altına taşınamaz (döngü).');
 
         // Değişmemiş olmalı
         $this->assertDatabaseHas('superadmin_menus', ['id' => $parent->id, 'parent_id' => null]);

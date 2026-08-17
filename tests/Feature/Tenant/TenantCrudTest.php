@@ -4,6 +4,7 @@ namespace Tests\Feature\Tenant;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Modules\Tenant\Models\Tenant;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -25,6 +26,11 @@ class TenantCrudTest extends TestCase
         $role->givePermissionTo(['tenant.manage', 'tenant.view']);
         $this->superadmin = User::factory()->create();
         $this->superadmin->assignRole($role);
+
+        // TenantActivated → PushTenantToBagisto, QUEUE_CONNECTION=sync
+        // (phpunit.xml) altında fake edilmeden gerçek bir HTTP isteğine
+        // çıkıyordu.
+        Queue::fake();
     }
 
     public function test_tenant_can_be_created(): void

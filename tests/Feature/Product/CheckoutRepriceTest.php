@@ -4,6 +4,7 @@ namespace Tests\Feature\Product;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Modules\Product\Models\CartItem;
 use Modules\Product\Models\PriceList;
 use Modules\Product\Models\Product;
@@ -19,6 +20,15 @@ use Tests\TestCase;
 class CheckoutRepriceTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // StockChanged → PushStockToBagisto, QUEUE_CONNECTION=sync (phpunit.xml)
+        // altında fake edilmeden gerçek bir HTTP isteğine çıkıyordu.
+        Queue::fake();
+    }
 
     private function place(Tenant $tenant, User $user, ProductVariant $variant, float $stalePrice)
     {

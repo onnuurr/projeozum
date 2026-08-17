@@ -4,6 +4,7 @@ namespace Tests\Feature\Product;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Modules\Product\Exceptions\InvalidOrderTransitionException;
 use Modules\Product\Models\Order;
 use Modules\Product\Models\OrderItem;
@@ -21,6 +22,15 @@ use Tests\TestCase;
 class OrderCancelSideEffectsTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // StockChanged → PushStockToBagisto, QUEUE_CONNECTION=sync (phpunit.xml)
+        // altında fake edilmeden gerçek bir HTTP isteğine çıkıyordu.
+        Queue::fake();
+    }
 
     public function test_cancel_mirrors_split_allocations_and_refunds_credit(): void
     {

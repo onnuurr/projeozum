@@ -5,6 +5,7 @@ namespace Tests\Feature\Product;
 use App\Models\User;
 use App\Support\Media;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Modules\Product\Models\CartItem;
 use Modules\Product\Models\Product;
 use Modules\Product\Models\ProductImage;
@@ -18,6 +19,15 @@ use Tests\TestCase;
 class CheckoutImageSnapshotTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // StockChanged → PushStockToBagisto, QUEUE_CONNECTION=sync (phpunit.xml)
+        // altında fake edilmeden gerçek bir HTTP isteğine çıkıyordu.
+        Queue::fake();
+    }
 
     public function test_order_item_snapshots_real_cover_image_path(): void
     {

@@ -3,6 +3,7 @@
 namespace Tests\Feature\Product;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Modules\Product\Models\ProductVariant;
 use Modules\Product\Models\Stock;
 use Modules\Product\Models\StockMovement;
@@ -17,6 +18,15 @@ use Tests\TestCase;
 class StockServiceMoveTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // StockChanged → PushStockToBagisto, QUEUE_CONNECTION=sync (phpunit.xml)
+        // altında fake edilmeden gerçek bir HTTP isteğine çıkıyordu.
+        Queue::fake();
+    }
 
     private function scenario(int $qty = 10): array
     {
