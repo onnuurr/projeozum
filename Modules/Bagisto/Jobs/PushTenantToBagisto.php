@@ -3,7 +3,6 @@
 namespace Modules\Bagisto\Jobs;
 
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -20,19 +19,20 @@ use Modules\Tenant\Models\Tenant;
  * Payload plaintext şifre içerebilir (yalnız activated + şifre bu çağrıda
  * belirlendiyse) — loglanmaz, sadece HTTP gövdesinde taşınır.
  *
- * `ShouldBeUnique`: aynı tenant+event için art arda dispatch'ler tek job'a
- * sıkıştırılır; `handle()` her zaman DB'den GÜNCEL tenant/owner durumunu
- * okuduğu için hangi kopyanın çalıştığı önemli değil.
+ * Bilerek `ShouldBeUnique` DEĞİL: `plainPassword` dispatch anında constructor'a
+ * alınıyor ve DB'de saklanmıyor (handle() sırasında yeniden okunamaz). Aynı
+ * tenant+event için iki dispatch'i tek job'a sıkıştırmak, kazanan kopya
+ * farklı bir plainPassword taşıyorsa sessiz veri kaybına yol açar — bkz.
+ * PushProductToBagisto/PushStockToBagisto'daki not, onlarda bu risk yok
+ * çünkü hiç ekstra dispatch-time state taşımıyorlar.
  */
-class PushTenantToBagisto implements ShouldQueue, ShouldBeUnique
+class PushTenantToBagisto implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable;
 
     public int $tries = 5;
 
     public array $backoff = [10, 30, 60, 300, 900];
-
-    public int $uniqueFor = 1400;
 
     /**
      * @param  'activated'|'deactivated'  $event
@@ -42,11 +42,6 @@ class PushTenantToBagisto implements ShouldQueue, ShouldBeUnique
         protected string $event,
         protected ?string $plainPassword = null,
     ) {}
-
-    public function uniqueId(): string
-    {
-        return "{$this->tenantId}-{$this->event}";
-    }
 
     public function handle(TenantPayloadMapper $mapper, BagistoSyncClient $client): void
     {

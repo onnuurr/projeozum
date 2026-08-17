@@ -24,12 +24,17 @@ class TenantSyncDispatchTest extends TestCase
         parent::setUp();
 
         Role::firstOrCreate(['name' => 'tenant', 'guard_name' => 'web']);
+
+        // QUEUE_CONNECTION=sync olduğu için (phpunit.xml) fake edilmeden
+        // yapılan HERHANGİ bir dispatch (bu dosyadaki bazı testlerin fixture
+        // kurulumu için çağırdığı create() dahil) job'u senkron çalıştırıp
+        // gerçek bir HTTP isteğiyle bagisto.sync.base_url'e çıkardı — 422
+        // dönüyordu. Tüm testler için baştan fake edilir.
+        Queue::fake();
     }
 
     public function test_create_with_owner_dispatches_activated_push_with_plain_password(): void
     {
-        Queue::fake();
-
         $tenant = app(TenantService::class)->create([
             'code' => 'ACME1',
             'name' => 'Acme',
@@ -47,8 +52,6 @@ class TenantSyncDispatchTest extends TestCase
 
     public function test_create_without_owner_does_not_dispatch(): void
     {
-        Queue::fake();
-
         app(TenantService::class)->create([
             'code' => 'ACME2',
             'name' => 'Acme 2',
@@ -66,8 +69,6 @@ class TenantSyncDispatchTest extends TestCase
             'owner_email' => 'ali3@example.com',
             'owner_password' => 'secret123',
         ]);
-
-        Queue::fake();
 
         app(TenantService::class)->update($tenant, ['name' => 'Acme 3 Updated']);
 
@@ -88,8 +89,6 @@ class TenantSyncDispatchTest extends TestCase
             'owner_password' => 'secret123',
         ]);
 
-        Queue::fake();
-
         app(TenantService::class)->suspend($tenant);
 
         Queue::assertPushed(PushTenantToBagisto::class, function ($job) use ($tenant) {
@@ -108,8 +107,6 @@ class TenantSyncDispatchTest extends TestCase
             'owner_password' => 'secret123',
         ]);
         app(TenantService::class)->suspend($tenant);
-
-        Queue::fake();
 
         app(TenantService::class)->activate($tenant->fresh());
 
