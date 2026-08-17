@@ -68,7 +68,6 @@ class TenantService
      */
     public function update(Tenant $tenant, array $data): Tenant
     {
-        $wasActive     = (bool) $tenant->is_active;
         $ownerName     = $data['owner_name']     ?? null;
         $ownerEmail    = $data['owner_email']    ?? null;
         $ownerPassword = $data['owner_password'] ?? null;
@@ -88,12 +87,7 @@ class TenantService
             return $tenant->fresh();
         });
 
-        // is_active bu update'te gerçekten değişmediyse Bagisto'ya tekrar
-        // "activated" push'u tetikleme (owner şifresi her seferinde null
-        // gönderilip gereksiz yeniden-aktivasyon davranışına yol açıyordu).
-        if ((bool) $tenant->is_active !== $wasActive) {
-            $this->dispatchStatusEvent($tenant, $ownerPassword);
-        }
+        $this->dispatchStatusEvent($tenant, $ownerPassword);
 
         return $tenant;
     }

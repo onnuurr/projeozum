@@ -3,6 +3,7 @@
 namespace Modules\Bagisto\Jobs;
 
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -15,8 +16,13 @@ use Modules\Product\Models\Product;
  * SaaS'ta ürün oluşturma/güncelleme/silme sonrası Bagisto'ya push eder.
  * `Webkul\SaasSync\Jobs\PushEventToSaas` (Bagisto tarafı) ile parite: aynı
  * tries/backoff — checkout/ürün kayıt akışını bloklamadan kuyruk üzerinden.
+ *
+ * `ShouldBeUnique`: ayni ürün+event için art arda dispatch'ler tek job'a
+ * sıkıştırılır (aksi halde art arda hızlı güncellemelerde bir retry'daki
+ * job diğerini kuyrukta "geçip" sırayı bozabilir). `handle()` her zaman
+ * DB'den GÜNCEL durumu okuduğu için hangi kopyanın çalıştığı önemli değil.
  */
-class PushProductToBagisto implements ShouldQueue
+class PushProductToBagisto implements ShouldQueue, ShouldBeUnique
 {
     use Dispatchable, InteractsWithQueue, Queueable;
 
@@ -25,12 +31,23 @@ class PushProductToBagisto implements ShouldQueue
     public array $backoff = [10, 30, 60, 300, 900];
 
     /**
+     * Kilidin en kötü senaryoda (job hiç bitmeden worker çökerse) ne kadar
+     * asılı kalacağı — tüm backoff basamaklarının toplamı + tampon.
+     */
+    public int $uniqueFor = 1400;
+
+    /**
      * @param  'created'|'updated'|'deleted'  $event
      */
     public function __construct(
         protected int $productId,
         protected string $event,
     ) {}
+
+    public function uniqueId(): string
+    {
+        return "{$this->productId}-{$this->event}";
+    }
 
     public function handle(ProductPayloadMapper $mapper, BagistoSyncClient $client): void
     {
