@@ -52,6 +52,10 @@ class GeminiTryOnPromptBuilder
             // "lacivert" tonunu) üretmesine yol açar. Sahne ışığı sıcak/soğuk olsa bile
             // (bkz. PromptDirectives::camera()) giysinin rengi buna uydurulmasın.
             'The garment\'s color, hue and saturation must render as colorimetrically identical to its reference photo — apply absolutely no color grading, white balance shift, warm/cool tint or saturation adjustment to the garment fabric itself, regardless of the scene\'s ambient lighting color.',
+            // Donanım sadakati (2026-08-19 ret raporu bulgusu): fermuar bandı tek-çift
+            // karışması + bant renginin değişmesi gözlemlendi — hardware'i renk dahil
+            // AYNEN kopyalamayı açıkça iste, sayı/düzen uydurmayı yasakla.
+            'All garment hardware and trim — zippers, zipper pulls, zipper tape/bands, buttons, snaps, drawstrings, eyelets — including their exact count, layout and color, must be reproduced identically to the reference photo; never add, remove, duplicate or recolor any hardware element (e.g. do not turn a single-band zipper into a double band, do not change the tape or trim color).',
         ];
 
         if ($extras !== []) {
@@ -68,6 +72,11 @@ class GeminiTryOnPromptBuilder
         $lines[] = PromptDirectives::realism();
         $lines[] = PromptDirectives::camera();
         $lines[] = 'Add soft, accurate contact shadows beneath the footwear that ground the model to the floor.';
+        // Anatomi/oran sadakati (2026-08-19 ret raporu bulgusu): kol boyu mankene göre
+        // uzamış, kol montan "kopmuş" görünmüş, kafa-vücut oranı bozulmuş örnekler
+        // gözlemlendi — bunları AÇIKÇA yasakla, isim vermeden genel bir "AI hatası"
+        // olarak bırakmak yeterli olmadı.
+        $lines[] = 'The person\'s limbs, head-to-body ratio and overall body proportions must exactly match the first image — sleeves and cuffs must follow the model\'s true arm length and attach continuously and naturally at the shoulder, elbow and wrist with no gap, disconnection or floating fabric; never lengthen, shorten, or distort a limb, the neck or the head to fit the garment.';
         $lines[] = 'Single person, full body visible from head to feet, centered, sharp focus, correct anatomy, hands and proportions, no text or watermark added.';
 
         if ($extraInstruction !== null && trim($extraInstruction) !== '') {

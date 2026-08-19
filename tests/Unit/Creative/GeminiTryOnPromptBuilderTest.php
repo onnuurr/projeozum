@@ -49,6 +49,24 @@ class GeminiTryOnPromptBuilderTest extends TestCase
         $this->assertStringContainsString('no color grading', $prompt);
     }
 
+    public function test_includes_hardware_fidelity_directive(): void
+    {
+        // 2026-08-19 ret raporu: fermuar bandı tek-çift karışmış + bant rengi değişmiş.
+        $prompt = $this->build();
+
+        $this->assertStringContainsString('zipper', $prompt);
+        $this->assertStringContainsString('never add, remove, duplicate or recolor any hardware', $prompt);
+    }
+
+    public function test_includes_limb_proportion_directive(): void
+    {
+        // 2026-08-19 ret raporu: kol boyu mankene göre uzamış, kol monttan kopmuş görünmüş.
+        $prompt = $this->build();
+
+        $this->assertStringContainsString('head-to-body ratio', $prompt);
+        $this->assertStringContainsString('no gap, disconnection or floating fabric', $prompt);
+    }
+
     public function test_photorealistic_word_toggles_with_config(): void
     {
         $this->assertStringContainsString('photorealistic', $this->build());
