@@ -19,6 +19,18 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class TenantFeedController extends Controller
 {
+    /**
+     * CDATA içine güvenle gömülebilecek metin üretir. '<![CDATA[' ... ']]>' arasına
+     * ham kullanıcı verisi (ör. ürün/marka adı) yazılırsa, içinde literal ']]>' dizisi
+     * geçtiğinde blok erken kapanır ve sonrası gerçek XML/markup olarak parse edilir
+     * (XML injection). ']]>' dizisini 'CDATA'yı kapatıp hemen yeniden açan bir kaçışla
+     * böler — RFC'ye uygun standart CDATA-escape yöntemi.
+     */
+    private function cdata(string $value): string
+    {
+        return '<![CDATA[' . str_replace(']]>', ']]]]><![CDATA[>', $value) . ']]>';
+    }
+
     public function show(Request $request, string $slug): StreamedResponse
     {
         $token = (string) $request->query('token', '');
@@ -50,10 +62,10 @@ class TenantFeedController extends Controller
                 ->each(function (Product $p) {
                     echo "  <item>\n";
                     echo '    <g:id>' . e($p->id) . "</g:id>\n";
-                    echo '    <g:title><![CDATA[' . $p->name . "]]></g:title>\n";
+                    echo '    <g:title>' . $this->cdata($p->name) . "</g:title>\n";
                     echo '    <g:link>' . e(config('app.url') . '/products/' . $p->slug) . "</g:link>\n";
                     echo '    <g:image_link>' . e("https://picsum.photos/seed/tek-p{$p->id}/800/1000") . "</g:image_link>\n";
-                    echo '    <g:brand><![CDATA[' . ($p->brand?->name ?? '') . "]]></g:brand>\n";
+                    echo '    <g:brand>' . $this->cdata($p->brand?->name ?? '') . "</g:brand>\n";
                     echo '    <g:price>' . number_format((float) $p->price, 2, '.', '') . " TRY</g:price>\n";
                     echo '    <g:availability>in stock</g:availability>' . "\n";
                     if ($p->sku) {
