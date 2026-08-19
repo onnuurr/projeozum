@@ -96,6 +96,92 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Renk sadakati (Faz Q) — denetim + kilit
+    |--------------------------------------------------------------------------
+    | Try-on'da ürünün rengi Gemini'nin giydirme adımında sapabiliyor. Giysi
+    | bölgesi, ayrı bir segmentasyon modeli KURULMADAN, giydirmeden ÖNCEKİ
+    | manken görseli ile SONRAKİ görsel arasındaki piksel farkından (diff-mask)
+    | çıkarılır — bu ikisi zaten ProductOnModelService::generate() içinde
+    | üretiliyor (sıfır ek AI maliyeti). Var olan zero-shot giysi dedektörü
+    | (OWLv2) bilerek kullanılmadı: ROADMAP.md Faz G.3b'de ölçülen 190-230sn/
+    | görsel maliyeti canlı bir denetim için elverişsiz.
+    |
+    | audit: her üretimden sonra Delta E (CIE76) ölçer, sonucu meta.color_audit'e
+    |   yazar (yeni tablo/kolon YOK — Faz 5 render_ms presedansı). SADECE ÖLÇER,
+    |   reddetmez/yeniden üretmez (Faz J OCR-gate presedansı: kod tam ama gerçek
+    |   Delta E dağılımı ölçülmeden bir reddet eşiği keyfi olur).
+    | lock: ölçümü orijinal ürün rengine doğru LAB a/b-kanal kaydırmasıyla
+    |   düzeltir (L/parlaklık — modelin gölge/kumaş dokusu — KORUNUR). audit'ten
+    |   BAĞIMSIZ bir anahtar; audit kalibre edilmeden açılmamalı.
+    |
+    | İkisi de varsayılan KAPALI (diğer tüm yeni-özellik bölümleriyle aynı
+    | rollout deseni) — numpy+Pillow yeterli, opencv/torch gerekmez (bu
+    | sunucuda opencv-contrib-python bile kurulu değil, enhance.py zaten
+    | sessizce Lanczos'a düşüyor).
+    */
+    'color_fidelity' => [
+        'python_bin'     => env('CREATIVE_COLOR_FIDELITY_PYTHON_BIN', env('CREATIVE_PYTHON_BIN', 'python3')),
+        // Diff-mask ve arka-plan ayrıştırma eşikleri — audit VE lock ortak kullanır
+        // (aynı maske ikisinde de aynı anlama gelmeli).
+        'diff_threshold' => (float) env('CREATIVE_COLOR_FIDELITY_DIFF_THRESHOLD', 28.0),
+        'bg_tolerance'   => (float) env('CREATIVE_COLOR_FIDELITY_BG_TOLERANCE', 24.0),
+        'mask_min_ratio' => (float) env('CREATIVE_COLOR_FIDELITY_MASK_MIN_RATIO', 0.02),
+        'mask_max_ratio' => (float) env('CREATIVE_COLOR_FIDELITY_MASK_MAX_RATIO', 0.6),
+
+        'audit' => [
+            'enabled'    => (bool) env('CREATIVE_COLOR_AUDIT_ENABLED', false),
+            'driver'     => env('CREATIVE_COLOR_AUDIT_DRIVER', 'python'), // python | null
+            'script'     => base_path('Modules/Creative/python/color_audit.py'),
+            // Bu Delta E'nin üstü UI'da/raporda "belirgin sapma" olarak işaretlenir
+            // (gözle ayırt edilemez eşik ~5, belirgin ~10 — kullanıcının kendi tahmini,
+            // gerçek verilerle kalibre edilmeli).
+            'warn_delta_e' => (float) env('CREATIVE_COLOR_AUDIT_WARN_DELTA_E', 10.0),
+            'timeout'    => (int) env('CREATIVE_COLOR_AUDIT_TIMEOUT', 30),
+        ],
+
+        'lock' => [
+            'enabled'        => (bool) env('CREATIVE_COLOR_LOCK_ENABLED', false),
+            'driver'         => env('CREATIVE_COLOR_LOCK_DRIVER', 'python'), // python | null
+            'script'         => base_path('Modules/Creative/python/color_lock.py'),
+            // 0..1: maskelenmiş bölgede orijinal renge ne kadar kaydırılsın.
+            // 1.0 = tam eşitleme (agresif); kalibrasyon öncesi muhafazakâr kalsın diye <1.
+            'strength'       => (float) env('CREATIVE_COLOR_LOCK_STRENGTH', 0.85),
+            'feather_radius' => (int) env('CREATIVE_COLOR_LOCK_FEATHER_RADIUS', 6),
+            'timeout'        => (int) env('CREATIVE_COLOR_LOCK_TIMEOUT', 30),
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Ret analiz raporu — eşik/uyarı katmanı
+    |--------------------------------------------------------------------------
+    | `creative:review-report` her gün ürettiği raporu salt-okuma bırakır (bkz.
+    | ReviewAlertEvaluator) — bir insan her gün açıp "kötüleşiyor mu" diye
+    | kontrol etmek zorunda kalmasın diye, belirli bir ret sinyali ART ARDA
+    | `consecutive_reports` raporda eşiği aşarsa ayrı bir "uyarı" bildirimi +
+    | rapor JSON'una gömülü `alerts` alanı üretilir. Tek raporluk sıçramalar
+    | gürültü sayılır (bkz. color_fidelity.lock'taki aynı temkinli mantık);
+    | yeterli geçmiş rapor yoksa metrik sessizce atlanır.
+    |
+    | Diğer Faz özelliklerinin aksine varsayılan AÇIK: bu katman hiçbir üretim/
+    | görsel işlemine dokunmuyor, salt-okuma bir bildirim katmanı — riski yok.
+    | Eşikler UI'da zaten kullanılan rateColor() eşikleriyle uyumlu seçildi
+    | (bkz. CreativeReviewReportShow.vue: <0.15 iyi, <0.30 uyarı).
+    */
+    'review_alerts' => [
+        'enabled'             => (bool) env('CREATIVE_REVIEW_ALERTS_ENABLED', true),
+        'consecutive_reports' => (int) env('CREATIVE_REVIEW_ALERTS_CONSECUTIVE', 3),
+        'min_sample_size'     => (int) env('CREATIVE_REVIEW_ALERTS_MIN_SAMPLE', 5),
+        'thresholds' => [
+            'rejection_rate'       => (float) env('CREATIVE_REVIEW_ALERTS_REJECTION_RATE', 0.30),
+            'tag_rejection_rate'   => (float) env('CREATIVE_REVIEW_ALERTS_TAG_RATE', 0.20),
+            'zero_detection_rate'  => (float) env('CREATIVE_REVIEW_ALERTS_ZERO_DETECTION_RATE', 0.50),
+            'color_over_warn_rate' => (float) env('CREATIVE_REVIEW_ALERTS_COLOR_OVER_WARN_RATE', 0.25),
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Giysi detay görseli otomatik etiketleme (yerel zero-shot CLIP)
     |--------------------------------------------------------------------------
     | Try-on ekranından yüklenen detay görsellerinin (yaka/düğme/kol ucu vb.)

@@ -74,7 +74,7 @@ Schedule::command('product:prune-stale-carts')->daily()->onOneServer();
 | gereken tekrarlayan hata modlarını veriyle görmek (bkz. Modules/Creative
 | CreativeReviewReportCommand).
 */
-Schedule::command('creative:review-report')->weekly()->onOneServer();
+Schedule::command('creative:review-report')->daily()->onOneServer();
 
 /*
 |--------------------------------------------------------------------------

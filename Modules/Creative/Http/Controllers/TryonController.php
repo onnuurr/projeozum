@@ -153,7 +153,11 @@ class TryonController extends Controller
             'pose_id'         => $r->pose_id,
             'pose_label'      => $r->pose?->label,
             // Onaydan önce henüz product_images satırı yok; staged (bekleyen) önizleme gösterilir.
-            'image_url'       => $r->productImage?->url ?? Media::url($r->staged_image_path),
+            // Dosya adı result id'sine sabit (onmodel_staged_{id}.webp) ve nginx statik
+            // varlıkları 10 yıl cache'liyor (bkz. `expires max`) — aynı satır yeniden
+            // üretilince (regenerate) tarayıcı eski baytları göstermeye devam eder.
+            // updated_at'a bağlı ?v= parametresi URL'i her üretimde değiştirip cache'i kırar.
+            'image_url'       => $this->versionedUrl($r->productImage?->url ?? Media::url($r->staged_image_path), $r->updated_at),
             'is_cover'        => (bool) $r->productImage?->is_cover,
             'created_at'      => $r->created_at?->toDateTimeString(),
             'created_by'      => $r->created_by,
@@ -324,7 +328,7 @@ class TryonController extends Controller
                 'tryon_driver'           => $result->tryon_driver,
                 'tryon_model'            => $result->tryon_model,
                 'generation_duration_ms' => $result->generation_duration_ms,
-                'image_url'              => $result->productImage?->url ?? Media::url($result->staged_image_path),
+                'image_url'              => $this->versionedUrl($result->productImage?->url ?? Media::url($result->staged_image_path), $result->updated_at),
                 'garment_image_url'      => $this->url($result->garment_image_path),
                 'is_cover'               => (bool) $result->productImage?->is_cover,
                 'created_at'             => $result->created_at?->toDateTimeString(),
@@ -333,6 +337,7 @@ class TryonController extends Controller
                 'review_note'            => $result->review_note,
                 'reviewer_name'          => $result->reviewer?->name,
                 'reviewed_at'            => $result->reviewed_at?->toDateTimeString(),
+                'color_audit'            => $result->meta['color_audit'] ?? null,
             ],
             'garmentExtras' => $garmentExtras,
             'garmentScan'   => $scanPayload,
@@ -451,5 +456,24 @@ class TryonController extends Controller
         }
 
         return Storage::disk(config('creative.disk', 'public'))->url($path);
+    }
+
+    /**
+     * onmodel_staged_{id}.webp gibi SABİT dosya adlarını nginx'in `expires max`
+     * (10 yıllık) statik cache'ine karşı korur: her üretimde updated_at değişir,
+     * dolayısıyla ?v= parametresi de değişir ve tarayıcı yeni bir URL olarak
+     * görüp yeniden ister. Dosya kendisi asla querystring almaz (disk yazımı
+     * $r->staged_image_path ile aynı kalır), bu yalnız HTTP katmanında eklenir.
+     */
+    private function versionedUrl(?string $url, ?\Illuminate\Support\Carbon $updatedAt): ?string
+    {
+        if (! $url) {
+            return null;
+        }
+
+        $version = $updatedAt?->timestamp ?? time();
+        $sep     = str_contains($url, '?') ? '&' : '?';
+
+        return "{$url}{$sep}v={$version}";
     }
 }

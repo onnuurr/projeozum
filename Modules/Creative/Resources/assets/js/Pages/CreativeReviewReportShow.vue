@@ -24,6 +24,15 @@
 			<StatWidget :icon="ImageIcon" :value="report.creative_assets?.total_reviewed ?? 0" title="Creative Studio İncelendi" color="info" />
 		</div>
 
+		<Card v-if="alerts.length" title="Eşik Uyarıları" class="section-card alert-card">
+			<div class="insight-list">
+				<p v-for="(alert, i) in alerts" :key="i" class="alert-item">
+					<strong>{{ alert.subject_label }}</strong> → {{ alert.label }}: %{{ Math.round(alert.rate * 100) }}
+					(eşik %{{ Math.round(alert.threshold * 100) }}, {{ alert.streak }} gündür)
+				</p>
+			</div>
+		</Card>
+
 		<Card v-if="insightLines.length" title="Ne Yapılabilir? (AI Önerisi)" class="section-card ai-card">
 			<div class="insight-list">
 				<p v-for="(line, i) in insightLines" :key="i" class="insight-item">{{ line }}</p>
@@ -64,6 +73,26 @@
 						<Badge color="warning" variant="tonal" :label="`AI önerisi (onaysız): ${report.detection_summary.by_source?.zeroshot ?? 0}`" />
 						<Badge color="neutral" variant="tonal" :label="`Ort. güven: ${avgConfidenceLabel}`" />
 					</div>
+				</div>
+			</div>
+		</Card>
+
+		<Card v-if="colorAuditSummary && colorAuditSummary.total_measured > 0" title="Renk Sadakati (Faz Q)" class="section-card">
+			<template #actions>
+				<Badge :color="colorAuditRateColor" :label="`ΔE eşiği (${colorAuditSummary.warn_delta_e}) üstü: ${colorAuditSummary.over_warn_threshold} · ${formatRate(colorAuditSummary.over_warn_rate)}`" />
+			</template>
+
+			<div class="body-stack">
+				<p class="detection-hint">
+					Giysi bölgesi, giydirmeden önceki/sonraki görsel farkından (diff-mask) bulunur —
+					ayrı bir segmentasyon modeli yok (bkz. ROADMAP.md Faz Q). Delta E &lt; 5 gözle
+					ayırt edilemez, &gt; 10 belirgin sapma sayılır.
+				</p>
+				<div class="tag-list">
+					<Badge color="neutral" variant="tonal" :label="`Ölçülen: ${colorAuditSummary.total_measured}`" />
+					<Badge color="neutral" variant="tonal" :label="`Güvenli ölçüm: ${colorAuditSummary.high_confidence}`" />
+					<Badge color="neutral" variant="tonal" :label="`Ort. ΔE: ${colorAuditSummary.avg_delta_e ?? '—'}`" />
+					<Badge color="info" variant="tonal" :label="`Renk kilidi uygulanan: ${colorAuditSummary.locked_count}`" />
 				</div>
 			</div>
 		</Card>
@@ -116,6 +145,12 @@ const insightLines = computed(() => {
 		.filter(Boolean)
 })
 
+const alerts = computed(() => props.report.alerts ?? [])
+
+const colorAuditSummary = computed(() => props.report.color_audit_summary ?? null)
+// Ret oranıyla aynı yorum yönü: eşik üstü oran düşükse iyi (yeşil) — rateColor'ı yeniden kullanır.
+const colorAuditRateColor = computed(() => rateColor(colorAuditSummary.value?.over_warn_rate))
+
 function formatDate(iso) {
 	if (!iso) return '—'
 	return new Date(iso).toLocaleString('tr-TR', { dateStyle: 'medium', timeStyle: 'short' })
@@ -150,6 +185,28 @@ const avgConfidenceLabel = computed(() => {
 .body-stack { display: flex; flex-direction: column; gap: 18px; }
 
 .ai-card { border-color: color-mix(in srgb, var(--color-primary) 25%, transparent); }
+
+.alert-card { border-color: color-mix(in srgb, var(--color-danger) 30%, transparent); }
+.alert-item {
+	position: relative;
+	margin: 0;
+	padding: 9px 14px 9px 30px;
+	font-size: 13px;
+	line-height: 1.5;
+	color: var(--color-ink);
+	background: color-mix(in srgb, var(--color-danger) 6%, transparent);
+	border-radius: 8px;
+}
+.alert-item::before {
+	content: '';
+	position: absolute;
+	left: 12px;
+	top: 15px;
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--color-danger);
+}
 .insight-list { display: flex; flex-direction: column; gap: 8px; }
 .insight-item {
 	position: relative;

@@ -9,8 +9,10 @@ use Modules\Creative\Models\CreativeAsset;
 use Modules\Creative\Models\GarmentScan;
 use Modules\Creative\Models\Mannequin;
 use Modules\Creative\Models\TryonResult;
+use Modules\Creative\Notifications\CreativeReviewAlertNotification;
 use Modules\Creative\Notifications\CreativeReviewReportReadyNotification;
 use Modules\Creative\Services\Ai\Contracts\RejectionInsightContract;
+use Modules\Creative\Services\ReviewAlertEvaluator;
 use Throwable;
 
 /**
@@ -27,8 +29,10 @@ class CreativeReviewReportCommand extends Command
 
     protected $description = 'Son N günde reddedilen manken/giydirme/creative görsellerini etiket ve AI sürücü kırılımında raporlar (salt-okuma)';
 
-    public function __construct(private RejectionInsightContract $insightGenerator)
-    {
+    public function __construct(
+        private RejectionInsightContract $insightGenerator,
+        private ReviewAlertEvaluator $alertEvaluator,
+    ) {
         parent::__construct();
     }
 
@@ -41,30 +45,65 @@ class CreativeReviewReportCommand extends Command
         $mannequins = $this->summarizeSubject(Mannequin::query()->where('reviewed_at', '>=', $since)->get(), null, null);
         $assets     = $this->summarizeSubject(CreativeAsset::query()->where('reviewed_at', '>=', $since)->get(), null, null);
         $detections = $this->summarizeDetections(GarmentScan::query()->where('created_at', '>=', $since)->get());
+        $colorAudit = $this->summarizeColorAudit(TryonResult::query()->where('created_at', '>=', $since)->get());
 
         $report = [
-            'generated_at'      => now()->toIso8601String(),
-            'window_days'       => $days,
-            'window_since'      => $since->toIso8601String(),
-            'tryon_results'     => $tryon,
-            'mannequins'        => $mannequins,
-            'creative_assets'   => $assets,
-            'detection_summary' => $detections,
-            'ai_insight'        => $this->generateInsight($tryon, $mannequins, $assets),
+            'generated_at'        => now()->toIso8601String(),
+            'window_days'         => $days,
+            'window_since'        => $since->toIso8601String(),
+            'tryon_results'       => $tryon,
+            'mannequins'          => $mannequins,
+            'creative_assets'     => $assets,
+            'detection_summary'   => $detections,
+            'color_audit_summary' => $colorAudit,
+            'ai_insight'          => $this->generateInsight($tryon, $mannequins, $assets),
         ];
 
         $path = storage_path('app/creative-review-reports/' . now()->format('Y-m-d') . '.json');
+
+        $alerts = $this->alertEvaluator->evaluate([$report, ...$this->loadPreviousReports($path)]);
+        $report['alerts'] = $alerts;
+
         File::ensureDirectoryExists(dirname($path));
         File::put($path, json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
 
-        $this->renderConsole($tryon, $mannequins, $assets, $detections);
+        $this->renderConsole($tryon, $mannequins, $assets, $detections, $colorAudit, $alerts);
         $this->info("Tam rapor: {$path}");
 
         if (! $this->option('no-notify')) {
             $this->notifyApprovers($tryon, $path);
+
+            if ($alerts !== []) {
+                $this->notifyAlert($alerts, $path);
+            }
         }
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Bugünkü rapor dosyasının (henüz yazılmamış) kardeşlerini — kendisi
+     * dışındaki en yeni dosyaları — en yeniden en eskiye sıralı döner.
+     * ReviewAlertEvaluator kaç tanesine ihtiyacı olduğuna kendi karar verir
+     * (yetersizse metrikleri sessizce atlar), burada sadece elde ne varsa okunur.
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    private function loadPreviousReports(string $todayPath): array
+    {
+        $dir = dirname($todayPath);
+
+        if (! File::isDirectory($dir)) {
+            return [];
+        }
+
+        return collect(File::files($dir))
+            ->filter(fn ($f) => preg_match('/^\d{4}-\d{2}-\d{2}\.json$/', $f->getFilename()))
+            ->reject(fn ($f) => $f->getPathname() === $todayPath)
+            ->sortByDesc(fn ($f) => $f->getFilename())
+            ->map(fn ($f) => json_decode(File::get($f->getPathname()), true) ?? [])
+            ->values()
+            ->all();
     }
 
     /**
@@ -160,6 +199,39 @@ class CreativeReviewReportCommand extends Command
     }
 
     /**
+     * Renk sadakati (Faz Q) özeti: ortalama Delta E, uyarı eşiği üstü oran, güvenli
+     * ölçülemeyen (maske bulunamadı/kirli) oran. `creative.color_fidelity.audit.enabled`
+     * kapalıyken (varsayılan) `meta.color_audit` hiçbir kayıtta yok — bu durumda
+     * `total_measured=0` döner, UI/rapor bunu "denetim kapalı" olarak yorumlar.
+     *
+     * @param  \Illuminate\Support\Collection<int,TryonResult>  $results
+     * @return array<string,mixed>
+     */
+    private function summarizeColorAudit($results): array
+    {
+        $warnDeltaE = (float) config('creative.color_fidelity.audit.warn_delta_e', 10.0);
+
+        $measured = $results
+            ->map(fn (TryonResult $r) => $r->meta['color_audit'] ?? null)
+            ->filter();
+
+        $highConfidence = $measured->filter(fn ($a) => ($a['confidence'] ?? null) === 'high' && $a['delta_e'] !== null);
+        $deltaEs        = $highConfidence->pluck('delta_e')->map(fn ($v) => (float) $v);
+        $overWarn       = $deltaEs->filter(fn ($v) => $v > $warnDeltaE)->count();
+        $lockedCount    = $measured->filter(fn ($a) => (bool) ($a['locked'] ?? false))->count();
+
+        return [
+            'total_measured'       => $measured->count(),
+            'high_confidence'      => $highConfidence->count(),
+            'avg_delta_e'          => $deltaEs->isNotEmpty() ? round($deltaEs->avg(), 2) : null,
+            'over_warn_threshold'  => $overWarn,
+            'over_warn_rate'       => $highConfidence->count() > 0 ? round($overWarn / $highConfidence->count(), 3) : null,
+            'locked_count'         => $lockedCount,
+            'warn_delta_e'         => $warnDeltaE,
+        ];
+    }
+
+    /**
      * AI önerisi rapor üretimi sırasında BİR KEZ üretilip JSON'a gömülür (sayfa
      * her açıldığında tekrar çağrılmaz). Sürücü (Gemini) çağrısı başarısız olursa
      * asıl rapor verisi yine de kaydedilsin diye hata burada yutulur.
@@ -175,8 +247,23 @@ class CreativeReviewReportCommand extends Command
         }
     }
 
-    private function renderConsole(array $tryon, array $mannequins, array $assets, array $detections): void
+    private function renderConsole(array $tryon, array $mannequins, array $assets, array $detections, array $colorAudit = [], array $alerts = []): void
     {
+        if ($alerts !== []) {
+            $this->newLine();
+            $this->components->warn(sprintf('%d eşik/uyarı tetiklendi:', count($alerts)));
+            foreach ($alerts as $alert) {
+                $this->line(sprintf(
+                    '  ⚠ %s → %s: %%%d (eşik %%%d, %d gündür)',
+                    $alert['subject_label'],
+                    $alert['label'],
+                    round($alert['rate'] * 100),
+                    round($alert['threshold'] * 100),
+                    $alert['streak'],
+                ));
+            }
+        }
+
         $this->newLine();
         $this->components->info('Giydirme (TryonResult) ret özeti');
         $this->line("  İncelenen: {$tryon['total_reviewed']}  |  Reddedilen: {$tryon['total_rejected']}"
@@ -217,6 +304,15 @@ class CreativeReviewReportCommand extends Command
         if ($detections['label_frequency'] !== []) {
             $this->table(['Parça', 'Adet'], collect($detections['label_frequency'])->map(fn ($c, $t) => [$t, $c])->values()->all());
         }
+
+        if (($colorAudit['total_measured'] ?? 0) > 0) {
+            $this->newLine();
+            $this->components->info('Renk sadakati özeti (Faz Q)');
+            $this->line("  Ölçülen: {$colorAudit['total_measured']}  |  Güvenli: {$colorAudit['high_confidence']}"
+                . '  |  Ort. ΔE: ' . ($colorAudit['avg_delta_e'] ?? '—')
+                . "  |  Eşik ({$colorAudit['warn_delta_e']}) üstü: {$colorAudit['over_warn_threshold']}"
+                . ($colorAudit['over_warn_rate'] !== null ? sprintf(' (%%%d)', $colorAudit['over_warn_rate'] * 100) : ''));
+        }
     }
 
     private function notifyApprovers(array $tryon, string $path): void
@@ -231,6 +327,18 @@ class CreativeReviewReportCommand extends Command
             topTagCount:        $topTagCount,
             reportPath:         $path,
         );
+
+        foreach (User::permission('creative.approve')->get() as $admin) {
+            $admin->notify($notification);
+        }
+    }
+
+    /**
+     * @param  array<int,array{subject:string,subject_label:string,type:string,label:string,rate:float,threshold:float,streak:int,sample_size:int}>  $alerts
+     */
+    private function notifyAlert(array $alerts, string $path): void
+    {
+        $notification = new CreativeReviewAlertNotification($alerts, $path);
 
         foreach (User::permission('creative.approve')->get() as $admin) {
             $admin->notify($notification);

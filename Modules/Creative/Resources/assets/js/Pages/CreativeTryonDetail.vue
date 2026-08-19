@@ -35,6 +35,13 @@
 				</span>
 				<span class="kpi-hint">{{ result.reviewer_name ? `İnceleyen: ${result.reviewer_name}` : 'Henüz incelenmedi' }}</span>
 			</div>
+			<div v-if="result.color_audit" class="kpi-card">
+				<span class="kpi-label">Renk Sadakati</span>
+				<span class="kpi-value">
+					<Badge :color="colorAuditColor" :label="colorAuditLabel" variant="filled" />
+				</span>
+				<span class="kpi-hint">{{ result.color_audit.locked ? 'Renk kilidi uygulandı' : 'Yalnız ölçüldü (kilit kapalı)' }}</span>
+			</div>
 		</div>
 
 		<Alert v-if="result.error" variant="error" :message="result.error" />
@@ -183,6 +190,22 @@ const props = defineProps({
 
 const detections = computed(() => props.garmentScan?.detections ?? [])
 const identityHighlights = computed(() => props.garmentScan?.identity_summary?.highlights ?? [])
+
+// Renk sadakati (Faz Q) — gözle ayırt edilemez (<5) / hafif fark (5-10) / belirgin
+// sapma (>10) eşikleri kullanıcının kendi tahminine dayanır, henüz kalibre edilmedi.
+const colorAuditLabel = computed(() => {
+	const a = props.result.color_audit
+	if (!a) return '—'
+	if (a.confidence !== 'high' || a.delta_e === null) return 'Ölçülemedi'
+	return `ΔE ${a.delta_e}`
+})
+const colorAuditColor = computed(() => {
+	const a = props.result.color_audit
+	if (!a || a.confidence !== 'high' || a.delta_e === null) return 'neutral'
+	if (a.delta_e <= 5) return 'success'
+	if (a.delta_e <= 10) return 'warning'
+	return 'danger'
+})
 
 function priorityOf(d) {
 	return d.default_priority || 'medium'

@@ -4,6 +4,7 @@ namespace Modules\Creative\Services;
 
 use App\Support\Media;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Modules\Creative\Models\Mannequin;
@@ -13,8 +14,10 @@ use Modules\Creative\Services\Ai\Contracts\GarmentTryOnContract;
 use Modules\Creative\Services\Ai\Contracts\MannequinPoseComposerContract;
 use Modules\Creative\Services\Ai\MannequinPoseRequest;
 use Modules\Creative\Services\Ai\Support\ImageFile;
+use Modules\Creative\Services\Enhancement\ColorLockContract;
 use Modules\Creative\Services\Enhancement\GarmentPrepContract;
 use Modules\Creative\Services\Enhancement\ImageEnhancerContract;
+use Modules\Creative\Services\Vision\ColorAuditorContract;
 use Modules\Product\Models\Product;
 use Modules\Product\Models\ProductImage;
 use RuntimeException;
@@ -40,6 +43,8 @@ class ProductOnModelService
         private ReviewNotifier $notifier,
         private GarmentScanService $garmentScans,
         private GarmentIdentityRuleEngine $identityRules,
+        private ColorLockContract $colorLock,
+        private ColorAuditorContract $colorAuditor,
     ) {}
 
     /**
@@ -192,6 +197,7 @@ class ProductOnModelService
 
         $posed    = null;
         $out      = null;
+        $locked   = null;
         $enhanced = null;
 
         // Manken poz compose + try-on + iyileştirme adımlarının toplam süresi —
@@ -227,9 +233,26 @@ class ProductOnModelService
             //    verilmezse "yeniden üret" aynı hatalı sonucu üretir.
             $out = $this->tryOn->tryOn($posed, $garmentPath, $directives, $extra !== '' ? $extra : null, $protectListSentence);
 
+            // 2b) Renk sadakati (Faz Q): kapalıysa (varsayılan) $locked === $out,
+            //     davranış hiç değişmez. Açıksa ürünün rengini orijinal fotoğrafa doğru
+            //     LAB a/b-kanal transferiyle kaydırır (bkz. ROADMAP.md Faz Q, ColorLockContract).
+            $locked = $this->colorLock->apply($out, $garmentPath, $posed);
+
+            // Ölçüm (Faz Q): kapalıysa (varsayılan) her zaman null — job'ı ASLA düşürmez,
+            // sadece meta.color_audit'e yazılıp raporlama/UI'da bilgi amaçlı gösterilir.
+            $colorAudit = null;
+            try {
+                $measured = $this->colorAuditor->measure($garmentPath, $posed, $locked);
+                if ($measured !== null) {
+                    $colorAudit = [...$measured, 'locked' => $locked !== $out, 'measured_at' => now()->toIso8601String()];
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Creative renk denetimi (ölçüm) atlandı.', ['result_id' => $result->id, 'error' => $e->getMessage()]);
+            }
+
             // 3) Üretim sonrası kalite iyileştirme (upscale + son dokunuş).
-            //    Kapalıysa/başarısızsa $out aynen döner (graceful degrade).
-            $enhanced = $this->enhancer->enhance($out);
+            //    Kapalıysa/başarısızsa $locked aynen döner (graceful degrade).
+            $enhanced = $this->enhancer->enhance($locked);
 
             // AI çağrıları dakikalarca sürebilir; bu süre içinde kullanıcı aynı satırı
             // (product_id+pose_id) yeni bir manken/ürün/görselle yeniden kuyruğa almış
@@ -240,8 +263,16 @@ class ProductOnModelService
 
             $staged = $this->persistStaged($enhanced, $product, $result);
 
+            $meta = $result->meta ?? [];
+            if ($colorAudit !== null) {
+                $meta['color_audit'] = $colorAudit;
+            } else {
+                unset($meta['color_audit']);
+            }
+
             $result->update([
                 'staged_image_path' => $staged,
+                'meta'              => $meta !== [] ? $meta : null,
                 'status'            => TryonResult::STATUS_DONE,
                 // config('creative.ai.tryon_driver') İSTENEN sürücüyü söyler; anahtar
                 // eksikse binding sessizce mock'a düşebileceğinden (CreativeServiceProvider),
@@ -260,8 +291,9 @@ class ProductOnModelService
 
             return $result;
         } finally {
-            // $enhanced === $out olabilir (passthrough); delete idempotenttir.
-            ImageFile::delete([$posed, $out, $enhanced, ...$preparedTemps]);
+            // $locked === $out ve/veya $enhanced === $locked olabilir (passthrough'lar
+            // kapalıyken); delete idempotenttir (is_file() kontrolüyle güvenli).
+            ImageFile::delete([$posed, $out, $locked, $enhanced, ...$preparedTemps]);
             $this->resolver->cleanup();
         }
     }
@@ -384,7 +416,15 @@ class ProductOnModelService
             $disk->delete($old);
         }
 
-        $disk->put($rel, $encoded['bytes']);
+        // put() dönüş değeri kontrol edilmezse, dosya zaten var olup da yazma izni
+        // reddedilirse (ör. önceki bir üretim başka bir kullanıcıyla/root ile
+        // yazmışsa) 'true'ymuş gibi devam edilir: job 'done' işaretlenir ama fiziksel
+        // dosya HİÇ değişmez — eski görsel sessizce kalır (2026-08-18 canlıda görüldü,
+        // kök neden: storage/app altında root sahipli kalıntı dosyalar). Artık açıkça
+        // kontrol ediliyor.
+        if ($disk->put($rel, $encoded['bytes']) === false) {
+            throw new RuntimeException("Giydirme çıktısı diske yazılamadı: {$rel} (izin sorunu olabilir).");
+        }
 
         return $rel;
     }

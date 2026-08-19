@@ -573,6 +573,92 @@ metotla karşılanıyor. `CreativeCopyRuleEngine`/`GarmentIdentityRuleEngine`'e 
   --filter=Creative` temiz (bu oturumdaki tek ilgisiz hata: `MannequinPromptBuilderTest`,
   önceden var olan dalda, bu değişiklikle ilgisiz).
 
+## ✅ Faz Q — Renk Sadakati (tryon renk sapması, denetim + kilit, prod'a kapalı)
+Kullanıcı gözlemi: try-on'da ürünün rengi Gemini'nin giydirme adımında sapabiliyor.
+Kullanıcının 3 katmanlı planı: (1) çıktıyı orijinal renge LAB uzayında kilitleme,
+(2) her üretimden sonra otomatik Delta E denetimi, (3) prompt'ta rengi
+isimlendirmeden negatif kısıt. Kod okunduktan sonra iki bulgu tasarımı belirledi:
+var olan zero-shot giysi dedektörü (OWLv2) görsel başına 190-230sn CPU
+(ROADMAP Faz G.3b) — canlı bir gate için kullanılamaz; bunun yerine
+`ProductOnModelService::generate()`'ın zaten ürettiği giydirme-ÖNCESİ (`$posed`)
+ve giydirme-SONRASI (`$out`) görselleri arasındaki piksel farkı (diff-mask) giysi
+bölgesini sıfır ek AI maliyetiyle veriyor.
+
+- **Python** (`python/_color_common.py`, `_svgcommon.py` deseniyle import-only):
+  numpy ile ICC'siz sRGB↔Lab dönüşümü, diff-mask (+ PIL Min/MaxFilter ile
+  gürültü temizliği, scipy YOK), köşe-rengi arka plan varsayımıyla orijinal
+  üründe foreground maskesi (`prepare_garment.py::_trim_flat_border` fikrinin
+  maskeye çevrilmiş hali), CIE76 Delta E. `color_audit.py` (stdin JSON → stdout
+  JSON: delta_e/mask_ratio/confidence) ve `color_lock.py` (stdin JSON → stdout
+  PNG: L kanalı KORUNUR, a/b kanalları `strength` oranında orijinale kaydırılır,
+  düşük-güvenli maskede görsele DOKUNULMAZ) — ikisi de `opencv-contrib-python`
+  GEREKTİRMEZ (bu sunucuda zaten kurulu değil), yalnız numpy+Pillow (zorunlu,
+  zaten kurulu — sistem `python3`'te doğrulandı).
+- **PHP:** `Services/Vision/ColorAuditorContract`+`Python`/`NullColorAuditor`
+  (`measure()`, PythonTesseractTextRecognizer ile aynı Process iskeleti, DTO
+  YOK — plain array döner) ve `Services/Enhancement/ColorLockContract`+
+  `Python`/`NullColorLock` (`apply()`, PythonGarmentPreparer ile aynı iskelet,
+  hata/düşük-güven → orijinal görsel aynen döner). `CreativeServiceProvider`'a
+  diğer tüm Python-adım binding'leriyle BİREBİR aynı desende iki `bind()`.
+  `ProductOnModelService::generate()`: tryOn → `colorLock->apply()` (kapalıysa
+  no-op) → `colorAuditor->measure()` (try/catch SARILI, job'ı ASLA düşürmez) →
+  `enhancer->enhance()`. Sonuç `meta.color_audit`'e yazılır (yeni migration/
+  kolon YOK — Faz 5 `render_ms` presedansı).
+- **Prompt (paralel, Q3):** `GeminiTryOnPromptBuilder::build()`'e rengi
+  İSİMLENDİRMEDEN negatif bir kısıt cümlesi eklendi ("colorimetrically
+  identical... no color grading... regardless of the scene's ambient lighting
+  color"). Paylaşılan `PromptDirectives::camera()`'a (manken/poz/tryon'un ÜÇÜ
+  de kullanıyor, "warm-toned" ışık direktifi içeriyor) BİLEREK dokunulmadı —
+  blast radius büyük, yalnız tryon'a özel ek cümle tercih edildi.
+- **Rapor + UI:** `CreativeReviewReportCommand::summarizeColorAudit()`
+  (ort. ΔE, eşik-üstü oran, güvenli/toplam ölçüm) → `CreativeReviewReportShow.vue`
+  kartı. `TryonController::show()` → `meta.color_audit` → `CreativeTryonDetail.vue`
+  4. kpi-card'ı (ΔE rozeti, renk: ≤5 yeşil / ≤10 sarı / üstü kırmızı — kullanıcının
+  kendi tahmini eşikler, henüz kalibre edilmedi).
+- **Config `creative.color_fidelity.*`:** `audit.enabled`/`lock.enabled` İKİSİ
+  DE varsayılan KAPALI (Faz J OCR-gate presedansı — kod tam ama gerçek Delta E
+  dağılımı ölçülmeden bir reddet eşiği/agresif `strength` keyfi olur).
+  **Sıra:** önce `audit` açılır (ölçek/sorun boyutu ölçülür), gerçek verilerle
+  `lock.strength`/eşikler kalibre edildikten SONRA `lock` açılır.
+- **Bilinçli kapsam dışı (v1):** sert reddet+yeniden-üret gate'i YOK (yalnız
+  ölçer/bilgi rozeti gösterir — Faz N "görünür uyarı, sert engelleme yok"
+  presedansı); desenli ürünlerde perspektif-warp YOK (LAB a/b kaydırması
+  desende de ortalama rengi düzeltir ama deseni yeniden hizalamaz — bilinen
+  sınırlama, talep gelirse ayrı bir faz).
+- Doğrulandı: sentetik renk-kaymış test görseliyle `color_audit.py`/
+  `color_lock.py` uçtan uca (ΔE 14.12 → kilit sonrası 9.04, kalan fark L
+  kanalından/model gölgelemesinden — beklenen), `ColorAuditorContract`/
+  `ColorLockContract` DI binding'leri (kapalıyken Null, açıkken Python'a
+  düşüyor), `php artisan test --filter=Creative` (95 test) temiz,
+  `GeminiTryOnPromptBuilderTest`'e yeni senaryo.
+
+## ❌ Faz R — HR-VITON self-hosted try-on sürücüsü (denendi, İPTAL — repo'dan kaldırıldı, 2026-08-19)
+Ücretsiz/self-hosted bir 4. try-on seçeneği denendi: `/home/tryon_model` (bu repo DIŞINDA, ayrı
+bir FastAPI servisi) HR-VITON+DensePose çalıştırıyordu — `HrvitonTryOn` sürücüsü bunun
+`/training-images` + `/try-on` + `/results/{file}` uçlarını sarmalıyordu, `CreativeServiceProvider`
+try-on zincirine `gemini → fal → hrviton → mock` olarak eklenmişti.
+
+**2026-08-18 bulgusu — kullanıcı gözlemi:** "resmi gemini gibi giydirmiyor, saçma şekilde
+mankenin üstüne crop yapıyor". Gerçek çıktılar incelendi — bir örnekte kumaşın üstünde **başka
+bir çocuk modelin yüzünün bir parçası** warp edilmiş halde görünüyordu. Kök sebep mimari:
+HR-VITON, VITON-HD verisiyle eğitilmiş bir **2D TPS/optical-flow warp** motoru (Gemini gibi
+generative değil) — "cloth" girdisi olarak flat-lay/ghost-mannequin ürün fotoğrafı bekliyor. Bu
+mağazanın ürün kapak fotoğrafları ise modelde giyilmiş (worn photo) olduğundan warp
+bloklara/yamalara ayrılıyor; segmentasyon fallback'i bazen yüz pikselini sızdırıyor. Bu HERHANGİ
+bir klasik warp-tabanlı try-on modelinde (yalnız HR-VITON'a özgü değil) aynı olurdu; diffüzyon-
+tabanlı self-hosted alternatifler de aynı flat-cloth varsayımını taşır VE bu sunucuda GPU yok —
+CPU'da pratik değiller. Bir "giysi düzleştirme" (worn-photo → flat-lay, Gemini ile) çözümü
+denenip kodlandı ama prod'a hiç açılmadan, **2026-08-19'da HR-VITON kullanılmayacağına karar
+verildi** ve tüm ilgili kod repo'dan silindi:
+- `Services/Ai/Drivers/Hrviton/HrvitonTryOn.php`
+- `Services/Enhancement/{GarmentFlattenerContract,NullGarmentFlattener,GeminiGarmentFlattener}.php`
+- `CreativeServiceProvider`'daki hrviton binding'i + `flatten_garment` binding'i
+- `config/config.php`'deki `ai.hrviton.*` bloğu
+- `ProductOnModelService`'teki flatten adımı + `resolveTryOnDriverName()`'daki 'hrviton' kolu
+
+Try-on zinciri tekrar `gemini → fal → mock`'a döndü. `/home/tryon_model` servisi bu repo
+DIŞINDA olduğu için dokunulmadı (istenirse ayrıca kapatılabilir).
+
 ## Devam etme talimatı (kendime not)
 1. Bu dosyadan sıradaki ⬜ fazı seç.
 2. `TaskCreate` ile o fazın adımlarını çıkar, `in_progress` işaretle.

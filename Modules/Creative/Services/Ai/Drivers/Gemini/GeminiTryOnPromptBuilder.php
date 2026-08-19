@@ -47,6 +47,11 @@ class GeminiTryOnPromptBuilder
             'Keep the person strictly consistent with the first image: same face, hairstyle, skin tone, body type, exact pose, body orientation, framing, lighting and background. Do not change the person or the scene.',
             'Replace the person\'s current base clothing with the product so it is naturally worn on the correct body region (top, bottom, dress, outerwear, etc.).',
             'Preserve the product\'s real cut, silhouette, colors, fabric, texture, patterns, prints, logos, branding and any text EXACTLY as shown — do not redesign, recolor, restyle or invent a different product.',
+            // Renk sadakati (Faz Q): rengi İSİMLENDİRMEDEN (ör. "lacivert") negatif bir
+            // kısıt olarak veriyoruz — isim vermek modelin kendi yorumunu (ör. kendi
+            // "lacivert" tonunu) üretmesine yol açar. Sahne ışığı sıcak/soğuk olsa bile
+            // (bkz. PromptDirectives::camera()) giysinin rengi buna uydurulmasın.
+            'The garment\'s color, hue and saturation must render as colorimetrically identical to its reference photo — apply absolutely no color grading, white balance shift, warm/cool tint or saturation adjustment to the garment fabric itself, regardless of the scene\'s ambient lighting color.',
         ];
 
         if ($extras !== []) {

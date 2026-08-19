@@ -39,6 +39,16 @@ class GeminiTryOnPromptBuilderTest extends TestCase
         $this->assertStringContainsString('hasselblad', $this->build());
     }
 
+    public function test_includes_color_fidelity_negative_constraint(): void
+    {
+        // Faz Q: rengi İSİMLENDİRMEDEN (ör. "navy blue" demeden) negatif bir kısıt
+        // olarak vermeli — isim vermek modelin kendi yorumunu üretmesine yol açar.
+        $prompt = $this->build();
+
+        $this->assertStringContainsString('colorimetrically identical', $prompt);
+        $this->assertStringContainsString('no color grading', $prompt);
+    }
+
     public function test_photorealistic_word_toggles_with_config(): void
     {
         $this->assertStringContainsString('photorealistic', $this->build());
