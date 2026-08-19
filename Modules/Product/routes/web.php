@@ -52,10 +52,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('products.bulk-destroy');
 
     // AI destekli açıklama üretimi (Gemini). Sync — 20sn timeout kabul.
+    // throttle:15,1: ücretli AI çağrısı, önceden hiç hız sınırı yoktu.
     Route::post('/products/{product:id}/ai-description',
         [\Modules\Product\Http\Controllers\ProductAiDescriptionController::class, 'generate'])
         ->whereNumber('product')
-        ->middleware('can:product.ai.generate')
+        ->middleware(['can:product.ai.generate', 'throttle:15,1'])
         ->name('products.ai-description');
 
     // Barkod (EAN-13/GS1) otomatik üretimi — hem create hem edit formunda kullanılır,

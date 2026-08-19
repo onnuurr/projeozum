@@ -11,10 +11,15 @@ use Modules\Tenant\Http\Controllers\Api\Webhooks\N11WebhookController;
 use Modules\Tenant\Http\Controllers\Api\Webhooks\TrendyolWebhookController;
 
 // Marketplace webhook endpoint'leri — auth-siz; her controller kendi HMAC + tenant resolve eder.
-Route::post('webhooks/trendyol',    [TrendyolWebhookController::class,    'handle'])->name('webhooks.trendyol');
-Route::post('webhooks/hepsiburada', [HepsiburadaWebhookController::class, 'handle'])->name('webhooks.hepsiburada');
-Route::post('webhooks/n11',         [N11WebhookController::class,         'handle'])->name('webhooks.n11');
-Route::post('webhooks/ciceksepeti', [CiceksepetiWebhookController::class, 'handle'])->name('webhooks.ciceksepeti');
+// throttle:30,1: hiçbir hız sınırı yoktu, imza doğrulamasından önce her istek DB sorgusu
+// tetikliyordu (bkz. TrendyolWebhookController) — auth'suz uçta bu bir DoS/kaynak tüketim
+// yüzeyiydi. 30/dk gerçek pazaryeri trafiği için bol, kaba-kuvvet/flood için sınırlayıcı.
+Route::middleware('throttle:30,1')->group(function () {
+    Route::post('webhooks/trendyol',    [TrendyolWebhookController::class,    'handle'])->name('webhooks.trendyol');
+    Route::post('webhooks/hepsiburada', [HepsiburadaWebhookController::class, 'handle'])->name('webhooks.hepsiburada');
+    Route::post('webhooks/n11',         [N11WebhookController::class,         'handle'])->name('webhooks.n11');
+    Route::post('webhooks/ciceksepeti', [CiceksepetiWebhookController::class, 'handle'])->name('webhooks.ciceksepeti');
+});
 
 // Tüm v1 tenant yönetim uçları can:tenant.manage ister (web tarafıyla tutarlı; superadmin
 // Gate::before ile geçer). Böylece tenant yönetimi superadmin dışı rollere delege edilebilir.

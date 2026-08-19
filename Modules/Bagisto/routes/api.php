@@ -7,5 +7,5 @@ use Modules\Bagisto\Http\Middleware\VerifyBagistoInboundToken;
 // Bagisto'nun `PushEventToSaas` job'ının hedefi (order.created / order.cancelled).
 // Auth: Bearer token (VerifyBagistoInboundToken) — HMAC değil.
 Route::post('webhooks/bagisto', [OrderWebhookController::class, 'handle'])
-    ->middleware(VerifyBagistoInboundToken::class)
+    ->middleware([VerifyBagistoInboundToken::class, 'throttle:30,1'])
     ->name('webhooks.bagisto');

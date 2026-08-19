@@ -24,8 +24,10 @@ Route::middleware(['auth', 'verified'])
         ->middleware('can:creative.view')->name('gallery');
     Route::get('/export', [CreativeStudioController::class, 'export'])
         ->middleware('can:creative.view')->name('export');
+    // throttle:15,1: her istek ücretli bir AI sağlayıcı çağrısı (Fal/Gemini) tetikler —
+    // önceden hiç hız sınırı yoktu, script/ele geçirilmiş hesap sınırsız fatura şişirebilirdi.
     Route::post('/generate', [CreativeStudioController::class, 'generate'])
-        ->middleware('can:creative.generate')->name('generate');
+        ->middleware(['can:creative.generate', 'throttle:15,1'])->name('generate');
 
     // ─── Asset onay akışı ────────────────────────────────────────────────
     Route::post('/assets/{asset}/approve', [CreativeStudioController::class, 'approve'])
@@ -33,7 +35,7 @@ Route::middleware(['auth', 'verified'])
     Route::post('/assets/{asset}/reject', [CreativeStudioController::class, 'reject'])
         ->middleware('can:creative.approve')->whereNumber('asset')->name('assets.reject');
     Route::post('/assets/{asset}/regenerate', [CreativeStudioController::class, 'regenerate'])
-        ->middleware('can:creative.generate')->whereNumber('asset')->name('assets.regenerate');
+        ->middleware(['can:creative.generate', 'throttle:15,1'])->whereNumber('asset')->name('assets.regenerate');
     Route::put('/assets/{asset}/caption', [CreativeStudioController::class, 'updateCaption'])
         ->middleware('can:creative.generate')->whereNumber('asset')->name('assets.caption.update');
     Route::get('/assets/{asset}/review-chat', [ReviewChatController::class, 'showAsset'])
@@ -63,7 +65,7 @@ Route::middleware(['auth', 'verified'])
     Route::post('/mannequins', [MannequinController::class, 'store'])
         ->middleware('can:creative.asset.manage')->name('mannequins.store');
     Route::post('/mannequins/{mannequin}/regenerate', [MannequinController::class, 'regenerate'])
-        ->middleware('can:creative.asset.manage')->whereNumber('mannequin')->name('mannequins.regenerate');
+        ->middleware(['can:creative.asset.manage', 'throttle:15,1'])->whereNumber('mannequin')->name('mannequins.regenerate');
     Route::post('/mannequins/{mannequin}/approve', [MannequinController::class, 'approve'])
         ->middleware('can:creative.approve')->whereNumber('mannequin')->name('mannequins.approve');
     Route::post('/mannequins/{mannequin}/reject', [MannequinController::class, 'reject'])
@@ -75,11 +77,11 @@ Route::middleware(['auth', 'verified'])
     Route::get('/poses', [PoseController::class, 'index'])
         ->middleware('can:creative.view')->name('poses.index');
     Route::post('/poses/generate', [PoseController::class, 'generateAll'])
-        ->middleware('can:creative.asset.manage')->name('poses.generate');
+        ->middleware(['can:creative.asset.manage', 'throttle:15,1'])->name('poses.generate');
     Route::post('/poses', [PoseController::class, 'store'])
         ->middleware('can:creative.asset.manage')->name('poses.store');
     Route::post('/poses/{pose}/regenerate', [PoseController::class, 'regenerate'])
-        ->middleware('can:creative.asset.manage')->whereNumber('pose')->name('poses.regenerate');
+        ->middleware(['can:creative.asset.manage', 'throttle:15,1'])->whereNumber('pose')->name('poses.regenerate');
     Route::delete('/poses/{pose}', [PoseController::class, 'destroy'])
         ->middleware('can:creative.asset.manage')->whereNumber('pose')->name('poses.destroy');
 
@@ -91,9 +93,9 @@ Route::middleware(['auth', 'verified'])
     Route::get('/tryon/results', [TryonController::class, 'results'])
         ->middleware('can:creative.view')->name('tryon.results');
     Route::post('/tryon', [TryonController::class, 'store'])
-        ->middleware('can:creative.asset.manage')->name('tryon.store');
+        ->middleware(['can:creative.asset.manage', 'throttle:15,1'])->name('tryon.store');
     Route::post('/tryon/classify-detail', [TryonController::class, 'classifyDetail'])
-        ->middleware('can:creative.asset.manage')->name('tryon.classify-detail');
+        ->middleware(['can:creative.asset.manage', 'throttle:15,1'])->name('tryon.classify-detail');
     Route::get('/tryon/{result}', [TryonController::class, 'show'])
         ->middleware('can:creative.view')->whereNumber('result')->name('tryon.show');
     Route::post('/tryon/{result}/approve', [TryonController::class, 'approve'])
