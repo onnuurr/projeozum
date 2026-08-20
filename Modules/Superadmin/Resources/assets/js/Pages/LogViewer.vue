@@ -278,7 +278,7 @@ const PaginationLinks = {
 	`,
 	setup(p) {
 		function navigate(url) {
-			router.visit(url, { preserveState: true, preserveScroll: true })
+			router.visit(url, { preserveState: true, preserveScroll: false })
 		}
 		return { navigate }
 	},

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, useSlots } from 'vue';
+import { ref, computed, watch, useSlots, nextTick } from 'vue';
 import TablePagination from '@/Components/TablePagination.vue';
 import Skeleton from '@/Components/Skeleton.vue';
 import UiIcon from '@/Components/UiIcon.vue';
@@ -29,6 +29,11 @@ const currentPage = ref(1);
 const localPerPage = ref(props.perPage);
 const sortKey = ref('');
 const sortDir = ref('asc');
+const tableRoot = ref(null);
+
+watch(currentPage, () => {
+	nextTick(() => tableRoot.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+});
 
 const sortedData = computed(() => {
 	if (!sortKey.value) return props.data;
@@ -105,7 +110,7 @@ const firstColStickyHeaderClass = computed(() => `sticky z-40 bg-canvas ${props.
 </script>
 
 <template>
-	<div class="bg-surface rounded-lg border border-line overflow-hidden">
+	<div ref="tableRoot" class="bg-surface rounded-lg border border-line overflow-hidden">
 		<div v-if="loading" class="p-4 space-y-3">
 			<div v-for="i in 5" :key="i" class="flex items-center gap-3">
 				<Skeleton variant="circle" width="2rem" height="2rem" />
