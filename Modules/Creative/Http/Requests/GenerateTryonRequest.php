@@ -24,7 +24,10 @@ class GenerateTryonRequest extends FormRequest
             // Opsiyonel detay görselleri (arkadan/yandan/yaka-dikiş/kumaş vb.) — AI
             // giydirme sırasında EK referans olarak kullanılır, ayrı bir giysi olarak
             // değil aynı ürünün farklı açıları/detayları olarak değerlendirilir.
-            'garment_details'         => ['nullable', 'array', 'max:6'],
+            // Üst sınır (11): CreativeTryon.vue'daki 5 sabit kategori (DETAIL_PRESETS)
+            // + en fazla 6 serbest başlıklı özel slot (customDetailSlots) — frontend'in
+            // üretebileceği gerçek maksimuma eşit tutulur.
+            'garment_details'         => ['nullable', 'array', 'max:11'],
             'garment_details.*.image' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:8192'],
             'garment_details.*.label' => ['nullable', 'string', 'max:60'],
             // Yerel CLIP sınıflandırıcının (classify-detail uç noktası) o görsel için

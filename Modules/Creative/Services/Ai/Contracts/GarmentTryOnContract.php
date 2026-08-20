@@ -24,9 +24,14 @@ interface GarmentTryOnContract
      * @param  ?string  $protectListSentence  {@see \Modules\Creative\Services\GarmentIdentityRuleEngine::protectListSentence()}
      *         çıktısı — kritik/yüksek öncelikli parçaları adlandıran tek cümle, verilmişse
      *         prompt'un EN BAŞINA eklenir. Destekleyen sürücüler (Gemini) kullanır, diğerleri yok sayar.
+     * @param  ?array{result_id:int,generation_token:?string,product_id:int,pose_id:int,mannequin_id:int,requested_at:\DateTimeInterface}  $context
+     *         Eğitim verisi toplama katmanı (Modules/TrainingIngest) için korelasyon
+     *         bilgisi — {@see \Modules\Creative\Events\TryonGenerationRendered}. Yalnızca
+     *         prompt tabanlı, event fırlatan sürücüler (Gemini) kullanır; sabit API'li
+     *         sürücüler (fal fashn/tryon) ve mock güvenle yok sayar.
      * @return string  Giydirilmiş sonucun yerel mutlak dosya yolu
      */
-    public function tryOn(string $modelImagePath, string $garmentImagePath, array $extraGarmentImages = [], ?string $extraInstruction = null, ?string $protectListSentence = null): string;
+    public function tryOn(string $modelImagePath, string $garmentImagePath, array $extraGarmentImages = [], ?string $extraInstruction = null, ?string $protectListSentence = null, ?array $context = null): string;
 
     /**
      * Bu sürücünün o anki config'e göre çalıştırdığı modelin tanımlayıcısı

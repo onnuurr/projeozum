@@ -13,7 +13,7 @@ class MockTryOn implements GarmentTryOnContract
 {
     public function __construct(private MockImageFactory $images) {}
 
-    public function tryOn(string $modelImagePath, string $garmentImagePath, array $extraGarmentImages = [], ?string $extraInstruction = null, ?string $protectListSentence = null): string
+    public function tryOn(string $modelImagePath, string $garmentImagePath, array $extraGarmentImages = [], ?string $extraInstruction = null, ?string $protectListSentence = null, ?array $context = null): string
     {
         // Model görseli okunabiliyorsa onu, değilse yeni bir placeholder döndür.
         if (is_file($modelImagePath)) {

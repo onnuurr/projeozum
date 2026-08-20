@@ -4,6 +4,7 @@ namespace Modules\Creative\Services\Ai\Drivers\Gemini;
 
 use Modules\Creative\Services\Ai\Contracts\GarmentTryOnContract;
 use Modules\Creative\Services\Ai\Support\ImageFile;
+use Modules\Creative\Services\Ai\Support\TryonGenerationRendered;
 
 /**
  * Gemini 3.1 Flash Image ("Nano Banana 2") ile sanal giydirme (try-on) sürücüsü.
@@ -20,7 +21,7 @@ class GeminiTryOn implements GarmentTryOnContract
         private GeminiTryOnPromptBuilder $prompts,
     ) {}
 
-    public function tryOn(string $modelImagePath, string $garmentImagePath, array $extraGarmentImages = [], ?string $extraInstruction = null, ?string $protectListSentence = null): string
+    public function tryOn(string $modelImagePath, string $garmentImagePath, array $extraGarmentImages = [], ?string $extraInstruction = null, ?string $protectListSentence = null, ?array $context = null): string
     {
         $prompt = $this->prompts->build($extraGarmentImages, $extraInstruction, $protectListSentence);
 
@@ -33,12 +34,38 @@ class GeminiTryOn implements GarmentTryOnContract
             (string) config('creative.ai.gemini.image.tryon_size', ''),
         );
 
-        $bytes = $this->client->generateImage(
-            $prompt,
-            $images,
-            (string) config('creative.ai.gemini.tryon_model') ?: null,
-            $imageConfig,
-        );
+        $modelName = (string) config('creative.ai.gemini.tryon_model') ?: null;
+
+        $callStartedAt = microtime(true);
+        $bytes = $this->client->generateImage($prompt, $images, $modelName, $imageConfig);
+        $latencyMs = (int) round((microtime(true) - $callStartedAt) * 1000);
+
+        // Bu, $prompt'un (dinamik slotları dahil nihai hâliyle) ve fiilen gönderilen
+        // model/parametrelerin başka HİÇBİR yerde kalıcı olmadığı tek an — creative_tryon_results
+        // satırı bir sonraki regenerasyonda yerinde ezilir (bkz. Events/TryonGenerationRendered
+        // docblock'u). $context null ise (ör. eski/manuel çağrı yolu) sessizce atlanır.
+        if ($context !== null) {
+            // Bu event'in listener'ı (Modules/TrainingIngest) kasıtlı olarak senkron
+            // çalışır (bkz. CaptureGenerationListener docblock'u — geçici dosyalar
+            // finally'de hemen silindiği için kuyruklanamaz). Senkron bir listener'ın
+            // hatası burada yutulmazsa asıl giydirme üretimi (zaten tamamlanmış) boşuna
+            // kullanıcıya hata olarak yansır — bu event'in tanımı gereği "en iyi çaba"
+            // bir telemetri kancasıdır, üretimin başarısını asla etkilemez.
+            try {
+                event(new TryonGenerationRendered(
+                    context: $context,
+                    renderedPrompt: $prompt,
+                    modelName: $modelName ?? (string) config('creative.ai.gemini.tryon_model'),
+                    imageConfig: $imageConfig,
+                    latencyMs: $latencyMs,
+                    modelImagePath: $modelImagePath,
+                    garmentImagePath: $garmentImagePath,
+                    extraGarmentImages: $extraGarmentImages,
+                ));
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
 
         return ImageFile::temp($bytes, 'png');
     }

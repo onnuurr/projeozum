@@ -1,0 +1,14 @@
+{
+    "name": "TrainingIngest",
+    "alias": "training-ingest",
+    "description": "Giydirme üretimlerinin (girdi+prompt+çıktı+insan kararı) ayrı 'training' Postgres şemasına append-only toplanması. Fine-tune eğitimi yapmaz, yalnızca veri biriktirir.",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\TrainingIngest\\Providers\\TrainingIngestServiceProvider"
+    ],
+    "files": [],
+    "architecture": {
+        "allowed_dependencies": ["Creative", "Product"]
+    }
+}

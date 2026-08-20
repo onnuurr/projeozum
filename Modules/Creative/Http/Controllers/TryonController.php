@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Modules\Creative\Events\TryonReviewed;
 use Modules\Creative\Http\Controllers\Concerns\HandlesCreativeReview;
 use Modules\Creative\Http\Requests\GenerateTryonRequest;
 use Modules\Creative\Jobs\GenerateOnModelJob;
@@ -358,6 +359,16 @@ class TryonController extends Controller
             'reviewed_at'   => now(),
         ]);
 
+        event(new TryonReviewed(
+            resultId: $result->id,
+            generationToken: $result->generation_token,
+            verdict: $result->review_status,
+            reviewTags: $result->review_tags,
+            reviewNote: $result->review_note,
+            reviewerId: $result->reviewed_by,
+            reviewedAt: $result->reviewed_at,
+        ));
+
         $notifier->notifyDecision($result, true);
 
         return back()->with('success', 'Giydirme görseli onaylandı ve ürüne eklendi.');
@@ -378,6 +389,16 @@ class TryonController extends Controller
             'reviewed_by'   => auth()->id(),
             'reviewed_at'   => now(),
         ]);
+
+        event(new TryonReviewed(
+            resultId: $result->id,
+            generationToken: $result->generation_token,
+            verdict: $result->review_status,
+            reviewTags: $result->review_tags,
+            reviewNote: $result->review_note,
+            reviewerId: $result->reviewed_by,
+            reviewedAt: $result->reviewed_at,
+        ));
 
         $notifier->notifyDecision($result, false);
 

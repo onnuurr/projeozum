@@ -4,6 +4,7 @@ namespace Modules\Superadmin\Services;
 
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
+use Modules\Tenant\Models\Tenant;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Throwable;
@@ -58,7 +59,7 @@ class SystemInfoService
             'redisVersion'     => $this->redisVersion(),
             'webServer'        => $_SERVER['SERVER_SOFTWARE'] ?? '—',
             'serverOs'         => $this->osLabel(),
-            'totalTenants'     => $this->safeCount('tenants'),
+            'totalTenants'     => $this->safeCount('tenants', Tenant::class),
             'totalUsers'       => $this->safeCount('users', User::class),
             'totalOrders'      => $this->safeCount('orders'),
             'queueJobsPending' => $this->safeCount('jobs'),

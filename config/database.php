@@ -99,6 +99,45 @@ return [
             'sslmode' => env('DB_SSLMODE', 'prefer'),
         ],
 
+        // Eğitim verisi katmanı (Modules/TrainingIngest) — SaaS'ın 'pgsql' bağlantısından
+        // ayrı, aynı Postgres instance'ında "training" şemasına yazan bağlantı.
+        // search_path'i 'training' olduğu için Schema::create('generations', ...) gibi
+        // çağrılar otomatik olarak training.generations üretir. TRAINING_DB_URL boşsa
+        // (henüz training_writer rolü oluşturulmadıysa) TRAINING_DB_* değişkenlerine düşer.
+        'training' => [
+            'driver' => 'pgsql',
+            'url' => env('TRAINING_DB_URL'),
+            'host' => env('TRAINING_DB_HOST', env('DB_HOST', '127.0.0.1')),
+            'port' => env('TRAINING_DB_PORT', env('DB_PORT', '5432')),
+            'database' => env('TRAINING_DB_DATABASE', env('DB_DATABASE', 'laravel')),
+            'username' => env('TRAINING_DB_USERNAME', 'training_writer'),
+            'password' => env('TRAINING_DB_PASSWORD', ''),
+            'charset' => env('DB_CHARSET', 'utf8'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => 'training',
+            'sslmode' => env('DB_SSLMODE', 'prefer'),
+        ],
+
+        // SaaS üretim tablolarına (creative_*, products, product_images, users) salt-okuma
+        // erişim — yalnızca training:ingest --from/--to backfill CLI'ı tarafından kullanılır.
+        // training_reader rolü sadece SELECT yetkisine sahiptir (bkz. Modules/TrainingIngest
+        // README.md, DB rol oluşturma script'i); bu bağlantıdan hiçbir migration çalıştırılmaz.
+        'saas_readonly' => [
+            'driver' => 'pgsql',
+            'url' => env('SAAS_DB_READONLY_URL'),
+            'host' => env('SAAS_DB_READONLY_HOST', env('DB_HOST', '127.0.0.1')),
+            'port' => env('SAAS_DB_READONLY_PORT', env('DB_PORT', '5432')),
+            'database' => env('SAAS_DB_READONLY_DATABASE', env('DB_DATABASE', 'laravel')),
+            'username' => env('SAAS_DB_READONLY_USERNAME', 'training_reader'),
+            'password' => env('SAAS_DB_READONLY_PASSWORD', ''),
+            'charset' => env('DB_CHARSET', 'utf8'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => 'public',
+            'sslmode' => env('DB_SSLMODE', 'prefer'),
+        ],
+
         'sqlsrv' => [
             'driver' => 'sqlsrv',
             'url' => env('DB_URL'),

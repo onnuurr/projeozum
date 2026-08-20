@@ -60,6 +60,27 @@ return [
             'report' => false,
         ],
 
+        // Eğitim verisi katmanının (Modules/TrainingIngest) kendi R2 bucket'ı — prod
+        // medya bucket'ından ('s3' disk, AWS_* env) kasıtlı olarak ayrı, kullanıcı
+        // kararı: ürün/manken görselleriyle aynı bucket'ı paylaşmaz (yanlış silme/
+        // versiyonlama/erişim politikası çakışması riski olmasın diye). S3_* isimleri
+        // kasıtlı: mevcut AWS_* değişkenleriyle çakışmasın.
+        'training' => [
+            'driver' => 's3',
+            'key' => env('S3_ACCESS_KEY_ID'),
+            'secret' => env('S3_SECRET_ACCESS_KEY'),
+            'region' => env('S3_REGION'),
+            'bucket' => env('S3_BUCKET'),
+            'endpoint' => env('S3_ENDPOINT'),
+            'use_path_style_endpoint' => true,
+            'visibility' => 'private',
+            // Diğer disklerin aksine 'throw' => true: ingest'in kendi doğrulama kuralı
+            // ("sessizce yutulmaz") bu diskte de geçerli — bir upload sessizce
+            // başarısız olup training.assets'e hatalı bir satır yazılmasın.
+            'throw' => true,
+            'report' => false,
+        ],
+
     ],
 
     /*

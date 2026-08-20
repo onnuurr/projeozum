@@ -18,7 +18,7 @@ class FalFashnTryOn implements GarmentTryOnContract
 {
     public function __construct(private FalClient $client) {}
 
-    public function tryOn(string $modelImagePath, string $garmentImagePath, array $extraGarmentImages = [], ?string $extraInstruction = null, ?string $protectListSentence = null): string
+    public function tryOn(string $modelImagePath, string $garmentImagePath, array $extraGarmentImages = [], ?string $extraInstruction = null, ?string $protectListSentence = null, ?array $context = null): string
     {
         // fashn/tryon API'si de idm-vton gibi tek "garment_image" alanı kabul eden
         // özelleşmiş bir modeldir (LLM değildir) — ek açı/detay görselleri, metin

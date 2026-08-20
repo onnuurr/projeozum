@@ -203,6 +203,7 @@ class ProductOnModelService
         // Manken poz compose + try-on + iyileştirme adımlarının toplam süresi —
         // raporlama/detay sayfasında hangi modelin ne kadar sürdüğünü göstermek için.
         $startedAt = microtime(true);
+        $requestedAt = now();
 
         // Pozun önizleme görseli birebir duruş referansı olarak kullanılır (varsa).
         $posePreview = null;
@@ -231,7 +232,20 @@ class ProductOnModelService
             //    ret sonrası düzeltme talimatıyla — bkz. $extra yukarıda). Ret çoğunlukla
             //    giydirme adımıyla ilgili olduğu için (renk/oturma/detay) talimat burada da
             //    verilmezse "yeniden üret" aynı hatalı sonucu üretir.
-            $out = $this->tryOn->tryOn($posed, $garmentPath, $directives, $extra !== '' ? $extra : null, $protectListSentence);
+            // $context: Modules/TrainingIngest'in bu üretimi (girdi+prompt+çıktı) kalıcı
+            // toplaması için korelasyon bilgisi — bkz. Events/TryonGenerationRendered.
+            // generation_token için $expectedToken önceliklidir (regen sırasında satır
+            // henüz güncellenmemiş olabilir); o yoksa satırın o anki token'ı kullanılır.
+            $context = [
+                'result_id'        => $result->id,
+                'generation_token' => $expectedToken ?? $result->generation_token,
+                'product_id'       => $result->product_id,
+                'pose_id'          => $result->pose_id,
+                'mannequin_id'     => $result->mannequin_id,
+                'requested_at'     => $requestedAt,
+            ];
+
+            $out = $this->tryOn->tryOn($posed, $garmentPath, $directives, $extra !== '' ? $extra : null, $protectListSentence, $context);
 
             // 2b) Renk sadakati (Faz Q): kapalıysa (varsayılan) $locked === $out,
             //     davranış hiç değişmez. Açıksa ürünün rengini orijinal fotoğrafa doğru
