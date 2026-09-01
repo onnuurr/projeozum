@@ -8,9 +8,12 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Modules\Product\Http\Requests\StoreCategoryAttributeDefinitionRequest;
+use Modules\Product\Http\Requests\StoreCategoryRequest;
+use Modules\Product\Http\Requests\UpdateCategoryAttributeDefinitionRequest;
+use Modules\Product\Http\Requests\UpdateCategoryRequest;
 use Modules\Product\Models\Category;
 use Modules\Product\Models\CategoryAttributeDefinition;
 use Modules\Product\Models\CategoryMarketplaceMapping;
@@ -82,9 +85,9 @@ class CategoryController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(StoreCategoryRequest $request): RedirectResponse
     {
-        Category::create($this->validateCategory($request));
+        Category::create($request->validated());
 
         // Flash basılmıyor — Categories.vue onSuccess'te kendi toast'unu gösteriyor.
         return redirect()->route('products.categories.index');
@@ -131,9 +134,9 @@ class CategoryController extends Controller
         ]);
     }
 
-    public function update(Request $request, Category $category): RedirectResponse
+    public function update(UpdateCategoryRequest $request, Category $category): RedirectResponse
     {
-        $data = $this->validateCategory($request, $category->id);
+        $data = $request->validated();
 
         if (! empty($data['parent_id']) && (int) $data['parent_id'] === $category->id) {
             return back()->withErrors(['parent_id' => 'Bir kategori kendisinin üstü olamaz.']);
@@ -151,9 +154,7 @@ class CategoryController extends Controller
         return redirect()->route('products.categories.index');
     }
 
-    /**
-     * Birden çok kategoriyi topluca siler.
-     */
+    /** Birden çok kategoriyi topluca siler. */
     public function bulkDestroy(Request $request): RedirectResponse
     {
         $data = $request->validate([
@@ -208,23 +209,21 @@ class CategoryController extends Controller
         return redirect()->route('products.categories.index');
     }
 
-    /**
-     * Kategoriye yeni bir özellik tanımı ekler (Faz 3 — Attribute Engine).
-     */
-    public function storeAttributeDefinition(Request $request, Category $category): RedirectResponse
+    /** Kategoriye yeni bir özellik tanımı ekler (Faz 3 — Attribute Engine). */
+    public function storeAttributeDefinition(StoreCategoryAttributeDefinitionRequest $request, Category $category): RedirectResponse
     {
-        $data = $this->validateAttributeDefinition($request, $category->id);
-
-        $category->attributeDefinitions()->create($data);
+        $category->attributeDefinitions()->create(
+            $this->normalizeAttributeDefinitionData($request->validated(), $category->id),
+        );
 
         return redirect()->route('products.categories.index');
     }
 
-    public function updateAttributeDefinition(Request $request, Category $category, CategoryAttributeDefinition $definition): RedirectResponse
+    public function updateAttributeDefinition(UpdateCategoryAttributeDefinitionRequest $request, Category $category, CategoryAttributeDefinition $definition): RedirectResponse
     {
-        $data = $this->validateAttributeDefinition($request, $category->id, $definition->id);
-
-        $definition->update($data);
+        $definition->update(
+            $this->normalizeAttributeDefinitionData($request->validated(), $category->id),
+        );
 
         return redirect()->route('products.categories.index');
     }
@@ -236,49 +235,13 @@ class CategoryController extends Controller
         return redirect()->route('products.categories.index');
     }
 
-    private function validateAttributeDefinition(Request $request, int $categoryId, ?int $ignoreId = null): array
+    /** store/update ortak: category_id enjekte edilir, required/options normalize edilir. */
+    private function normalizeAttributeDefinitionData(array $data, int $categoryId): array
     {
-        $data = $request->validate([
-            'key'        => [
-                'required', 'string', 'max:64', 'regex:/^[a-z][a-z0-9_]*$/',
-                Rule::unique('category_attribute_definitions', 'key')
-                    ->where('category_id', $categoryId)
-                    ->ignore($ignoreId),
-            ],
-            'label'      => ['required', 'string', 'max:120'],
-            'type'       => ['required', Rule::in(['string', 'enum', 'number', 'boolean'])],
-            'options'    => ['nullable', 'array'],
-            'options.*'  => ['string', 'max:120'],
-            'required'   => ['nullable', 'boolean'],
-            'sort_order' => ['nullable', 'integer', 'min:0'],
-        ], [
-            'key.regex' => 'Anahtar küçük harfle başlamalı, yalnızca küçük harf/rakam/alt çizgi içerebilir.',
-        ]);
-
         $data['category_id'] = $categoryId;
         $data['required']    = $data['required'] ?? false;
         $data['options']     = $data['type'] === 'enum' ? ($data['options'] ?? []) : null;
 
         return $data;
-    }
-
-    private function validateCategory(Request $request, ?int $ignoreId = null): array
-    {
-        return $request->validate([
-            'name'       => ['required', 'string', 'max:191'],
-            'slug'       => [
-                'required',
-                'string',
-                'max:191',
-                'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/',
-                Rule::unique('product_categories', 'slug')->ignore($ignoreId),
-            ],
-            'icon'       => ['nullable', 'string', 'max:16'],
-            'parent_id'  => ['nullable', 'integer', Rule::exists('product_categories', 'id')],
-            'status'     => ['required', Rule::in(['active', 'passive'])],
-            'sort_order' => ['nullable', 'integer', 'min:0'],
-        ], [
-            'slug.regex' => 'Slug yalnızca küçük harf, rakam ve tire içerebilir.',
-        ]);
     }
 }
