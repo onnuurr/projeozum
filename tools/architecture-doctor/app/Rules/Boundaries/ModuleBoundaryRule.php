@@ -42,9 +42,21 @@ final class ModuleBoundaryRule implements ArchitectureRule
 
     public function check(): array
     {
+        // deptrac, PHPStan'ın reflection motorunu kullanıyor; o da DI container
+        // cache'ini sys_get_temp_dir() (varsayılan /tmp) altına yazıyor. Paylaşılan
+        // /tmp'taki bir dizin başka bir kullanıcı (ör. root) tarafından oluşturulmuş
+        // olabilir ve web sunucusu kullanıcısının (ör. ozumserver) yazma izni
+        // olmayabilir — bu yüzden TMPDIR'ı proje içindeki, storage/ ile aynı
+        // sahiplikteki bir klasöre sabitliyoruz.
+        $tmpDir = storage_path('app/deptrac-tmp');
+        if (! is_dir($tmpDir)) {
+            mkdir($tmpDir, 0775, true);
+        }
+
         $process = new Process(
             [base_path('vendor/bin/deptrac'), 'analyse', '--no-progress', '--formatter=json'],
             base_path(),
+            ['TMPDIR' => $tmpDir],
             timeout: 120,
         );
 
