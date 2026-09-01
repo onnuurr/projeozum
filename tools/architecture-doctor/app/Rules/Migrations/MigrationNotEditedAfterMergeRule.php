@@ -79,8 +79,14 @@ final class MigrationNotEditedAfterMergeRule implements ArchitectureRule
     {
         $relative = MigrationFileScanner::relativePath($absoluteFilePath, $repoPath);
 
+        // --follow KULLANILMAZ: git'in yeniden adlandırma/kopya benzerlik sezgisi,
+        // içeriği tesadüfen benzeyen (ör. aynı Schema::table('orders', ...)
+        // boilerplate'i) alakasız eski bir migration'ın commit geçmişini bu dosyaya
+        // yanlışlıkla bağlayıp yanlış pozitif üretebiliyor. Migration dosyaları asla
+        // yeniden adlandırılmaz (dosya adı Laravel'in migration takibinin parçası),
+        // bu yüzden tam yol eşleşmesi yeterli ve daha doğru.
         $process = new Process(
-            ['git', 'log', '--follow', '--oneline', '--', $relative],
+            ['git', 'log', '--oneline', '--', $relative],
             $repoPath,
             timeout: 15,
         );
