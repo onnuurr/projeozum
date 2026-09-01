@@ -121,7 +121,11 @@ class LogViewerTest extends TestCase
             'level'       => 'info',
         ]);
 
-        $response = $this->superadminGet(route('superadmin.logs'));
+        // module=product filtresi: LogModelActivity artık setUp()'taki
+        // Role/User/Permission oluşturmalarını da otomatik loglar (bkz.
+        // AppServiceProvider'daki genel Eloquent joker dinleyicisi) — filtresiz
+        // sorgu bu testin ilgilenmediği kayıtları da sayar.
+        $response = $this->superadminGet(route('superadmin.logs'), ['module' => 'product']);
 
         $response->assertInertia(fn (Assert $p) => $p
             ->component('Superadmin::LogViewer', false)

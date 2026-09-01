@@ -9,10 +9,12 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Modules\Atelier\Jobs\ExtractPatternFromPdfJob;
 use Modules\Atelier\Models\Pattern;
+use Modules\Atelier\Services\Ai\Contracts\PatternMetadataExtractorContract;
 use Modules\Atelier\Services\Conversion\Contracts\PdfDxfConverterContract;
 use Modules\Atelier\Services\Conversion\ConversionResult;
 use Modules\Atelier\Services\Conversion\Drivers\MockPdfDxfConverter;
 use Modules\Atelier\Services\PatternLibraryService;
+use Modules\Atelier\Services\PatternMetadataRuleEngine;
 use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
@@ -100,7 +102,12 @@ class PatternPdfImportTest extends TestCase
         $pattern = $this->library()->createPdfDraft(UploadedFile::fake()->create('k.pdf', 100, 'application/pdf'));
 
         (new ExtractPatternFromPdfJob($pattern->id))
-            ->handle(app(PdfDxfConverterContract::class), $this->library());
+            ->handle(
+                app(PdfDxfConverterContract::class),
+                $this->library(),
+                app(PatternMetadataExtractorContract::class),
+                app(PatternMetadataRuleEngine::class),
+            );
 
         $pattern->refresh();
         $this->assertSame(Pattern::EXTRACTION_DONE, $pattern->extraction_status);
@@ -135,7 +142,12 @@ class PatternPdfImportTest extends TestCase
 
         try {
             (new ExtractPatternFromPdfJob($pattern->id))
-                ->handle(app(PdfDxfConverterContract::class), $this->library());
+                ->handle(
+                    app(PdfDxfConverterContract::class),
+                    $this->library(),
+                    app(PatternMetadataExtractorContract::class),
+                    app(PatternMetadataRuleEngine::class),
+                );
             $this->fail('İstisna bekleniyordu.');
         } catch (\RuntimeException $e) {
             $this->assertSame('servis kapalı', $e->getMessage());

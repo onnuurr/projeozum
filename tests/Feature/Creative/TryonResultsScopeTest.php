@@ -68,14 +68,7 @@ class TryonResultsScopeTest extends TestCase
         $this->assertSame([$resultA->id], $ids);
     }
 
-    public function test_results_endpoint_requires_a_valid_product_id(): void
-    {
-        $this->actingAs($this->viewer())
-            ->getJson('/creative/tryon/results')
-            ->assertStatus(422);
-    }
-
-    public function test_index_global_feed_still_includes_every_product(): void
+    public function test_results_endpoint_without_product_id_returns_global_feed(): void
     {
         $productA = Product::factory()->create();
         $productB = Product::factory()->create();
@@ -84,12 +77,24 @@ class TryonResultsScopeTest extends TestCase
         $resultB = $this->tryonFor($productB);
 
         $response = $this->actingAs($this->viewer())
-            ->get('/creative/tryon')
+            ->getJson('/creative/tryon/results')
             ->assertOk();
 
-        $ids = collect($response->viewData('page')['props']['results'])->pluck('id')->all();
+        $ids = collect($response->json('data'))->pluck('id')->all();
 
         $this->assertContains($resultA->id, $ids);
         $this->assertContains($resultB->id, $ids);
+    }
+
+    public function test_index_page_no_longer_preloads_results(): void
+    {
+        $product = Product::factory()->create();
+        $this->tryonFor($product);
+
+        $response = $this->actingAs($this->viewer())
+            ->get('/creative/tryon')
+            ->assertOk();
+
+        $this->assertArrayNotHasKey('results', $response->viewData('page')['props']);
     }
 }
