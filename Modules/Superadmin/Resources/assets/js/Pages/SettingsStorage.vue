@@ -132,7 +132,7 @@
 import { defineProps } from 'vue'
 import Card from '@/Components/Card.vue'
 import Button from '@/Components/Button.vue'
-import FormField from '../../../../Shared/Resources/assets/js/Components/FormField.vue'
+import FormField from '@Modules/Shared/Resources/assets/js/Components/FormField.vue'
 
 const SENSITIVE_MASK = '••••••••'
 

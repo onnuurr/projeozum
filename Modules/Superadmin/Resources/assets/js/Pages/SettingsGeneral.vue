@@ -104,7 +104,7 @@
 import { defineProps, defineEmits } from 'vue'
 import Card from '@/Components/Card.vue'
 import Badge from '@/Components/Badge.vue'
-import FormField from '../../../../Shared/Resources/assets/js/Components/FormField.vue'
+import FormField from '@Modules/Shared/Resources/assets/js/Components/FormField.vue'
 
 defineProps({
 	form: {
