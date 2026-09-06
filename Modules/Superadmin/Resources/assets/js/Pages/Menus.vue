@@ -35,7 +35,7 @@
 				/>
 			</Card>
 
-			<RouteCatalog :routes="routes" :disabled="saving" class="mp-catalog" />
+			<RouteCatalog :routes="routesList" :disabled="saving" class="mp-catalog" />
 		</div>
 
 		<AppModal
@@ -43,40 +43,29 @@
 			:title="editing ? 'Menüyü Düzenle' : 'Yeni Menü'"
 			size="md"
 		>
-			<form id="menu-form" class="mp-form" @submit.prevent="submitForm">
-				<label>Etiket *
-					<input v-model="form.label" type="text" maxlength="100" required />
-				</label>
+			<form id="menu-form" class="menu-form" @submit.prevent="submitForm">
+				<FormField label="Etiket" required>
+					<input v-model="form.label" type="text" class="form-input" maxlength="100" required />
+				</FormField>
 
-				<label>İkon
-					<div class="mp-icon-picker">
-						<button
-							v-for="key in iconKeys"
-							:key="key"
-							type="button"
-							class="mp-icon"
-							:class="{ active: form.icon === key }"
-							:title="key"
-							@click="form.icon = (form.icon === key ? null : key)"
-							v-html="renderMenuIcon(key, 16)"
-						></button>
-					</div>
-				</label>
+				<FormField label="İkon">
+					<IconPicker v-model="form.icon" :icons="iconKeys" :render-icon="renderMenuIcon" />
+				</FormField>
 
-				<label>Route ismi
-					<input v-model="form.route_name" type="text" maxlength="150" placeholder="products.index" />
-				</label>
+				<FormField label="Route ismi">
+					<input v-model="form.route_name" type="text" class="form-input" maxlength="150" placeholder="products.index" />
+				</FormField>
 
-				<label>URL (path)
-					<input v-model="form.url" type="text" maxlength="255" placeholder="/products" />
-				</label>
+				<FormField label="URL (path)">
+					<input v-model="form.url" type="text" class="form-input" maxlength="255" placeholder="/products" />
+				</FormField>
 
-				<label>İzin (permission)
-					<select v-model="form.permission">
+				<FormField label="İzin (permission)">
+					<select v-model="form.permission" class="form-input">
 						<option :value="null">— Herkese açık —</option>
 						<option v-for="p in permissions" :key="p.name" :value="p.name">{{ p.display_name ?? p.name }}</option>
 					</select>
-				</label>
+				</FormField>
 
 				<Toggle v-model="form.is_active" label="Aktif" />
 			</form>
@@ -91,7 +80,6 @@
 
 <script setup>
 import { ref, watch, inject } from 'vue'
-import { router } from '@inertiajs/vue3'
 import { Plus } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import AppModal from '@/Components/AppModal.vue'
@@ -100,6 +88,8 @@ import Card from '@/Components/Card.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import PageHeader from '@/Components/PageHeader.vue'
 import Button from '@/Components/Button.vue'
+import FormField from '../../../../Shared/Resources/assets/js/Components/FormField.vue'
+import IconPicker from '../../../../Shared/Resources/assets/js/Components/IconPicker.vue'
 import { useToast } from '@/composables/useToast.js'
 import { menuIconKeys, renderMenuIcon } from '@/menuIcons.js'
 import MenuTree from '../Components/MenuTree.vue'
@@ -139,17 +129,55 @@ function toTree(flat) {
 const tree = ref(toTree(props.menus))
 const dirty = ref(false)
 const saving = ref(false)
+// RouteCatalog'un kendi kopyası: create/add-route sonrası kullanılan route'u
+// tam sayfa reload olmadan buradan düşürüyoruz (bkz. onAddRoute).
+const routesList = ref([...props.routes])
 
-// Sunucudan menus prop'u yenilenince (create/edit/delete sonrası reload) ağacı tazele.
+// Sunucudan menus prop'u yenilenince (ör. tam sayfa navigasyonu/geri gelme) ağacı tazele.
 watch(() => props.menus, (val) => {
 	tree.value = toTree(val)
 	dirty.value = false
 })
+watch(() => props.routes, (val) => { routesList.value = [...val] })
 
 function resetTree() {
 	clearTimeout(autoSaveTimer)
 	tree.value = toTree(props.menus)
 	dirty.value = false
+}
+
+// ── Yerel ağaç yardımcıları: create/edit/delete artık axios ile arka planda
+// çalışıyor (bkz. saveOrder'daki yorum), bu yüzden sunucudan dönen sonucu
+// tam bir Inertia reload yerine doğrudan `tree` içinde güncelliyoruz.
+function findNode(nodes, id) {
+	for (const node of nodes) {
+		if (node.id === id) return node
+		if (node.children?.length) {
+			const found = findNode(node.children, id)
+			if (found) return found
+		}
+	}
+	return null
+}
+
+function childArrayFor(parentId) {
+	if (parentId == null) return tree.value
+	const parent = findNode(tree.value, parentId)
+	if (!parent) return tree.value
+	if (!parent.children) parent.children = []
+	return parent.children
+}
+
+function removeNodeById(nodes, id) {
+	const idx = nodes.findIndex((n) => n.id === id)
+	if (idx !== -1) return nodes.splice(idx, 1)[0]
+	for (const node of nodes) {
+		if (node.children?.length) {
+			const removed = removeNodeById(node.children, id)
+			if (removed) return removed
+		}
+	}
+	return null
 }
 
 // Ağacı reorder payload'ına düzleştir: her düğüm için id/parent_id/sort_order.
@@ -236,28 +264,45 @@ function openEdit(menu) {
 	modalOpen.value = true
 }
 
+// Create/edit de saveOrder gibi düz axios ile arka planda kaydediliyor —
+// sayfa hiç yenilenmiyor, dönen kayıt doğrudan yerel ağaca yazılıyor.
 function submitForm() {
 	saving.value = true
 	const payload = { ...form.value }
-	const opts = {
-		preserveScroll: true,
-		onSuccess: () => { modalOpen.value = false; router.reload({ only: ['menus'] }) },
-		onFinish: () => { saving.value = false },
-	}
-	if (editing.value) {
-		router.put(route('superadmin.menus.update', editing.value.id), payload, opts)
-	} else {
-		router.post(route('superadmin.menus.store'), payload, opts)
-	}
+	const request = editing.value
+		? window.axios.put(route('superadmin.menus.update', editing.value.id), payload)
+		: window.axios.post(route('superadmin.menus.store'), payload)
+
+	request
+		.then(({ data }) => {
+			if (editing.value) {
+				const node = findNode(tree.value, editing.value.id)
+				if (node) Object.assign(node, data.menu, { children: node.children, __collapsed: node.__collapsed })
+				showToast({ type: 'success', title: 'Menü güncellendi', duration: 1800 })
+			} else {
+				childArrayFor(data.menu.parent_id).push({ ...data.menu, children: [] })
+				showToast({ type: 'success', title: 'Menü eklendi', duration: 1800 })
+			}
+			modalOpen.value = false
+		})
+		.catch((error) => {
+			showToast({
+				type: 'error',
+				title: editing.value ? 'Menü güncellenemedi' : 'Menü eklenemedi',
+				message: error.response?.data?.message ?? 'Lütfen tekrar deneyin.',
+			})
+		})
+		.finally(() => { saving.value = false })
 }
 
-// Sağ panelden ağaca bırakılan route'tan anında menü öğesi oluştur.
-// `saving`, POST + ardından gelen reload tamamlanana kadar true kalmalı;
-// aksi halde reload sürerken başlayan yeni bir sürükleme Inertia'nın tek
-// aktif visit'ini iptal edip ağacı tutarsız/donmuş bir durumda bırakıyordu.
+// Sağ panelden ağaca bırakılan route'tan anında menü öğesi oluştur. Sürükleme
+// anında vuedraggable, id'siz bir taslak düğümü (__route işaretli) zaten
+// `childArrayFor(parentId)` dizisine yerleştirmiş oluyor; axios yanıtı gelince
+// o taslağı gerçek kayıtla (id dahil) yerinde günceriyoruz — reload yok.
 function onAddRoute({ route: item, parentId, index }) {
 	saving.value = true
-	router.post(route('superadmin.menus.store'), {
+	const arr = childArrayFor(parentId)
+	window.axios.post(route('superadmin.menus.store'), {
 		label: item.label,
 		route_name: item.name,
 		url: '',
@@ -265,43 +310,80 @@ function onAddRoute({ route: item, parentId, index }) {
 		is_active: true,
 		parent_id: parentId,
 		sort_order: index,
-	}, {
-		preserveScroll: true,
-		onSuccess: () => {
-			router.reload({
-				only: ['menus', 'routes'],
-				onFinish: () => { saving.value = false },
-			})
-		},
-		onError: () => { saving.value = false },
 	})
+		.then(({ data }) => {
+			const node = arr.find((n) => n.__route === item) ?? arr[index]
+			if (node) {
+				Object.assign(node, data.menu, { children: node.children ?? [] })
+				delete node.__route
+			}
+			routesList.value = routesList.value.filter((r) => r.name !== item.name)
+			showToast({ type: 'success', title: 'Menü eklendi', duration: 1800 })
+		})
+		.catch((error) => {
+			// Başarısız oldu — yarım kalan taslak düğümü ağaçtan kaldır.
+			const idx = arr.findIndex((n) => n.__route === item)
+			if (idx !== -1) arr.splice(idx, 1)
+			showToast({
+				type: 'error',
+				title: 'Menü eklenemedi',
+				message: error.response?.data?.message ?? 'Lütfen tekrar deneyin.',
+			})
+		})
+		.finally(() => { saving.value = false })
 }
 
 async function removeMenu(menu) {
 	const ok = await $swal.dangerConfirm({ title: 'Menü silinsin mi?', html: `<b>${menu.label}</b> ve tüm alt menüleri kalıcı olarak silinecek.` })
 	if (!ok) return
-	router.delete(route('superadmin.menus.destroy', menu.id), {
-		preserveScroll: true,
-		onSuccess: () => router.reload({ only: ['menus'] }),
-	})
+	window.axios.delete(route('superadmin.menus.destroy', menu.id))
+		.then(() => {
+			removeNodeById(tree.value, menu.id)
+			showToast({ type: 'info', title: 'Menü silindi', duration: 1800 })
+		})
+		.catch((error) => {
+			showToast({
+				type: 'error',
+				title: 'Menü silinemedi',
+				message: error.response?.data?.message ?? 'Lütfen tekrar deneyin.',
+			})
+		})
 }
 </script>
 
 <style scoped>
-.menus-page { max-width: 100%; }
-.mp-body { display: grid; grid-template-columns: 1fr 360px; gap: 24px; align-items: start; }
-.mp-tree { min-width: 0; }
-@media (max-width: 900px) {
-	.mp-body { grid-template-columns: 1fr; }
+.menu-form {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
 }
-.mp-form { display: flex; flex-direction: column; gap: 12px; }
-.mp-form label { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; font-weight: 600; color: var(--color-muted); }
-.mp-form input[type=text], .mp-form select { border: 1px solid var(--color-outline-variant); border-radius: 8px; padding: 8px 10px; font-size: 13px; }
-.mp-icon-picker { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; }
-.mp-icon { width: 100%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border: 1px solid var(--color-outline-variant); border-radius: 8px; background: var(--color-surface); color: var(--color-muted); cursor: pointer; }
-.mp-icon.active { border-color: var(--color-primary); color: var(--color-primary); background: var(--color-primary-soft); }
 
-@media (max-width: 640px) {
-	.mp-icon-picker { grid-template-columns: repeat(5, 1fr); }
+.form-input {
+	width: 100%;
+	height: 36px;
+	padding: 0 12px;
+	border: 1.5px solid var(--color-outline-variant);
+	border-radius: 8px;
+	font-family: inherit;
+	font-size: 13px;
+	color: var(--color-ink);
+	background: var(--color-surface-container-lowest);
+	outline: none;
+	transition: border-color 0.15s;
+}
+
+.form-input:focus {
+	border-color: var(--color-primary);
+	background: var(--color-surface);
+}
+
+.form-input::placeholder {
+	color: var(--color-muted);
+}
+
+@media (max-width: 900px) {
+	:deep(.mp-body) {
+		grid-template-columns: 1fr;
+	}
 }
 </style>
