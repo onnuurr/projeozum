@@ -9,6 +9,7 @@
 				@mark-all-read="markAllNotificationsRead"
 				@read-notification="readNotification"
 				@notification-click="onNotificationClick"
+				@notifications-opened="markNotificationsReadOnOpen"
 			/>
 
 			<MainNav
@@ -68,6 +69,7 @@ const {
 	userMenu,
 	cartItemCount,
 	markAllNotificationsRead,
+	markNotificationsReadOnOpen,
 	readNotification,
 	handleUserAction,
 	onNotificationClick,

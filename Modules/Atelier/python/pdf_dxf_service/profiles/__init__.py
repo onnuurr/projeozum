@@ -8,10 +8,11 @@ candidates doldurulur (operatör seçsin → sarı).
 from __future__ import annotations
 
 from .base import ExtractionProfile
+from .burda import BurdaProfile
 from .nipnaps import NipnapsProfile
 from .ruslan import RuslanProfile
 
-REGISTRY: list = [RuslanProfile(), NipnapsProfile()]
+REGISTRY: list = [RuslanProfile(), NipnapsProfile(), BurdaProfile()]
 
 MIN_SCORE = 0.35
 TIE_GAP = 0.15

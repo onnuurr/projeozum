@@ -12,6 +12,10 @@
 		<PageHeader title="Tenant'lar">
 			<template #subtitle><strong>{{ tenants.length }}</strong> tenant kayıtlı</template>
 			<template v-if="canManage" #actions>
+				<Button variant="ghost" with-icon @click="router.visit('/tenants/applications')">
+					<template #leading><ClipboardList :size="13" /></template>
+					Başvurular
+				</Button>
 				<Button variant="primary" with-icon @click="openNew">
 					<template #leading><Plus :size="13" /></template>
 					Yeni Tenant
@@ -153,12 +157,27 @@
 					<p class="form-section-hint">Bu tenant için portal giriş hesabı bulunamadı.</p>
 				</div>
 
+				<div v-if="prefillDocuments.length" class="form-section">
+					<h4 class="form-section-title">Başvuru Belgeleri</h4>
+					<p class="form-section-hint">Unvan/VKN eşleşmesini onaylamadan önce kontrol edin:</p>
+					<div class="prefill-docs">
+						<a v-for="d in prefillDocuments" :key="d.id" :href="d.url" target="_blank" class="doc-link">
+							<FileText :size="12" /> {{ d.name }}
+						</a>
+					</div>
+				</div>
+
 				<div class="form-section">
 					<h4 class="form-section-title">Vergi & Yasal</h4>
 					<div class="form-row-2">
 						<div class="form-row">
 							<label class="form-label">Vergi No</label>
-							<input v-model="form.tax_number" type="text" class="form-input mono" placeholder="1234567890" />
+							<div class="form-inline-btn">
+								<input v-model="form.tax_number" type="text" class="form-input mono" placeholder="1234567890" @input="taxNumberCheck = null" />
+								<Button variant="ghost" size="sm" type="button" @click="checkTaxNumber">Sorgula</Button>
+							</div>
+							<span v-if="taxNumberCheck === true" class="form-hint-ok">✓ Biçim geçerli.</span>
+							<span v-else-if="taxNumberCheck === false" class="form-error">✗ Geçersiz VKN/TCKN.</span>
 							<span v-if="errors.tax_number" class="form-error">{{ errors.tax_number }}</span>
 						</div>
 						<div class="form-row">
@@ -297,9 +316,10 @@
 </template>
 
 <script setup>
-import { ref, computed, inject, reactive, watch } from 'vue'
+import { ref, computed, inject, reactive, watch, onMounted } from 'vue'
 import { Head, router, usePage } from '@inertiajs/vue3'
-import { Plus, Search, KeyRound, Pencil, Pause, Play, Trash2 } from 'lucide-vue-next'
+import { Plus, Search, KeyRound, Pencil, Pause, Play, Trash2, FileText, ClipboardList } from 'lucide-vue-next'
+import { isValidTaxNumber } from '../utils/turkishTaxNumber'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import PageHeader from '@/Components/PageHeader.vue'
@@ -318,6 +338,7 @@ const props = defineProps({
 	types: { type: Array, default: () => [] },
 	carriers: { type: Array, default: () => [] },
 	filters: { type: Object, default: () => ({}) },
+	prefillApplication: { type: Object, default: null },
 })
 
 const columns = [
@@ -381,6 +402,12 @@ const editing = ref(null)
 const busy = ref(false)
 const errors = ref({})
 const ownerExists = ref(false)
+const taxNumberCheck = ref(null)
+const prefillDocuments = ref([])
+
+function checkTaxNumber() {
+	taxNumberCheck.value = isValidTaxNumber(form.tax_number)
+}
 
 const emptyForm = () => ({
 	code: '',
@@ -393,6 +420,7 @@ const emptyForm = () => ({
 	tenant_type_id: null,
 	tax_number: '',
 	tax_office: '',
+	tenant_application_id: null,
 	email: '',
 	phone: '',
 	contact_person: '',
@@ -424,6 +452,8 @@ watch(formOpen, (open) => {
 			editing.value = null
 			ownerExists.value = false
 			errors.value = {}
+			taxNumberCheck.value = null
+			prefillDocuments.value = []
 			resetForm()
 		}, 250)
 	}
@@ -433,15 +463,52 @@ function openNew() {
 	editing.value = null
 	ownerExists.value = false
 	errors.value = {}
+	taxNumberCheck.value = null
+	prefillDocuments.value = []
 	resetForm()
 	formOpen.value = true
 }
+
+function openFromApplication(app) {
+	editing.value = null
+	ownerExists.value = false
+	errors.value = {}
+	taxNumberCheck.value = null
+	prefillDocuments.value = app.documents ?? []
+	resetForm()
+	Object.assign(form, {
+		name: app.name ?? '',
+		legal_name: app.legal_name ?? '',
+		tax_number: app.tax_number ?? '',
+		tax_office: app.tax_office ?? '',
+		email: app.email ?? '',
+		phone: app.phone ?? '',
+		contact_person: app.contact_person ?? '',
+		contact_phone: app.contact_phone ?? '',
+		address: app.address ?? '',
+		city: app.city ?? '',
+		district: app.district ?? '',
+		country: app.country ?? 'TR',
+		postal_code: app.postal_code ?? '',
+		tenant_application_id: app.id,
+	})
+	formOpen.value = true
+}
+
+onMounted(() => {
+	if (props.prefillApplication) {
+		openFromApplication(props.prefillApplication)
+	}
+})
 
 function edit(t) {
 	editing.value = t
 	ownerExists.value = !!t.owner
 	errors.value = {}
+	taxNumberCheck.value = null
+	prefillDocuments.value = []
 	Object.assign(form, {
+		tenant_application_id: null,
 		code: t.code,
 		name: t.name,
 		legal_name: t.legal_name ?? '',
@@ -611,7 +678,15 @@ async function confirmDelete(t) {
 .form-input.mono { font-family: 'SF Mono', Menlo, Consolas, monospace; }
 .form-input:focus { border-color: rgb(var(--color-primary)); }
 .form-error { font-size: 11.5px; color: rgb(var(--color-danger)); }
+.form-hint-ok { font-size: 11.5px; color: rgb(var(--color-success)); }
 .form-check { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: rgb(var(--color-ink)); }
+
+.form-inline-btn { display: flex; align-items: center; gap: 8px; }
+.form-inline-btn .form-input { flex: 1; }
+
+.prefill-docs { display: flex; flex-wrap: wrap; gap: 10px; }
+.doc-link { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: rgb(var(--color-primary)); text-decoration: none; }
+.doc-link:hover { text-decoration: underline; }
 
 @media (max-width: 560px) {
 	.form-row-2 { grid-template-columns: 1fr; }

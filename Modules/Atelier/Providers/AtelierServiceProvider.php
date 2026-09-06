@@ -4,6 +4,9 @@ namespace Modules\Atelier\Providers;
 
 use Nwidart\Modules\Support\ModuleServiceProvider;
 use Illuminate\Console\Scheduling\Schedule;
+use Modules\Atelier\Services\Ai\Contracts\PatternMetadataExtractorContract;
+use Modules\Atelier\Services\Ai\Drivers\Gemini\GeminiPatternMetadataExtractor;
+use Modules\Atelier\Services\Ai\Drivers\Mock\MockPatternMetadataExtractor;
 use Modules\Atelier\Services\Concept\Contracts\ConceptImageGeneratorContract;
 use Modules\Atelier\Services\Concept\Drivers\GeminiConceptGenerator;
 use Modules\Atelier\Services\Concept\Drivers\MockConceptGenerator;
@@ -59,6 +62,14 @@ class AtelierServiceProvider extends ModuleServiceProvider
                 && config('atelier.conversion.service_url');
 
             return $app->make($useHttp ? HttpPdfDxfConverter::class : MockPdfDxfConverter::class);
+        });
+
+        // Kalıp metadata AI çıkarımı (PİLOT): gemini (anahtar varsa), aksi halde mock.
+        $this->app->bind(PatternMetadataExtractorContract::class, function ($app) {
+            $useGemini = config('atelier.pattern_metadata_ai.driver') === 'gemini'
+                && config('creative.ai.gemini.api_key');
+
+            return $app->make($useGemini ? GeminiPatternMetadataExtractor::class : MockPatternMetadataExtractor::class);
         });
     }
 

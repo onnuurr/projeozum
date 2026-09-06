@@ -55,11 +55,16 @@ class ActivityLogger
 
         if ($subject instanceof Model) {
             $subjectType = get_class($subject);
-            $subjectId   = $subject->getKey();
+            // string kolon (bkz. widen_activity_logs_subject_id_to_string migration'ı) —
+            // auto-increment bigint PK'ler kadar UUID/ULID PK'li modelleri de (ör.
+            // Laravel'in DatabaseNotification'ı) kayıpsız taşır.
+            $subjectId = $subject->getKey() !== null ? (string) $subject->getKey() : null;
         }
 
         // ── Module çıkarımı ───────────────────────────────────────────────────
-        $module = $opts['module'] ?? $this->inferModule($subject);
+        // 'module' kolonu NOT NULL — subject'ten çıkarılamazsa (ör. Modules\ dışı
+        // veya subject yok) 'general'e düşer, INSERT asla NOT NULL ihlaliyle patlamaz.
+        $module = $opts['module'] ?? $this->inferModule($subject) ?? 'general';
 
         // ── Properties sanitizasyonu ──────────────────────────────────────────
         $properties = $this->sanitizer->sanitize($opts['properties'] ?? []);
@@ -112,6 +117,11 @@ class ActivityLogger
         // Modules\<Name>\... kalıbı
         if (preg_match('/^Modules\\\\([^\\\\]+)\\\\/i', $class, $m)) {
             return strtolower($m[1]);
+        }
+
+        // App\Models\... (çekirdek, modül dışı) — örn. User
+        if (str_starts_with($class, 'App\\')) {
+            return 'core';
         }
 
         return null;

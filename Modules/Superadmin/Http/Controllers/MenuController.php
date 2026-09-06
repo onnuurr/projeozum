@@ -5,6 +5,7 @@ namespace Modules\Superadmin\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -29,28 +30,48 @@ class MenuController extends Controller
         ]);
     }
 
-    public function store(StoreMenuRequest $request): RedirectResponse
+    /**
+     * Menus.vue create/edit/delete'i artık (reorder gibi) düz axios ile arka planda
+     * yapıyor, Inertia visit'i tetiklemiyor — bkz. oradaki yorum. Bu yüzden ajax
+     * isteklerinde JSON dönülür; header'sız (ör. eski link/form) istek gelirse eski
+     * redirect+flash davranışı korunur.
+     */
+    public function store(StoreMenuRequest $request): RedirectResponse|JsonResponse
     {
-        Menu::create($request->validated());
+        $menu = Menu::create($request->validated());
+
+        if ($request->wantsJson()) {
+            return response()->json(['menu' => $menu]);
+        }
 
         return back()->with('flash', [
             'toast' => ['type' => 'success', 'title' => 'Menü eklendi'],
         ]);
     }
 
-    public function update(UpdateMenuRequest $request, Menu $menu): RedirectResponse
+    public function update(UpdateMenuRequest $request, Menu $menu): RedirectResponse|JsonResponse
     {
         $menu->update($request->validated());
+
+        if ($request->wantsJson()) {
+            return response()->json(['menu' => $menu]);
+        }
 
         return back()->with('flash', [
             'toast' => ['type' => 'success', 'title' => 'Menü güncellendi'],
         ]);
     }
 
-    public function destroy(Menu $menu): RedirectResponse
+    public function destroy(Request $request, Menu $menu): RedirectResponse|JsonResponse
     {
+        $id = $menu->id;
+
         // FK cascadeOnDelete alt ağacı da siler.
         $menu->delete();
+
+        if ($request->wantsJson()) {
+            return response()->json(['deleted' => true, 'id' => $id]);
+        }
 
         return back()->with('flash', [
             'toast' => ['type' => 'info', 'title' => 'Menü silindi'],

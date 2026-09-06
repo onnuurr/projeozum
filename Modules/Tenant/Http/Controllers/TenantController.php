@@ -10,7 +10,9 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Product\Models\Carrier;
 use Modules\Tenant\Models\Tenant;
+use Modules\Tenant\Models\TenantApplication;
 use Modules\Tenant\Models\TenantType;
+use Modules\Tenant\Rules\ValidTaxNumber;
 use Modules\Tenant\Services\TenantService;
 
 class TenantController extends Controller
@@ -109,14 +111,73 @@ class TenantController extends Controller
                 'type_id' => $typeId ?? '',
                 'active'  => $active ?? '',
             ],
+            'prefillApplication' => $this->loadPrefillApplication($request),
         ]);
+    }
+
+    /**
+     * `/tenants/applications` inceleme kuyruğunda onaylanan bir başvurudan "Tenant
+     * Oluştur" ile buraya gelindiğinde (?from_application=ID), başvuru verilerini +
+     * yüklenen belgeleri "Yeni Tenant" formunu önceden doldurmak için hazırlar.
+     * Zaten bir tenant'a dönüştürülmüş başvurular tekrar kullanılamaz.
+     */
+    private function loadPrefillApplication(Request $request): ?array
+    {
+        $id = $request->query('from_application');
+        if (! $id) {
+            return null;
+        }
+
+        $application = TenantApplication::query()
+            ->where('status', TenantApplication::STATUS_APPROVED)
+            ->whereNull('converted_tenant_id')
+            ->with('documents')
+            ->find($id);
+
+        if (! $application) {
+            return null;
+        }
+
+        return [
+            'id'             => $application->id,
+            'name'           => $application->name,
+            'legal_name'     => $application->legal_name,
+            'tax_number'     => $application->tax_number,
+            'tax_office'     => $application->tax_office,
+            'email'          => $application->contact_email,
+            'phone'          => $application->contact_phone,
+            'contact_person' => $application->contact_person,
+            'contact_phone'  => $application->contact_phone,
+            'address'        => $application->address,
+            'city'           => $application->city,
+            'district'       => $application->district,
+            'country'        => $application->country,
+            'postal_code'    => $application->postal_code,
+            'documents'      => $application->documents->map(fn ($d) => [
+                'id'   => $d->id,
+                'type' => $d->type,
+                'name' => $d->original_filename,
+                'url'  => route('tenant-applications.documents.download', [$application->id, $d->id]),
+            ])->values(),
+        ];
     }
 
     public function store(Request $request): RedirectResponse
     {
         $data = $this->applyShippingAgreementTimestamp($this->validateTenant($request), null);
 
-        $this->service->create($data);
+        $applicationId = $data['tenant_application_id'] ?? null;
+        unset($data['tenant_application_id']);
+
+        $tenant = $this->service->create($data);
+
+        if ($applicationId) {
+            TenantApplication::query()
+                ->where('id', $applicationId)
+                ->where('status', TenantApplication::STATUS_APPROVED)
+                ->whereNull('converted_tenant_id')
+                ->update(['converted_tenant_id' => $tenant->id]);
+        }
 
         // Flash basılmıyor — Tenants.vue onSuccess'te kendi toast'unu gösteriyor.
         return redirect()->route('tenants.index');
@@ -177,8 +238,9 @@ class TenantController extends Controller
             'owner_password'    => [$isCreate ? 'required' : 'sometimes', 'string', 'min:8', 'confirmed'],
             'legal_name'        => ['nullable', 'string', 'max:255'],
             'tenant_type_id'    => ['nullable', 'integer', 'exists:tenant_types,id'],
-            'tax_number'        => ['nullable', 'string', 'max:32'],
+            'tax_number'        => ['nullable', 'string', 'max:32', new ValidTaxNumber()],
             'tax_office'        => ['nullable', 'string', 'max:191'],
+            'tenant_application_id' => ['nullable', 'integer', 'exists:tenant_applications,id'],
             'email'             => ['nullable', 'email', 'max:191'],
             'phone'             => ['nullable', 'string', 'max:32'],
             'contact_person'    => ['nullable', 'string', 'max:191'],

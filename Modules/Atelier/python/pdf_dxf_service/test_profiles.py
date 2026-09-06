@@ -163,3 +163,63 @@ def test_detect_returns_none_for_blank():
     doc.new_page(width=612, height=792)  # boş, çizimsiz
     profile, score, candidates = detect_profile(doc)
     assert profile is None
+
+
+from profiles.generic import GenericGridProfile
+
+GEN_A4_W_PT, GEN_A4_H_PT = 595.0, 842.0
+
+
+def test_generic_grid_never_auto_selected():
+    # match() her zaman 0 — REGISTRY skorlamasına katılmaz (yalnızca converter'ın
+    # açık fallback yolundan çağrılır, bkz. converter._try_generic_grid).
+    assert GenericGridProfile().match(fitz.open()) == 0.0
+    names = {p.name for p in REGISTRY}
+    assert "generic_grid" not in names
+
+
+def test_generic_grid_direct_paren_pattern():
+    p = GenericGridProfile()
+    assert p.parse_grid("köşe (2, 3) etiket") == (2, 3)
+    assert p.parse_grid("etiket yok") is None
+
+
+def test_generic_own_tile_label_is_statistical_outlier():
+    doc = fitz.open()
+    page = doc.new_page(width=GEN_A4_W_PT, height=GEN_A4_H_PT)
+    page.insert_text((40, 40), "dikiş payı dahil değildir", fontsize=9)
+    page.insert_text((200, 400), "07", fontsize=55)  # Burda'nın 100pt eşiğinin ALTINDA
+    p = GenericGridProfile()
+    assert p.own_tile_label(page) == "07"
+
+
+def test_generic_own_tile_label_none_when_no_outlier():
+    doc = fitz.open()
+    page = doc.new_page(width=GEN_A4_W_PT, height=GEN_A4_H_PT)
+    page.insert_text((40, 40), "sıradan metin 07 burada", fontsize=10)
+    p = GenericGridProfile()
+    assert p.own_tile_label(page) is None
+
+
+def test_generic_build_grid_map_clusters_overview_page():
+    doc = fitz.open()
+    overview = doc.new_page(width=GEN_A4_W_PT, height=GEN_A4_H_PT)
+    grid = [["11", "12", "13"], ["21", "22", "23"], ["31", "32", "33"]]
+    for r, row in enumerate(grid):
+        for c, lbl in enumerate(row):
+            overview.insert_text((100 + c * 130, 100 + r * 130), lbl, fontsize=45)
+    p = GenericGridProfile()
+    gm = p.build_grid_map(doc)
+    assert gm == {
+        "11": (1, 1), "12": (1, 2), "13": (1, 3),
+        "21": (2, 1), "22": (2, 2), "23": (2, 3),
+        "31": (3, 1), "32": (3, 2), "33": (3, 3),
+    }
+
+
+def test_generic_build_grid_map_none_when_too_few_labels():
+    doc = fitz.open()
+    page = doc.new_page(width=GEN_A4_W_PT, height=GEN_A4_H_PT)
+    page.insert_text((100, 100), "11", fontsize=14)
+    page.insert_text((100, 130), "12", fontsize=14)
+    assert GenericGridProfile().build_grid_map(doc) is None

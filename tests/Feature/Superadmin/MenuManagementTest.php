@@ -79,6 +79,40 @@ class MenuManagementTest extends TestCase
         $this->assertDatabaseHas('superadmin_menus', ['id' => $menu->id, 'label' => 'Yeni']);
     }
 
+    public function test_superadmin_create_edit_delete_return_json_for_axios_requests(): void
+    {
+        // Menus.vue create/edit/delete artık düz axios ile (reorder gibi) çağrılıyor —
+        // sayfa yenilenmiyor, sonuç doğrudan yerel ağaca yazılıyor. axios'un varsayılan
+        // Accept header'ı (application/json, text/plain, */*) wantsJson()'ı true yapar.
+        $headers = ['Accept' => 'application/json, text/plain, */*'];
+
+        $created = $this->actingAs($this->superadmin)
+            ->post('/superadmin/menus', [
+                'label'      => 'Katalog',
+                'icon'       => 'package',
+                'sort_order' => 0,
+                'is_active'  => true,
+            ], $headers)
+            ->assertOk()
+            ->assertJsonPath('menu.label', 'Katalog')
+            ->json('menu');
+
+        $this->actingAs($this->superadmin)
+            ->put("/superadmin/menus/{$created['id']}", [
+                'label'     => 'Katalog v2',
+                'is_active' => true,
+            ], $headers)
+            ->assertOk()
+            ->assertJsonPath('menu.label', 'Katalog v2');
+
+        $this->actingAs($this->superadmin)
+            ->delete("/superadmin/menus/{$created['id']}", [], $headers)
+            ->assertOk()
+            ->assertJson(['deleted' => true, 'id' => $created['id']]);
+
+        $this->assertDatabaseMissing('superadmin_menus', ['id' => $created['id']]);
+    }
+
     public function test_deleting_menu_cascades_to_children(): void
     {
         $root  = Menu::create(['label' => 'Kök', 'sort_order' => 0]);

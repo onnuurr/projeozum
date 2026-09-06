@@ -47,7 +47,7 @@ class MannequinPromptBuilder
                 $subject,
                 $subject,
             ),
-            $hasRef ? $this->referenceAnchor() : $this->identity($request),
+            $hasRef ? $this->referenceAnchor($subject) : $this->identity($request),
             $this->distinctiveness($hasRef),
             $this->expression($request),
             $this->descriptors($request),
@@ -70,7 +70,7 @@ class MannequinPromptBuilder
      */
     private function identity(MannequinRequest $request): ?string
     {
-        $profile = $this->identityProfile();
+        $profile = $this->identityProfile($this->normalizeGender($request->gender));
 
         $face = trim((string) $request->face);
         $skin = trim((string) $request->skinTone);
@@ -125,14 +125,27 @@ class MannequinPromptBuilder
      * tonu/ışık/doku/fotografik zemin için görsel bir çapa olarak kullanılır.
      * Referanstaki kişinin yüzü birebir kopyalanmaz (bkz. distinctiveness) —
      * hem consent/KVKK riskini azaltır hem de "twin" sorununu tekrar üretmez.
+     *
+     * Regresyon (2026-09): bir referans fotoğrafı verildiğinde, fotoğrafın
+     * gerçek piksel içeriği (image-to-image koşullama) modele metinden çok
+     * daha güçlü bir sinyal olabiliyor — ör. "erkek" istenmiş olsa bile
+     * referans fotoğrafı bir kız/kadın gösteriyorsa model o cinsiyeti
+     * üretebiliyordu ("do not copy identity" ifadesi tek başına bunu
+     * engellemiyordu). $subject (subjectNoun() çıktısı) burada AÇIKÇA
+     * tekrarlanıp fotoğrafın görünen cinsiyet/yaşının bunu asla ezemeyeceği
+     * söyleniyor — çelişen sinyalin hemen yanına, somut bir istisna olarak.
      */
-    private function referenceAnchor(): string
+    private function referenceAnchor(string $subject): string
     {
         return 'A reference photograph is attached purely as a visual anchor for photographic realism: use it to '
             . 'guide realistic skin texture and tone, natural lighting behavior and true-to-life photographic '
             . 'grounding. Do NOT reproduce the exact facial identity of the person in the reference photo — '
             . 'generate a different, original individual, but match the reference\'s level of authentic, '
-            . 'unretouched photographic realism.';
+            . 'unretouched photographic realism. '
+            . sprintf(
+                'CRITICAL: no matter what gender, age or ethnicity the reference photo appears to show, the generated person MUST be %s exactly as specified above — the reference photo\'s apparent gender and age must NEVER override the requested subject.',
+                $subject,
+            );
     }
 
     /**
@@ -158,18 +171,53 @@ class MannequinPromptBuilder
      * bir varyant seçilir. Bu sayede aynı profildeki mankenler etnik/ten
      * çapasını korurken birebir aynı yüze ("kardeş" gibi) sahip olmaz.
      *
+     * @param  string  $gender  normalizeGender() çıktısı (female|male|neutral|<ham>) —
+     *         'hairstyle' gibi cinsiyete göre ayrılmış parçalar için kullanılır.
      * @return array<string,string>
      */
-    private function identityProfile(): array
+    private function identityProfile(string $gender): array
     {
         $key      = (string) config('creative.ai.prompt.default_identity_profile', 'turkish_anatolian');
         $profiles = (array) config('creative.ai.prompt.identity_profiles', []);
         $profile  = (array) ($profiles[$key] ?? []);
 
         return array_filter(
-            array_map(fn ($variants) => $this->pickVariant($variants), $profile),
+            array_map(fn ($variants) => $this->pickVariant($this->resolveGenderVariants($variants, $gender)), $profile),
             fn ($v) => is_string($v) && trim($v) !== '',
         );
+    }
+
+    /**
+     * Bir kimlik parçası config'te cinsiyete göre ayrılmış olabilir (ör.
+     * 'hairstyle' => ['female' => [...], 'male' => [...], 'neutral' => [...]])
+     * — bu durumda İLGİLİ cinsiyetin listesi seçilip döndürülür (yoksa
+     * 'neutral', o da yoksa tüm alt listeler birleştirilir). Düz bir liste/sabit
+     * metinse (cinsiyetsiz parçalar: yüz, burun, ten, göz, ayırt edici detay)
+     * DOKUNULMADAN geri verilir.
+     *
+     * Bu ayrım BİLEREK var: 'hairstyle' TAMAMEN kadın saç modellerinden (uzun
+     * saç, at kuyruğu, topuz, örgü) oluşuyordu ve subjectNoun()'daki "an adult
+     * man" ifadesiyle çelişip görsel üretim modelinin cinsiyeti yanlış
+     * üretmesine yol açıyordu (bkz. config.php'deki not) — çünkü uzun
+     * saç/at kuyruğu gibi somut, güçlü görsel betimlemeler modele metindeki
+     * özne isminden daha ağır basabiliyor.
+     */
+    private function resolveGenderVariants(mixed $variants, string $gender): mixed
+    {
+        if (! is_array($variants)) {
+            return $variants;
+        }
+
+        $genderKeys = ['female', 'male', 'neutral'];
+        if (array_intersect(array_keys($variants), $genderKeys) === []) {
+            return $variants; // cinsiyete göre ayrılmamış düz bir liste.
+        }
+
+        if (isset($variants[$gender])) {
+            return $variants[$gender];
+        }
+
+        return $variants['neutral'] ?? array_merge(...array_values($variants));
     }
 
     /**

@@ -20,6 +20,16 @@ interface PdfDxfConverterContract
     public function convert(string $pdfAbsolutePath): ConversionResult;
 
     /**
+     * Yerel bir kalıp FOTOĞRAFINI DXF'e çevirir. Fotoğrafta bilinen boyutlu bir
+     * ArUco referans marker (DICT_4X4_50) kalıp kağıdıyla aynı düzlemde görünmeli —
+     * yoksa 'red' + operatöre marker'lı yeniden çekim talimatı döner.
+     *
+     * @param  string  $photoAbsolutePath  dönüştürülecek fotoğrafın mutlak yolu
+     * @param  float   $markerMm           referans marker'ın gerçek kenar uzunluğu (mm)
+     */
+    public function convertPhoto(string $photoAbsolutePath, float $markerMm = 40.0): ConversionResult;
+
+    /**
      * Hızlı ön-kontrol: PDF vektör mü, raster (taranmış) mı? DXF üretmez.
      * Yükleme anında raster dosyayı baştan elemek için. Kontrol yapılamıyorsa
      * (servis kapalı / mock) null döner → çağıran akışı engellemez.

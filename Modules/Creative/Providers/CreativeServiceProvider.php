@@ -5,6 +5,7 @@ namespace Modules\Creative\Providers;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 use Modules\Creative\Console\Commands\CreativeReviewReportCommand;
 use Modules\Creative\Console\Commands\TrainGarmentDetectorCommand;
+use Modules\Creative\Console\Commands\TryonPromptCompareCommand;
 use Modules\Creative\Services\Ai\Contracts\CaptionGeneratorContract;
 use Modules\Creative\Services\Ai\Contracts\CompositionComposerContract;
 use Modules\Creative\Services\Ai\Contracts\CopyGeneratorContract;
@@ -18,6 +19,7 @@ use Modules\Creative\Services\Ai\Contracts\RejectionInsightContract;
 use Modules\Creative\Services\Ai\Contracts\SceneComposerContract;
 use Modules\Creative\Services\Ai\Drivers\Fal\FalFashnTryOn;
 use Modules\Creative\Services\Ai\Drivers\Fal\FalFluxComposer;
+use Modules\Creative\Services\Ai\Drivers\Fal\FalFluxVtoTryOn;
 use Modules\Creative\Services\Ai\Drivers\Gemini\GeminiCaptionGenerator;
 use Modules\Creative\Services\Ai\Drivers\Gemini\GeminiCopyGenerator;
 use Modules\Creative\Services\Ai\Drivers\Gemini\GeminiIdentitySummarizer;
@@ -77,6 +79,7 @@ class CreativeServiceProvider extends ModuleServiceProvider
     protected array $commands = [
         CreativeReviewReportCommand::class,
         TrainGarmentDetectorCommand::class,
+        TryonPromptCompareCommand::class,
     ];
 
     public function register(): void
@@ -214,16 +217,22 @@ class CreativeServiceProvider extends ModuleServiceProvider
             return $app->make($useGemini ? GeminiPosePreviewComposer::class : MockPosePreviewComposer::class);
         });
 
-        // AI try-on sürücüsü: gemini (Nano Banana 2) → fal (fashn/tryon v1.6) → mock.
-        // Seçilen sürücünün anahtarı yoksa mock'a düşülür.
+        // AI try-on sürücüsü: gemini (Nano Banana 2) → fal → mock. Seçilen
+        // sürücünün anahtarı yoksa mock'a düşülür. fal tarafında iki farklı
+        // model şeması desteklenir — hangisinin bağlanacağı `creative.ai.fal.model`
+        // (FAL_TRYON_MODEL) değerine göre belirlenir: fashn/tryon (sabit warp
+        // API'si, FalFashnTryOn) veya flux-pro/v1/vto (prompt tabanlı FLUX,
+        // FalFluxVtoTryOn) — bkz. o sürücülerin sınıf dokblokları.
         $this->app->bind(GarmentTryOnContract::class, function ($app) {
             $driver = config('creative.ai.tryon_driver');
             $hasGemini = (bool) config('creative.ai.gemini.api_key');
             $hasFal    = (bool) config('creative.ai.fal.key');
+            $isFashn   = str_contains((string) config('creative.ai.fal.model'), 'fashn');
 
             $class = match (true) {
                 $driver === 'gemini' && $hasGemini => GeminiTryOn::class,
-                $driver === 'fal' && $hasFal        => FalFashnTryOn::class,
+                $driver === 'fal' && $hasFal && $isFashn => FalFashnTryOn::class,
+                $driver === 'fal' && $hasFal        => FalFluxVtoTryOn::class,
                 default                             => MockTryOn::class,
             };
 

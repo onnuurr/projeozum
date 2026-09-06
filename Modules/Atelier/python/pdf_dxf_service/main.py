@@ -21,6 +21,7 @@ from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.responses import JSONResponse, Response
 
 from converter import build_dxf_from_polylines, convert_pdf, probe_pdf
+from photo_vectorize import DEFAULT_MARKER_MM, vectorize_photo
 
 app = FastAPI(title="Atelier PDF→DXF", version="0.1.0")
 
@@ -85,6 +86,35 @@ async def render(file: UploadFile = File(...),
         "X-Page-Count": str(doc.page_count),
         "X-Width": str(pix.width),
         "X-Height": str(pix.height),
+    })
+
+
+@app.post("/convert-photo")
+async def convert_photo(file: UploadFile = File(...),
+                        marker_mm: float = Form(DEFAULT_MARKER_MM)) -> JSONResponse:
+    """Kalıp fotoğrafı → DXF. Fotoğrafta bilinen boyutlu bir ArUco marker (DICT_4X4_50)
+    kalıp kağıdıyla aynı düzlemde görünmeli (bkz. photo_vectorize.py)."""
+    data = await file.read()
+    if not data:
+        return JSONResponse(
+            {"classification": "red", "confidence": 0, "dxf_base64": None,
+             "metadata": {}, "errors": ["Boş dosya."]},
+            status_code=200,
+        )
+
+    result = vectorize_photo(data, file.filename or "", marker_mm)
+
+    dxf_b64 = (
+        base64.b64encode(result.dxf.encode("utf-8")).decode("ascii")
+        if result.dxf else None
+    )
+
+    return JSONResponse({
+        "classification": result.classification,
+        "confidence": result.confidence,
+        "dxf_base64": dxf_b64,
+        "metadata": result.metadata,
+        "errors": result.errors,
     })
 
 

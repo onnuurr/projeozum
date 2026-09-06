@@ -27,10 +27,10 @@ class Pattern extends Model
 
     protected $fillable = [
         'code', 'name', 'product_type', 'size_range', 'vendor', 'collection',
-        'scale_verified', 'scale_deviation_mm', 'dxf_path', 'pdf_path',
+        'scale_verified', 'scale_deviation_mm', 'dxf_path', 'pdf_path', 'photo_path',
         'preview_image_path', 'status', 'extraction_status', 'extraction_error',
         'size_layers', 'color_size_map', 'measurements', 'fabric_usage',
-        'notes', 'created_by',
+        'ai_metadata', 'notes', 'created_by',
     ];
 
     protected $casts = [
@@ -40,6 +40,7 @@ class Pattern extends Model
         'color_size_map'     => 'array',
         'measurements'       => 'array',
         'fabric_usage'       => 'array',
+        'ai_metadata'        => 'array',
     ];
 
     public function parts(): HasMany

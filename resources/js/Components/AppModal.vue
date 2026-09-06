@@ -97,6 +97,10 @@ onBeforeUnmount(() => {
 	border-radius: 18px;
 	box-shadow: 0 8px 40px rgba(0, 0, 0, .14), 0 2px 8px rgba(0, 0, 0, .08);
 	width: 100%; max-width: 480px;
+	/* Overlay'in 20px dolgusuna göre viewport'a sığdır — aksi halde uzun formlar
+	   (ör. Kalıp ekle/düzenle) modal'ı ekranın dışına taşırır, alt kısım/kaydet
+	   butonu görünmez olur ve kaydırma imkânı olmazdı. */
+	max-height: calc(100vh - 40px);
 	display: flex; flex-direction: column;
 	transform: scale(.95) translateY(10px);
 	transition: transform .22s cubic-bezier(.34, 1.56, .64, 1), opacity .2s ease;
@@ -122,15 +126,6 @@ onBeforeUnmount(() => {
 		max-height: calc(100vh - 40px);
 	}
 }
-.modal.modal-lg .modal-body {
-	flex: 1;
-	overflow-y: auto;
-	min-height: 0;
-}
-.modal.modal-lg .modal-body::-webkit-scrollbar { width: 5px; }
-.modal.modal-lg .modal-body::-webkit-scrollbar-track { background: transparent; margin: 8px 0; }
-.modal.modal-lg .modal-body::-webkit-scrollbar-thumb { background: #d8d8e8; border-radius: 5px; }
-.modal.modal-lg .modal-body::-webkit-scrollbar-thumb:hover { background: #b8b8c8; }
 
 @media (max-width: 900px) {
 	.modal.modal-lg { width: 92vw; max-width: 92vw; height: 86vh; max-height: 86vh; }
@@ -163,7 +158,14 @@ onBeforeUnmount(() => {
 .modal-body {
 	padding: 18px 22px;
 	font-size: 13.5px; color: #4a4a6a; line-height: 1.65;
+	flex: 1;
+	overflow-y: auto;
+	min-height: 0;
 }
+.modal-body::-webkit-scrollbar { width: 5px; }
+.modal-body::-webkit-scrollbar-track { background: transparent; margin: 8px 0; }
+.modal-body::-webkit-scrollbar-thumb { background: #d8d8e8; border-radius: 5px; }
+.modal-body::-webkit-scrollbar-thumb:hover { background: #b8b8c8; }
 .modal-body .modal-info-row {
 	display: flex; align-items: center; gap: 10px;
 	padding: 10px 12px; border-radius: 10px;

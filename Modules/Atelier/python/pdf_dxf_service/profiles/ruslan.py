@@ -8,13 +8,13 @@ from __future__ import annotations
 
 import re
 
-from .base import ExtractionProfile, color_matches, is_a4, scan_lexicon
+from .base import ExtractionProfile, color_matches, effective_color, is_a4, scan_lexicon
 
 BLACK = (0.0, 0.0, 0.0)
 BLACK_TOL = 0.18
 MAX_WIDTH_PT = 0.6
 
-COORD_RE = re.compile(r"\((\d+)\s*,\s*(\d+)\)")
+COORD_RE = re.compile(r"\(\s*(\d+)\s*,\s*(\d+)\s*\)")
 SIZE_RE = re.compile(r"[рp]\.?\s*(\d+)\s*[-–]\s*(\d+)", re.IGNORECASE)
 
 PRODUCT_LEXICON = {
@@ -77,12 +77,19 @@ class RuslanProfile(ExtractionProfile):
             if self.parse_grid(page.get_text("text")):
                 paren += 1
             for path in page.get_drawings():
-                if self.accept_line(path.get("color"), path.get("width") or 0.0):
+                if self.accept_line(effective_color(path), path.get("width") or 0.0):
                     black += 1
                     break
-        score = 0.0
-        if paren >= 2:
-            score += 0.5
+        # "(satır, sütun)" ızgara etiketi bu profilin GERÇEK imzasıdır (bkz. modül
+        # docblock'u) — ince siyah çizgi tek başına ayırt edici değildir, hemen her
+        # vektör kalıp PDF'inde bulunur (başka satıcılar dahil). Etiket yoksa bu
+        # profil değildir; yalnızca çizgi varlığından skor üretmek yanlış pozitif
+        # eşleşmeye yol açar (bkz. Modules/Atelier/Services/PatternUrlImportService.php
+        # docblock'undaki vikroim.ru/Knippie vakası — etiketsiz PDF ruslan sanılıp
+        # "kalıp karosu bulunamadı" ile başarısız oluyordu).
+        if paren < 2:
+            return 0.0
+        score = 0.5
         if black >= 2:
             score += 0.4
         return min(score, 1.0)

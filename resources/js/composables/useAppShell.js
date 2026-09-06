@@ -142,6 +142,13 @@ export function useAppShell() {
 		router.post(route('notifications.read', id), {}, { preserveScroll: true, preserveState: true })
 	}
 
+	// Bildirim paneli açıldığında çağrılır: kullanıcı hiçbir şeye tıklamadan,
+	// arka planda sessizce (toast/uyarı YOK) tüm bildirimleri okundu işaretler.
+	function markNotificationsReadOnOpen() {
+		if (!visibleNotifications.value.some((n) => !n.read)) return
+		router.post(route('notifications.read-all'), {}, { preserveScroll: true, preserveState: true })
+	}
+
 	function onNotificationClick(notification) {
 		if (notification?.id) readNotification(notification.id)
 		if (notification?.link) router.visit(notification.link)
@@ -450,6 +457,7 @@ export function useAppShell() {
 		sidebarBottom,
 		visibleNotifications,
 		markAllNotificationsRead,
+		markNotificationsReadOnOpen,
 		readNotification,
 		onNotificationClick,
 		handleUserAction,

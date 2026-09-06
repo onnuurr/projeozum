@@ -22,6 +22,8 @@ use Modules\Creative\Models\Mannequin;
 use Modules\Creative\Models\Pose;
 use Modules\Creative\Models\TryonResult;
 use Modules\Creative\Services\Enhancement\GarmentDetailClassifierContract;
+use Modules\Creative\Services\FalBalanceService;
+use Modules\Creative\Services\GeminiSpendService;
 use Modules\Creative\Services\ProductOnModelService;
 use Modules\Creative\Services\ReviewNotifier;
 use Modules\Product\Models\Product;
@@ -39,7 +41,7 @@ class TryonController extends Controller
      */
     private const PRODUCT_PAGE_SIZE = 60;
 
-    public function index(): Response
+    public function index(FalBalanceService $falBalance, GeminiSpendService $geminiSpend): Response
     {
         $productsTotal = Product::query()->count();
 
@@ -73,58 +75,59 @@ class TryonController extends Controller
                 'preview_url' => $this->url($p->preview_image_path),
             ]);
 
-        // Ürün seçilmeden önce (ör. yalnız 'creative.approve' yetkisiyle onay bekleyen
-        // her ürünü inceleyen bir onaylayıcı için) genel/global son giydirmeler akışı —
-        // ürüne özel liste {@see results()} uç noktasından axios ile ayrıca çekilir.
-        $results = $this->mapTryonResults(
-            $this->tryonResultsQuery()->latest()->limit(60)->get(),
-        );
-
+        // Son giydirmeler galerisi (global + ürüne özel) artık ilk sayfa yükünü
+        // ağırlaştırmasın diye burada HİÇ hesaplanmaz — sayfa açılır açılmaz
+        // {@see results()} uç noktasından axios ile ayrıca (bloklamadan) çekilir.
         return Inertia::render('Creative::CreativeTryon', [
             'products'         => $products,
             'productsTotal'    => $productsTotal,
             'mannequins'       => $mannequins,
             'poses'            => $poses,
-            'results'          => $results,
             'rejectionReasons' => $this->rejectionReasonGroups('tryon'),
+            'falBalance'       => $falBalance->current(),
+            'geminiSpend'      => $geminiSpend->currentMonthSpend(),
         ]);
     }
 
     /**
-     * Ürün seçici arama uç noktası (axios ile çağrılır, Inertia sayfası değil) —
-     * {@see index()}'in yalnız ilk {@see PRODUCT_PAGE_SIZE} ürünü göndermesinin
-     * karşılığı: kullanıcı arama kutusuna yazınca kalan katalog buradan gelir.
+     * Ürün seçici arama/sayfalama uç noktası (axios ile çağrılır, Inertia sayfası
+     * değil) — {@see index()}'in yalnız ilk {@see PRODUCT_PAGE_SIZE} ürünü
+     * göndermesinin karşılığı: arama kutusuna yazınca (q) ya da "Daha fazla
+     * yükle"ye basınca (offset) kalan katalog buradan gelir.
      */
     public function products(Request $request): JsonResponse
     {
         $q = $request->string('q')->trim()->value() ?: null;
+        $offset = max(0, $request->integer('offset'));
 
         $products = $this->mapProducts(
-            $this->searchProducts($q)->take(self::PRODUCT_PAGE_SIZE)->get(['id', 'name']),
+            $this->searchProducts($q)->skip($offset)->take(self::PRODUCT_PAGE_SIZE)->get(['id', 'name']),
         );
 
         return response()->json(['data' => $products]);
     }
 
     /**
-     * Belirli bir ürünün TÜM giydirme geçmişi (axios ile çağrılır) — index()'teki
-     * global son-60 listesi ürüne özel değildir; bir ürün seçildiğinde galeri bu
-     * uç noktadan gelen ürüne-özel listeye geçer, böylece başka ürünlerin
-     * giydirmeleri karışmaz.
+     * Son giydirmeler galerisi (axios ile çağrılır) — product_id verilmezse
+     * TÜM ürünlerin son 60 kaydı (global akış: ör. yalnız 'creative.approve'
+     * yetkisiyle onay bekleyen her ürünü inceleyen, sihirbazı hiç görmeyen bir
+     * onaylayıcı için), verilirse o ürünün TÜM geçmişi (200 kayda kadar) döner.
+     * {@see index()} artık bunu hiç hesaplamaz — ilk sayfa yükünü ağırlaştırmasın
+     * diye sayfa açıldıktan sonra buradan ayrıca (bloklamadan) çekilir.
      */
     public function results(Request $request): JsonResponse
     {
-        $data = $request->validate(['product_id' => ['required', 'integer', 'exists:products,id']]);
+        $data = $request->validate(['product_id' => ['nullable', 'integer', 'exists:products,id']]);
 
-        $results = $this->mapTryonResults(
-            $this->tryonResultsQuery()
-                ->where('product_id', $data['product_id'])
-                ->latest()
-                ->limit(200)
-                ->get(),
-        );
+        $query = $this->tryonResultsQuery()->latest();
 
-        return response()->json(['data' => $results]);
+        if (! empty($data['product_id'])) {
+            $query->where('product_id', $data['product_id'])->limit(200);
+        } else {
+            $query->limit(60);
+        }
+
+        return response()->json(['data' => $this->mapTryonResults($query->get())]);
     }
 
     private function tryonResultsQuery(): Builder

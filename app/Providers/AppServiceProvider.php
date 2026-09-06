@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Listeners\LogFailedLogin;
 use App\Listeners\LogLockout;
+use App\Listeners\LogModelActivity;
 use App\Listeners\LogPasswordReset;
 use App\Listeners\LogSuccessfulLogin;
 use App\Listeners\LogSuccessfulLogout;
@@ -67,5 +68,10 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(Failed::class, LogFailedLogin::class);
         Event::listen(Lockout::class, LogLockout::class);
         Event::listen(PasswordReset::class, LogPasswordReset::class);
+
+        // ── Genel CRUD aktivite loglama (tüm Eloquent modelleri, joker event) ─
+        Event::listen('eloquent.created: *', [LogModelActivity::class, 'created']);
+        Event::listen('eloquent.updated: *', [LogModelActivity::class, 'updated']);
+        Event::listen('eloquent.deleted: *', [LogModelActivity::class, 'deleted']);
     }
 }

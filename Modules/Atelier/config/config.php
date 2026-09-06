@@ -47,4 +47,49 @@ return [
         'pdf_dir'     => 'atelier/conversions/pdf',
         'dxf_dir'     => 'atelier/conversions/dxf',
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Linkten Kalıp İçe Aktarma
+    |--------------------------------------------------------------------------
+    | "Link ile yükle" — tedarikçi ürün sayfasından PDF + önizleme görselini
+    | otomatik bulup indirir (bkz. PatternUrlImportService). SSRF önleme: yalnızca
+    | burada listelenen (alt-)domainlerden indirim yapılır, https zorunludur.
+    */
+    'pattern_import' => [
+        'allowed_hosts' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', env('ATELIER_PATTERN_IMPORT_HOSTS', 'vikroim.ru'))
+        ))),
+        'timeout' => (int) env('ATELIER_PATTERN_IMPORT_TIMEOUT', 20),
+        // vikroim.ru gibi kaynaklarda PDF, vk.com/vk.ru'daki bir Mail.ru Cloud
+        // görüntüleyiciye yönleniyor; gerçek dosya yalnızca JS ile "Dosyayı indir"
+        // tıklaması sonrası oluşuyor (bkz. resolvers/vk-doc/resolve.mjs, izole
+        // Playwright/Chromium alt-projesi — ana Vite derlemesinden bağımsız).
+        'headless_timeout' => (int) env('ATELIER_PATTERN_IMPORT_HEADLESS_TIMEOUT', 60),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Kalıp Metadata AI Çıkarımı (PİLOT — yalnızca product_type + size_range)
+    |--------------------------------------------------------------------------
+    | Bilinmeyen satıcı formatlarında (profil eşleşmedi/genel çıkarım) ürün tipi
+    | ve beden aralığını PDF kapak sayfasının görselinden Gemini Vision ile
+    | tahmin eder. Ham çıktı HER ZAMAN patterns.ai_metadata'da (versioned zarf)
+    | saklanır; gerçek kolonlara yalnızca confidence_threshold'u geçen alanlar
+    | yazılır (bkz. Modules/Atelier/Services/PatternMetadataRuleEngine). Hata/
+    | düşük güven → sessizce atlanır, çıkarım akışını bozmaz.
+    */
+    'pattern_metadata_ai' => [
+        // gemini | mock
+        'driver' => env('ATELIER_PATTERN_METADATA_AI_DRIVER', 'gemini'),
+        'confidence_threshold' => (float) env('ATELIER_PATTERN_METADATA_AI_THRESHOLD', 0.6),
+        'prompt_version' => 1,
+        // Kapalı sözlük — mevcut satıcı profillerinin (ruslan/nipnaps) lexicon'larıyla
+        // ve gözlenen örneklerle tutarlı. Yeni bir kategori sık çıkarsa buraya eklenir.
+        'product_type_enum' => [
+            'tulum', 'ceket', 'pantolon', 'elbise', 'kapüşonlu', 'tişört',
+            'etek', 'şort', 'üst', 'gömlek', 'palto',
+        ],
+    ],
 ];

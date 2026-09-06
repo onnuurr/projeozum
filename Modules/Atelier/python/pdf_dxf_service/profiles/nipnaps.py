@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import re
 
-from .base import ExtractionProfile, color_matches, is_a4, scan_lexicon
+from .base import ExtractionProfile, color_matches, effective_color, is_a4, scan_lexicon
 
 # Ölçülen RGB (0..1) → beden rolü. Siyah = bedenler-arası ortak çizgi/işaret.
 PALETTE = [
@@ -65,7 +65,7 @@ class NipnapsProfile(ExtractionProfile):
     def _accepted_count(self, page, cap: int = 25) -> int:
         n = 0
         for path in page.get_drawings():
-            if self.accept_line(path.get("color"), path.get("width") or 0.0):
+            if self.accept_line(effective_color(path), path.get("width") or 0.0):
                 n += 1
                 if n >= cap:
                     break
@@ -206,7 +206,7 @@ class NipnapsProfile(ExtractionProfile):
                     text_hit = True
             if is_a4(page):
                 for path in page.get_drawings():
-                    role = self.color_role(path.get("color"))
+                    role = self.color_role(effective_color(path))
                     if role and role != "ortak":
                         non_black += 1
                         break

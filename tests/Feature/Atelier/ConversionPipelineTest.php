@@ -65,6 +65,11 @@ class ConversionPipelineTest extends TestCase
                 );
             }
 
+            public function convertPhoto(string $photoAbsolutePath, float $markerMm = 40.0): \Modules\Atelier\Services\Conversion\ConversionResult
+            {
+                return new \Modules\Atelier\Services\Conversion\ConversionResult(ConversionJob::CLASS_RED, 0.0);
+            }
+
             public function probe(string $pdfAbsolutePath): ?array
             {
                 return null;
@@ -94,6 +99,11 @@ class ConversionPipelineTest extends TestCase
     {
         $this->app->bind(PdfDxfConverterContract::class, fn () => new class implements PdfDxfConverterContract {
             public function convert(string $pdfAbsolutePath): \Modules\Atelier\Services\Conversion\ConversionResult
+            {
+                throw new \RuntimeException('servis çöktü');
+            }
+
+            public function convertPhoto(string $photoAbsolutePath, float $markerMm = 40.0): \Modules\Atelier\Services\Conversion\ConversionResult
             {
                 throw new \RuntimeException('servis çöktü');
             }

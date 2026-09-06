@@ -64,6 +64,25 @@ Laravel `PatternController@importPdf` bu sonuca göre `raster`/`empty`/`invalid`
 dosyaları reddeder, vektör olanları taslağa alır. Servis kapalıysa probe `null`
 döner → ön-kontrol atlanır, akış engellenmez (asenkron job yine de yakalar).
 
+`POST /convert-photo` — multipart, alan adı `file` (kalıp fotoğrafı: jpg/png/webp),
+form alanı `marker_mm` (referans ArUco marker'ın gerçek kenar uzunluğu, mm — varsayılan 40).
+
+PDF taramasından farkı: fotoğrafın ne bilinen DPI'ı (mutlak ölçek) ne de dik
+açılı bir çekimi vardır. Kalıp kağıdının yanına, AYNI düz yüzeyde bilinen
+boyutlu bir ArUco marker (DICT_4X4_50) konur; marker'ın 4 köşesinden çıkarılan
+homografi TÜM fotoğrafı "üstten dik" görünüme warp'lar (yalnızca marker değil,
+aynı düzlemdeki kalıp kağıdı da düzelir) ve kesin px/mm oranını verir. Sonuç
+`raster_vectorize.vectorize_image()` çekirdeğine (aynı skeleton→polyline hattı)
+yönlendirilir — bkz. `photo_vectorize.py`.
+
+Marker bulunamazsa `classification: "red"`, `dxf_base64: null` ve operatöre
+"marker'lı yeniden çekim" talimatı içeren bir hata döner — Laravel tarafı bunu
+`needs_tracing` yerine doğrudan `failed` yapar (ölçeksiz izleme anlamsız).
+Yanıt şekli `/convert` ile aynıdır (`classification/confidence/dxf_base64/metadata/errors`).
+
+Kısıt: kalıp kağıdı marker'la aynı düzlemde (masada düz) olmalı — kıvrık/eğik
+kağıt bu yöntemle düzeltilemez.
+
 ## Gerçek örnekle doğrulandı (2026-06-24)
 
 26 sayfalık gerçek bir kalıp PDF'i (komбинезон, beden 116-134) ile uçtan uca test edildi:

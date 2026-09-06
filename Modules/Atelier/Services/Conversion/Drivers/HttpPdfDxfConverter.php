@@ -35,6 +35,29 @@ class HttpPdfDxfConverter implements PdfDxfConverterContract
         return ConversionResult::fromResponse($response->json() ?? []);
     }
 
+    public function convertPhoto(string $photoAbsolutePath, float $markerMm = 40.0): ConversionResult
+    {
+        if (! is_file($photoAbsolutePath)) {
+            throw new RuntimeException("Dönüştürülecek fotoğraf bulunamadı: {$photoAbsolutePath}");
+        }
+
+        $base = rtrim((string) config('atelier.conversion.service_url'), '/');
+
+        $response = Http::timeout((int) config('atelier.conversion.timeout', 300))
+            ->attach('file', (string) file_get_contents($photoAbsolutePath), basename($photoAbsolutePath))
+            ->post("{$base}/convert-photo", ['marker_mm' => $markerMm]);
+
+        if ($response->failed()) {
+            throw new RuntimeException(sprintf(
+                'Fotoğraf→DXF servisi başarısız (HTTP %d): %s',
+                $response->status(),
+                substr($response->body(), 0, 500),
+            ));
+        }
+
+        return ConversionResult::fromResponse($response->json() ?? []);
+    }
+
     public function probe(string $pdfAbsolutePath): ?array
     {
         if (! is_file($pdfAbsolutePath)) {

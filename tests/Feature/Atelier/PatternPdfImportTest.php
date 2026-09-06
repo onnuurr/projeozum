@@ -122,6 +122,11 @@ class PatternPdfImportTest extends TestCase
                 throw new \RuntimeException('servis kapalı');
             }
 
+            public function convertPhoto(string $photoAbsolutePath, float $markerMm = 40.0): ConversionResult
+            {
+                throw new \RuntimeException('servis kapalı');
+            }
+
             public function probe(string $pdfAbsolutePath): ?array
             {
                 return null;
@@ -235,6 +240,11 @@ class PatternPdfImportTest extends TestCase
             public function __construct(private ?array $probe) {}
 
             public function convert(string $pdfAbsolutePath): ConversionResult
+            {
+                return new ConversionResult('green', 90, "0\nSECTION\n2\nENTITIES\n0\nENDSEC\n0\nEOF\n", ['product_type' => 'tulum'], []);
+            }
+
+            public function convertPhoto(string $photoAbsolutePath, float $markerMm = 40.0): ConversionResult
             {
                 return new ConversionResult('green', 90, "0\nSECTION\n2\nENTITIES\n0\nENDSEC\n0\nEOF\n", ['product_type' => 'tulum'], []);
             }

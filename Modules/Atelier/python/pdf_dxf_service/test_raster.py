@@ -91,16 +91,20 @@ def test_convert_pdf_routes_raster_to_vectorizer():
 
 
 def _vector_pdf_no_profile():
-    """Profilsiz vektör PDF: siyah çizgiler, gömülü resim yok (ör. Burda)."""
+    """Profilsiz vektör PDF: siyah çizgiler, gömülü resim yok (ör. Burda). Her
+    çizgi AYRI bir path/drawing OBJESİ olarak commit edilir (gerçek Ruslan/Burda
+    PDF üreticilerinin tipik çıktısı) — converter._has_plausible_pattern_page
+    path SAYISINA bakar (bkz. o fonksiyonun docblock'u), tek bir shape() içinde
+    toplu committe edilmiş çizgiler TEK path sayılır ve eşiği geçemez."""
     import fitz
 
     doc = fitz.open()
     page = doc.new_page(width=300, height=300)
-    shape = page.new_shape()
-    shape.draw_line((50, 50), (250, 50))
-    shape.draw_line((250, 50), (250, 250))
-    shape.finish(color=(0, 0, 0), width=0.6)
-    shape.commit()
+    for k in range(20):
+        shape = page.new_shape()
+        shape.draw_line((50, 50 + k * 8), (250, 50 + k * 8))
+        shape.finish(color=(0, 0, 0), width=0.6)
+        shape.commit()
     return doc.tobytes()
 
 

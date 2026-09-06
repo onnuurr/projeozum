@@ -2,6 +2,8 @@
 
 namespace Modules\Creative\Services\Ai\Drivers\Gemini;
 
+use Modules\Creative\Services\Ai\Contracts\TryOnPromptBuilderContract;
+
 /**
  * Gemini try-on (giydirme) prompt'u üretir.
  *
@@ -15,7 +17,7 @@ namespace Modules\Creative\Services\Ai\Drivers\Gemini;
  * priority/protect) — bkz. ROADMAP.md Faz G.5. Bu alanlar boş/yoksa (analiz
  * kapalı, eski usul manuel yükleme) davranış G.1-G.3'teki gibi AYNEN kalır.
  */
-class GeminiTryOnPromptBuilder
+class GeminiTryOnPromptBuilder implements TryOnPromptBuilderContract
 {
     /**
      * @param  array<int,array{path?:string,label:?string,statement?:?string,priority?:?string,protect?:bool}>  $extras

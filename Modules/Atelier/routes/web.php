@@ -110,6 +110,10 @@ Route::middleware(['auth', 'verified'])
             ->middleware('can:atelier.pattern.manage')->name('patterns.store');
         Route::post('patterns/import', [\Modules\Atelier\Http\Controllers\PatternController::class, 'importPdf'])
             ->middleware('can:atelier.pattern.manage')->name('patterns.import');
+        Route::post('patterns/import-url', [\Modules\Atelier\Http\Controllers\PatternController::class, 'importFromUrl'])
+            ->middleware('can:atelier.pattern.manage')->name('patterns.import-url');
+        Route::post('patterns/import-photo', [\Modules\Atelier\Http\Controllers\PatternController::class, 'importPhoto'])
+            ->middleware('can:atelier.pattern.manage')->name('patterns.import-photo');
         Route::post('patterns/{pattern}/retry-extraction', [\Modules\Atelier\Http\Controllers\PatternController::class, 'retryExtraction'])
             ->middleware('can:atelier.pattern.manage')->name('patterns.retry-extraction');
         Route::get('patterns/{pattern}/tracer', [\Modules\Atelier\Http\Controllers\PatternController::class, 'tracer'])

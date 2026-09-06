@@ -46,6 +46,64 @@ class MannequinPromptBuilderTest extends TestCase
         $this->assertStringContainsString('man', $prompt);
     }
 
+    /**
+     * Regresyon (2026-09): 'hairstyle' varyant havuzu TAMAMEN kadın saç
+     * modellerinden (uzun saç/at kuyruğu/topuz/örgü/kâhkül) oluşuyordu ve
+     * cinsiyetten bağımsız uygulanıyordu — "erkek" seçilse bile bu güçlü
+     * görsel sinyal "an adult man" özne ismiyle çelişip modelin kadın
+     * üretmesine yol açabiliyordu. Artık 'hairstyle' cinsiyete göre ayrı
+     * havuzlardan seçiliyor (bkz. MannequinPromptBuilder::resolveGenderVariants).
+     */
+    public function test_male_identity_never_gets_feminine_hairstyle_phrases(): void
+    {
+        $femaleOnlyPhrases = ['ponytail', 'past the shoulders', 'loose bun', 'loose braid', 'blunt fringe (bangs)'];
+
+        for ($i = 0; $i < 20; $i++) {
+            $prompt = strtolower($this->build(new MannequinRequest(name: 'X', gender: 'male', ageRange: '25-35')));
+
+            foreach ($femaleOnlyPhrases as $phrase) {
+                $this->assertStringNotContainsString($phrase, $prompt);
+            }
+        }
+    }
+
+    /**
+     * Regresyon (2026-09, hairstyle düzeltmesinden SONRA hâlâ görüldü): referans
+     * fotoğrafı verildiğinde identity()/hairstyle hiç devreye girmiyor —
+     * referenceAnchor() kullanılıyor. Fotoğrafın gerçek piksel içeriği metinden
+     * daha güçlü bir sinyal olabildiği için, istenen cinsiyet/yaşın fotoğrafın
+     * görünüşünü ASLA ezemeyeceğini AÇIKÇA belirten bir cümle olmalı.
+     */
+    public function test_reference_photo_prompt_explicitly_overrides_photo_gender(): void
+    {
+        $r = new MannequinRequest(name: 'X', gender: 'male', ageRange: '6-9', referencePhotoPath: '/tmp/fake-ref.jpg');
+        $prompt = strtolower($this->build($r));
+
+        $this->assertStringContainsString('a young boy', $prompt);
+        $this->assertStringContainsString('must never override the requested subject', $prompt);
+        // identity()/hairstyle bu dalda hiç çalışmamalı.
+        $this->assertStringNotContainsString('anatolian turkish', $prompt);
+    }
+
+    public function test_female_identity_can_still_get_long_hairstyle_phrases(): void
+    {
+        $femaleOnlyPhrases = ['ponytail', 'past the shoulders', 'loose bun', 'loose braid', 'blunt fringe (bangs)'];
+
+        // hairstyle rastgele seçildiği için birkaç denemede en az biri eşleşmeli.
+        $matched = false;
+        for ($i = 0; $i < 20 && ! $matched; $i++) {
+            $prompt = strtolower($this->build(new MannequinRequest(name: 'X', gender: 'female', ageRange: '25-35')));
+            foreach ($femaleOnlyPhrases as $phrase) {
+                if (str_contains($prompt, $phrase)) {
+                    $matched = true;
+                    break;
+                }
+            }
+        }
+
+        $this->assertTrue($matched, '20 denemede kadın kimliği hiç uzun saç varyantı almadı.');
+    }
+
     public function test_female_child_becomes_girl_without_adult_measurements(): void
     {
         $r = new MannequinRequest(

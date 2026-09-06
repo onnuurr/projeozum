@@ -185,6 +185,7 @@ class MenuSeeder extends Seeder
             ]],
             ['label' => 'İlişkiler', 'icon' => 'relations', 'url' => '/tenants', 'children' => [
                 ['label' => 'Tenant\'lar', 'url' => '/tenants'],
+                ['label' => 'Başvurular', 'url' => '/tenants/applications'],
                 ['label' => 'Tenant Tipleri', 'url' => '/tenants/types'],
                 ['label' => 'Müşteriler'],
                 ['label' => 'Tedarikçiler', 'url' => '/suppliers'],
@@ -219,6 +220,7 @@ class MenuSeeder extends Seeder
                 ['label' => 'Taslaklar', 'url' => '/atelier?status=draft'],
                 ['label' => 'İnceleme Bekleyenler', 'url' => '/atelier?status=in_review'],
                 ['label' => 'Onaylanmış', 'url' => '/atelier?status=approved'],
+                ['label' => 'Kalıp Kütüphanesi', 'url' => '/atelier/patterns'],
             ]],
             ['label' => 'İş Emirleri', 'icon' => 'workflow', 'url' => '/workflow', 'children' => [
                 ['label' => 'Yeni İş Emri', 'url' => '/workflow'],

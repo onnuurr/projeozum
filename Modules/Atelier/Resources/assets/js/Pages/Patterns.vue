@@ -14,7 +14,9 @@
 		<PageHeader title="Kalıp Kütüphanesi">
 			<template #subtitle><strong>{{ patterns.length }}</strong> kalıp · aranabilir DXF arşivi</template>
 			<template v-if="canManage" #actions>
+				<Button variant="ghost" @click="importUrlModal = true">Link ile yükle</Button>
 				<Button variant="ghost" @click="importModal = true">PDF'ten ekle</Button>
+				<Button variant="ghost" @click="importPhotoModal = true">Fotoğraftan ekle</Button>
 				<Button variant="primary" with-icon @click="openCreate">
 					<template #leading><Plus :size="13" /></template>
 					Yeni Kalıp
@@ -64,7 +66,7 @@
 						<span class="ex-spinner"></span> inceleniyor
 					</span>
 					<span v-else-if="p.extractionStatus === 'failed'" class="extract-badge failed" :title="p.extractionError">
-						çıkarım başarısız
+						{{ failedBadgeLabel(p) }}
 					</span>
 					<span v-else-if="p.extractionStatus === 'needs_tracing'" class="extract-badge tracing" title="Taranmış/raster — elle sayısallaştırılmalı">
 						sayısallaştırma bekliyor
@@ -229,6 +231,20 @@
 			</template>
 		</AppModal>
 
+		<!-- Linkten içe aktarma -->
+		<AppModal v-model="importUrlModal" title="Linkten kalıp ekle" size="sm">
+			<p class="import-hint">Ürün sayfasının adresini yapıştırın; sayfadaki PDF ve önizleme görseli otomatik bulunup indirilir, taslak kalıp olarak eklenir ve arka planda incelenir.</p>
+			<div class="form-row">
+				<label class="form-label">Sayfa adresi</label>
+				<input v-model="importUrlForm.url" type="url" class="form-input" placeholder="https://vikroim.ru/..." />
+				<span v-if="importUrlForm.errors.url" class="form-error">{{ importUrlForm.errors.url }}</span>
+			</div>
+			<template #footer="{ close }">
+				<Button variant="ghost" :disabled="importUrlForm.processing" @click="close">Vazgeç</Button>
+				<Button variant="primary" :disabled="!importUrlForm.url" :loading="importUrlForm.processing" @click="submitImportUrl">İçe aktar</Button>
+			</template>
+		</AppModal>
+
 		<!-- PDF içe aktarma -->
 		<AppModal v-model="importModal" title="PDF'ten kalıp ekle" size="sm">
 			<p class="import-hint">Yüklenen her PDF taslak kalıp olarak eklenir; sistem arka planda inceleyip ürün tipi, beden, parça ve DXF'i çıkarır. <strong>Vektör kalıp PDF'i gerekir</strong> — taranmış/raster (resim) dosyalar baştan elenir.</p>
@@ -248,6 +264,36 @@
 				<Button variant="ghost" :disabled="importForm.processing" @click="close">Vazgeç</Button>
 				<Button variant="primary" :disabled="!importForm.files.length" :loading="importForm.processing" @click="submitImport">
 					{{ importForm.files.length }} PDF gönder
+				</Button>
+			</template>
+		</AppModal>
+
+		<!-- Fotoğraf içe aktarma -->
+		<AppModal v-model="importPhotoModal" title="Fotoğraftan kalıp ekle" size="sm">
+			<p class="import-hint">
+				Kalıp kağıdını düz bir yüzeye serip yanına ölçü referansı <strong>ArUco marker</strong>ı
+				(DICT_4X4_50, gerçek kenarı aşağıda girdiğiniz mm) koyarak fotoğraflayın — marker aynı
+				düzlemde ve net görünmeli. Sistem marker'a göre ölçek + perspektifi düzeltip DXF çıkarır;
+				marker bulunamazsa taslak "başarısız" düşer ve yeniden çekim istenir.
+			</p>
+			<label class="form-label">Marker kenar uzunluğu (mm)</label>
+			<input v-model.number="importPhotoForm.marker_mm" type="number" min="5" max="500" step="1" class="form-input" />
+			<label class="file-drop import-drop" :class="{ dragging: draggingPhoto }"
+				@dragover.prevent="draggingPhoto = true" @dragleave.prevent="draggingPhoto = false" @drop.prevent="onDropPhoto">
+				<span class="fd-label">Fotoğrafları bırak veya seç</span>
+				<span class="fd-name">çoklu seçim · JPG/PNG/WEBP</span>
+				<input type="file" accept="image/jpeg,image/png,image/webp" multiple @change="onPickPhoto" />
+			</label>
+			<div v-if="importPhotoForm.files.length" class="import-tray">
+				<span v-for="(f, i) in importPhotoForm.files" :key="i" class="file-chip">
+					{{ f.name }} <em @click="importPhotoForm.files.splice(i, 1)"><X :size="11" /></em>
+				</span>
+			</div>
+			<span v-if="importPhotoForm.errors['files.0']" class="form-error">{{ importPhotoForm.errors['files.0'] }}</span>
+			<template #footer="{ close }">
+				<Button variant="ghost" :disabled="importPhotoForm.processing" @click="close">Vazgeç</Button>
+				<Button variant="primary" :disabled="!importPhotoForm.files.length" :loading="importPhotoForm.processing" @click="submitImportPhoto">
+					{{ importPhotoForm.files.length }} fotoğraf gönder
 				</Button>
 			</template>
 		</AppModal>
@@ -309,6 +355,17 @@ function statusLabel(s) {
 	return { draft: 'Taslak', approved: 'Onaylı', rejected: 'Reddedildi' }[s] || s
 }
 
+// Dönüştürücü PDF'te gerçek bir kesim şablonu (kalıp) bulamadığında (bkz.
+// python pdf_dxf_service/converter.py::_has_plausible_pattern_page — dikiş
+// talimatı/kılavuz kitapçığı, kapak/logo sayfası vb.) extraction_error hep bu
+// sabit ibareyle gelir — genel "çıkarım başarısız" yerine bunu ayrı gösterelim,
+// aksi halde kullanıcı gerçek bir teknik hatayla karıştırıyor.
+function failedBadgeLabel(p) {
+	return p.extractionError && p.extractionError.includes('dikiş talimatı')
+		? 'kalıp değil'
+		: 'çıkarım başarısız'
+}
+
 /* Modal + form */
 const modal = ref(false)
 const editingId = ref(null)
@@ -329,6 +386,29 @@ function closeImport() { importModal.value = false; importForm.reset() }
 function submitImport() {
 	importForm.post('/atelier/patterns/import', { forceFormData: true, preserveScroll: true, onSuccess: closeImport })
 }
+/* Fotoğraftan içe aktarma */
+const importPhotoModal = ref(false)
+const draggingPhoto = ref(false)
+const importPhotoForm = useForm({ files: [], marker_mm: 40 })
+function onPickPhoto(e) { importPhotoForm.files = [...importPhotoForm.files, ...Array.from(e.target.files)]; e.target.value = '' }
+function onDropPhoto(e) {
+	draggingPhoto.value = false
+	const photos = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith('image/'))
+	importPhotoForm.files = [...importPhotoForm.files, ...photos]
+}
+function closeImportPhoto() { importPhotoModal.value = false; importPhotoForm.reset() }
+function submitImportPhoto() {
+	importPhotoForm.post('/atelier/patterns/import-photo', { forceFormData: true, preserveScroll: true, onSuccess: closeImportPhoto })
+}
+
+/* Linkten içe aktarma */
+const importUrlModal = ref(false)
+const importUrlForm = useForm({ url: '' })
+function closeImportUrl() { importUrlModal.value = false; importUrlForm.reset() }
+function submitImportUrl() {
+	importUrlForm.post('/atelier/patterns/import-url', { preserveScroll: true, onSuccess: closeImportUrl })
+}
+
 function retryExtraction(p) {
 	router.post(`/atelier/patterns/${p.id}/retry-extraction`, {}, { preserveScroll: true })
 }

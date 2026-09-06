@@ -16,7 +16,7 @@ const props = defineProps({
 	cartItemCount: { type: Number, default: 0 },
 });
 
-const emit = defineEmits(['open-search', 'open-cart', 'mark-all-read', 'read-notification', 'notification-click']);
+const emit = defineEmits(['open-search', 'open-cart', 'mark-all-read', 'read-notification', 'notification-click', 'notifications-opened']);
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad|iPod/i.test(navigator.userAgent);
 const activePanel = ref(null);
@@ -32,7 +32,11 @@ const iconTypeClasses = {
 const unreadCount = () => props.notifications.filter((n) => !n.read).length;
 
 function togglePanel(name) {
-	activePanel.value = activePanel.value === name ? null : name;
+	const opening = activePanel.value !== name;
+	activePanel.value = opening ? name : null;
+	if (opening && name === 'notifications') {
+		emit('notifications-opened');
+	}
 }
 
 function onNotifClick(n) {

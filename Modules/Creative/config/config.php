@@ -373,25 +373,30 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | AI Sahne Pipeline (Gemini compose → Gemini try-on)
+    | AI Sahne Pipeline (Gemini compose → fal.ai try-on)
     |--------------------------------------------------------------------------
     | İki aşamalı opsiyonel pipeline: 1) Gemini ile model/sahne kurgusu,
-    | 2) Gemini Nano Banana 2 ile ürünü modele giydirme. Anahtar yoksa ilgili
-    | sürücü 'mock'a düşer (anahtarsız dev/test için placeholder üretir).
-    | Sürücü env'leri eski AiStudio modülünden devralındı.
+    | 2) seçili sürücüyle ürünü modele giydirme. Anahtar yoksa ilgili sürücü
+    | 'mock'a düşer (anahtarsız dev/test için placeholder üretir). Sürücü
+    | env'leri eski AiStudio modülünden devralındı.
     |
-    | fal.ai fashn/tryon v1.6 karşılaştırmalı test edildi: gerçek A/B testinde
-    | iki parçalı (ör. ceket+pantolon) ürünleri tek parça gibi yanlış render
-    | etti (bkz. proje geçmişi/2026-07-15 testleri), Gemini ise doğru giydirdi.
-    | fal sürücüsü koddan kaldırılmadı — env ile hâlâ seçilebilir, tek parça
-    | ürünlerde tekrar denenebilir — ama artık varsayılan değil.
+    | 2026-07-15 A/B testinde fal/fashn (o zamanki sabit ayarlarla) iki parçalı
+    | (ör. ceket+pantolon) ürünleri tek parça gibi yanlış render etmişti, bu
+    | yüzden varsayılan bir süre Gemini'ye çevrilmişti. 2026-09'da tekrar
+    | değerlendirildi: bu projenin önceliği olan logo/desen/yazı sadakati
+    | açısından fashn/tryon v1.6 (mode=quality + garment_photo_type=flat-lay
+    | sabitlemesiyle, bkz. FalFashnTryOn) tutarlı biçimde daha iyi sonuç
+    | verdiği için varsayılan tekrar fal'e çevrildi. Gemini koddan
+    | kaldırılmadı — env ile hâlâ seçilebilir, regresyon şüphesinde geri
+    | dönülebilir.
     */
     'ai' => [
         // gemini | mock
         'compose_driver' => env('AI_STUDIO_COMPOSE_DRIVER', 'gemini'),
-        // gemini | fal | mock — ürün giydirme (try-on). Varsayılan: Gemini Nano Banana 2
-        // (iki parçalı ürünlerde fal/fashn'e göre belirgin şekilde daha tutarlı sonuç verdi).
-        'tryon_driver'   => env('AI_STUDIO_TRYON_DRIVER', 'gemini'),
+        // gemini | fal | mock — ürün giydirme (try-on). Varsayılan: fal.ai
+        // fashn/tryon v1.6 (logo/desen/yazı sadakatinde bağımsız incelemelerde
+        // kategori lideri — bkz. yukarıdaki not).
+        'tryon_driver'   => env('AI_STUDIO_TRYON_DRIVER', 'fal'),
         // gemini | mock — caption/hashtag üretimi
         'caption_driver' => env('CREATIVE_CAPTION_DRIVER', 'gemini'),
         // gemini | mock — görsel-üstü metin (headline/sub-headline/CTA) üretimi
@@ -445,6 +450,31 @@ return [
                 // giydirme çıktısının çözünürlüğünü doğrudan yükseltir.
                 'tryon_size'   => env('GEMINI_TRYON_IMAGE_SIZE', '2K'),
             ],
+
+            // Gemini API (AI Studio) prepay bakiyesini/hesap borcunu döndüren bir
+            // uç nokta Google'da YOK — sadece AI Studio panelinden görülebiliyor.
+            // Bunun yerine BigQuery Billing Export'tan bu ayki tahakkuk eden
+            // (accrued) toplam maliyeti okuyoruz — bkz. GeminiSpendService.
+            // ÜÇÜ DE boşsa servis hiç BigQuery'e gitmeden null döner.
+            'billing' => [
+                // GCP proje ID'si (Gemini API key'in bağlı olduğu proje).
+                'project_id' => env('GCP_BILLING_PROJECT_ID', ''),
+                // Billing export'un aktığı BigQuery dataset adı (ör. "billing_export").
+                'dataset' => env('GCP_BILLING_DATASET', ''),
+                // Servis hesabı JSON key dosyasının sunucudaki TAM yolu — .env'e
+                // KOYULMAZ (bkz. proje kuralı: sır .env dışında tutulur), doğrudan
+                // dosya yoluna işaret eder.
+                'credentials_path' => env('GCP_BILLING_CREDENTIALS_PATH', ''),
+                // Export tablosu dataset içinde otomatik keşfedilir (ad, billing
+                // account ID'sini içerdiği için elle girmeye gerek yok) — bkz.
+                // GeminiSpendService::resolveTable(). Keşfedilen tablo adı burada
+                // cache'lenir (performans), boşsa her seferinde yeniden aranır.
+                'table' => env('GCP_BILLING_TABLE', ''),
+                // BigQuery export'ta Gemini API satırları bu service.description
+                // ile görünüyor (doğrulanmadı — gerçek export verisi geldiğinde
+                // GCP Console → Billing → Reports'tan teyit edilmeli).
+                'service_description' => env('GCP_BILLING_GEMINI_SERVICE', 'Generative Language API'),
+            ],
         ],
 
         'fal' => [
@@ -454,6 +484,14 @@ return [
             // Queue poll: deneme sayısı ve aralık (saniye).
             'poll_tries'    => (int) env('FAL_POLL_TRIES', 40),
             'poll_interval' => (int) env('FAL_POLL_INTERVAL', 3),
+            // fal.ai hesap bakiyesi (GET /v1/account/billing) SADECE Admin scope
+            // key ile okunabiliyor — üstteki 'key' (inference/model çalıştırma)
+            // bu uç noktada 403 döner. Bilerek AYRI bir env: admin key inference
+            // key'inden daha geniş yetkili (private modeller + CLI), bu yüzden
+            // FalClient/generation sürücülerine ASLA enjekte edilmez — yalnız
+            // TryonController'daki bakiye rozeti okur (bkz. Creative → Giydirme
+            // sayfası). Boşsa bakiye rozeti sessizce gizlenir.
+            'admin_key' => env('FAL_ADMIN_KEY', ''),
         ],
 
         /*
@@ -518,13 +556,35 @@ return [
                         'natural dark brown hair with a light tousled texture and realistic individual loose strands catching the light',
                         'natural deep espresso-brown hair with a subtle wave and realistic individual loose strands catching the light',
                     ],
+                    // BİLEREK cinsiyete göre ayrılmış (bkz. MannequinPromptBuilder::resolveGenderVariants):
+                    // hiçbiri saç UZUNLUĞU/stilini nötr bırakmıyor — "kadın seçtim erkek geldi" gibi
+                    // ters durumu da önler (2026-09 ret bulgusu: erkek seçilince kadın manken üretildi,
+                    // sebebi bu listenin TAMAMEN kadın saç modellerinden oluşup subjectNoun'daki
+                    // "an adult man" ifadesiyle çelişmesiydi — uzun saç/at kuyruğu/topuz gibi güçlü
+                    // görsel sinyaller metindeki cinsiyet ifadesini geçersiz kılabiliyor).
                     'hairstyle' => [
-                        'worn long, past the shoulders, with a center part',
-                        'worn in a sleek, low ponytail with a side part',
-                        'shoulder-length with a deep side part and soft face-framing layers',
-                        'gathered in a loose, low bun with a few strands left loose around the face',
-                        'long and worn in a single loose braid over one shoulder',
-                        'worn long with a blunt fringe (bangs) across the forehead',
+                        'female' => [
+                            'worn long, past the shoulders, with a center part',
+                            'worn in a sleek, low ponytail with a side part',
+                            'shoulder-length with a deep side part and soft face-framing layers',
+                            'gathered in a loose, low bun with a few strands left loose around the face',
+                            'long and worn in a single loose braid over one shoulder',
+                            'worn long with a blunt fringe (bangs) across the forehead',
+                        ],
+                        'male' => [
+                            'kept short on the sides and back with neatly textured length on top',
+                            'a short, classic taper haircut, neatly combed to one side',
+                            'cropped close on the sides with a slightly longer, naturally tousled top',
+                            'a short buzz cut, clean and low-maintenance',
+                            'short and side-parted with a natural matte finish',
+                            'a short crew cut with subtle texture at the crown',
+                        ],
+                        'neutral' => [
+                            'short to medium length, naturally textured with a center part',
+                            'cropped short and neatly groomed',
+                            'chin-length with a simple, natural side part',
+                            'short and casually tousled',
+                        ],
                     ],
                     'distinguishing_feature' => [
                         'clear, even-toned skin with no notable marks',

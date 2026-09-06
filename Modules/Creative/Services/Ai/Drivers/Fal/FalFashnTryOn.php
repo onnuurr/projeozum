@@ -35,6 +35,10 @@ class FalFashnTryOn implements GarmentTryOnContract
             'garment_image'      => ImageFile::dataUri($garmentImagePath),
             'mode'               => 'quality',
             'garment_photo_type' => 'flat-lay',
+            // API varsayılanı zaten 'png' ama en iyi sadakat burada kritik
+            // olduğu için (mode=quality ile aynı gerekçe) sessiz bir sürücü
+            // tarafı varsayılan değişikliğine karşı elle sabitlendi.
+            'output_format'      => 'png',
         ];
 
         Log::info('fal fashn/tryon isteği gönderiliyor', [

@@ -10,11 +10,14 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Modules\Atelier\Http\Requests\ImportPatternFromUrlRequest;
 use Modules\Atelier\Http\Requests\SaveTracedPatternRequest;
 use Modules\Atelier\Jobs\ExtractPatternFromPdfJob;
+use Modules\Atelier\Jobs\ExtractPatternFromPhotoJob;
 use Modules\Atelier\Models\Pattern;
 use Modules\Atelier\Services\Conversion\Contracts\PdfDxfConverterContract;
 use Modules\Atelier\Services\PatternLibraryService;
+use Modules\Atelier\Services\PatternUrlImportService;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 class PatternController extends Controller
@@ -22,6 +25,7 @@ class PatternController extends Controller
     public function __construct(
         private PatternLibraryService $library,
         private PdfDxfConverterContract $converter,
+        private PatternUrlImportService $urlImporter,
     ) {}
 
     public function index(Request $request): Response
@@ -122,6 +126,51 @@ class PatternController extends Controller
         }
 
         return redirect()->route('atelier.patterns.index')->with('success', implode('; ', $parts) . '.');
+    }
+
+    /**
+     * Toplu kalıp FOTOĞRAFI yükle → her biri için 'inceleniyor' taslak kalıp + arka
+     * plan çıkarımı (bkz. python/pdf_dxf_service/photo_vectorize.py). importPdf ile
+     * aynı akış; ön-kontrol yok (fotoğraf her zaman kuyruğa girer, marker'sız çekimler
+     * ExtractPatternFromPhotoJob içinde 'failed' + operatöre yeniden çekim talimatıyla döner).
+     */
+    public function importPhoto(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'files'     => ['required', 'array', 'min:1'],
+            'files.*'   => ['file', 'mimetypes:image/jpeg,image/png,image/webp', 'max:20480'],
+            'marker_mm' => ['nullable', 'numeric', 'min:5', 'max:500'],
+        ]);
+
+        $markerMm = (float) $request->input('marker_mm', 40.0);
+
+        foreach ($request->file('files') as $photo) {
+            $pattern = $this->library->createPhotoDraft($photo, $request->user()?->id);
+            ExtractPatternFromPhotoJob::dispatch($pattern->id, $markerMm);
+        }
+
+        $count = count($request->file('files'));
+
+        return redirect()->route('atelier.patterns.index')
+            ->with('success', "{$count} fotoğraf incelemeye alındı.");
+    }
+
+    /**
+     * Sabit-domain tedarikçi sayfasından (bkz. config/atelier.php pattern_import)
+     * PDF + önizleme görselini otomatik bulup indirir, importPdf ile AYNI akışla
+     * ('inceleniyor' taslak + arka plan çıkarımı) kütüphaneye ekler.
+     */
+    public function importFromUrl(ImportPatternFromUrlRequest $request): RedirectResponse
+    {
+        try {
+            $this->urlImporter->importFromUrl($request->validated('url'), $request->user()?->id);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return back()->withErrors(['url' => 'İçe aktarılamadı: ' . $e->getMessage()]);
+        }
+
+        return redirect()->route('atelier.patterns.index')->with('success', 'Linkten kalıp içe aktarıldı, inceleniyor.');
     }
 
     /**

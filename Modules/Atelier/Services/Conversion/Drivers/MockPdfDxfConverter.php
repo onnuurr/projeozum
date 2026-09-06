@@ -49,6 +49,36 @@ class MockPdfDxfConverter implements PdfDxfConverterContract
         );
     }
 
+    public function convertPhoto(string $photoAbsolutePath, float $markerMm = 40.0): ConversionResult
+    {
+        $name = pathinfo($photoAbsolutePath, PATHINFO_FILENAME);
+
+        if (str_contains(mb_strtolower($name), 'markersiz')) {
+            return new ConversionResult(
+                classification: ConversionJob::CLASS_RED,
+                confidence: 0.0,
+                dxf: null,
+                metadata: ['name' => $name, 'source' => 'photo'],
+                errors: ['Referans marker bulunamadı — kalıp kağıdının yanına marker koyup yeniden çekin.'],
+            );
+        }
+
+        return new ConversionResult(
+            classification: ConversionJob::CLASS_YELLOW,
+            confidence: 55.0,
+            dxf: $this->minimalDxf(),
+            metadata: [
+                'name'               => $name,
+                'source'             => 'photo',
+                'scale_verified'     => true,
+                'scale_deviation_mm' => null,
+                'marker_mm'          => $markerMm,
+                'parts'              => [],
+            ],
+            errors: ['Fotoğraftan otomatik vektörleştirme — parça/beden ayrımı operatör tarafından doğrulanmalı.'],
+        );
+    }
+
     public function probe(string $pdfAbsolutePath): ?array
     {
         // Mock ön-kontrol yapmaz → null = "atla, akışı engelleme" (servissiz dev).

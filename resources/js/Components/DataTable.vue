@@ -110,38 +110,38 @@ const firstColStickyHeaderClass = computed(() => `sticky z-40 bg-canvas ${props.
 </script>
 
 <template>
-	<div ref="tableRoot" class="bg-surface rounded-lg border border-line overflow-hidden">
-		<div v-if="loading" class="p-4 space-y-3">
+	<div ref="tableRoot" class="bg-surface rounded-xl border border-line/60 overflow-hidden">
+		<div v-if="loading" class="p-6 space-y-5">
 			<div v-for="i in 5" :key="i" class="flex items-center gap-3">
-				<Skeleton variant="circle" width="2rem" height="2rem" />
-				<Skeleton :width="['60%', '90%', '45%', '75%', '55%'][i % 5]" />
+				<Skeleton variant="circle" width="2.25rem" height="2.25rem" />
+				<Skeleton height="0.875rem" :width="['60%', '90%', '45%', '75%', '55%'][i % 5]" />
 			</div>
 		</div>
 
 		<div v-else class="relative">
 			<div class="overflow-x-auto">
-				<table class="w-full text-left border-collapse text-xs min-w-[560px]">
+				<table class="w-full text-left border-collapse text-sm min-w-[560px]">
 					<thead class="sticky top-0 z-30">
-						<tr class="bg-canvas border-b border-line">
-							<th v-if="selectable" class="p-2 w-8 sticky left-0 z-40 bg-canvas">
+						<tr class="bg-canvas/60 border-b border-line/60">
+							<th v-if="selectable" class="px-4 py-4 w-10 sticky left-0 z-40 bg-canvas/60">
 								<input
 									type="checkbox"
 									:checked="selectAll"
 									:disabled="visibleData.length === 0"
-									class="w-3.5 h-3.5 rounded border-line dt-checkbox cursor-pointer disabled:cursor-not-allowed"
+									class="w-4 h-4 rounded border-line dt-checkbox cursor-pointer disabled:cursor-not-allowed"
 									@change="toggleSelectAll"
 								/>
 							</th>
 							<th
 								v-for="(col, colIndex) in columns"
 								:key="col.key"
-								class="p-2 font-medium text-muted uppercase tracking-wider whitespace-nowrap"
+								class="px-4 py-4 font-semibold text-muted text-xs uppercase tracking-wider whitespace-nowrap"
 								:class="[alignClass(col.align), colIndex === 0 ? firstColStickyHeaderClass : '']"
 							>
 								<button
 									v-if="isSortable(col)"
 									type="button"
-									class="inline-flex items-center gap-0.5 uppercase tracking-wider hover:text-primary transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded"
+									class="inline-flex items-center gap-1 uppercase tracking-wider hover:text-primary transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded"
 									:class="sortKey === col.key ? 'text-primary' : ''"
 									@click="toggleSort(col)"
 								>
@@ -150,34 +150,34 @@ const firstColStickyHeaderClass = computed(() => `sticky z-40 bg-canvas ${props.
 								</button>
 								<span v-else>{{ col.label }}</span>
 							</th>
-							<th v-if="hasActions" class="p-2 w-28" />
+							<th v-if="hasActions" class="px-4 py-4 w-28" />
 						</tr>
 					</thead>
-					<TransitionGroup tag="tbody" name="table-row" class="divide-y divide-line">
+					<TransitionGroup tag="tbody" name="table-row" class="divide-y divide-line/60">
 						<tr
 							v-for="(row, rowIndex) in visibleData"
 							:key="rowKey(row, rowIndex)"
-							class="hover:bg-canvas transition-colors group"
+							class="hover:bg-canvas/40 transition-colors group"
 						>
-							<td v-if="selectable" class="p-2 sticky left-0 z-20 bg-surface group-hover:bg-canvas">
+							<td v-if="selectable" class="px-4 py-4 sticky left-0 z-20 bg-surface group-hover:bg-canvas/40">
 								<input
 									type="checkbox"
 									:checked="isSelected(row)"
-									class="w-3.5 h-3.5 rounded border-line dt-checkbox cursor-pointer"
+									class="w-4 h-4 rounded border-line dt-checkbox cursor-pointer"
 									@change="toggleRowSelection(row)"
 								/>
 							</td>
 							<td
 								v-for="(col, colIndex) in columns"
 								:key="col.key"
-								class="p-2"
+								class="px-4 py-4 text-ink"
 								:class="[alignClass(col.align), colIndex === 0 ? firstColStickyClass : '']"
 							>
 								<slot :name="col.key" :row="row" :value="row[col.key]">
 									{{ row[col.key] }}
 								</slot>
 							</td>
-							<td v-if="hasActions" class="p-2">
+							<td v-if="hasActions" class="px-4 py-4">
 								<div class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 max-md:opacity-100 transition-opacity">
 									<slot name="actions" :row="row" />
 								</div>
@@ -187,12 +187,14 @@ const firstColStickyHeaderClass = computed(() => `sticky z-40 bg-canvas ${props.
 				</table>
 			</div>
 
-			<div v-if="visibleData.length === 0" class="py-10 flex flex-col items-center justify-center gap-2">
-				<span class="w-12 h-12 rounded-full bg-canvas flex items-center justify-center">
-					<UiIcon :name="emptyIcon" :size="20" class="text-muted" />
+			<div v-if="visibleData.length === 0" class="py-16 flex flex-col items-center justify-center gap-3">
+				<span class="w-14 h-14 rounded-full bg-canvas flex items-center justify-center">
+					<UiIcon :name="emptyIcon" :size="24" class="text-muted" />
 				</span>
-				<p class="text-xs font-medium text-ink">{{ emptyTitle }}</p>
-				<p v-if="emptyHint" class="text-2xs text-muted">{{ emptyHint }}</p>
+				<div class="flex flex-col items-center gap-1">
+					<p class="text-sm font-semibold text-ink">{{ emptyTitle }}</p>
+					<p v-if="emptyHint" class="text-xs text-muted max-w-xs text-center">{{ emptyHint }}</p>
+				</div>
 			</div>
 
 			<TablePagination

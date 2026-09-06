@@ -3,6 +3,7 @@
 namespace Modules\Tenant\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Modules\Tenant\Rules\ValidTaxNumber;
 
 class StoreTenantRequest extends FormRequest
 {
@@ -19,7 +20,7 @@ class StoreTenantRequest extends FormRequest
             'slug'             => 'nullable|string|max:191|unique:tenants,slug',
             'legal_name'       => 'nullable|string|max:255',
             'tenant_type_id'   => 'nullable|exists:tenant_types,id',
-            'tax_number'       => 'nullable|string|max:32',
+            'tax_number'       => ['nullable', 'string', 'max:32', new ValidTaxNumber()],
             'tax_office'       => 'nullable|string|max:191',
             'email'            => 'nullable|email|max:191',
             'phone'            => 'nullable|string|max:32',

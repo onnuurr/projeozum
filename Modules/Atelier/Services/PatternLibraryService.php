@@ -26,6 +26,7 @@ class PatternLibraryService
         'preview_image' => 'preview_image_path',
         'dxf'           => 'dxf_path',
         'pdf'           => 'pdf_path',
+        'photo'         => 'photo_path',
     ];
 
     /**
@@ -83,6 +84,24 @@ class PatternLibraryService
             'status'            => Pattern::STATUS_DRAFT,
             'extraction_status' => Pattern::EXTRACTION_PROCESSING,
             'pdf_path'          => $path,
+            'created_by'        => $createdBy,
+        ]);
+    }
+
+    /**
+     * Yüklenen kalıp FOTOĞRAFINDAN 'inceleniyor' bir taslak kalıp oluşturur (createPdfDraft
+     * ile aynı desen). Asıl çıkarım arka planda ExtractPatternFromPhotoJob ile yapılır.
+     */
+    public function createPhotoDraft(UploadedFile $photo, ?int $createdBy = null): Pattern
+    {
+        $path = $photo->store(self::DIR, Media::disk());
+
+        return Pattern::create([
+            'name'              => $this->stem($photo->getClientOriginalName()),
+            'product_type'      => 'belirsiz', // çıkarım sonrası güncellenir
+            'status'            => Pattern::STATUS_DRAFT,
+            'extraction_status' => Pattern::EXTRACTION_PROCESSING,
+            'photo_path'        => $path,
             'created_by'        => $createdBy,
         ]);
     }
@@ -173,6 +192,27 @@ class PatternLibraryService
 
             return $pattern->fresh('parts');
         });
+    }
+
+    /**
+     * AI metadata çıkarım zarfını kalıcı saklar (PİLOT — bkz.
+     * PatternMetadataExtractorContract). Ham zarf HER ZAMAN yazılır (şeffaflık,
+     * düşük-güvenli öneriler dahil); ürün tipi/beden aralığı kolonları yalnızca
+     * rule engine'in confidence eşiğini geçirdiği alanlar için güncellenir.
+     *
+     * @param  array<string,mixed>       $envelope
+     * @param  array{product_type:?string,size_range:?string}  $decided
+     */
+    public function applyAiMetadata(Pattern $pattern, array $envelope, array $decided): void
+    {
+        $update = ['ai_metadata' => $envelope];
+        if ($decided['product_type'] !== null) {
+            $update['product_type'] = $decided['product_type'];
+        }
+        if ($decided['size_range'] !== null) {
+            $update['size_range'] = $decided['size_range'];
+        }
+        $pattern->update($update);
     }
 
     /**

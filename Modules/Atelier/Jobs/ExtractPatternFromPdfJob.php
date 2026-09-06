@@ -8,9 +8,12 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
 use Modules\Atelier\Models\Pattern;
+use Modules\Atelier\Services\Ai\Contracts\PatternMetadataExtractorContract;
 use Modules\Atelier\Services\Conversion\Contracts\PdfDxfConverterContract;
 use Modules\Atelier\Services\PatternLibraryService;
+use Modules\Atelier\Services\PatternMetadataRuleEngine;
 use Throwable;
 
 /**
@@ -39,8 +42,12 @@ class ExtractPatternFromPdfJob implements ShouldQueue
         return [15, 60];
     }
 
-    public function handle(PdfDxfConverterContract $converter, PatternLibraryService $library): void
-    {
+    public function handle(
+        PdfDxfConverterContract $converter,
+        PatternLibraryService $library,
+        PatternMetadataExtractorContract $metadataExtractor,
+        PatternMetadataRuleEngine $ruleEngine,
+    ): void {
         $pattern = Pattern::find($this->patternId);
         if (! $pattern || ! $pattern->pdf_path) {
             return; // kalıp silinmişse veya PDF yoksa sessizce çık
@@ -57,6 +64,44 @@ class ExtractPatternFromPdfJob implements ShouldQueue
             $library->markExtractionFailed($pattern, $e->getMessage());
 
             throw $e; // kuyruk yeniden denesin
+        }
+
+        // AI metadata PİLOTU: yalnızca profil/genel çıkarım ürün tipini belirleyemediyse
+        // (satıcı formatı tanınmadı) devreye girer. Opsiyonel zenginleştirme — hata
+        // durumunda ana çıkarımı ASLA bozmaz, sessizce atlanır (kuyruk yeniden denemez).
+        $pattern->refresh();
+        if (in_array($pattern->product_type, [null, '', 'belirsiz'], true)) {
+            $this->runAiMetadataPilot($pattern, $abs, $converter, $library, $metadataExtractor, $ruleEngine);
+        }
+    }
+
+    private function runAiMetadataPilot(
+        Pattern $pattern,
+        string $pdfAbsolutePath,
+        PdfDxfConverterContract $converter,
+        PatternLibraryService $library,
+        PatternMetadataExtractorContract $metadataExtractor,
+        PatternMetadataRuleEngine $ruleEngine,
+    ): void {
+        $tmp = null;
+
+        try {
+            $png = $converter->renderPage($pdfAbsolutePath, 0, 150);
+            $tmp = tempnam(sys_get_temp_dir(), 'atelier_ai_cover_') . '.png';
+            file_put_contents($tmp, $png);
+
+            $envelope = $metadataExtractor->extract($tmp);
+            $decided  = $ruleEngine->decide($envelope);
+            $library->applyAiMetadata($pattern, $envelope, $decided);
+        } catch (Throwable $e) {
+            Log::warning('Atelier kalıp AI metadata pilotu atlandı.', [
+                'pattern_id' => $pattern->id,
+                'reason'     => $e->getMessage(),
+            ]);
+        } finally {
+            if ($tmp !== null && is_file($tmp)) {
+                @unlink($tmp);
+            }
         }
     }
 }

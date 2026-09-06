@@ -1,0 +1,9 @@
+{
+	"name": "atelier-vk-doc-resolver",
+	"private": true,
+	"type": "module",
+	"description": "vk.com/vk.ru belge görüntüleyicisinden gerçek indirilebilir dosya bağlantısını çözer (Kalıp Kütüphanesi 'Link ile yükle' özelliği için — bkz. Modules/Atelier/Services/PatternUrlImportService.php). Ana Laravel/Vite bağımlılıklarından KASITLI olarak izole: yalnızca bu tek betik için gereken Playwright/Chromium'u taşır.",
+	"dependencies": {
+		"playwright": "^1.48.0"
+	}
+}

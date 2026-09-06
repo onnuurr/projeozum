@@ -13,6 +13,22 @@
 
 		<PageHeader title="Ürün Giydirme" subtitle="Ürünü bir mankenin pozlarına giydir, ürün görseli olarak ekle">
 			<template #actions>
+				<Badge
+					v-if="falBalance"
+					:icon="CreditCard"
+					:color="!falBalanceFormatted ? 'danger' : (falBalanceLow ? 'warning' : 'neutral')"
+					variant="tonal"
+					:label="falBalanceFormatted ? `fal.ai: ${falBalanceFormatted}` : 'fal.ai bakiye alınamadı'"
+					:title="falBalance.error ?? undefined"
+				/>
+				<Badge
+					v-if="geminiSpend"
+					:icon="CreditCard"
+					:color="geminiSpendFormatted ? 'neutral' : 'danger'"
+					variant="tonal"
+					:label="geminiSpendFormatted ? `Gemini (bu ay): ${geminiSpendFormatted}` : 'Gemini harcaması alınamadı'"
+					:title="geminiSpend.error ?? undefined"
+				/>
 				<Button variant="ghost" with-icon @click="refresh">
 					<template #leading><RefreshCw :size="14" /></template>
 					Yenile
@@ -21,7 +37,7 @@
 		</PageHeader>
 
 		<!-- Adım göstergesi: sırayla kilitli/açık/tamam adımlar — bir adım tamamlanmadan sonrakine geçilemez. -->
-		<div v-if="can('creative.asset.manage')" class="wizard-steps">
+		<div v-if="can('creative.asset.manage')" ref="wizardStepsEl" class="wizard-steps">
 			<template v-for="(s, i) in wizardSteps" :key="s.n">
 				<button
 					type="button"
@@ -59,9 +75,6 @@
 				>
 					Sadece fotoğrafsız ürünler
 				</button>
-				<span v-if="!productQuery && productsTotal > productPool.length" class="hint">
-					İlk {{ productPool.length }} / {{ productsTotal }} ürün gösteriliyor — daralmak için arayın
-				</span>
 			</div>
 
 			<EmptyState
@@ -87,6 +100,14 @@
 					<span class="product-name">{{ p.name }}</span>
 					<span v-if="!p.has_garment" class="no-garment-badge">Fotoğraf yok</span>
 				</button>
+			</div>
+
+			<!-- Aramadan gezinirken tüm katalog boyunca ilerleme — arama modunda (productQuery
+			     dolu) gösterilmez, çünkü sunucu zaten en iyi 60 eşleşmeyi döndürüyor. -->
+			<div v-if="!productQuery && defaultProductsHasMore" class="load-more-row">
+				<Button variant="ghost" :loading="loadingMoreProducts" @click="loadMoreProducts">
+					Daha fazla yükle ({{ defaultProducts.length }}/{{ productsTotal }})
+				</Button>
 			</div>
 
 			<div class="step-nav">
@@ -453,11 +474,12 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, inject, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, watch, inject, onMounted, onUnmounted, nextTick } from 'vue'
 import { Head, Link, router } from '@inertiajs/vue3'
 import {
 	RefreshCw, Play, Maximize2, Star, AlertTriangle, Check, X, ClipboardList, MessageCircle, Download,
 	Search, Loader2, PackageSearch, Users, Footprints, ImageOff, ShieldCheck, Info, ChevronRight, ChevronLeft, ImagePlus,
+	CreditCard,
 } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
@@ -482,8 +504,30 @@ const props = defineProps({
 	productsTotal: { type: Number, default: 0 },
 	mannequins: { type: Array, default: () => [] },
 	poses: { type: Array, default: () => [] },
-	results: { type: Array, default: () => [] },
 	rejectionReasons: { type: Array, default: () => [] },
+	falBalance: { type: Object, default: null },
+	geminiSpend: { type: Object, default: null },
+})
+
+// FAL_ADMIN_KEY hiç ayarlanmadıysa (bkz. creative.ai.fal.admin_key) sunucu
+// null döner, rozet hiç gösterilmez.
+const falBalanceFormatted = computed(() => {
+	const b = props.falBalance
+	if (!b || b.balance === null || b.balance === undefined) return null
+	return new Intl.NumberFormat('en-US', { style: 'currency', currency: b.currency || 'USD' }).format(b.balance)
+})
+// Kredi $5'in altına düşünce uyar — giydirme üretimi (~$0.075/görsel) sessizce
+// başarısız olmadan önce fark edilsin.
+const falBalanceLow = computed(() => props.falBalance?.balance !== null && props.falBalance?.balance !== undefined && props.falBalance.balance < 5)
+
+// GCP billing export ayarlanmadıysa (bkz. creative.ai.gemini.billing.*) sunucu
+// null döner. Bu bir "kalan kredi" değil, "bu ay şu ana kadar Gemini API için
+// biriken tahmini maliyet" (accrued cost) — Google kalan bakiyeyi hiçbir API'de
+// vermiyor.
+const geminiSpendFormatted = computed(() => {
+	const s = props.geminiSpend
+	if (!s || s.amount === null || s.amount === undefined) return null
+	return new Intl.NumberFormat('en-US', { style: 'currency', currency: s.currency || 'USD' }).format(s.amount)
 })
 
 const showToast = inject('showToast', null)
@@ -521,7 +565,28 @@ function scheduleProductSearch() {
 }
 watch(productQuery, scheduleProductSearch)
 
-const productPool = computed(() => serverProducts.value ?? props.products)
+// Arama yapılmadığında (productQuery boş) katalogda "Daha fazla yükle" ile
+// gezinme — arama moduna geçilince (serverProducts doldu) bu liste dokunulmadan
+// öylece kalır, arama temizlenince kaldığı yerden devam eder.
+const defaultProducts = ref([...props.products])
+const defaultProductsOffset = ref(props.products.length)
+const loadingMoreProducts = ref(false)
+const defaultProductsHasMore = computed(() => defaultProductsOffset.value < props.productsTotal)
+
+async function loadMoreProducts() {
+	if (loadingMoreProducts.value || !defaultProductsHasMore.value) return
+	loadingMoreProducts.value = true
+	try {
+		const { data } = await window.axios.get('/creative/tryon/products', { params: { offset: defaultProductsOffset.value } })
+		const batch = data?.data || []
+		defaultProducts.value.push(...batch)
+		defaultProductsOffset.value += batch.length
+	} finally {
+		loadingMoreProducts.value = false
+	}
+}
+
+const productPool = computed(() => serverProducts.value ?? defaultProducts.value)
 const filteredProducts = computed(() => {
 	if (!withoutGarmentOnly.value) return productPool.value
 	return productPool.value.filter(p => !p.has_garment)
@@ -682,14 +747,29 @@ const maxUnlockedStep = computed(() => {
 	return 5
 })
 
+// Adım kartları v-if ile birbirinin yerine geçiyor (Inertia navigasyonu değil,
+// yerel state) — sayfanın gerçek kaydırma alanı AppLayout'taki .main-content
+// div'i olduğu için (window değil), adım değişince tarayıcı scroll'u KENDİLİĞİNDEN
+// sıfırlamaz; yeni adım, önceki adımda kalınan kaydırma konumundan yarım açılır.
+const wizardStepsEl = ref(null)
+function scrollWizardIntoView() {
+	nextTick(() => wizardStepsEl.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+}
+
 function goToStep(n) {
-	if (n <= maxUnlockedStep.value) currentStep.value = n
+	if (n <= maxUnlockedStep.value) {
+		currentStep.value = n
+		scrollWizardIntoView()
+	}
 }
 function nextStep() {
 	if (currentStep.value < 5) goToStep(currentStep.value + 1)
 }
 function prevStep() {
-	if (currentStep.value > 1) currentStep.value -= 1
+	if (currentStep.value > 1) {
+		currentStep.value -= 1
+		scrollWizardIntoView()
+	}
 }
 
 // Bir önceki adımdaki seçim geçersiz hale gelirse (ör. ürün değiştirilip
@@ -721,16 +801,35 @@ async function fetchProductResults(productId) {
 	}
 }
 
+// Ürün seçilmeden önceki global akış (bkz. TryonController::results() docblock'u) —
+// index() bunu artık hiç göndermiyor, sayfa açılır açılmaz burada (bloklamadan) çekilir.
+async function fetchGlobalResults() {
+	productResultsLoading.value = true
+	try {
+		const { data } = await window.axios.get('/creative/tryon/results')
+		productResults.value = data?.data || []
+	} catch {
+		productResults.value = []
+	} finally {
+		productResultsLoading.value = false
+	}
+}
+
 function clearProductFilter() {
 	resultsProductObj.value = null
-	productResults.value = null
+	fetchGlobalResults()
 }
 
 function refetchProductResultsIfActive() {
 	if (resultsProductObj.value !== null) fetchProductResults(resultsProductObj.value.id)
+	else fetchGlobalResults()
 }
 
-const displayResults = computed(() => productResults.value ?? props.results)
+onMounted(() => {
+	if (resultsProductObj.value === null) fetchGlobalResults()
+})
+
+const displayResults = computed(() => productResults.value ?? [])
 
 // Zaten onaylanmış (ve ürün kapağı olarak yayınlanmış) bir poz yeniden
 // kuyruğa alınırsa ProductOnModelService::queue() onay durumunu sessizce
@@ -1062,6 +1161,7 @@ onUnmounted(() => {
 
 /* Ürünler */
 .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
+.load-more-row { display: flex; justify-content: center; margin-top: 16px; }
 .product-card { position: relative; text-align: center; padding: 12px 10px; border: 2px solid var(--color-outline-variant); border-radius: 12px; background: var(--color-surface); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; font-family: inherit; content-visibility: auto; contain-intrinsic-size: 0 100px; }
 .product-card.selected { border-color: var(--color-primary); background: var(--color-primary-soft); }
 .no-garment-badge { position: absolute; top: 6px; right: 6px; font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 20px; background: var(--color-danger); color: #fff; }

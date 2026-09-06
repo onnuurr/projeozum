@@ -3,8 +3,16 @@
 use Illuminate\Support\Facades\Route;
 use Modules\Tenant\Http\Controllers\ProductAccessController;
 use Modules\Tenant\Http\Controllers\TenantAccessController;
+use Modules\Tenant\Http\Controllers\TenantApplicationController;
 use Modules\Tenant\Http\Controllers\TenantController;
 use Modules\Tenant\Http\Controllers\TenantTypeController;
+
+// ─── Şirket Başvuru Formu (herkese açık, KYB akışının ilk adımı) ──────────
+Route::prefix('tenant-basvuru')->name('tenant-applications.')->group(function () {
+    Route::get('/', [TenantApplicationController::class, 'create'])->name('create');
+    Route::post('/', [TenantApplicationController::class, 'store'])
+        ->middleware('throttle:6,1')->name('store');
+});
 
 Route::middleware(['auth', 'verified'])->group(function () {
     // ─── Tenant Tipleri ──────────────────────────────────────────────────
@@ -64,5 +72,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->whereNumber('tenant')->middleware('can:tenant.manage')->name('toggle');
         Route::delete('/{tenant}', [TenantController::class, 'destroy'])
             ->whereNumber('tenant')->middleware('can:tenant.manage')->name('destroy');
+    });
+
+    // ─── Tenant Başvuruları (KYB inceleme kuyruğu) ──────────────────────
+    Route::prefix('tenants/applications')->name('tenant-applications.')->group(function () {
+        Route::get('/', [TenantApplicationController::class, 'index'])
+            ->middleware('can:tenant.view')->name('index');
+        Route::post('/{application}/approve', [TenantApplicationController::class, 'approve'])
+            ->whereNumber('application')->middleware('can:tenant.manage')->name('approve');
+        Route::post('/{application}/reject', [TenantApplicationController::class, 'reject'])
+            ->whereNumber('application')->middleware('can:tenant.manage')->name('reject');
+        Route::get('/{application}/documents/{document}/download', [TenantApplicationController::class, 'downloadDocument'])
+            ->whereNumber('application')->whereNumber('document')
+            ->middleware('can:tenant.view')->name('documents.download');
     });
 });
