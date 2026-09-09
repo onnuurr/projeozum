@@ -41,7 +41,7 @@ class TryonController extends Controller
      */
     private const PRODUCT_PAGE_SIZE = 60;
 
-    public function index(FalBalanceService $falBalance, GeminiSpendService $geminiSpend): Response
+    public function index(GeminiSpendService $geminiSpend): Response
     {
         $productsTotal = Product::query()->count();
 
@@ -75,18 +75,28 @@ class TryonController extends Controller
                 'preview_url' => $this->url($p->preview_image_path),
             ]);
 
-        // Son giydirmeler galerisi (global + ürüne özel) artık ilk sayfa yükünü
-        // ağırlaştırmasın diye burada HİÇ hesaplanmaz — sayfa açılır açılmaz
-        // {@see results()} uç noktasından axios ile ayrıca (bloklamadan) çekilir.
+        // Son giydirmeler galerisi (global + ürüne özel) VE fal.ai bakiyesi artık ilk
+        // sayfa yükünü ağırlaştırmasın diye burada HİÇ hesaplanmaz — sayfa açılır
+        // açılmaz {@see results()} / {@see falBalance()} uç noktalarından axios ile
+        // ayrıca (bloklamadan) çekilir.
         return Inertia::render('Creative::CreativeTryon', [
             'products'         => $products,
             'productsTotal'    => $productsTotal,
             'mannequins'       => $mannequins,
             'poses'            => $poses,
             'rejectionReasons' => $this->rejectionReasonGroups('tryon'),
-            'falBalance'       => $falBalance->current(),
             'geminiSpend'      => $geminiSpend->currentMonthSpend(),
         ]);
+    }
+
+    /**
+     * fal.ai kredi bakiyesi (axios ile çağrılır, Inertia sayfası değil) —
+     * {@see index()} artık bunu hiç hesaplamaz; sayfa açılır açılmaz ve
+     * ardından her 10 dakikada bir buradan ayrıca (bloklamadan) çekilir.
+     */
+    public function falBalance(FalBalanceService $falBalance): JsonResponse
+    {
+        return response()->json(['data' => $falBalance->current()]);
     }
 
     /**

@@ -60,9 +60,12 @@
 		<Card v-if="can('creative.asset.manage') && currentStep === 1" title="1. Ürün Seç">
 			<template #actions>
 				<div class="product-search">
-					<Search :size="13" class="search-icon" />
-					<input v-model="productQuery" type="text" placeholder="Ürün ara…" />
-					<Loader2 v-if="productsLoading" :size="13" class="search-spin" />
+					<FormField variant="default">
+						<FormInput v-model="productQuery" type="text" placeholder="Ürün ara…" variant="default">
+							<template #icon><Search :size="13" /></template>
+							<template v-if="productsLoading" #trailing><Loader2 :size="13" class="search-spin" /></template>
+						</FormInput>
+					</FormField>
 				</div>
 			</template>
 
@@ -179,9 +182,10 @@
 							<img :src="d.preview" alt="Detay görseli" />
 						</div>
 						<div class="detail-label-wrap">
-							<input
+							<FormInput
 								v-model="d.label"
 								type="text"
+								variant="default"
 								class="detail-label-input"
 								:class="{ 'is-suggested': d.suggested }"
 								placeholder="Etiket (ör. Kol Ucu)"
@@ -490,6 +494,8 @@ import Badge from '@/Components/Badge.vue'
 import Tag from '@/Components/Tag.vue'
 import Alert from '@/Components/Alert.vue'
 import EmptyState from '@/Components/EmptyState.vue'
+import FormField from '@/Components/Form/FormField.vue'
+import FormInput from '@/Components/Form/FormInput.vue'
 import CreativeNav from '../Components/CreativeNav.vue'
 import { openRejectDialog } from '../support/rejectDialog'
 import { extOf } from '../support/mediaExt'
@@ -505,20 +511,42 @@ const props = defineProps({
 	mannequins: { type: Array, default: () => [] },
 	poses: { type: Array, default: () => [] },
 	rejectionReasons: { type: Array, default: () => [] },
-	falBalance: { type: Object, default: null },
 	geminiSpend: { type: Object, default: null },
+})
+
+// fal.ai bakiyesi artık sayfa yüküne dahil DEĞİL (bkz. TryonController::index()
+// docblock'u) — ilk yükten sonra ve ardından her 10 dakikada bir arka planda
+// axios ile çekilir (bkz. fetchFalBalance/falBalanceTimer aşağıda).
+const falBalance = ref(null)
+
+async function fetchFalBalance() {
+	try {
+		const { data } = await window.axios.get('/creative/tryon/fal-balance')
+		falBalance.value = data?.data ?? null
+	} catch {
+		// Ağ hatası: mevcut son bilinen değer ekranda kalsın, sessizce geç.
+	}
+}
+
+let falBalanceTimer = null
+onMounted(() => {
+	fetchFalBalance()
+	falBalanceTimer = setInterval(fetchFalBalance, 10 * 60 * 1000)
+})
+onUnmounted(() => {
+	if (falBalanceTimer) clearInterval(falBalanceTimer)
 })
 
 // FAL_ADMIN_KEY hiç ayarlanmadıysa (bkz. creative.ai.fal.admin_key) sunucu
 // null döner, rozet hiç gösterilmez.
 const falBalanceFormatted = computed(() => {
-	const b = props.falBalance
+	const b = falBalance.value
 	if (!b || b.balance === null || b.balance === undefined) return null
 	return new Intl.NumberFormat('en-US', { style: 'currency', currency: b.currency || 'USD' }).format(b.balance)
 })
 // Kredi $5'in altına düşünce uyar — giydirme üretimi (~$0.075/görsel) sessizce
 // başarısız olmadan önce fark edilsin.
-const falBalanceLow = computed(() => props.falBalance?.balance !== null && props.falBalance?.balance !== undefined && props.falBalance.balance < 5)
+const falBalanceLow = computed(() => falBalance.value?.balance !== null && falBalance.value?.balance !== undefined && falBalance.value.balance < 5)
 
 // GCP billing export ayarlanmadıysa (bkz. creative.ai.gemini.billing.*) sunucu
 // null döner. Bu bir "kalan kredi" değil, "bu ay şu ana kadar Gemini API için
@@ -1147,8 +1175,11 @@ onUnmounted(() => {
 
 /* Ürün arama */
 .product-search { display: flex; align-items: center; gap: 6px; background: var(--color-surface-container-low); border: 1px solid var(--color-outline-variant); border-radius: 8px; padding: 5px 10px; min-width: 220px; }
-.product-search input { border: none; background: none; outline: none; font-family: inherit; font-size: 13px; width: 100%; color: var(--color-ink); }
-.search-icon { color: var(--color-muted); flex-shrink: 0; }
+.product-search :deep(.form-group) { width: 100%; }
+.product-search :deep(.form-input-wrap) { display: flex; align-items: center; gap: 6px; }
+.product-search :deep(.form-input-icon) { color: var(--color-muted); flex-shrink: 0; display: flex; }
+.product-search :deep(.form-input) { border: none; background: none; outline: none; box-shadow: none; height: auto; padding: 0; font-family: inherit; font-size: 13px; width: 100%; color: var(--color-ink); }
+.product-search :deep(.form-input)::placeholder { color: var(--color-muted); }
 .search-spin { color: var(--color-primary); flex-shrink: 0; animation: spin 1s linear infinite; }
 @keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
 
