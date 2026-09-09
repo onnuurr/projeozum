@@ -164,12 +164,12 @@ function confirmDelete(p) {
 .label { font-size: 14px; font-weight: 700; color: rgb(var(--portal-ink)); }
 .state { font-size: 11px; color: rgb(var(--portal-text-secondary)); display: flex; align-items: center; gap: 6px; margin-top: 2px; }
 .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-.dot.on { background: rgb(var(--color-success)); }
-.dot.off { background: rgb(var(--color-warning)); }
+.dot.on { background: rgb(var(--color-success-rgb)); }
+.dot.off { background: rgb(var(--color-warning-rgb)); }
 .dim { color: #aaa; }
 .badge { padding: 3px 10px; border-radius: 8px; font-size: 11px; font-weight: 700; flex-shrink: 0; }
-.badge.live { background: rgb(var(--color-success) / .12); color: rgb(var(--color-success)); }
-.badge.soon { background: rgb(var(--color-warning) / .14); color: rgb(180 83 9); }
+.badge.live { background: rgb(var(--color-success-rgb) / .12); color: rgb(var(--color-success-rgb)); }
+.badge.soon { background: rgb(var(--color-warning-rgb) / .14); color: rgb(180 83 9); }
 
 .key-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .key-chip { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 11px; background: rgb(var(--portal-bg-soft)); color: rgb(var(--portal-text-secondary)); padding: 3px 8px; border-radius: 6px; }

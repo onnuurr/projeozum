@@ -132,8 +132,8 @@ onBeforeUnmount(() => document.removeEventListener('click', handleOutside))
 }
 .cs-trigger:hover { border-color: #ccc; }
 .cs-trigger.open {
-	border-color: rgb(var(--color-primary));
-	box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.1);
+	border-color: rgb(var(--color-primary-rgb));
+	box-shadow: 0 0 0 3px rgb(var(--color-primary-rgb) / 0.1);
 	background: #fff;
 }
 .cs-trigger > span { flex: 1; display: flex; align-items: center; gap: 8px; }
@@ -159,8 +159,8 @@ onBeforeUnmount(() => document.removeEventListener('click', handleOutside))
 	display: flex; align-items: center; gap: 8px;
 	transition: background .1s;
 }
-.cs-option:hover { background: rgb(var(--color-primary-soft)); color: #1a1a2e; }
-.cs-option.selected { background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary)); font-weight: 600; }
+.cs-option:hover { background: rgb(var(--color-primary-soft-rgb)); color: #1a1a2e; }
+.cs-option.selected { background: rgb(var(--color-primary-soft-rgb)); color: rgb(var(--color-primary-rgb)); font-weight: 600; }
 
 .cs-empty {
 	padding: 10px; text-align: center;
@@ -170,13 +170,13 @@ onBeforeUnmount(() => document.removeEventListener('click', handleOutside))
 .cs-create-btn {
 	width: 100%; display: flex; align-items: center; gap: 6px;
 	padding: 8px 10px; border: none; border-radius: 7px;
-	background: rgb(var(--color-primary-soft));
-	color: rgb(var(--color-primary));
+	background: rgb(var(--color-primary-soft-rgb));
+	color: rgb(var(--color-primary-rgb));
 	font-family: inherit; font-size: 12.5px; font-weight: 600;
 	cursor: pointer; text-align: left;
 	transition: background .1s, opacity .1s;
 }
-.cs-create-btn:hover:not(:disabled) { background: rgb(var(--color-primary) / 0.18); }
+.cs-create-btn:hover:not(:disabled) { background: rgb(var(--color-primary-rgb) / 0.18); }
 .cs-create-btn:disabled { cursor: default; opacity: .6; }
 
 .cs-search-wrap {

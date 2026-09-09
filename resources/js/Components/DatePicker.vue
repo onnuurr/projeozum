@@ -161,8 +161,8 @@ onBeforeUnmount(() => document.removeEventListener('click', handleOutside))
 }
 .dp-trigger:hover { border-color: #ccc; }
 .dp-trigger.open {
-	border-color: rgb(var(--color-primary));
-	box-shadow: 0 0 0 3px rgb(var(--color-primary) / .10);
+	border-color: rgb(var(--color-primary-rgb));
+	box-shadow: 0 0 0 3px rgb(var(--color-primary-rgb) / .10);
 	background: #fff;
 }
 .dp-trigger-text { flex: 1; color: #1a1a2e; }
@@ -223,9 +223,9 @@ onBeforeUnmount(() => document.removeEventListener('click', handleOutside))
 .dp-cell:hover:not(.dp-empty):not(.dp-selected) { background: #f0f0f5; }
 .dp-cell.dp-empty { pointer-events: none; }
 .dp-cell.dp-other-month { color: #ccc; }
-.dp-cell.dp-today { color: rgb(var(--color-primary)); font-weight: 700; background: rgb(var(--color-primary-soft)); }
+.dp-cell.dp-today { color: rgb(var(--color-primary-rgb)); font-weight: 700; background: rgb(var(--color-primary-soft-rgb)); }
 .dp-cell.dp-selected { background: #1a1a2e; color: #fff; font-weight: 700; }
-.dp-cell.dp-selected.dp-today { background: rgb(var(--color-primary)); }
+.dp-cell.dp-selected.dp-today { background: rgb(var(--color-primary-rgb)); }
 
 .dp-footer {
 	display: flex; justify-content: space-between; align-items: center;
@@ -233,10 +233,10 @@ onBeforeUnmount(() => document.removeEventListener('click', handleOutside))
 	border-top: 1px solid #f0f0f5;
 }
 .dp-today-btn {
-	font-size: 11.5px; font-weight: 600; color: rgb(var(--color-primary));
+	font-size: 11.5px; font-weight: 600; color: rgb(var(--color-primary-rgb));
 	background: none; border: none; cursor: pointer; padding: 0;
 }
-.dp-today-btn:hover { color: rgb(var(--color-primary-hover)); }
+.dp-today-btn:hover { color: rgb(var(--color-primary-hover-rgb)); }
 .dp-clear-btn {
 	font-size: 11.5px; font-weight: 600; color: #aaa;
 	background: none; border: none; cursor: pointer; padding: 0;

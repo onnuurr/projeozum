@@ -153,8 +153,8 @@ onMounted(() => {
     font-family: inherit;
 }
 .form-otp-box:focus {
-    border-color: rgb(var(--color-primary));
-    box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.12);
+    border-color: rgb(var(--color-primary-rgb));
+    box-shadow: 0 0 0 3px rgb(var(--color-primary-rgb) / 0.12);
     background: #fff;
 }
 .form-otp-box:disabled {

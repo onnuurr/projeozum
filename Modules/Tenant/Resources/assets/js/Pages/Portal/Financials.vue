@@ -106,8 +106,8 @@ watch([() => props.byMarketplace, () => props.byMonth], renderCharts, { deep: tr
 .kpi.highlight { background: linear-gradient(135deg, rgb(var(--portal-accent-soft)), rgb(var(--portal-accent-soft-2))); border-color: rgb(var(--portal-accent-soft-border)); }
 .label { font-size: 11px; color: rgb(var(--portal-text-muted)); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
 .value { font-size: 22px; font-weight: 700; font-family: 'SF Mono', Menlo, Consolas, monospace; color: rgb(var(--portal-ink)); }
-.value.profit { color: rgb(var(--color-success)); }
-.value.loss { color: rgb(var(--color-danger)); }
+.value.profit { color: rgb(var(--color-success-rgb)); }
+.value.loss { color: rgb(var(--color-danger-rgb)); }
 .card { background: #fff; border-radius: 12px; border: 1px solid rgb(var(--portal-border)); padding: 18px 20px; margin-bottom: 14px; }
 .card-title { font-size: 13px; font-weight: 700; color: rgb(var(--portal-text-secondary)); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 12px; }
 

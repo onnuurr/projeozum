@@ -62,7 +62,7 @@ defineEmits(['update:modelValue'])
 .tab-btn.active {
 	color: #1a1a2e;
 	font-weight: 600;
-	border-bottom-color: rgb(var(--color-primary));
+	border-bottom-color: rgb(var(--color-primary-rgb));
 }
 
 .tab-icon { font-size: 14px; }
@@ -81,7 +81,7 @@ defineEmits(['update:modelValue'])
 	font-weight: 700;
 }
 
-.tab-btn.active .tab-badge { background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary)); }
+.tab-btn.active .tab-badge { background: rgb(var(--color-primary-soft-rgb)); color: rgb(var(--color-primary-rgb)); }
 
 .tab-panel { padding-top: 16px; }
 

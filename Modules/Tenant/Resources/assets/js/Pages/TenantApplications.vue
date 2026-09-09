@@ -188,30 +188,30 @@ function submitReject() {
 </script>
 
 <style scoped>
-.filter-select { border: 1px solid rgb(var(--color-border)); background: rgb(var(--color-bg)); border-radius: 8px; padding: 6px 10px; font-size: 12.5px; color: rgb(var(--color-ink)); font-family: inherit; outline: none; }
-.dim { color: rgb(var(--color-muted)); font-size: 12px; }
+.filter-select { border: 1px solid rgb(var(--color-border-rgb)); background: rgb(var(--color-bg-rgb)); border-radius: 8px; padding: 6px 10px; font-size: 12.5px; color: rgb(var(--color-ink-rgb)); font-family: inherit; outline: none; }
+.dim { color: rgb(var(--color-muted-rgb)); font-size: 12px; }
 .mono { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; }
 
 .applicant-cell { display: flex; flex-direction: column; gap: 2px; }
-.applicant-name { font-weight: 600; color: rgb(var(--color-ink)); font-size: 13px; }
-.applicant-legal { font-size: 11px; color: rgb(var(--color-muted)); }
+.applicant-name { font-weight: 600; color: rgb(var(--color-ink-rgb)); font-size: 13px; }
+.applicant-legal { font-size: 11px; color: rgb(var(--color-muted-rgb)); }
 
 .contact-cell { display: flex; flex-direction: column; gap: 2px; }
-.contact-line { font-size: 12px; color: rgb(var(--color-ink)); }
+.contact-line { font-size: 12px; color: rgb(var(--color-ink-rgb)); }
 
 .doc-list { display: flex; flex-direction: column; gap: 4px; }
-.doc-link { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: rgb(var(--color-primary)); text-decoration: none; }
+.doc-link { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: rgb(var(--color-primary-rgb)); text-decoration: none; }
 .doc-link:hover { text-decoration: underline; }
 
 .converted-hint { display: block; margin-top: 2px; }
 
-.table-action-btn { display: inline-flex; align-items: center; justify-content: center; background: rgb(var(--color-bg)); border: none; cursor: pointer; padding: 6px; border-radius: 6px; color: rgb(var(--color-muted)); transition: all .15s; }
-.table-action-btn.approve:hover { background: rgb(var(--color-success) / .15); color: rgb(var(--color-success)); }
-.table-action-btn.reject:hover { background: rgb(var(--color-danger) / .12); color: rgb(var(--color-danger)); }
+.table-action-btn { display: inline-flex; align-items: center; justify-content: center; background: rgb(var(--color-bg-rgb)); border: none; cursor: pointer; padding: 6px; border-radius: 6px; color: rgb(var(--color-muted-rgb)); transition: all .15s; }
+.table-action-btn.approve:hover { background: rgb(var(--color-success-rgb) / .15); color: rgb(var(--color-success-rgb)); }
+.table-action-btn.reject:hover { background: rgb(var(--color-danger-rgb) / .12); color: rgb(var(--color-danger-rgb)); }
 
 .form-row { display: flex; flex-direction: column; gap: 6px; }
-.form-label { font-size: 12px; font-weight: 600; color: rgb(var(--color-ink)); }
-.form-label .req { color: rgb(var(--color-danger)); }
-.form-input { padding: 9px 12px; border: 1px solid rgb(var(--color-border)); border-radius: 8px; font-family: inherit; font-size: 13px; color: rgb(var(--color-ink)); background: rgb(var(--color-surface)); outline: none; }
-.form-error { font-size: 11.5px; color: rgb(var(--color-danger)); }
+.form-label { font-size: 12px; font-weight: 600; color: rgb(var(--color-ink-rgb)); }
+.form-label .req { color: rgb(var(--color-danger-rgb)); }
+.form-input { padding: 9px 12px; border: 1px solid rgb(var(--color-border-rgb)); border-radius: 8px; font-family: inherit; font-size: 13px; color: rgb(var(--color-ink-rgb)); background: rgb(var(--color-surface-rgb)); outline: none; }
+.form-error { font-size: 11.5px; color: rgb(var(--color-danger-rgb)); }
 </style>

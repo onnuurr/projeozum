@@ -231,19 +231,19 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.user-menu-item :deep(svg) { color: rgb(var(--color-muted)); flex-shrink: 0; }
-.user-menu-item:hover :deep(svg) { color: rgb(var(--color-primary)); }
-.user-menu-item.text-danger :deep(svg) { color: rgb(var(--color-danger)); }
+.user-menu-item :deep(svg) { color: rgb(var(--color-muted-rgb)); flex-shrink: 0; }
+.user-menu-item:hover :deep(svg) { color: rgb(var(--color-primary-rgb)); }
+.user-menu-item.text-danger :deep(svg) { color: rgb(var(--color-danger-rgb)); }
 .user-menu-item.demo-active {
-	background: rgb(var(--color-primary) / .1);
-	color: rgb(var(--color-primary));
+	background: rgb(var(--color-primary-rgb) / .1);
+	color: rgb(var(--color-primary-rgb));
 	font-weight: 600;
 	position: relative;
 }
 .user-menu-item.demo-active::after {
 	content: '✓';
 	margin-left: auto;
-	color: rgb(var(--color-primary));
+	color: rgb(var(--color-primary-rgb));
 	font-weight: 800;
 }
 </style>

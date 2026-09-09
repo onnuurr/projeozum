@@ -89,6 +89,29 @@
   --radius-4xl: 1.75rem;
 }
 
+/* rgb(var(--color-x-rgb)) için RGB-triplet karşılıklar — @theme içindeki
+   --color-x token'ları hex string (#4f46e5), bu yüzden rgb(var(--color-x))
+   geçersiz CSS üretiyordu (yüzlerce dosyada sessizce kırıktı). Bilerek
+   @theme dışında: buradaki isimler Tailwind'in bg-*/text-* utility
+   üretimine dahil olmasın (triplet, geçerli bir renk değeri değil).
+   --color-bg-rgb ve --color-border-rgb, @theme'deki canvas/outline-variant
+   token'larının eşdeğeridir — eski adlandırma (bg/border) korunuyor çünkü
+   59 dosyada zaten o isimlerle referans veriliyordu. */
+:root {
+  --color-primary-rgb: 79 70 229;
+  --color-primary-hover-rgb: 67 56 202;
+  --color-primary-soft-rgb: 238 242 255;
+  --color-ink-rgb: 15 23 42;
+  --color-muted-rgb: 100 116 139;
+  --color-surface-rgb: 255 255 255;
+  --color-bg-rgb: 248 250 252;
+  --color-border-rgb: 226 232 240;
+  --color-success-rgb: 22 163 74;
+  --color-warning-rgb: 245 158 11;
+  --color-danger-rgb: 220 38 38;
+  --color-info-rgb: 37 99 235;
+}
+
 @layer components {
   .btn {
     height: 36px;

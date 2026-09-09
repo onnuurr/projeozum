@@ -12,7 +12,7 @@ defineProps({
 
 <style scoped>
 .skeleton {
-    background: linear-gradient(90deg, rgb(var(--color-border)) 25%, rgb(var(--color-bg)) 50%, rgb(var(--color-border)) 75%);
+    background: linear-gradient(90deg, rgb(var(--color-border-rgb)) 25%, rgb(var(--color-bg-rgb)) 50%, rgb(var(--color-border-rgb)) 75%);
     background-size: 200% 100%;
     animation: skeleton-shimmer 1.4s ease-in-out infinite;
 }

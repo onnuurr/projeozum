@@ -80,7 +80,7 @@ watch(local, (val) => {
 	font-family: inherit; font-size: 12.5px; color: #1a1a2e;
 	background: #fff; outline: none; transition: border-color .15s;
 }
-.form-input:focus { border-color: rgb(var(--color-primary)); }
+.form-input:focus { border-color: rgb(var(--color-primary-rgb)); }
 
 @media (max-width: 560px) {
 	.specs-grid { grid-template-columns: 1fr; }

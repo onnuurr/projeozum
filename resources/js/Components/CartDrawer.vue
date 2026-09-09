@@ -62,7 +62,7 @@
 							Tebrikler! <strong>Ücretsiz kargo</strong> kazandın.
 						</template>
 						<template v-else>
-							<svg width="14" height="14" fill="none" stroke="rgb(var(--color-primary))" stroke-width="2" viewBox="0 0 24 24">
+							<svg width="14" height="14" fill="none" stroke="rgb(var(--color-primary-rgb))" stroke-width="2" viewBox="0 0 24 24">
 								<rect x="1" y="3" width="15" height="13" /><polygon points="16 8 20 8 23 11 23 16 16 16 16 8" />
 								<circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" />
 							</svg>
@@ -240,7 +240,7 @@ function checkout() {
 /* ── Free shipping progress ── */
 .cart-progress {
 	padding: 12px 16px 14px;
-	background: rgb(var(--color-primary-soft));
+	background: rgb(var(--color-primary-soft-rgb));
 	border-bottom: 1px solid #f0f0f5;
 	flex-shrink: 0;
 }
@@ -265,7 +265,7 @@ function checkout() {
 
 .cart-progress-fill {
 	height: 100%;
-	background: linear-gradient(90deg, rgb(var(--color-primary)), rgb(var(--color-primary)));
+	background: linear-gradient(90deg, rgb(var(--color-primary-rgb)), rgb(var(--color-primary-rgb)));
 	border-radius: 999px;
 	transition: width .3s ease;
 }
@@ -336,7 +336,7 @@ function checkout() {
 	-webkit-box-orient: vertical;
 	overflow: hidden;
 }
-.cart-item-name:hover { color: rgb(var(--color-primary)); }
+.cart-item-name:hover { color: rgb(var(--color-primary-rgb)); }
 
 .cart-item-meta {
 	display: flex;

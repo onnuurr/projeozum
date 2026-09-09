@@ -1202,7 +1202,7 @@ onMounted(() => {
 }
 .topbar-sku {
 	font-family: 'SF Mono', Consolas, monospace;
-	font-size: 11px; color: rgb(var(--color-primary-hover));
+	font-size: 11px; color: rgb(var(--color-primary-hover-rgb));
 	background: #f3eefe; padding: 1px 7px; border-radius: 5px;
 }
 .topbar-actions { display: flex; gap: 8px; flex-shrink: 0; }
@@ -1312,19 +1312,19 @@ onMounted(() => {
 /* ── Görseller ── */
 .img-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 10px; }
 .img-thumb { position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden; border: 1.5px solid #e8e8f0; background: #f5f5fa; }
-.img-thumb.cover { border-color: rgb(var(--color-primary)); box-shadow: 0 0 0 2px rgb(var(--color-primary) / .2); }
-.img-thumb.new { border-style: dashed; border-color: rgb(var(--color-primary) / .5); }
+.img-thumb.cover { border-color: rgb(var(--color-primary-rgb)); box-shadow: 0 0 0 2px rgb(var(--color-primary-rgb) / .2); }
+.img-thumb.new { border-style: dashed; border-color: rgb(var(--color-primary-rgb) / .5); }
 .img-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .img-badge { position: absolute; top: 5px; left: 5px; font-size: 9.5px; font-weight: 700; padding: 1px 6px; border-radius: 5px; }
-.cover-badge { background: rgb(var(--color-primary)); color: #fff; }
-.new-badge { background: rgb(var(--color-primary)); color: #fff; }
+.cover-badge { background: rgb(var(--color-primary-rgb)); color: #fff; }
+.new-badge { background: rgb(var(--color-primary-rgb)); color: #fff; }
 .img-actions { position: absolute; top: 4px; right: 4px; display: flex; gap: 4px; opacity: 0; transition: opacity .12s; }
 .img-thumb:hover .img-actions { opacity: 1; }
 .img-act { width: 22px; height: 22px; border: none; border-radius: 6px; background: rgba(26,26,46,.7); color: #fff; font-size: 11px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .img-act:hover { background: rgba(26,26,46,.9); }
 .img-act.del:hover { background: #dc2626; }
-.img-upload { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 16px; border: 1.5px dashed rgb(var(--color-primary) / .35); border-radius: 10px; cursor: pointer; color: rgb(var(--color-primary)); font-size: 12.5px; font-weight: 600; background: rgb(var(--color-primary-soft)); transition: all .12s; }
-.img-upload:hover { border-color: rgb(var(--color-primary) / .5); background: #f3eefe; }
+.img-upload { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 16px; border: 1.5px dashed rgb(var(--color-primary-rgb) / .35); border-radius: 10px; cursor: pointer; color: rgb(var(--color-primary-rgb)); font-size: 12.5px; font-weight: 600; background: rgb(var(--color-primary-soft-rgb)); transition: all .12s; }
+.img-upload:hover { border-color: rgb(var(--color-primary-rgb) / .5); background: #f3eefe; }
 
 /* ── Chips / renkler ── */
 .chips-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(54px, 1fr)); gap: 6px; }
@@ -1346,12 +1346,12 @@ onMounted(() => {
 	font-family: inherit; font-size: 11.5px; color: #444; font-weight: 600;
 }
 .color-chip:hover { border-color: #c0c0d8; }
-.color-chip.active { border-color: rgb(var(--color-primary)); background: rgb(var(--color-primary-soft)); color: #1a1a2e; }
+.color-chip.active { border-color: rgb(var(--color-primary-rgb)); background: rgb(var(--color-primary-soft-rgb)); color: #1a1a2e; }
 .color-swatch { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid rgba(0, 0, 0, 0.08); flex-shrink: 0; }
 .color-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .color-custom { margin-top: 2px; }
-.color-custom summary { font-size: 12px; color: rgb(var(--color-primary)); cursor: pointer; font-weight: 600; padding: 4px 0; list-style: none; }
+.color-custom summary { font-size: 12px; color: rgb(var(--color-primary-rgb)); cursor: pointer; font-weight: 600; padding: 4px 0; list-style: none; }
 .color-custom summary::-webkit-details-marker { display: none; }
 .color-custom-row { display: flex; gap: 6px; margin-top: 6px; align-items: center; }
 .color-custom-row .form-input { flex: 1; }
@@ -1361,7 +1361,7 @@ onMounted(() => {
 
 /* ── Varyantlar ── */
 .variant-badge {
-	display: inline-block; background: rgb(var(--color-primary)); color: #fff;
+	display: inline-block; background: rgb(var(--color-primary-rgb)); color: #fff;
 	font-size: 11px; font-weight: 700; padding: 1px 8px;
 	border-radius: 999px; margin-left: 6px;
 }
@@ -1412,7 +1412,7 @@ onMounted(() => {
 	padding: 9px 11px; border-radius: 8px;
 	background: #fafafe; border: 1px solid #f0f0f6; cursor: pointer;
 }
-.toggle-row input { accent-color: rgb(var(--color-primary)); width: 14px; height: 14px; cursor: pointer; }
+.toggle-row input { accent-color: rgb(var(--color-primary-rgb)); width: 14px; height: 14px; cursor: pointer; }
 .toggle-text { font-size: 12.5px; color: #444; font-weight: 600; }
 
 /* AI Açıklama tab */

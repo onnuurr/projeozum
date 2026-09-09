@@ -91,6 +91,6 @@ function formatMoney(value) {
 .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 20px; }
 .kpi-link { text-decoration: none; color: inherit; display: block; transition: box-shadow .15s; border-radius: 12px; }
 .kpi-link:hover { box-shadow: 0 4px 12px rgba(0,0,0,.08); }
-.kpi-value { font-size: 22px; font-weight: 800; color: rgb(var(--color-ink)); margin: 0; }
-.kpi-hint { font-size: 11.5px; color: rgb(var(--color-muted)); margin: 4px 0 0; }
+.kpi-value { font-size: 22px; font-weight: 800; color: rgb(var(--color-ink-rgb)); margin: 0; }
+.kpi-hint { font-size: 11.5px; color: rgb(var(--color-muted-rgb)); margin: 4px 0 0; }
 </style>

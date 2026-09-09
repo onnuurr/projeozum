@@ -162,8 +162,8 @@ function formatMoney(v) {
 .page-subtitle { font-size: 13px; color: rgb(var(--portal-text-muted)); margin: 4px 0 16px; }
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .card { background: #fff; border-radius: 12px; border: 1px solid rgb(var(--portal-border)); padding: 18px 20px; }
-.card.profitable { border-color: rgb(var(--color-success) / .4); background: linear-gradient(135deg, rgb(var(--color-success) / .06), #fff); }
-.card.loss { border-color: rgb(var(--color-danger) / .35); background: linear-gradient(135deg, rgb(var(--color-danger) / .06), #fff); }
+.card.profitable { border-color: rgb(var(--color-success-rgb) / .4); background: linear-gradient(135deg, rgb(var(--color-success-rgb) / .06), #fff); }
+.card.loss { border-color: rgb(var(--color-danger-rgb) / .35); background: linear-gradient(135deg, rgb(var(--color-danger-rgb) / .06), #fff); }
 .card-title { font-size: 13px; font-weight: 700; color: rgb(var(--portal-text-secondary)); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 12px; }
 .row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; position: relative; }
 .row label { font-size: 11px; font-weight: 600; color: rgb(var(--portal-text-secondary)); }
@@ -175,8 +175,8 @@ function formatMoney(v) {
 .picked { font-size: 11px; color: rgb(var(--portal-accent)); margin-top: 4px; }
 .btn { padding: 12px 20px; background: rgb(var(--portal-accent)); color: #fff; border: none; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.big { font-size: 36px; font-weight: 800; color: rgb(var(--color-success)); font-family: 'SF Mono', Menlo, Consolas, monospace; }
-.card.loss .big { color: rgb(var(--color-danger)); }
+.big { font-size: 36px; font-weight: 800; color: rgb(var(--color-success-rgb)); font-family: 'SF Mono', Menlo, Consolas, monospace; }
+.card.loss .big { color: rgb(var(--color-danger-rgb)); }
 .margin { font-size: 13px; color: rgb(var(--portal-text-secondary)); margin-bottom: 14px; }
 .rows div { display: flex; justify-content: space-between; padding: 5px 0; font-size: 13px; border-bottom: 1px solid rgb(var(--portal-bg-soft)); }
 .rows .grand { font-weight: 700; padding-top: 8px; }

@@ -409,7 +409,7 @@ const recentOrders = computed(() => {
 	font-size: 11px;
 	font-weight: 600;
 }
-.cat-fabric    { background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary)); }
+.cat-fabric    { background: rgb(var(--color-primary-soft-rgb)); color: rgb(var(--color-primary-rgb)); }
 .cat-yarn      { background: #e0f2fe; color: #0284c7; }
 .cat-dye       { background: #fce7f3; color: #be185d; }
 .cat-accessory { background: #f0fdf4; color: #16a34a; }
@@ -472,7 +472,7 @@ const recentOrders = computed(() => {
 	border-radius: 8px;
 	border: 1.5px solid #e8e8f2;
 	background: #fff;
-	color: rgb(var(--color-primary));
+	color: rgb(var(--color-primary-rgb));
 	cursor: pointer;
 	display: flex;
 	align-items: center;
@@ -482,9 +482,9 @@ const recentOrders = computed(() => {
 	text-decoration: none;
 }
 .drawer-edit-btn:hover {
-	background: rgb(var(--color-primary-soft));
+	background: rgb(var(--color-primary-soft-rgb));
 	border-color: #c0c8f8;
-	color: rgb(var(--color-primary-hover));
+	color: rgb(var(--color-primary-hover-rgb));
 }
 
 /* Drawer section */
@@ -552,7 +552,7 @@ const recentOrders = computed(() => {
 .mono { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; }
 .iban-value { font-size: 12.5px; letter-spacing: 0.02em; }
 
-.link { color: rgb(var(--color-primary)); text-decoration: none; }
+.link { color: rgb(var(--color-primary-rgb)); text-decoration: none; }
 .link:hover { text-decoration: underline; }
 
 /* Mini stats */

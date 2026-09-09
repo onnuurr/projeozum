@@ -71,7 +71,7 @@ async function download() {
 .row.grand { font-weight: 700; font-size: 16px; padding-top: 12px; border-top: 1px solid rgb(var(--portal-border)); }
 .mono { font-family: 'SF Mono', Menlo, Consolas, monospace; }
 .status-pill { display: inline-block; padding: 2px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; }
-.status-pill.paid { background: rgb(var(--color-success) / .12); color: rgb(var(--color-success)); }
-.status-pill.pending { background: rgb(var(--color-warning) / .14); color: rgb(180 83 9); }
-.status-pill.cancelled { background: rgb(var(--color-danger) / .1); color: rgb(var(--color-danger)); }
+.status-pill.paid { background: rgb(var(--color-success-rgb) / .12); color: rgb(var(--color-success-rgb)); }
+.status-pill.pending { background: rgb(var(--color-warning-rgb) / .14); color: rgb(180 83 9); }
+.status-pill.cancelled { background: rgb(var(--color-danger-rgb) / .1); color: rgb(var(--color-danger-rgb)); }
 </style>

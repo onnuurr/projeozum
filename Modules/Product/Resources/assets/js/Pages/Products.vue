@@ -632,14 +632,14 @@ async function bulkDelete() {
 	transition: border-color .15s, background .15s;
 }
 .filter-toggle:hover { border-color: #ccc; }
-.filter-toggle.open { border-color: rgb(var(--color-primary)); }
+.filter-toggle.open { border-color: rgb(var(--color-primary-rgb)); }
 .filter-toggle svg { color: #888; }
 .filter-toggle .toggle-chevron { transition: transform .2s; }
 .filter-toggle.open .toggle-chevron { transform: rotate(180deg); }
 .filter-badge {
 	display: inline-flex; align-items: center; justify-content: center;
 	min-width: 18px; height: 18px; padding: 0 5px;
-	background: rgb(var(--color-primary)); color: #fff;
+	background: rgb(var(--color-primary-rgb)); color: #fff;
 	font-size: 11px; font-weight: 700; border-radius: 999px;
 }
 
@@ -700,8 +700,8 @@ async function bulkDelete() {
 	transition: border-color .15s, box-shadow .15s, background .15s;
 }
 .filter-input:focus {
-	border-color: rgb(var(--color-primary));
-	box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.1);
+	border-color: rgb(var(--color-primary-rgb));
+	box-shadow: 0 0 0 3px rgb(var(--color-primary-rgb) / 0.1);
 	background: #fff;
 }
 
@@ -725,7 +725,7 @@ async function bulkDelete() {
 	color: #888; font-family: inherit; font-size: 12.5px;
 	cursor: pointer; padding: 4px 6px; border-radius: 6px;
 }
-.clear-link:hover { color: rgb(var(--color-primary)); background: rgb(var(--color-primary-soft)); }
+.clear-link:hover { color: rgb(var(--color-primary-rgb)); background: rgb(var(--color-primary-soft-rgb)); }
 
 /* ── Başlık ── */
 .list-head { margin-bottom: 12px; }
@@ -738,8 +738,8 @@ async function bulkDelete() {
 .filter-chip {
 	display: inline-flex; align-items: center;
 	padding: 2px 8px;
-	background: rgb(var(--color-primary-soft));
-	color: rgb(var(--color-primary));
+	background: rgb(var(--color-primary-soft-rgb));
+	color: rgb(var(--color-primary-rgb));
 	border-radius: 999px; font-size: 11px; font-weight: 600;
 }
 
@@ -754,7 +754,7 @@ async function bulkDelete() {
 	padding: 9px 14px;
 	margin-bottom: 14px;
 }
-.bulk-info { font-size: 12.5px; color: rgb(var(--color-primary-hover)); }
+.bulk-info { font-size: 12.5px; color: rgb(var(--color-primary-hover-rgb)); }
 .bulk-info strong { font-weight: 800; }
 .bulk-actions { display: flex; gap: 8px; margin-left: auto; }
 .btn-danger { background: #dc2626; color: #fff; border: none; }
@@ -796,7 +796,7 @@ async function bulkDelete() {
 .product-table tbody tr:last-child td { border-bottom: none; }
 .product-table tbody tr { transition: background .12s; }
 .product-table tbody tr:hover { background: #fafafe; }
-.product-table tbody tr.row-selected { background: rgb(var(--color-primary-soft)); }
+.product-table tbody tr.row-selected { background: rgb(var(--color-primary-soft-rgb)); }
 .product-table tbody tr.row-out { opacity: .7; }
 
 .col-check { width: 44px; }
@@ -825,7 +825,7 @@ async function bulkDelete() {
 .mono { font-family: 'SF Mono', Consolas, monospace; color: #888; font-size: 12px; }
 
 .cb { display: inline-flex; cursor: pointer; }
-.cb input { width: 16px; height: 16px; accent-color: rgb(var(--color-primary)); cursor: pointer; }
+.cb input { width: 16px; height: 16px; accent-color: rgb(var(--color-primary-rgb)); cursor: pointer; }
 
 .thumb {
 	width: 44px; height: 44px;

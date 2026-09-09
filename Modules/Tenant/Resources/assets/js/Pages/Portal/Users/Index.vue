@@ -189,12 +189,12 @@ function submitReset() {
 .data-table th { font-size: 11px; text-transform: uppercase; color: rgb(var(--portal-text-muted)); background: rgb(var(--portal-bg-soft)); }
 .mono { font-family: 'SF Mono', Menlo, Consolas, monospace; }
 .badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; }
-.badge.ok { background: rgb(var(--color-success) / .12); color: rgb(var(--color-success)); }
-.badge.off { background: rgb(var(--color-danger) / .1); color: rgb(var(--color-danger)); }
+.badge.ok { background: rgb(var(--color-success-rgb) / .12); color: rgb(var(--color-success-rgb)); }
+.badge.off { background: rgb(var(--color-danger-rgb) / .1); color: rgb(var(--color-danger-rgb)); }
 .row-actions { display: flex; gap: 10px; }
 .row-actions button { background: none; border: none; padding: 0; font-size: 12px; color: rgb(var(--portal-accent)); cursor: pointer; }
 .row-actions button:hover { text-decoration: underline; }
-.row-actions .danger { color: rgb(var(--color-danger)); }
+.row-actions .danger { color: rgb(var(--color-danger-rgb)); }
 .muted { color: rgb(var(--portal-text-muted)); }
 .drawer-backdrop { position: fixed; inset: 0; background: rgba(17,24,39,.4); display: flex; justify-content: flex-end; z-index: 40; }
 .drawer { width: 420px; max-width: 90vw; background: #fff; height: 100%; padding: 22px; overflow-y: auto; }
@@ -202,7 +202,7 @@ function submitReset() {
 .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
 .field span { font-size: 11px; font-weight: 600; color: rgb(var(--portal-text-secondary)); }
 .field input { padding: 8px 12px; border-radius: 8px; border: 1px solid rgb(var(--portal-border)); background: #fff; color: rgb(var(--portal-ink)); font-size: 13px; }
-.err { color: rgb(var(--color-danger)); font-size: 12px; }
+.err { color: rgb(var(--color-danger-rgb)); font-size: 12px; }
 .perms { border: 1px solid rgb(var(--portal-border)); border-radius: 8px; padding: 10px; margin-bottom: 12px; }
 .perm-group h4 { margin: 8px 0 4px; font-size: 12px; color: rgb(var(--portal-text-muted)); }
 .perm-check { display: flex; gap: 8px; align-items: center; padding: 3px 0; font-size: 13px; color: rgb(var(--portal-ink)); }

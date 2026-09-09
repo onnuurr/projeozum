@@ -5,7 +5,7 @@
 				<template v-if="category">
 					<div class="modal-header">
 						<div class="modal-title">
-							<div class="modal-title-icon" style="background: rgb(var(--color-primary-soft))">🏷️</div>
+							<div class="modal-title-icon" style="background: rgb(var(--color-primary-soft-rgb))">🏷️</div>
 							<div>
 								<h4 id="cad-title">{{ category.name }} — Özellikler</h4>
 								<p>Bu kategorideki ürünlerde görünecek özel alanları tanımla</p>

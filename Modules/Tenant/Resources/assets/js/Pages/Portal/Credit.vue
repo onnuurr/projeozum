@@ -69,8 +69,8 @@ function formatMoney(v) {
 .empty { text-align: center; color: rgb(var(--portal-text-muted)); padding: 32px; font-style: italic; }
 .mono { font-family: 'SF Mono', Menlo, Consolas, monospace; }
 .type-pill { display: inline-block; width: 22px; height: 22px; border-radius: 50%; text-align: center; line-height: 22px; font-weight: 700; }
-.type-pill.debit { background: rgb(var(--color-danger) / .1); color: rgb(var(--color-danger)); }
-.type-pill.credit { background: rgb(var(--color-success) / .12); color: rgb(var(--color-success)); }
+.type-pill.debit { background: rgb(var(--color-danger-rgb) / .1); color: rgb(var(--color-danger-rgb)); }
+.type-pill.credit { background: rgb(var(--color-success-rgb) / .12); color: rgb(var(--color-success-rgb)); }
 .link { color: rgb(var(--portal-accent)); text-decoration: none; }
 .link:hover { text-decoration: underline; }
 .dim { color: #aaa; }

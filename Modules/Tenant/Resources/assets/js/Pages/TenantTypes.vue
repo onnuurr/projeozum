@@ -235,25 +235,25 @@ async function confirmDelete(t) {
 </script>
 
 <style scoped>
-.dim { color: rgb(var(--color-muted)); font-size: 12px; }
-.mono { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; color: rgb(var(--color-muted)); }
-.user-count { display: inline-block; padding: 2px 9px; background: rgb(var(--color-bg)); color: rgb(var(--color-muted)); border-radius: 6px; font-size: 11.5px; font-weight: 700; font-family: 'SF Mono', Menlo, Consolas, monospace; }
+.dim { color: rgb(var(--color-muted-rgb)); font-size: 12px; }
+.mono { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; color: rgb(var(--color-muted-rgb)); }
+.user-count { display: inline-block; padding: 2px 9px; background: rgb(var(--color-bg-rgb)); color: rgb(var(--color-muted-rgb)); border-radius: 6px; font-size: 11.5px; font-weight: 700; font-family: 'SF Mono', Menlo, Consolas, monospace; }
 
-.table-action-btn { display: inline-flex; align-items: center; justify-content: center; background: rgb(var(--color-bg)); border: none; cursor: pointer; padding: 6px; border-radius: 6px; color: rgb(var(--color-muted)); transition: all .15s; }
-.table-action-btn.view:hover { background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary)); }
-.table-action-btn.delete:hover { background: rgb(var(--color-danger) / .12); color: rgb(var(--color-danger)); }
+.table-action-btn { display: inline-flex; align-items: center; justify-content: center; background: rgb(var(--color-bg-rgb)); border: none; cursor: pointer; padding: 6px; border-radius: 6px; color: rgb(var(--color-muted-rgb)); transition: all .15s; }
+.table-action-btn.view:hover { background: rgb(var(--color-primary-soft-rgb)); color: rgb(var(--color-primary-rgb)); }
+.table-action-btn.delete:hover { background: rgb(var(--color-danger-rgb) / .12); color: rgb(var(--color-danger-rgb)); }
 
 .form-grid { display: flex; flex-direction: column; gap: 14px; }
 .form-row { display: flex; flex-direction: column; gap: 6px; }
 .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .form-row-inline { flex-direction: row; align-items: center; gap: 10px; }
-.form-label { font-size: 12px; font-weight: 600; color: rgb(var(--color-ink)); }
-.form-label .req { color: rgb(var(--color-danger)); }
-.form-input { padding: 9px 12px; border: 1px solid rgb(var(--color-border)); border-radius: 8px; font-family: inherit; font-size: 13px; color: rgb(var(--color-ink)); background: rgb(var(--color-surface)); outline: none; transition: border-color .15s; }
+.form-label { font-size: 12px; font-weight: 600; color: rgb(var(--color-ink-rgb)); }
+.form-label .req { color: rgb(var(--color-danger-rgb)); }
+.form-input { padding: 9px 12px; border: 1px solid rgb(var(--color-border-rgb)); border-radius: 8px; font-family: inherit; font-size: 13px; color: rgb(var(--color-ink-rgb)); background: rgb(var(--color-surface-rgb)); outline: none; transition: border-color .15s; }
 .form-input.mono { font-family: 'SF Mono', Menlo, Consolas, monospace; }
-.form-input:focus { border-color: rgb(var(--color-primary)); }
-.form-error { font-size: 11.5px; color: rgb(var(--color-danger)); }
-.form-check { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: rgb(var(--color-ink)); }
+.form-input:focus { border-color: rgb(var(--color-primary-rgb)); }
+.form-error { font-size: 11.5px; color: rgb(var(--color-danger-rgb)); }
+.form-check { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: rgb(var(--color-ink-rgb)); }
 
 @media (max-width: 560px) {
 	.form-row-2 { grid-template-columns: 1fr; }

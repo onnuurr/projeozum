@@ -210,7 +210,7 @@ const firstColStickyHeaderClass = computed(() => `sticky z-40 bg-canvas ${props.
 
 <style scoped>
 .dt-checkbox {
-	accent-color: rgb(var(--color-primary));
+	accent-color: rgb(var(--color-primary-rgb));
 }
 .table-row-enter-active {
 	transition: opacity 0.15s ease, transform 0.15s ease;

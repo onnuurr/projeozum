@@ -161,7 +161,7 @@ watch(
 	font-size: 13px; color: #444; cursor: pointer;
 }
 .drawer-check-row input {
-	accent-color: rgb(var(--color-primary)); width: 14px; height: 14px;
+	accent-color: rgb(var(--color-primary-rgb)); width: 14px; height: 14px;
 }
 </style>
 
@@ -240,8 +240,8 @@ watch(
 	font-size: 12.5px; color: #555; cursor: pointer;
 	transition: all .15s; user-select: none;
 }
-.drawer-chip:hover { border-color: rgb(var(--color-primary) / .5); color: rgb(var(--color-primary)); background: rgb(var(--color-primary-soft)); }
-.drawer-chip.active { border-color: rgb(var(--color-primary)); background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary-hover)); font-weight: 500; }
+.drawer-chip:hover { border-color: rgb(var(--color-primary-rgb) / .5); color: rgb(var(--color-primary-rgb)); background: rgb(var(--color-primary-soft-rgb)); }
+.drawer-chip.active { border-color: rgb(var(--color-primary-rgb)); background: rgb(var(--color-primary-soft-rgb)); color: rgb(var(--color-primary-hover-rgb)); font-weight: 500; }
 .drawer-range-row { display: flex; align-items: center; gap: 8px; }
 .drawer-range-row .form-input { flex: 1; }
 .drawer-range-sep { font-size: 12px; color: #bbb; flex-shrink: 0; }
@@ -253,7 +253,7 @@ watch(
 .drawer-footer .btn { flex: 1; justify-content: center; }
 .drawer-result-badge {
 	display: inline-flex; align-items: center; justify-content: center;
-	background: rgb(var(--color-primary)); color: #fff;
+	background: rgb(var(--color-primary-rgb)); color: #fff;
 	font-size: 11px; font-weight: 600;
 	border-radius: 999px; padding: 1px 7px;
 	margin-left: 6px; line-height: 1.6;

@@ -909,8 +909,8 @@ function printShippingLabel() {
 	color: #b45309;
 }
 .os-shipped {
-	background: rgb(var(--color-primary-soft));
-	color: rgb(var(--color-primary-hover));
+	background: rgb(var(--color-primary-soft-rgb));
+	color: rgb(var(--color-primary-hover-rgb));
 }
 .os-delivered {
 	background: #dcfce7;
@@ -959,7 +959,7 @@ function printShippingLabel() {
 	text-transform: uppercase;
 }
 .ch-web {
-	background: rgb(var(--color-primary-soft));
+	background: rgb(var(--color-primary-soft-rgb));
 	color: #2563eb;
 }
 .ch-mobile {
@@ -967,8 +967,8 @@ function printShippingLabel() {
 	color: #be185d;
 }
 .ch-b2b {
-	background: rgb(var(--color-primary-soft));
-	color: rgb(var(--color-primary));
+	background: rgb(var(--color-primary-soft-rgb));
+	color: rgb(var(--color-primary-rgb));
 }
 
 /* ── Status progress ── */
@@ -1195,7 +1195,7 @@ function printShippingLabel() {
 }
 
 .link {
-	color: rgb(var(--color-primary));
+	color: rgb(var(--color-primary-rgb));
 	text-decoration: none;
 }
 .link:hover {
@@ -1351,8 +1351,8 @@ function printShippingLabel() {
 .addr-tag {
 	display: inline-block;
 	padding: 2px 8px;
-	background: rgb(var(--color-primary-soft));
-	color: rgb(var(--color-primary));
+	background: rgb(var(--color-primary-soft-rgb));
+	color: rgb(var(--color-primary-rgb));
 	border-radius: 5px;
 	font-size: 10px;
 	font-weight: 700;
@@ -1387,12 +1387,12 @@ function printShippingLabel() {
 	justify-content: center;
 }
 .pay-card {
-	background: rgb(var(--color-primary-soft));
+	background: rgb(var(--color-primary-soft-rgb));
 	color: #2563eb;
 }
 .pay-bank {
-	background: rgb(var(--color-primary-soft));
-	color: rgb(var(--color-primary));
+	background: rgb(var(--color-primary-soft-rgb));
+	color: rgb(var(--color-primary-rgb));
 }
 .pay-cod {
 	background: #fffbeb;
@@ -1509,7 +1509,7 @@ function printShippingLabel() {
 	border-radius: 8px;
 	border: 1.5px solid #e8e8f2;
 	background: #fff;
-	color: rgb(var(--color-primary));
+	color: rgb(var(--color-primary-rgb));
 	cursor: pointer;
 	display: flex;
 	align-items: center;
@@ -1517,7 +1517,7 @@ function printShippingLabel() {
 	transition: all 0.15s;
 }
 .drawer-edit-btn:hover {
-	background: rgb(var(--color-primary-soft));
+	background: rgb(var(--color-primary-soft-rgb));
 	border-color: #c0c8f8;
 }
 

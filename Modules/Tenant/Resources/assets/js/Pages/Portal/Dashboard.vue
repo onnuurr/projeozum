@@ -144,9 +144,9 @@ watch(() => props.monthlyTrend, renderChart, { deep: true })
 .invoice-link:hover { background: rgb(var(--portal-bg)); }
 .invoice-amount { font-weight: 600; font-family: 'SF Mono', Menlo, Consolas, monospace; }
 .invoice-status { font-size: 11px; padding: 2px 8px; border-radius: 6px; font-weight: 600; }
-.invoice-status.paid { background: rgb(var(--color-success) / .12); color: rgb(var(--color-success)); }
-.invoice-status.pending { background: rgb(var(--color-warning) / .14); color: rgb(180 83 9); }
-.invoice-status.cancelled { background: rgb(var(--color-danger) / .1); color: rgb(var(--color-danger)); }
+.invoice-status.paid { background: rgb(var(--color-success-rgb) / .12); color: rgb(var(--color-success-rgb)); }
+.invoice-status.pending { background: rgb(var(--color-warning-rgb) / .14); color: rgb(180 83 9); }
+.invoice-status.cancelled { background: rgb(var(--color-danger-rgb) / .1); color: rgb(var(--color-danger-rgb)); }
 .invoice-date { font-size: 11px; color: rgb(var(--portal-text-muted)); }
 
 @media (max-width: 700px) {

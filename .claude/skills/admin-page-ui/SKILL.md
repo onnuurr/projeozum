@@ -137,19 +137,26 @@ zaten `lucide-vue-next`'i doğrudan import ederek kullanıyor.
 ## Renk token kuralı
 
 `<style scoped>` içinde ham hex **yazma** — `resources/css/app.css`'teki
-token'lara bağlan (`rgb(var(--color-x))`, opaklık için
-`rgb(var(--color-x) / .N)`):
+token'lara bağlan (`rgb(var(--color-x-rgb))`, opaklık için
+`rgb(var(--color-x-rgb) / .N)`).
+
+**`-rgb` son eki zorunlu.** `@theme` içindeki `--color-x` token'ları hex
+string'dir (`#4f46e5`), `rgb(var(--color-x))` bu yüzden geçersiz CSS üretir
+(2026-09'da 59 dosya/475 kullanımda sessizce kırık bulundu ve düzeltildi).
+Gerçek RGB-triplet karşılıklar `app.css`'te `@theme` bloğunun **dışında**,
+ayrı bir `:root { }` bloğunda tanımlı — Tailwind'in `bg-*`/`text-*` utility
+üretimine dahil olmasınlar diye bilerek `@theme` dışında tutuldu.
 
 | Ham hex | Token |
 |---|---|
-| `#1a1a2e` | `rgb(var(--color-ink))` |
-| `#888`, `#6b7280` | `rgb(var(--color-muted))` |
-| `#e5e7eb`, `#e8e8f0`, `#ebebf0`, `#f0f0f5` | `rgb(var(--color-border))` |
-| `#fafafe`, `#f5f5f8`, `#f5f5fa`, `#f5f5fb` | `rgb(var(--color-bg))` (genelde `/ .5` ile) |
-| `#16a34a` | `rgb(var(--color-success))` |
-| `#dc2626` | `rgb(var(--color-danger))` |
-| `#f59e0b`, `#ca8a04` | `rgb(var(--color-warning))` |
-| `#2563eb` | `rgb(var(--color-info))` |
+| `#1a1a2e` | `rgb(var(--color-ink-rgb))` |
+| `#888`, `#6b7280` | `rgb(var(--color-muted-rgb))` |
+| `#e5e7eb`, `#e8e8f0`, `#ebebf0`, `#f0f0f5` | `rgb(var(--color-border-rgb))` |
+| `#fafafe`, `#f5f5f8`, `#f5f5fa`, `#f5f5fb` | `rgb(var(--color-bg-rgb))` (genelde `/ .5` ile) |
+| `#16a34a` | `rgb(var(--color-success-rgb))` |
+| `#dc2626` | `rgb(var(--color-danger-rgb))` |
+| `#f59e0b`, `#ca8a04` | `rgb(var(--color-warning-rgb))` |
+| `#2563eb` | `rgb(var(--color-info-rgb))` |
 
 **İstisna:** JS/canvas'a beslenen gerçek hex string'leri (`Chart.js`
 config'leri, `lib/colorVariants.js`'in kendi tanımı, bir role/kategori

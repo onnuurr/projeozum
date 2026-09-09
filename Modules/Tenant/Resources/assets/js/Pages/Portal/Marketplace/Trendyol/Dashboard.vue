@@ -81,9 +81,9 @@ function pullOrders() {
 .data-table th, .data-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid rgb(var(--portal-bg-soft)); }
 .data-table th { font-size: 11px; text-transform: uppercase; color: rgb(var(--portal-text-muted)); }
 .pill { padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; }
-.pill.success { background: rgb(var(--color-success) / .12); color: rgb(var(--color-success)); }
-.pill.failed { background: rgb(var(--color-danger) / .1); color: rgb(var(--color-danger)); }
-.pill.running { background: rgb(var(--color-warning) / .14); color: rgb(180 83 9); }
+.pill.success { background: rgb(var(--color-success-rgb) / .12); color: rgb(var(--color-success-rgb)); }
+.pill.failed { background: rgb(var(--color-danger-rgb) / .1); color: rgb(var(--color-danger-rgb)); }
+.pill.running { background: rgb(var(--color-warning-rgb) / .14); color: rgb(180 83 9); }
 .pill.queued { background: rgb(var(--portal-accent-soft-2)); color: rgb(var(--portal-accent)); }
 .mono { font-family: 'SF Mono', Menlo, Consolas, monospace; }
 .dim { color: rgb(var(--portal-text-muted)); font-size: 11px; }

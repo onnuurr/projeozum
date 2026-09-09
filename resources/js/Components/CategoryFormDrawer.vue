@@ -215,7 +215,7 @@ watch(
 	max-width: calc(100vw - 24px);
 }
 
-.icon-add  { background: rgb(var(--color-primary-soft)) !important; color: rgb(var(--color-primary)) !important; }
+.icon-add  { background: rgb(var(--color-primary-soft-rgb)) !important; color: rgb(var(--color-primary-rgb)) !important; }
 .icon-edit { background: #fef3c7 !important; color: #d97706 !important; }
 
 .form-section { display: flex; flex-direction: column; gap: 12px; }

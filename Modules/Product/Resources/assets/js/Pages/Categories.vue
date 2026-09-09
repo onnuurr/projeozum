@@ -25,7 +25,7 @@
 		<!-- İstatistik kartları -->
 		<div class="stats-grid">
 			<div class="stat-card">
-				<div class="stat-icon" style="background: rgb(var(--color-primary-soft))">📂</div>
+				<div class="stat-icon" style="background: rgb(var(--color-primary-soft-rgb))">📂</div>
 				<div class="stat-content">
 					<div class="stat-label">Toplam Kategori</div>
 					<div class="stat-value">{{ stats.total }}</div>
@@ -39,7 +39,7 @@
 				</div>
 			</div>
 			<div class="stat-card">
-				<div class="stat-icon" style="background: rgb(var(--color-primary-soft))">🏪</div>
+				<div class="stat-icon" style="background: rgb(var(--color-primary-soft-rgb))">🏪</div>
 				<div class="stat-content">
 					<div class="stat-label">Aktif Pazaryeri</div>
 					<div class="stat-value">{{ stats.activeMarketplaces }} / {{ marketplaces.length }}</div>
@@ -752,7 +752,7 @@ async function confirmDelete(cat) {
 	background: #faf5ff;
 	border-bottom: 1px solid #f0e9fb;
 }
-.bulk-info { font-size: 13px; color: rgb(var(--color-primary-hover)); }
+.bulk-info { font-size: 13px; color: rgb(var(--color-primary-hover-rgb)); }
 .bulk-info strong { font-weight: 800; }
 .bulk-actions { display: flex; gap: 8px; }
 .btn-danger { background: #dc2626; color: #fff; border: none; }
@@ -760,7 +760,7 @@ async function confirmDelete(cat) {
 .btn-danger:disabled { opacity: .55; cursor: not-allowed; }
 
 .col-check { width: 40px; text-align: center; padding-left: 16px; padding-right: 0; }
-.col-check input { width: 15px; height: 15px; accent-color: rgb(var(--color-primary)); cursor: pointer; }
+.col-check input { width: 15px; height: 15px; accent-color: rgb(var(--color-primary-rgb)); cursor: pointer; }
 .data-table tr.row-selected td { background: #faf5ff; }
 
 /* ── Tablo ── */
@@ -804,7 +804,7 @@ async function confirmDelete(cat) {
 .cat-icon {
 	width: 36px; height: 36px;
 	border-radius: 10px;
-	background: rgb(var(--color-primary-soft));
+	background: rgb(var(--color-primary-soft-rgb));
 	display: flex; align-items: center; justify-content: center;
 	font-size: 18px;
 	flex-shrink: 0;
@@ -933,7 +933,7 @@ async function confirmDelete(cat) {
 	color: #6b7280;
 	transition: all .15s;
 }
-.table-action-btn.view:hover { background: rgb(var(--color-primary-soft)); color: rgb(var(--color-primary)); }
+.table-action-btn.view:hover { background: rgb(var(--color-primary-soft-rgb)); color: rgb(var(--color-primary-rgb)); }
 .table-action-btn.delete:hover { background: #fee2e2; color: #dc2626; }
 
 /* ── Pagination ── */

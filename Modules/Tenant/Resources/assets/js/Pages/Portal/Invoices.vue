@@ -62,9 +62,9 @@ function formatMoney(v) {
 .data-table th { font-size: 11px; text-transform: uppercase; color: rgb(var(--portal-text-muted)); background: rgb(var(--portal-bg-soft)); }
 .empty { text-align: center; color: rgb(var(--portal-text-muted)); padding: 32px; font-style: italic; }
 .status-pill { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; }
-.status-pill.paid { background: rgb(var(--color-success) / .12); color: rgb(var(--color-success)); }
-.status-pill.pending { background: rgb(var(--color-warning) / .14); color: rgb(180 83 9); }
-.status-pill.cancelled { background: rgb(var(--color-danger) / .1); color: rgb(var(--color-danger)); }
+.status-pill.paid { background: rgb(var(--color-success-rgb) / .12); color: rgb(var(--color-success-rgb)); }
+.status-pill.pending { background: rgb(var(--color-warning-rgb) / .14); color: rgb(180 83 9); }
+.status-pill.cancelled { background: rgb(var(--color-danger-rgb) / .1); color: rgb(var(--color-danger-rgb)); }
 .btn-ghost { padding: 4px 10px; border-radius: 6px; font-size: 12px; color: rgb(var(--portal-accent)); text-decoration: none; }
 .btn-ghost:hover { background: rgb(var(--portal-accent-soft)); }
 </style>

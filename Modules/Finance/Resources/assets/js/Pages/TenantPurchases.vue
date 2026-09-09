@@ -86,10 +86,10 @@ function statusColor(status) {
 </script>
 
 <style scoped>
-.card-search { display: flex; align-items: center; gap: 6px; background: rgb(var(--color-bg)); border: 1px solid rgb(var(--color-border)); border-radius: 8px; padding: 5px 10px; min-width: 220px; }
-.card-search input { border: none; background: none; outline: none; font-family: inherit; font-size: 13px; color: rgb(var(--color-ink)); width: 100%; }
+.card-search { display: flex; align-items: center; gap: 6px; background: rgb(var(--color-bg-rgb)); border: 1px solid rgb(var(--color-border-rgb)); border-radius: 8px; padding: 5px 10px; min-width: 220px; }
+.card-search input { border: none; background: none; outline: none; font-family: inherit; font-size: 13px; color: rgb(var(--color-ink-rgb)); width: 100%; }
 
-.dim { font-size: 12px; color: rgb(var(--color-muted)); }
+.dim { font-size: 12px; color: rgb(var(--color-muted-rgb)); }
 .mono { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; }
-.strong { font-weight: 700; color: rgb(var(--color-ink)); }
+.strong { font-weight: 700; color: rgb(var(--color-ink-rgb)); }
 </style>

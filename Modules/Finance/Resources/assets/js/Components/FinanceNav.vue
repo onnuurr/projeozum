@@ -57,8 +57,8 @@ const activeTab = computed(() => tabs.find((tab) => tab.key === props.current) ?
 .finance-nav-wrap { position: relative; }
 .finance-nav { display: flex; gap: 4px; margin-bottom: 18px; background: #fff; border: 1px solid #ebebf0; border-radius: 12px; padding: 5px; box-shadow: 0 1px 4px rgba(0,0,0,.04); flex-wrap: wrap; }
 .fn-tab { display: flex; align-items: center; padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; color: #888; text-decoration: none; transition: all .15s; }
-.fn-tab:hover { background: rgb(var(--color-primary-soft)); color: #555; }
-.fn-tab.active { background: rgb(var(--color-primary)); color: #fff; }
+.fn-tab:hover { background: rgb(var(--color-primary-soft-rgb)); color: #555; }
+.fn-tab.active { background: rgb(var(--color-primary-rgb)); color: #fff; }
 .fn-mobile-toggle { display: none; }
 .fn-mobile-backdrop { display: none; }
 

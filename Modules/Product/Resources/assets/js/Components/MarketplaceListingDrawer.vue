@@ -261,7 +261,7 @@ watch(() => props.open, (v) => { if (v) load() })
 .form-group { display: flex; flex-direction: column; gap: 5px; }
 .form-label { font-size: 12.5px; font-weight: 600; color: #555; }
 .form-input { height: 36px; border: 1.5px solid #e8e8f0; border-radius: 9px; background: #fff; padding: 0 12px; font-family: inherit; font-size: 13px; color: #1a1a2e; outline: none; width: 100%; }
-.form-input:focus { border-color: rgb(var(--color-primary)); box-shadow: 0 0 0 3px rgb(var(--color-primary) / 0.1); }
+.form-input:focus { border-color: rgb(var(--color-primary-rgb)); box-shadow: 0 0 0 3px rgb(var(--color-primary-rgb) / 0.1); }
 .lst-readonly { height: 36px; display: flex; align-items: center; padding: 0 12px; background: #f0f0f5; border-radius: 9px; font-size: 13px; color: #666; }
 .lst-price-row { display: grid; grid-template-columns: 1fr 90px; gap: 6px; }
 .lst-variants { background: #fff; border: 1px solid #ebebf0; border-radius: 12px; padding: 14px; }
@@ -276,7 +276,7 @@ watch(() => props.open, (v) => { if (v) load() })
 .lst-summary-card p { margin: 0; }
 .lst-summary-card b { color: #1a1a2e; }
 .lst-summary-img { width: 100%; height: 180px; object-fit: cover; border-radius: 9px; margin-bottom: 6px; }
-.lst-edit-link { color: rgb(var(--color-primary)); font-weight: 600; margin-top: 6px; text-decoration: none; }
+.lst-edit-link { color: rgb(var(--color-primary-rgb)); font-weight: 600; margin-top: 6px; text-decoration: none; }
 
 @media (max-width: 560px) {
 	.form-grid-2 { grid-template-columns: 1fr; }

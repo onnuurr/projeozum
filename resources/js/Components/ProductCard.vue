@@ -232,8 +232,8 @@ function formatPrice(value) {
 }
 
 .product-card.is-selected {
-	border-color: rgb(var(--color-primary));
-	box-shadow: 0 0 0 2px rgb(var(--color-primary) / .35);
+	border-color: rgb(var(--color-primary-rgb));
+	box-shadow: 0 0 0 2px rgb(var(--color-primary-rgb) / .35);
 }
 
 /* Seçim kutusu (sol üst) */
@@ -260,8 +260,8 @@ function formatPrice(value) {
 	transition: all .12s;
 }
 .select-check.on .select-box {
-	background: rgb(var(--color-primary));
-	border-color: rgb(var(--color-primary));
+	background: rgb(var(--color-primary-rgb));
+	border-color: rgb(var(--color-primary-rgb));
 }
 .select-check.on .select-box::after {
 	content: '';
@@ -351,9 +351,9 @@ function formatPrice(value) {
 .round-action:hover { transform: scale(1.1); background: #fff; }
 
 .favorite-btn.active { color: #ef4444; }
-.edit-btn:hover   { color: rgb(var(--color-primary)); }
+.edit-btn:hover   { color: rgb(var(--color-primary-rgb)); }
 .delete-btn:hover { color: #dc2626; }
-.tenant-btn:hover { color: rgb(var(--color-primary)); }
+.tenant-btn:hover { color: rgb(var(--color-primary-rgb)); }
 
 /* Admin butonları sadece kart hover'unda görünür */
 .admin-action {

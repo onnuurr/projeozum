@@ -58,6 +58,6 @@ function formatMoney(v) {
 .mono { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; }
 .dim { color: rgb(var(--portal-text-muted)); }
 .pill { padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; background: rgb(var(--portal-accent-soft-2)); color: rgb(var(--portal-accent)); }
-.pill.delivered { background: rgb(var(--color-success) / .12); color: rgb(var(--color-success)); }
-.pill.cancelled, .pill.returned { background: rgb(var(--color-danger) / .1); color: rgb(var(--color-danger)); }
+.pill.delivered { background: rgb(var(--color-success-rgb) / .12); color: rgb(var(--color-success-rgb)); }
+.pill.cancelled, .pill.returned { background: rgb(var(--color-danger-rgb) / .1); color: rgb(var(--color-danger-rgb)); }
 </style>
