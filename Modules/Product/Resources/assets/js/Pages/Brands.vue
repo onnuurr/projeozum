@@ -9,71 +9,45 @@
 			]"
 		/>
 
-		<div class="page-header">
-			<div>
-				<h1 class="page-title">Markalar</h1>
-				<p class="page-subtitle"><strong>{{ brands.length }}</strong> marka kayıtlı</p>
-			</div>
-			<button v-if="canManage" class="btn btn-primary btn-with-icon" @click="openNew">
-				<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-					<path d="M12 5v14M5 12h14" />
-				</svg>
-				Yeni Marka
-			</button>
-		</div>
+		<PageHeader title="Markalar">
+			<template #subtitle><strong>{{ brands.length }}</strong> marka kayıtlı</template>
+			<template #actions>
+				<Button v-if="canManage" variant="primary" with-icon @click="openNew">
+					<template #leading><Plus :size="13" /></template>
+					Yeni Marka
+				</Button>
+			</template>
+		</PageHeader>
 
-		<div class="card">
-			<div class="card-header">
-				<h3>Marka Listesi</h3>
-				<div class="card-search">
-					<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-						<circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
-					</svg>
-					<input v-model="searchQuery" type="text" placeholder="Marka ara..." />
-				</div>
+		<Card title="Marka Listesi" body-class="p-2.5">
+			<div class="card-search">
+				<FormField variant="default">
+					<FormInput v-model="searchQuery" type="text" placeholder="Marka ara..." variant="default">
+						<template #icon><Search :size="13" /></template>
+					</FormInput>
+				</FormField>
 			</div>
 
-			<div class="table-scroll">
-			<table class="data-table">
-				<thead>
-					<tr>
-						<th style="width: 50%">Marka</th>
-						<th style="width: 15%">Ürün Sayısı</th>
-						<th style="width: 15%">Sıra</th>
-						<th style="width: 10%">Güncelleme</th>
-						<th style="width: 10%">İşlemler</th>
-					</tr>
-				</thead>
-				<tbody>
-					<tr v-if="filtered.length === 0">
-						<td colspan="5" class="empty-row">Kayıt bulunamadı</td>
-					</tr>
-					<tr v-for="b in filtered" :key="b.id">
-						<td>
-							<div class="brand-cell">
-								<div class="brand-logo">{{ b.name.charAt(0) }}</div>
-								<div class="brand-info">
-									<span class="brand-name">{{ b.name }}</span>
-									<span class="brand-slug">{{ b.slug }}</span>
-								</div>
-							</div>
-						</td>
-						<td>
-							<span class="product-count">{{ b.productCount }}</span>
-						</td>
-						<td>{{ b.sort_order }}</td>
-						<td class="dim">{{ b.updatedAt }}</td>
-						<td>
-							<div class="table-actions">
-								<button v-if="canManage" class="table-action-btn view" @click="edit(b)" title="Düzenle">✏️</button>
-								<button v-if="canManage" class="table-action-btn delete" @click="confirmDelete(b)" title="Sil">🗑️</button>
-							</div>
-						</td>
-					</tr>
-				</tbody>
-			</table>
-			</div>
-		</div>
+			<DataTable :columns="columns" :data="filtered" empty-title="Kayıt bulunamadı">
+				<template #brand="{ row }">
+					<div class="brand-cell">
+						<div class="brand-logo">{{ row.name.charAt(0) }}</div>
+						<div class="brand-info">
+							<span class="brand-name">{{ row.name }}</span>
+							<span class="brand-slug">{{ row.slug }}</span>
+						</div>
+					</div>
+				</template>
+				<template #productCount="{ value }">
+					<span class="product-count">{{ value }}</span>
+				</template>
+				<template #updatedAt="{ value }">{{ value }}</template>
+				<template v-if="canManage" #actions="{ row }">
+					<button class="table-action-btn view" @click="edit(row)" title="Düzenle"><Pencil :size="14" /></button>
+					<button class="table-action-btn delete" @click="confirmDelete(row)" title="Sil"><Trash2 :size="14" /></button>
+				</template>
+			</DataTable>
+		</Card>
 
 		<!-- Form modal -->
 		<AppModal v-model="formOpen" :title="editing ? 'Markayı Düzenle' : 'Yeni Marka'" size="md" variant="info">
@@ -95,10 +69,10 @@
 				</div>
 			</form>
 			<template #footer="{ close }">
-				<button class="btn btn-ghost" @click="close" :disabled="busy">İptal</button>
-				<button class="btn btn-primary" @click="submit" :disabled="busy">
+				<Button variant="ghost" :disabled="busy" @click="close">İptal</Button>
+				<Button variant="primary" :loading="busy" @click="submit">
 					{{ editing ? 'Kaydet' : 'Ekle' }}
-				</button>
+				</Button>
 			</template>
 		</AppModal>
 	</div>
@@ -107,9 +81,16 @@
 <script setup>
 import { ref, computed, inject, reactive, watch } from 'vue'
 import { Head, router, usePage } from '@inertiajs/vue3'
+import { Plus, Search, Pencil, Trash2 } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import AppModal from '@/Components/AppModal.vue'
+import PageHeader from '@/Components/PageHeader.vue'
+import Button from '@/Components/Button.vue'
+import Card from '@/Components/Card.vue'
+import DataTable from '@/Components/DataTable.vue'
+import FormField from '@/Components/Form/FormField.vue'
+import FormInput from '@/Components/Form/FormInput.vue'
 
 defineOptions({ layout: AppLayout })
 
@@ -122,6 +103,13 @@ const $swal = inject('$swal')
 const page = usePage()
 
 const canManage = computed(() => (page.props.auth?.permissions ?? []).includes('brand.manage'))
+
+const columns = [
+	{ key: 'brand', label: 'Marka', sortable: false },
+	{ key: 'productCount', label: 'Ürün Sayısı' },
+	{ key: 'sort_order', label: 'Sıra' },
+	{ key: 'updatedAt', label: 'Güncelleme' },
+]
 
 const searchQuery = ref('')
 const filtered = computed(() => {
@@ -249,26 +237,7 @@ async function confirmDelete(b) {
 </script>
 
 <style scoped>
-.page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; gap: 16px; }
-.page-title { font-size: 22px; font-weight: 700; color: #1a1a2e; line-height: 1.2; }
-.page-subtitle { font-size: 13px; color: #888; margin-top: 4px; }
-
-.card { background: #fff; border-radius: 16px; border: 1px solid #ebebf0; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.04); }
-.card-header { padding: 14px 18px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #f0f0f5; }
-.card-header h3 { font-size: 15px; font-weight: 700; color: #1a1a2e; }
-.card-search { display: flex; align-items: center; gap: 6px; background: #f5f5f8; border: 1px solid #e8e8f0; border-radius: 8px; padding: 5px 10px; margin-left: auto; min-width: 220px; }
-.card-search svg { color: #aaa; flex-shrink: 0; }
-.card-search input { border: none; background: none; outline: none; font-family: inherit; font-size: 13px; color: #1a1a2e; width: 100%; }
-.card-search input::placeholder { color: #bbb; }
-
-.data-table { width: 100%; border-collapse: separate; border-spacing: 0; }
-.data-table thead tr { background: #f8f8fc; }
-.data-table th { text-align: left; padding: 12px 16px; font-size: 11px; font-weight: 600; color: #aaa; border-bottom: 1px solid #f0f0f5; text-transform: uppercase; letter-spacing: 0.04em; }
-.data-table td { padding: 12px 16px; font-size: 13px; color: #444; border-bottom: 1px solid #f5f5f8; vertical-align: middle; }
-.data-table tr:last-child td { border-bottom: none; }
-.data-table tr:hover td { background: #fafafe; }
-.empty-row { text-align: center !important; color: #aaa; padding: 32px 0 !important; font-style: italic; }
-.dim { font-size: 12px; color: #888; }
+.card-search { display: flex; align-items: center; gap: 6px; background: rgb(var(--color-bg-rgb) / .5); border: 1px solid rgb(var(--color-border-rgb)); border-radius: 8px; padding: 5px 10px; margin-bottom: 10px; max-width: 280px; }
 
 .brand-cell { display: flex; align-items: center; gap: 12px; }
 .brand-logo {
@@ -278,21 +247,20 @@ async function confirmDelete(b) {
 	font-size: 16px; font-weight: 800; color: rgb(var(--color-primary-rgb)); flex-shrink: 0;
 }
 .brand-info { display: flex; flex-direction: column; gap: 2px; }
-.brand-name { font-weight: 600; color: #1a1a2e; font-size: 13px; }
-.brand-slug { font-size: 10.5px; color: #888; font-family: 'SF Mono', Menlo, Consolas, monospace; }
+.brand-name { font-weight: 600; color: rgb(var(--color-ink-rgb)); font-size: 13px; }
+.brand-slug { font-size: 10.5px; color: rgb(var(--color-muted-rgb)); font-family: 'SF Mono', Menlo, Consolas, monospace; }
 
-.product-count { display: inline-block; padding: 2px 9px; background: #f0f0f5; color: #555; border-radius: 6px; font-size: 11.5px; font-weight: 700; font-family: 'SF Mono', Menlo, Consolas, monospace; }
+.product-count { display: inline-block; padding: 2px 9px; background: rgb(var(--color-border-rgb) / .5); color: rgb(var(--color-muted-rgb)); border-radius: 6px; font-size: 11.5px; font-weight: 700; font-family: 'SF Mono', Menlo, Consolas, monospace; }
 
-.table-actions { display: flex; gap: 4px; }
-.table-action-btn { background: #f3f4f6; border: none; cursor: pointer; font-size: 13px; padding: 5px 9px; border-radius: 6px; color: #6b7280; transition: all .15s; }
+.table-action-btn { background: rgb(var(--color-border-rgb) / .4); border: none; cursor: pointer; padding: 5px 9px; border-radius: 6px; color: rgb(var(--color-muted-rgb)); transition: all .15s; display: inline-flex; align-items: center; }
 .table-action-btn.view:hover { background: rgb(var(--color-primary-soft-rgb)); color: rgb(var(--color-primary-rgb)); }
-.table-action-btn.delete:hover { background: #fee2e2; color: #dc2626; }
+.table-action-btn.delete:hover { background: rgb(var(--color-danger-rgb) / .12); color: rgb(var(--color-danger-rgb)); }
 
 .form-grid { display: flex; flex-direction: column; gap: 14px; }
 .form-row { display: flex; flex-direction: column; gap: 6px; }
-.form-label { font-size: 12px; font-weight: 600; color: #1a1a2e; }
-.form-label .req { color: #ef4444; }
-.form-input { padding: 9px 12px; border: 1px solid #e8e8f0; border-radius: 8px; font-family: inherit; font-size: 13px; color: #1a1a2e; background: #fff; outline: none; transition: border-color .15s; }
+.form-label { font-size: 12px; font-weight: 600; color: rgb(var(--color-ink-rgb)); }
+.form-label .req { color: rgb(var(--color-danger-rgb)); }
+.form-input { padding: 9px 12px; border: 1px solid rgb(var(--color-border-rgb)); border-radius: 8px; font-family: inherit; font-size: 13px; color: rgb(var(--color-ink-rgb)); background: var(--color-surface); outline: none; transition: border-color .15s; }
 .form-input:focus { border-color: rgb(var(--color-primary-rgb)); }
-.form-error { font-size: 11.5px; color: #ef4444; }
+.form-error { font-size: 11.5px; color: rgb(var(--color-danger-rgb)); }
 </style>

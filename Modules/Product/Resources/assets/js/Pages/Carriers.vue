@@ -9,62 +9,32 @@
 			]"
 		/>
 
-		<div class="page-header">
-			<div>
-				<h1 class="page-title">Kargo Firmaları</h1>
-				<p class="page-subtitle"><strong>{{ carriers.length }}</strong> firma kayıtlı</p>
-			</div>
-			<button v-if="canManage" class="btn btn-primary btn-with-icon" @click="openNew">
-				<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-					<path d="M12 5v14M5 12h14" />
-				</svg>
-				Yeni Firma
-			</button>
-		</div>
+		<PageHeader title="Kargo Firmaları">
+			<template #subtitle><strong>{{ carriers.length }}</strong> firma kayıtlı</template>
+			<template #actions>
+				<Button v-if="canManage" variant="primary" with-icon @click="openNew">
+					<template #leading><Plus :size="13" /></template>
+					Yeni Firma
+				</Button>
+			</template>
+		</PageHeader>
 
-		<div class="card">
-			<div class="card-header">
-				<h3>Firma Listesi</h3>
-			</div>
-			<div class="table-scroll">
-			<table class="data-table">
-				<thead>
-					<tr>
-						<th style="width: 14%">Kod</th>
-						<th style="width: 28%">Ad</th>
-						<th style="width: 26%">Takip URL Şablonu</th>
-						<th style="width: 10%">Durum</th>
-						<th style="width: 8%">Sipariş</th>
-						<th style="width: 6%">Sıra</th>
-						<th style="width: 8%">İşlemler</th>
-					</tr>
-				</thead>
-				<tbody>
-					<tr v-if="carriers.length === 0">
-						<td colspan="7" class="empty-row">Kayıt bulunamadı</td>
-					</tr>
-					<tr v-for="c in carriers" :key="c.id">
-						<td><span class="mono">{{ c.code }}</span></td>
-						<td><strong>{{ c.name }}</strong></td>
-						<td class="dim">{{ c.tracking_url_template || '—' }}</td>
-						<td>
-							<span class="badge" :class="c.is_active ? 'badge-active' : 'badge-passive'">
-								{{ c.is_active ? 'Aktif' : 'Pasif' }}
-							</span>
-						</td>
-						<td><span class="user-count">{{ c.orderCount }}</span></td>
-						<td>{{ c.sort_order }}</td>
-						<td>
-							<div class="table-actions">
-								<button v-if="canManage" class="table-action-btn view" @click="edit(c)" title="Düzenle">✏️</button>
-								<button v-if="canManage" class="table-action-btn delete" @click="confirmDelete(c)" title="Sil">🗑️</button>
-							</div>
-						</td>
-					</tr>
-				</tbody>
-			</table>
-			</div>
-		</div>
+		<Card title="Firma Listesi" body-class="p-2.5">
+			<DataTable :columns="columns" :data="carriers" empty-title="Kayıt bulunamadı">
+				<template #code="{ value }"><span class="mono">{{ value }}</span></template>
+				<template #name="{ value }"><strong>{{ value }}</strong></template>
+				<template #tracking_url_template="{ value }"><span class="dim">{{ value || '—' }}</span></template>
+				<template #is_active="{ value }">
+					<Badge :color="value ? 'success' : 'neutral'" variant="tonal" :label="value ? 'Aktif' : 'Pasif'" />
+				</template>
+				<template #orderCount="{ value }">{{ value }}</template>
+				<template #sort_order="{ value }">{{ value }}</template>
+				<template v-if="canManage" #actions="{ row }">
+					<button class="table-action-btn" @click="edit(row)" title="Düzenle"><Pencil :size="14" /></button>
+					<button class="table-action-btn" @click="confirmDelete(row)" title="Sil"><Trash2 :size="14" /></button>
+				</template>
+			</DataTable>
+		</Card>
 
 		<AppModal v-model="formOpen" :title="editing ? 'Firmayı Düzenle' : 'Yeni Kargo Firması'" size="md" variant="info">
 			<form class="form-grid" @submit.prevent="submit">
@@ -99,10 +69,10 @@
 				</div>
 			</form>
 			<template #footer="{ close }">
-				<button class="btn btn-ghost" @click="close" :disabled="busy">İptal</button>
-				<button class="btn btn-primary" @click="submit" :disabled="busy">
+				<Button variant="ghost" :disabled="busy" @click="close">İptal</Button>
+				<Button variant="primary" :loading="busy" @click="submit">
 					{{ editing ? 'Kaydet' : 'Ekle' }}
-				</button>
+				</Button>
 			</template>
 		</AppModal>
 	</div>
@@ -111,9 +81,15 @@
 <script setup>
 import { ref, computed, inject, reactive, watch } from 'vue'
 import { Head, router, usePage } from '@inertiajs/vue3'
+import { Plus, Pencil, Trash2 } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import AppModal from '@/Components/AppModal.vue'
+import PageHeader from '@/Components/PageHeader.vue'
+import Button from '@/Components/Button.vue'
+import Card from '@/Components/Card.vue'
+import DataTable from '@/Components/DataTable.vue'
+import Badge from '@/Components/Badge.vue'
 
 defineOptions({ layout: AppLayout })
 
@@ -126,6 +102,15 @@ const $swal = inject('$swal')
 const page = usePage()
 
 const canManage = computed(() => (page.props.auth?.permissions ?? []).includes('carrier.manage'))
+
+const columns = [
+	{ key: 'code', label: 'Kod' },
+	{ key: 'name', label: 'Ad' },
+	{ key: 'tracking_url_template', label: 'Takip URL Şablonu', sortable: false },
+	{ key: 'is_active', label: 'Durum' },
+	{ key: 'orderCount', label: 'Sipariş' },
+	{ key: 'sort_order', label: 'Sıra' },
+]
 
 const formOpen = ref(false)
 const editing = ref(null)
@@ -227,41 +212,20 @@ async function confirmDelete(c) {
 </script>
 
 <style scoped>
-.page-header { display: flex; align-items: center; justify-content: space-between; margin: 12px 0 16px; }
-.page-title { font-size: 22px; font-weight: 700; color: #1a1a2e; }
-.page-subtitle { font-size: 13px; color: #6b7280; margin-top: 2px; }
-.card { background: #fff; border-radius: 12px; border: 1px solid #ebebf0; overflow: hidden; }
-.card-header { padding: 14px 18px; border-bottom: 1px solid #f0f0f4; }
-.card-header h3 { font-size: 14px; font-weight: 700; color: #1a1a2e; }
-.data-table { width: 100%; border-collapse: collapse; }
-.data-table th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: #9ca3af; padding: 10px 18px; border-bottom: 1px solid #f0f0f4; }
-.data-table td { padding: 12px 18px; border-bottom: 1px solid #f6f6f9; font-size: 13px; color: #374151; }
-.data-table tr:last-child td { border-bottom: none; }
-.empty-row { text-align: center; color: #9ca3af; padding: 28px; }
 .mono { font-family: ui-monospace, monospace; font-size: 12px; }
-.dim { color: #9ca3af; }
-.badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; }
-.badge-active { background: #e7f7ee; color: #12805c; }
-.badge-passive { background: #f3f4f6; color: #6b7280; }
-.user-count { display: inline-block; min-width: 22px; text-align: center; }
-.table-actions { display: flex; gap: 6px; }
-.table-action-btn { border: none; background: #f6f6f9; border-radius: 6px; padding: 4px 8px; cursor: pointer; font-size: 13px; }
-.table-action-btn:hover { background: #ececf2; }
-.req { color: #e5484d; }
+.dim { color: rgb(var(--color-muted-rgb)); }
+.table-action-btn { border: none; background: rgb(var(--color-border-rgb) / .4); border-radius: 6px; padding: 5px 9px; cursor: pointer; color: rgb(var(--color-muted-rgb)); display: inline-flex; align-items: center; transition: background-color .15s; }
+.table-action-btn:hover { background: rgb(var(--color-border-rgb) / .7); }
+.req { color: rgb(var(--color-danger-rgb)); }
 .form-grid { display: flex; flex-direction: column; gap: 12px; }
 .form-row { display: flex; flex-direction: column; gap: 4px; }
 .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .form-row-inline { justify-content: center; }
-.form-label { font-size: 12px; font-weight: 600; color: #374151; }
-.form-input { border: 1px solid #d7d7e0; border-radius: 8px; padding: 8px 10px; font-size: 13px; }
-.form-input:focus { outline: none; border-color: #6366f1; }
-.form-error { font-size: 11px; color: #e5484d; }
-.form-check { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #374151; }
-.btn { border: none; border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer; }
-.btn-primary { background: #6366f1; color: #fff; }
-.btn-primary:hover { background: #4f46e5; }
-.btn-ghost { background: #f3f4f6; color: #374151; }
-.btn-with-icon { display: inline-flex; align-items: center; gap: 6px; }
+.form-label { font-size: 12px; font-weight: 600; color: rgb(var(--color-ink-rgb)); }
+.form-input { border: 1px solid rgb(var(--color-border-rgb)); border-radius: 8px; padding: 8px 10px; font-size: 13px; }
+.form-input:focus { outline: none; border-color: rgb(var(--color-primary-rgb)); }
+.form-error { font-size: 11px; color: rgb(var(--color-danger-rgb)); }
+.form-check { display: flex; align-items: center; gap: 6px; font-size: 13px; color: rgb(var(--color-ink-rgb)); }
 
 @media (max-width: 560px) {
 	.form-row-2 { grid-template-columns: 1fr; }
