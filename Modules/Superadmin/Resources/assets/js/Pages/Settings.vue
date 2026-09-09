@@ -78,227 +78,15 @@
 			<!-- Sağ form -->
 			<main class="sa-content">
 				<!-- 1. GENEL -->
-				<Card v-if="activeSection === 'general'" title="Genel Ayarlar" body-class="sa-section m-2">
-					<p class="section-sub">Sistem adı, dil, zaman dilimi gibi temel platform ayarları</p>
-
-					<div class="field-row">
-						<div class="field">
-							<label>Sistem Adı</label>
-							<input v-model="form.general.systemName" class="form-input" type="text" />
-							<div class="field-help">Üst menüde, e-postalarda ve faturada görünür</div>
-						</div>
-						<div class="field">
-							<label>Sistem URL</label>
-							<input v-model="form.general.systemUrl" class="form-input" type="url" />
-						</div>
-					</div>
-
-					<div class="field-row">
-						<div class="field">
-							<label>Destek E-posta</label>
-							<input v-model="form.general.supportEmail" class="form-input" type="email" />
-						</div>
-						<div class="field">
-							<label>Logo URL</label>
-							<input v-model="form.general.logoUrl" class="form-input" type="url" placeholder="https://..." />
-						</div>
-					</div>
-
-					<div class="field-row">
-						<div class="field">
-							<label>Varsayılan Dil</label>
-							<CustomSelect v-model="form.general.defaultLanguage" :options="options.languages" :show-label="false" />
-						</div>
-						<div class="field">
-							<label>Zaman Dilimi</label>
-							<CustomSelect v-model="form.general.defaultTimezone" :options="options.timezones" :show-label="false" />
-						</div>
-						<div class="field">
-							<label>Tarih Formatı</label>
-							<CustomSelect v-model="form.general.dateFormat" :options="options.dateFormats" :show-label="false" />
-						</div>
-						<div class="field">
-							<label>Para Birimi</label>
-							<CustomSelect v-model="form.general.defaultCurrency" :options="options.currencies" :show-label="false" />
-						</div>
-					</div>
-
-					<div class="sa-divider"></div>
-
-					<div class="toggle-card">
-						<div class="toggle-info">
-							<div class="toggle-label">Yeni Kayıt Açık</div>
-							<div class="toggle-sub">Kapatırsan yeni firma kaydı yapılamaz, mevcut tenant'lar etkilenmez.</div>
-						</div>
-						<label class="switch">
-							<input type="checkbox" v-model="form.general.allowSignup" />
-							<span class="slider"></span>
-						</label>
-					</div>
-
-					<div class="toggle-card" :class="{ 'toggle-danger': form.general.maintenanceMode }">
-						<div class="toggle-info">
-							<div class="toggle-label">
-								Bakım Modu
-								<span v-if="form.general.maintenanceMode" class="danger-pill">AKTİF</span>
-							</div>
-							<div class="toggle-sub">Açıkken sadece süper admin giriş yapabilir, diğer kullanıcılara bakım sayfası gösterilir.</div>
-						</div>
-						<label class="switch">
-							<input type="checkbox" v-model="form.general.maintenanceMode" />
-							<span class="slider"></span>
-						</label>
-					</div>
-
-					<div v-if="form.general.maintenanceMode" class="field">
-						<label>Bakım Mesajı</label>
-						<textarea v-model="form.general.maintenanceMessage" class="form-textarea" rows="3"></textarea>
-					</div>
-				</Card>
+				<SettingsGeneral v-if="activeSection === 'general'" :form="form.general" :options="options" />
 
 				<!-- 2. GÜVENLİK -->
-				<Card v-if="activeSection === 'security'" title="Güvenlik" body-class="sa-section m-2">
-					<p class="section-sub">Parola politikası, iki faktörlü kimlik, oturum yönetimi</p>
-
-					<h3 class="sa-subhead">Parola Politikası</h3>
-					<div class="field-row">
-						<div class="field">
-							<label>Minimum Uzunluk</label>
-							<input v-model.number="form.security.passwordMinLength" type="number" min="6" max="64" class="form-input" />
-						</div>
-						<div class="field">
-							<label>Geçerlilik Süresi (gün)</label>
-							<input v-model.number="form.security.passwordExpiryDays" type="number" min="0" max="365" class="form-input" />
-							<div class="field-help">0 = süresiz</div>
-						</div>
-					</div>
-
-					<div class="check-group">
-						<label class="check-card">
-							<input type="checkbox" v-model="form.security.passwordRequireUppercase" />
-							<span class="check-text">
-								<strong>Büyük harf zorunlu</strong>
-								<span class="check-sub">En az 1 büyük harf (A-Z)</span>
-							</span>
-						</label>
-						<label class="check-card">
-							<input type="checkbox" v-model="form.security.passwordRequireNumbers" />
-							<span class="check-text">
-								<strong>Rakam zorunlu</strong>
-								<span class="check-sub">En az 1 rakam (0-9)</span>
-							</span>
-						</label>
-						<label class="check-card">
-							<input type="checkbox" v-model="form.security.passwordRequireSpecial" />
-							<span class="check-text">
-								<strong>Özel karakter</strong>
-								<span class="check-sub">En az 1 özel karakter (!@#$ vb.)</span>
-							</span>
-						</label>
-					</div>
-
-					<div class="sa-divider"></div>
-
-					<h3 class="sa-subhead">İki Faktörlü Kimlik (2FA)</h3>
-					<div class="field">
-						<label>Zorunluluk Düzeyi</label>
-						<div class="radio-card-grid">
-							<label
-								v-for="o in options.twoFactorOptions"
-								:key="o.value"
-								class="radio-card"
-								:class="{ active: form.security.twoFactorRequired === o.value }"
-							>
-								<input type="radio" :value="o.value" v-model="form.security.twoFactorRequired" />
-								<div class="rc-content">
-									<div class="rc-label">{{ o.label }}</div>
-									<div class="rc-sub">
-										<template v-if="o.value === 'optional'">Kullanıcılar isteğe bağlı aktive eder.</template>
-										<template v-else-if="o.value === 'admins'">Sadece tenant yöneticileri zorunlu.</template>
-										<template v-else>Tüm kullanıcılar girişte 2FA yapmak zorunda.</template>
-									</div>
-								</div>
-							</label>
-						</div>
-					</div>
-
-					<div class="sa-divider"></div>
-
-					<h3 class="sa-subhead">Oturum & Giriş</h3>
-					<div class="field-row">
-						<div class="field">
-							<label>Oturum Süresi (dakika)</label>
-							<input v-model.number="form.security.sessionTimeoutMinutes" type="number" min="5" class="form-input" />
-						</div>
-						<div class="field">
-							<label>Max Başarısız Giriş</label>
-							<input v-model.number="form.security.maxLoginAttempts" type="number" min="1" max="20" class="form-input" />
-						</div>
-						<div class="field">
-							<label>Kilitlenme Süresi (dakika)</label>
-							<input v-model.number="form.security.lockoutMinutes" type="number" min="1" class="form-input" />
-						</div>
-					</div>
-
-					<div class="field">
-						<label>IP Whitelist (admin paneli)</label>
-						<textarea
-							v-model="form.security.ipWhitelist"
-							class="form-textarea"
-							rows="3"
-							placeholder="Her satıra bir IP veya CIDR. Boş bırakırsan kısıt yok."
-						></textarea>
-						<div class="field-help">Örnek: 192.168.1.0/24 veya 85.105.22.18</div>
-					</div>
-
-					<div class="toggle-card">
-						<div class="toggle-info">
-							<div class="toggle-label">Denetim Logu (Audit Log)</div>
-							<div class="toggle-sub">Tüm kritik işlemleri (kullanıcı oluşturma, ayar değişikliği vb.) kaydet.</div>
-						</div>
-						<label class="switch">
-							<input type="checkbox" v-model="form.security.enableAuditLog" />
-							<span class="slider"></span>
-						</label>
-					</div>
-					<div class="toggle-card">
-						<div class="toggle-info">
-							<div class="toggle-label">reCAPTCHA</div>
-							<div class="toggle-sub">Giriş ve kayıt formlarında bot koruması.</div>
-						</div>
-						<label class="switch">
-							<input type="checkbox" v-model="form.security.enableCaptcha" />
-							<span class="slider"></span>
-						</label>
-					</div>
-
-					<div class="sa-divider"></div>
-
-					<h3 class="sa-subhead">Log Erişim Şifresi</h3>
-					<div class="field">
-						<label class="form-label">Log erişim şifresi (belirle / değiştir)</label>
-						<div class="password-input">
-							<input
-								v-model="form.security.logAccessPassword"
-								:type="showLogAccessPassword ? 'text' : 'password'"
-								class="form-input"
-								placeholder="Boş bırakırsan mevcut şifre korunur"
-								autocomplete="new-password"
-							/>
-							<button type="button" class="pw-toggle" @click="showLogAccessPassword = !showLogAccessPassword">
-								<EyeOff v-if="showLogAccessPassword" :size="13" />
-								<Eye v-else :size="13" />
-							</button>
-						</div>
-						<div v-if="props.settings.security.logAccessPasswordSet" class="field-help" style="color: var(--color-success);">
-							<Check :size="11" style="vertical-align: -1px;" />
-							Log erişim şifresi belirlenmiş. Değiştirmek için yeni şifreyi girin.
-						</div>
-						<div v-else class="field-help">
-							Henüz şifre belirlenmemiş. Log görüntüleyiciye erişim için buradan bir şifre belirleyin.
-						</div>
-					</div>
-				</Card>
+				<SettingsSecurity
+					v-if="activeSection === 'security'"
+					:form="form.security"
+					:options="options"
+					:log-access-password-set="props.settings.security.logAccessPasswordSet"
+				/>
 
 				<!-- 2.5 ROLLER & İZİNLER -->
 				<Card v-if="activeSection === 'roles'" title="Roller & İzinler" body-class="sa-section m-2">
@@ -468,343 +256,24 @@
 				</Card>
 
 				<!-- 3. E-POSTA -->
-				<Card v-if="activeSection === 'mail'" title="E-posta (SMTP)" body-class="sa-section m-2">
-					<p class="section-sub">Sistem e-postalarının gönderim altyapısı</p>
-
-					<div class="field-row">
-						<div class="field">
-							<label>Sürücü</label>
-							<CustomSelect v-model="form.mail.driver" :options="options.mailDrivers" :show-label="false" />
-						</div>
-						<div class="field">
-							<label>Şifreleme</label>
-							<CustomSelect v-model="form.mail.encryption" :options="options.mailEncryption" :show-label="false" />
-						</div>
-					</div>
-
-					<div class="field-row">
-						<div class="field flex-2">
-							<label>SMTP Host</label>
-							<input v-model="form.mail.host" type="text" class="form-input" />
-						</div>
-						<div class="field">
-							<label>Port</label>
-							<input v-model.number="form.mail.port" type="number" class="form-input" />
-						</div>
-					</div>
-
-					<div class="field-row">
-						<div class="field">
-							<label>Kullanıcı Adı</label>
-							<input v-model="form.mail.username" type="text" class="form-input" />
-						</div>
-						<div class="field">
-							<label>Parola</label>
-							<div class="password-input">
-								<input
-									v-model="form.mail.password"
-									:type="showMailPassword ? 'text' : 'password'"
-									class="form-input"
-									@focus="clearMask('mail', 'password')"
-								/>
-								<button type="button" class="pw-toggle" @click="showMailPassword = !showMailPassword">
-									<EyeOff v-if="showMailPassword" :size="13" />
-									<Eye v-else :size="13" />
-								</button>
-							</div>
-						</div>
-					</div>
-
-					<div class="sa-divider"></div>
-
-					<h3 class="sa-subhead">Gönderici Bilgileri</h3>
-					<div class="field-row">
-						<div class="field">
-							<label>Gönderici E-posta</label>
-							<input v-model="form.mail.fromAddress" type="email" class="form-input" />
-						</div>
-						<div class="field">
-							<label>Gönderici Adı</label>
-							<input v-model="form.mail.fromName" type="text" class="form-input" />
-						</div>
-					</div>
-
-					<div class="test-block">
-						<div>
-							<div class="test-status" :class="`test-${form.mail.lastTestResult}`">
-								<Check v-if="form.mail.lastTestResult === 'success'" :size="13" :stroke-width="2.5" />
-								<AlertCircle v-else :size="13" :stroke-width="2.5" />
-								{{ form.mail.lastTestResult === 'success' ? 'Son test başarılı' : 'Son test başarısız' }}
-							</div>
-							<div class="test-time">{{ form.mail.lastTestedAt }}</div>
-						</div>
-						<Button variant="secondary" size="sm" @click="testMail">Test E-postası Gönder</Button>
-					</div>
-				</Card>
+				<SettingsMail v-if="activeSection === 'mail'" :form="form.mail" :options="options" />
 
 				<!-- 4. BİLDİRİMLER -->
-				<Card v-if="activeSection === 'notifications'" title="Bildirimler" body-class="sa-section m-2">
-					<p class="section-sub">Sistem olaylarına bağlı e-posta, Slack ve push bildirimleri</p>
-
-					<h3 class="sa-subhead">E-posta Bildirimleri</h3>
-					<div class="toggle-card">
-						<div class="toggle-info">
-							<div class="toggle-label">Yeni tenant kaydı</div>
-							<div class="toggle-sub">Bir firma sisteme kaydolduğunda admin'lere e-posta gönder.</div>
-						</div>
-						<label class="switch">
-							<input type="checkbox" v-model="form.notifications.emailNewTenant" />
-							<span class="slider"></span>
-						</label>
-					</div>
-					<div class="toggle-card">
-						<div class="toggle-info">
-							<div class="toggle-label">Yeni sipariş</div>
-							<div class="toggle-sub">Her yeni sipariş için müşteriye ve operasyona bilgi.</div>
-						</div>
-						<label class="switch">
-							<input type="checkbox" v-model="form.notifications.emailNewOrder" />
-							<span class="slider"></span>
-						</label>
-					</div>
-					<div class="toggle-card">
-						<div class="toggle-info">
-							<div class="toggle-label">Ödeme başarısızlığı</div>
-							<div class="toggle-sub">Abonelik veya sipariş ödemesi başarısız olduğunda uyarı.</div>
-						</div>
-						<label class="switch">
-							<input type="checkbox" v-model="form.notifications.emailPaymentFailure" />
-							<span class="slider"></span>
-						</label>
-					</div>
-					<div class="toggle-card">
-						<div class="toggle-info">
-							<div class="toggle-label">Sistem hatası</div>
-							<div class="toggle-sub">5xx hatalar ve kritik exception'lar süper admin'e gider.</div>
-						</div>
-						<label class="switch">
-							<input type="checkbox" v-model="form.notifications.emailSystemError" />
-							<span class="slider"></span>
-						</label>
-					</div>
-					<div class="toggle-card">
-						<div class="toggle-info">
-							<div class="toggle-label">Haftalık özet raporu</div>
-							<div class="toggle-sub">Her Pazartesi 09:00'da süper admin'lere haftalık özet.</div>
-						</div>
-						<label class="switch">
-							<input type="checkbox" v-model="form.notifications.emailWeeklyReport" />
-							<span class="slider"></span>
-						</label>
-					</div>
-
-					<div class="sa-divider"></div>
-
-					<h3 class="sa-subhead">Slack Entegrasyonu</h3>
-					<div class="field-row">
-						<div class="field flex-2">
-							<label>Webhook URL</label>
-							<input v-model="form.notifications.slackWebhookUrl" type="url" class="form-input mono-input" placeholder="https://hooks.slack.com/services/..." />
-						</div>
-						<div class="field">
-							<label>Kanal</label>
-							<input v-model="form.notifications.slackChannel" type="text" class="form-input" placeholder="#kanal-adı" />
-						</div>
-					</div>
-
-					<div class="sa-divider"></div>
-
-					<h3 class="sa-subhead">Diğer Kanallar</h3>
-					<div class="toggle-card">
-						<div class="toggle-info">
-							<div class="toggle-label">Push Bildirimleri</div>
-							<div class="toggle-sub">Mobil/web push üzerinden anlık bildirimler.</div>
-						</div>
-						<label class="switch">
-							<input type="checkbox" v-model="form.notifications.enablePushNotifications" />
-							<span class="slider"></span>
-						</label>
-					</div>
-					<div class="toggle-card">
-						<div class="toggle-info">
-							<div class="toggle-label">Uygulama İçi Bildirimler</div>
-							<div class="toggle-sub">Üst menüde çan ikonunda görünen bildirimler.</div>
-						</div>
-						<label class="switch">
-							<input type="checkbox" v-model="form.notifications.enableInAppNotifications" />
-							<span class="slider"></span>
-						</label>
-					</div>
-				</Card>
+				<SettingsNotifications v-if="activeSection === 'notifications'" :form="form.notifications" />
 
 				<!-- 5. ÖDEME -->
-				<Card v-if="activeSection === 'billing'" title="Ödeme & Faturalama" body-class="sa-section m-2">
-					<p class="section-sub">Abonelik tahsilatı ve fatura ayarları</p>
-
-					<div class="field">
-						<label>Ödeme Sağlayıcısı</label>
-						<CustomSelect v-model="form.billing.paymentProvider" :options="options.paymentProviders" :show-label="false" />
-					</div>
-
-					<template v-if="form.billing.paymentProvider === 'iyzico'">
-						<h3 class="sa-subhead">iyzico API</h3>
-						<div class="field-row">
-							<div class="field">
-								<label>API Key</label>
-								<input v-model="form.billing.iyzicoApiKey" type="text" class="form-input mono-input" @focus="clearMask('billing', 'iyzicoApiKey')" />
-							</div>
-							<div class="field">
-								<label>Secret Key</label>
-								<input v-model="form.billing.iyzicoSecretKey" type="password" class="form-input mono-input" @focus="clearMask('billing', 'iyzicoSecretKey')" />
-							</div>
-						</div>
-					</template>
-
-					<template v-if="form.billing.paymentProvider === 'stripe'">
-						<h3 class="sa-subhead">Stripe API</h3>
-						<div class="field-row">
-							<div class="field">
-								<label>Publishable Key</label>
-								<input v-model="form.billing.stripePublicKey" type="text" class="form-input mono-input" placeholder="pk_live_..." @focus="clearMask('billing', 'stripePublicKey')" />
-							</div>
-							<div class="field">
-								<label>Secret Key</label>
-								<input v-model="form.billing.stripeSecretKey" type="password" class="form-input mono-input" placeholder="sk_live_..." @focus="clearMask('billing', 'stripeSecretKey')" />
-							</div>
-						</div>
-					</template>
-
-					<div class="sa-divider"></div>
-
-					<h3 class="sa-subhead">Fatura</h3>
-					<div class="field-row">
-						<div class="field">
-							<label>Para Birimi</label>
-							<CustomSelect v-model="form.billing.currency" :options="options.currencies" :show-label="false" />
-						</div>
-						<div class="field">
-							<label>KDV Oranı (%)</label>
-							<input v-model.number="form.billing.vatRate" type="number" min="0" max="100" step="0.5" class="form-input" />
-						</div>
-						<div class="field">
-							<label>Deneme Süresi (gün)</label>
-							<input v-model.number="form.billing.trialDays" type="number" min="0" class="form-input" />
-						</div>
-					</div>
-					<div class="field-row">
-						<div class="field">
-							<label>Fatura Numarası Öneki</label>
-							<input v-model="form.billing.invoicePrefix" type="text" class="form-input mono-input" />
-						</div>
-					</div>
-					<div class="field">
-						<label>Fatura Alt Bilgi</label>
-						<textarea v-model="form.billing.invoiceFooter" class="form-textarea" rows="2"></textarea>
-					</div>
-
-					<div class="toggle-card" :class="{ 'toggle-warning': form.billing.sandboxMode }">
-						<div class="toggle-info">
-							<div class="toggle-label">
-								Sandbox Modu
-								<span v-if="form.billing.sandboxMode" class="warning-pill">TEST</span>
-							</div>
-							<div class="toggle-sub">Açıkken gerçek tahsilat yapılmaz, test kartları kabul edilir.</div>
-						</div>
-						<label class="switch">
-							<input type="checkbox" v-model="form.billing.sandboxMode" />
-							<span class="slider"></span>
-						</label>
-					</div>
-				</Card>
+				<SettingsBilling v-if="activeSection === 'billing'" :form="form.billing" :options="options" />
 
 				<!-- 6. DEPOLAMA -->
-				<Card v-if="activeSection === 'storage'" title="Depolama & Yedekleme" body-class="sa-section m-2">
-					<p class="section-sub">Dosya depolama altyapısı ve otomatik yedek planı</p>
-
-					<h3 class="sa-subhead">Dosya Depolama</h3>
-					<div class="field">
-						<label>Sürücü</label>
-						<CustomSelect v-model="form.storage.driver" :options="options.storageDrivers" :show-label="false" />
-					</div>
-					<div class="field-row">
-						<div class="field">
-							<label>Bucket</label>
-							<input v-model="form.storage.bucket" type="text" class="form-input mono-input" />
-						</div>
-						<div class="field">
-							<label>Region</label>
-							<input v-model="form.storage.region" type="text" class="form-input mono-input" />
-						</div>
-					</div>
-					<div class="field-row">
-						<div class="field">
-							<label>Access Key</label>
-							<input v-model="form.storage.accessKey" type="text" class="form-input mono-input" @focus="clearMask('storage', 'accessKey')" />
-						</div>
-						<div class="field">
-							<label>Secret Key</label>
-							<input v-model="form.storage.secretKey" type="password" class="form-input mono-input" @focus="clearMask('storage', 'secretKey')" />
-						</div>
-					</div>
-					<div class="field">
-						<label>CDN URL</label>
-						<input v-model="form.storage.cdnUrl" type="url" class="form-input" />
-					</div>
-					<div class="field-row">
-						<div class="field">
-							<label>Max Yükleme Boyutu (MB)</label>
-							<input v-model.number="form.storage.maxUploadMB" type="number" min="1" class="form-input" />
-						</div>
-						<div class="field flex-2">
-							<label>İzin Verilen Uzantılar</label>
-							<input v-model="form.storage.allowedExtensions" type="text" class="form-input mono-input" placeholder="jpg,png,pdf..." />
-						</div>
-					</div>
-
-					<div class="sa-divider"></div>
-
-					<h3 class="sa-subhead">Otomatik Yedekleme</h3>
-					<div class="toggle-card">
-						<div class="toggle-info">
-							<div class="toggle-label">Yedekleme Aktif</div>
-							<div class="toggle-sub">Veritabanı + dosyalar zamanlanmış olarak yedeklenir.</div>
-						</div>
-						<label class="switch">
-							<input type="checkbox" v-model="form.storage.backupEnabled" />
-							<span class="slider"></span>
-						</label>
-					</div>
-
-					<div class="field-row" v-if="form.storage.backupEnabled">
-						<div class="field">
-							<label>Sıklık</label>
-							<CustomSelect v-model="form.storage.backupSchedule" :options="options.backupSchedules" :show-label="false" />
-						</div>
-						<div class="field">
-							<label>Saat (UTC+3)</label>
-							<input v-model="form.storage.backupTime" type="time" class="form-input" />
-						</div>
-						<div class="field">
-							<label>Saklama Süresi (gün)</label>
-							<input v-model.number="form.storage.backupRetentionDays" type="number" min="1" class="form-input" />
-						</div>
-					</div>
-
-					<div class="info-row">
-						<div class="ir-block">
-							<div class="ir-label">Son Yedek</div>
-							<div class="ir-value">{{ formatBackupDate(form.storage.lastBackupAt) }}</div>
-						</div>
-						<div class="ir-block">
-							<div class="ir-label">Boyut</div>
-							<div class="ir-value">{{ form.storage.lastBackupSize ?? '—' }}</div>
-						</div>
-						<Button variant="secondary" size="sm" @click="router.visit('/superadmin/backups')">Tüm Geçmiş</Button>
-						<Button v-if="can('backups.manage')" variant="secondary" size="sm" :loading="backupBusy" @click="runBackup">
-							Şimdi Yedekle
-						</Button>
-					</div>
-				</Card>
+				<SettingsStorage
+					v-if="activeSection === 'storage'"
+					:form="form.storage"
+					:options="options"
+					:backup-busy="backupBusy"
+					:can-manage-backups="can('backups.manage')"
+					@run-backup="runBackup"
+					@view-history="router.visit('/superadmin/backups')"
+				/>
 
 				<!-- 8. API -->
 				<Card v-if="activeSection === 'api'" title="API & Geliştirici" body-class="sa-section m-2">
@@ -1282,7 +751,7 @@ import { ref, computed, reactive, watch, onBeforeUnmount } from 'vue'
 import { Head, Link, useForm, router } from '@inertiajs/vue3'
 import {
 	Building2, UsersRound, ShoppingCart, Clock, AlertCircle, Check, Plus,
-	Menu, Eye, EyeOff, Search, Pencil, Trash2, Users, LayoutGrid, Grid3x3, ClipboardCheck,
+	Menu, Search, Pencil, Trash2, Users, LayoutGrid, Grid3x3, ClipboardCheck,
 	Wifi, Settings, Shield, Mail, Bell, CreditCard, Database, Code, Zap, Barcode, Info,
 } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
@@ -1295,6 +764,12 @@ import ProgressBar from '@/Components/ProgressBar.vue'
 import StatWidget from '@/Components/StatWidget.vue'
 import PageHeader from '@/Components/PageHeader.vue'
 import Button from '@/Components/Button.vue'
+import SettingsGeneral from './SettingsGeneral.vue'
+import SettingsSecurity from './SettingsSecurity.vue'
+import SettingsMail from './SettingsMail.vue'
+import SettingsNotifications from './SettingsNotifications.vue'
+import SettingsBilling from './SettingsBilling.vue'
+import SettingsStorage from './SettingsStorage.vue'
 import { useCan } from '@/composables/useCan'
 
 defineOptions({ layout: AppLayout })
@@ -1323,8 +798,6 @@ const sections = [
 const activeSection = ref('general')
 const activeSectionObj = computed(() => sections.find((s) => s.key === activeSection.value))
 const mobileNavOpen = ref(false)
-const showMailPassword = ref(false)
-const showLogAccessPassword = ref(false)
 
 /* ── Form ── */
 const form = useForm({
@@ -1402,13 +875,6 @@ function resetForm() {
 import { inject } from 'vue'
 const showToast = inject('showToast')
 const $swal = inject('$swal')
-
-function testMail() {
-	showToast?.({ type: 'info', title: 'Test E-postası', message: 'SMTP testi başlatıldı, sonuç birkaç saniye içinde…' })
-	setTimeout(() => {
-		showToast?.({ type: 'success', title: 'SMTP Test Başarılı', message: `${form.mail.fromAddress} adresine test mesajı gönderildi.` })
-	}, 1200)
-}
 
 function copy(text, label) {
 	if (navigator.clipboard?.writeText) {

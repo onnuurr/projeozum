@@ -19,8 +19,17 @@ const emit = defineEmits(['update:modelValue']);
 
 const slots = useSlots();
 
-const wrapClass = computed(() => (props.variant === 'auth' ? 'input-wrap' : 'form-input-wrap'));
-const iconClass = computed(() => (props.variant === 'auth' ? 'input-icon' : 'form-input-icon'));
+const wrapClass = computed(() => {
+    if (props.variant === 'auth') return 'input-wrap';
+    if (props.variant === 'settings') return 'settings-input-wrap';
+    return 'form-input-wrap';
+});
+const iconClass = computed(() => {
+    if (props.variant === 'auth') return 'input-icon';
+    if (props.variant === 'settings') return 'settings-input-icon';
+    return 'form-input-icon';
+});
+const inputClass = computed(() => (props.variant === 'settings' ? 'settings-input' : 'form-input'));
 const hasIcon = computed(() => !!slots.icon);
 const hasTrailing = computed(() => !!slots.trailing);
 const needsWrapper = computed(() => hasIcon.value || hasTrailing.value || props.variant === 'auth');
@@ -42,8 +51,7 @@ const value = computed({
             :name="name || undefined"
             v-model="value"
             :type="type"
-            class="form-input"
-            :class="{ 'has-trail': hasTrailing }"
+            :class="[inputClass, { 'has-trail': hasTrailing, 'has-icon': hasIcon }]"
             :placeholder="placeholder"
             :autocomplete="autocomplete"
             :required="required"
@@ -61,7 +69,7 @@ const value = computed({
         :name="name || undefined"
         v-model="value"
         :type="type"
-        class="form-input"
+        :class="inputClass"
         :placeholder="placeholder"
         :autocomplete="autocomplete"
         :required="required"

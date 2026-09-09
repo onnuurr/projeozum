@@ -7,16 +7,25 @@ const props = defineProps({
     link: { type: Object, default: null },
     variant: { type: String, default: 'auth' },
     forId: { type: String, default: '' },
+    required: { type: Boolean, default: false },
 });
 
-const wrapperClass = computed(() => (props.variant === 'auth' ? 'field' : 'form-group'));
-const labelClass = computed(() => (props.variant === 'auth' ? 'field-label' : 'form-label'));
+const wrapperClass = computed(() => {
+    if (props.variant === 'auth') return 'field';
+    if (props.variant === 'settings') return 'settings-field';
+    return 'form-group';
+});
+const labelClass = computed(() => {
+    if (props.variant === 'auth') return 'field-label';
+    if (props.variant === 'settings') return 'settings-label';
+    return 'form-label';
+});
 </script>
 
 <template>
     <div :class="[wrapperClass, { 'has-error': !!error }]">
         <label v-if="label" :class="labelClass" :for="forId || undefined">
-            {{ label }}
+            {{ label }}<span v-if="required" class="field-required-mark"> *</span>
             <a v-if="link" class="field-link" :href="link.href">{{ link.label }}</a>
         </label>
 

@@ -57,18 +57,19 @@
 			<p class="section-subtitle">Sistem olaylarından Slack kanalına bildirim gönder</p>
 
 			<div class="settings-grid">
-				<FormField label="Webhook URL">
-					<input
+				<FormField variant="settings" label="Webhook URL">
+					<FormInput
 						v-model="form.slackWebhookUrl"
+						variant="settings"
 						type="url"
-						class="form-input mono-input"
+						class="mono-input"
 						placeholder="https://hooks.slack.com/services/..."
 					/>
 					<div class="field-help">Slack App > Incoming Webhooks'tan alabilirsiniz</div>
 				</FormField>
 
-				<FormField label="Kanal">
-					<input v-model="form.slackChannel" type="text" class="form-input" placeholder="#kanal-adı" />
+				<FormField variant="settings" label="Kanal">
+					<FormInput v-model="form.slackChannel" variant="settings" type="text" placeholder="#kanal-adı" />
 					<div class="field-help">Örn: #alerts, #notifications</div>
 				</FormField>
 			</div>
@@ -104,7 +105,8 @@
 <script setup>
 import { defineProps } from 'vue'
 import Card from '@/Components/Card.vue'
-import FormField from '@Modules/Shared/Resources/assets/js/Components/FormField.vue'
+import FormField from '@/Components/Form/FormField.vue'
+import FormInput from '@/Components/Form/FormInput.vue'
 
 defineProps({
 	form: {
@@ -133,38 +135,6 @@ defineProps({
 	grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
 	gap: 20px;
 	margin-bottom: 20px;
-}
-
-.form-input {
-	width: 100%;
-	height: 36px;
-	padding: 0 12px;
-	border: 1.5px solid var(--color-outline-variant);
-	border-radius: 8px;
-	font-family: inherit;
-	font-size: 13px;
-	color: var(--color-ink);
-	background: var(--color-surface-container-lowest);
-	outline: none;
-	transition: border-color 0.15s;
-}
-
-.form-input:focus {
-	border-color: var(--color-primary);
-	background: var(--color-surface);
-	box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 12%, transparent);
-}
-
-.form-input.mono-input {
-	font-family: 'Courier New', monospace;
-	font-size: 12px;
-}
-
-.field-help {
-	font-size: 12px;
-	color: var(--color-muted);
-	margin-top: 4px;
-	line-height: 1.4;
 }
 
 /* Toggle Group */

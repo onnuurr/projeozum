@@ -4,61 +4,60 @@
 		<Card title="Dosya Depolama" class="mb-4">
 			<p class="section-subtitle">Dosya depolama altyapısı ve CDN ayarları</p>
 
-			<FormField label="Sürücü" required>
-				<select v-model="form.driver" class="form-input">
-					<option value="s3">AWS S3</option>
-					<option value="local">Yerel (Disk)</option>
-					<option value="azure">Azure Blob</option>
-				</select>
+			<FormField variant="settings" label="Sürücü" required>
+				<CustomSelect v-model="form.driver" :options="options.storageDrivers" :show-label="false" />
 			</FormField>
 
 			<div class="settings-grid">
-				<FormField label="Bucket">
-					<input v-model="form.bucket" type="text" class="form-input mono-input" placeholder="my-bucket" />
+				<FormField variant="settings" label="Bucket">
+					<FormInput v-model="form.bucket" variant="settings" type="text" class="mono-input" placeholder="my-bucket" />
 				</FormField>
-				<FormField label="Region">
-					<input v-model="form.region" type="text" class="form-input mono-input" placeholder="eu-west-1" />
+				<FormField variant="settings" label="Region">
+					<FormInput v-model="form.region" variant="settings" type="text" class="mono-input" placeholder="eu-west-1" />
 				</FormField>
 			</div>
 
 			<div class="settings-grid">
-				<FormField label="Access Key">
-					<input
+				<FormField variant="settings" label="Access Key">
+					<FormInput
 						v-model="form.accessKey"
+						variant="settings"
 						type="text"
-						class="form-input mono-input"
+						class="mono-input"
 						@focus="clearMask('accessKey')"
 					/>
 				</FormField>
-				<FormField label="Secret Key">
-					<input
+				<FormField variant="settings" label="Secret Key">
+					<FormInput
 						v-model="form.secretKey"
+						variant="settings"
 						type="password"
-						class="form-input mono-input"
+						class="mono-input"
 						@focus="clearMask('secretKey')"
 					/>
 				</FormField>
 			</div>
 
-			<FormField label="CDN URL">
-				<input
+			<FormField variant="settings" label="CDN URL">
+				<FormInput
 					v-model="form.cdnUrl"
+					variant="settings"
 					type="url"
-					class="form-input"
 					placeholder="https://cdn.example.com"
 				/>
 				<div class="field-help">CloudFront, CloudFlare vb. CDN URL'ı (opsiyonel)</div>
 			</FormField>
 
 			<div class="settings-grid">
-				<FormField label="Max Yükleme Boyutu (MB)">
-					<input v-model.number="form.maxUploadMB" type="number" min="1" class="form-input" placeholder="100" />
+				<FormField variant="settings" label="Max Yükleme Boyutu (MB)">
+					<FormInput v-model.number="form.maxUploadMB" variant="settings" type="number" min="1" placeholder="100" />
 				</FormField>
-				<FormField label="İzin Verilen Uzantılar">
-					<input
+				<FormField variant="settings" label="İzin Verilen Uzantılar">
+					<FormInput
 						v-model="form.allowedExtensions"
+						variant="settings"
 						type="text"
-						class="form-input mono-input"
+						class="mono-input"
 						placeholder="jpg,png,pdf,doc,xls"
 					/>
 					<div class="field-help">Virgülle ayrılmış</div>
@@ -86,21 +85,17 @@
 				<div class="settings-divider"></div>
 
 				<div class="settings-grid-3col">
-					<FormField label="Sıklık">
-						<select v-model="form.backupSchedule" class="form-input">
-							<option value="daily">Günde 1 kez</option>
-							<option value="twice-daily">Günde 2 kez</option>
-							<option value="weekly">Haftada 1 kez</option>
-						</select>
+					<FormField variant="settings" label="Sıklık">
+						<CustomSelect v-model="form.backupSchedule" :options="options.backupSchedules" :show-label="false" />
 					</FormField>
 
-					<FormField label="Saat (UTC+3)">
-						<input v-model="form.backupTime" type="time" class="form-input" />
+					<FormField variant="settings" label="Saat (UTC+3)">
+						<FormInput v-model="form.backupTime" variant="settings" type="time" />
 						<div class="field-help">Yedekleme saati</div>
 					</FormField>
 
-					<FormField label="Saklama Süresi (gün)">
-						<input v-model.number="form.backupRetentionDays" type="number" min="1" class="form-input" />
+					<FormField variant="settings" label="Saklama Süresi (gün)">
+						<FormInput v-model.number="form.backupRetentionDays" variant="settings" type="number" min="1" />
 						<div class="field-help">Eski yedekler silinir</div>
 					</FormField>
 				</div>
@@ -121,8 +116,14 @@
 			</div>
 
 			<div class="backup-actions">
-				<Button variant="secondary" size="sm">Geçmiş</Button>
-				<Button variant="primary" size="sm" @click="runBackup">Şimdi Yedekle</Button>
+				<Button variant="secondary" size="sm" @click="$emit('view-history')">Geçmiş</Button>
+				<Button
+					v-if="canManageBackups"
+					variant="primary"
+					size="sm"
+					:loading="backupBusy"
+					@click="$emit('run-backup')"
+				>Şimdi Yedekle</Button>
 			</div>
 		</Card>
 	</div>
@@ -132,7 +133,9 @@
 import { defineProps } from 'vue'
 import Card from '@/Components/Card.vue'
 import Button from '@/Components/Button.vue'
-import FormField from '@Modules/Shared/Resources/assets/js/Components/FormField.vue'
+import CustomSelect from '@/Components/CustomSelect.vue'
+import FormField from '@/Components/Form/FormField.vue'
+import FormInput from '@/Components/Form/FormInput.vue'
 
 const SENSITIVE_MASK = '••••••••'
 
@@ -141,7 +144,21 @@ const props = defineProps({
 		type: Object,
 		required: true,
 	},
+	options: {
+		type: Object,
+		required: true,
+	},
+	backupBusy: {
+		type: Boolean,
+		default: false,
+	},
+	canManageBackups: {
+		type: Boolean,
+		default: false,
+	},
 })
+
+defineEmits(['run-backup', 'view-history'])
 
 function clearMask(key) {
 	if (props.form[key] === SENSITIVE_MASK) {
@@ -152,10 +169,6 @@ function clearMask(key) {
 function formatBackupDate(iso) {
 	if (!iso) return '—'
 	return new Date(iso).toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' })
-}
-
-function runBackup() {
-	console.log('Backup triggered')
 }
 </script>
 
@@ -185,38 +198,6 @@ function runBackup() {
 	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 	gap: 16px;
 	margin-bottom: 20px;
-}
-
-.form-input {
-	width: 100%;
-	height: 36px;
-	padding: 0 12px;
-	border: 1.5px solid var(--color-outline-variant);
-	border-radius: 8px;
-	font-family: inherit;
-	font-size: 13px;
-	color: var(--color-ink);
-	background: var(--color-surface-container-lowest);
-	outline: none;
-	transition: border-color 0.15s;
-}
-
-.form-input:focus {
-	border-color: var(--color-primary);
-	background: var(--color-surface);
-	box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 12%, transparent);
-}
-
-.form-input.mono-input {
-	font-family: 'Courier New', monospace;
-	font-size: 12px;
-}
-
-.field-help {
-	font-size: 12px;
-	color: var(--color-muted);
-	margin-top: 4px;
-	line-height: 1.4;
 }
 
 .settings-divider {

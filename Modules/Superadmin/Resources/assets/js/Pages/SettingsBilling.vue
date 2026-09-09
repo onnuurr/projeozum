@@ -3,30 +3,29 @@
 		<p class="section-subtitle">Abonelik tahsilatı ve fatura ayarları</p>
 
 		<!-- Ödeme Sağlayıcısı -->
-		<FormField label="Ödeme Sağlayıcısı" required>
-			<select v-model="form.paymentProvider" class="form-input">
-				<option value="iyzico">iyzico</option>
-				<option value="stripe">Stripe</option>
-			</select>
+		<FormField variant="settings" label="Ödeme Sağlayıcısı" required>
+			<CustomSelect v-model="form.paymentProvider" :options="options.paymentProviders" :show-label="false" />
 		</FormField>
 
 		<!-- iyzico API Keys -->
 		<div v-if="form.paymentProvider === 'iyzico'">
 			<h3 class="settings-subhead">iyzico API</h3>
 			<div class="settings-grid">
-				<FormField label="API Key">
-					<input
+				<FormField variant="settings" label="API Key">
+					<FormInput
 						v-model="form.iyzicoApiKey"
+						variant="settings"
 						type="text"
-						class="form-input mono-input"
+						class="mono-input"
 						@focus="clearMask('iyzicoApiKey')"
 					/>
 				</FormField>
-				<FormField label="Secret Key">
-					<input
+				<FormField variant="settings" label="Secret Key">
+					<FormInput
 						v-model="form.iyzicoSecretKey"
+						variant="settings"
 						type="password"
-						class="form-input mono-input"
+						class="mono-input"
 						@focus="clearMask('iyzicoSecretKey')"
 					/>
 				</FormField>
@@ -37,20 +36,22 @@
 		<div v-if="form.paymentProvider === 'stripe'">
 			<h3 class="settings-subhead">Stripe API</h3>
 			<div class="settings-grid">
-				<FormField label="Publishable Key">
-					<input
+				<FormField variant="settings" label="Publishable Key">
+					<FormInput
 						v-model="form.stripePublicKey"
+						variant="settings"
 						type="text"
-						class="form-input mono-input"
+						class="mono-input"
 						placeholder="pk_live_..."
 						@focus="clearMask('stripePublicKey')"
 					/>
 				</FormField>
-				<FormField label="Secret Key">
-					<input
+				<FormField variant="settings" label="Secret Key">
+					<FormInput
 						v-model="form.stripeSecretKey"
+						variant="settings"
 						type="password"
-						class="form-input mono-input"
+						class="mono-input"
 						placeholder="sk_live_..."
 						@focus="clearMask('stripeSecretKey')"
 					/>
@@ -65,30 +66,26 @@
 		<h3 class="settings-subhead">Fatura Ayarları</h3>
 
 		<div class="settings-grid-3col">
-			<FormField label="Para Birimi" required>
-				<select v-model="form.currency" class="form-input">
-					<option value="TRY">TRY (₺)</option>
-					<option value="USD">USD ($)</option>
-					<option value="EUR">EUR (€)</option>
-				</select>
+			<FormField variant="settings" label="Para Birimi" required>
+				<CustomSelect v-model="form.currency" :options="options.currencies" :show-label="false" />
 			</FormField>
 
-			<FormField label="KDV Oranı (%)">
-				<input v-model.number="form.vatRate" type="number" min="0" max="100" step="0.5" class="form-input" />
+			<FormField variant="settings" label="KDV Oranı (%)">
+				<FormInput v-model.number="form.vatRate" variant="settings" type="number" min="0" max="100" step="0.5" />
 			</FormField>
 
-			<FormField label="Deneme Süresi (gün)">
-				<input v-model.number="form.trialDays" type="number" min="0" class="form-input" />
+			<FormField variant="settings" label="Deneme Süresi (gün)">
+				<FormInput v-model.number="form.trialDays" variant="settings" type="number" min="0" />
 			</FormField>
 		</div>
 
-		<FormField label="Fatura Numarası Öneki">
-			<input v-model="form.invoicePrefix" type="text" class="form-input mono-input" placeholder="INV-" />
+		<FormField variant="settings" label="Fatura Numarası Öneki">
+			<FormInput v-model="form.invoicePrefix" variant="settings" type="text" class="mono-input" placeholder="INV-" />
 			<div class="field-help">Örn: INV- → INV-2026-001</div>
 		</FormField>
 
-		<FormField label="Fatura Alt Bilgi">
-			<textarea v-model="form.invoiceFooter" class="form-textarea" rows="2" placeholder="Tüm faturalarda görünecek metin..."></textarea>
+		<FormField variant="settings" label="Fatura Alt Bilgi">
+			<FormTextarea v-model="form.invoiceFooter" class="settings-textarea" rows="2" min-height="60px" placeholder="Tüm faturalarda görünecek metin..." />
 		</FormField>
 
 		<!-- Divider -->
@@ -115,12 +112,19 @@
 import { defineProps } from 'vue'
 import Card from '@/Components/Card.vue'
 import Badge from '@/Components/Badge.vue'
-import FormField from '@Modules/Shared/Resources/assets/js/Components/FormField.vue'
+import CustomSelect from '@/Components/CustomSelect.vue'
+import FormField from '@/Components/Form/FormField.vue'
+import FormInput from '@/Components/Form/FormInput.vue'
+import FormTextarea from '@/Components/Form/FormTextarea.vue'
 
 const SENSITIVE_MASK = '••••••••'
 
 const props = defineProps({
 	form: {
+		type: Object,
+		required: true,
+	},
+	options: {
 		type: Object,
 		required: true,
 	},
@@ -153,60 +157,6 @@ function clearMask(key) {
 	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 	gap: 16px;
 	margin-bottom: 20px;
-}
-
-.form-input {
-	width: 100%;
-	height: 36px;
-	padding: 0 12px;
-	border: 1.5px solid var(--color-outline-variant);
-	border-radius: 8px;
-	font-family: inherit;
-	font-size: 13px;
-	color: var(--color-ink);
-	background: var(--color-surface-container-lowest);
-	outline: none;
-	transition: border-color 0.15s;
-}
-
-.form-input:focus {
-	border-color: var(--color-primary);
-	background: var(--color-surface);
-	box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 12%, transparent);
-}
-
-.form-input.mono-input {
-	font-family: 'Courier New', monospace;
-	font-size: 12px;
-}
-
-.form-textarea {
-	width: 100%;
-	padding: 10px 12px;
-	border: 1.5px solid var(--color-outline-variant);
-	border-radius: 8px;
-	font-family: inherit;
-	font-size: 13px;
-	color: var(--color-ink);
-	background: var(--color-surface-container-lowest);
-	outline: none;
-	resize: vertical;
-	min-height: 60px;
-	transition: border-color 0.15s;
-	line-height: 1.5;
-}
-
-.form-textarea:focus {
-	border-color: var(--color-primary);
-	background: var(--color-surface);
-	box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 12%, transparent);
-}
-
-.field-help {
-	font-size: 12px;
-	color: var(--color-muted);
-	margin-top: 4px;
-	line-height: 1.4;
 }
 
 .settings-subhead {

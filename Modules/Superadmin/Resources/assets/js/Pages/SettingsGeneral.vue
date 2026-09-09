@@ -4,59 +4,43 @@
 
 		<!-- Sistem Bilgileri: Ad & URL -->
 		<div class="settings-grid">
-			<FormField label="Sistem Adı" required>
-				<input v-model="form.systemName" type="text" class="form-input" placeholder="Ozum Server" />
+			<FormField variant="settings" label="Sistem Adı" required>
+				<FormInput v-model="form.systemName" variant="settings" type="text" placeholder="Ozum Server" />
 				<div class="field-help">Üst menüde, e-postalarda ve faturada görünür</div>
 			</FormField>
 
-			<FormField label="Sistem URL" required>
-				<input v-model="form.systemUrl" type="url" class="form-input" placeholder="https://ozumserver.com.tr" />
+			<FormField variant="settings" label="Sistem URL" required>
+				<FormInput v-model="form.systemUrl" variant="settings" type="url" placeholder="https://ozumserver.com.tr" />
 			</FormField>
 		</div>
 
 		<!-- İletişim Bilgileri -->
 		<div class="settings-grid">
-			<FormField label="Destek E-posta" required>
-				<input v-model="form.supportEmail" type="email" class="form-input" placeholder="support@ozumserver.com.tr" />
+			<FormField variant="settings" label="Destek E-posta" required>
+				<FormInput v-model="form.supportEmail" variant="settings" type="email" placeholder="support@ozumserver.com.tr" />
 			</FormField>
 
-			<FormField label="Logo URL">
-				<input v-model="form.logoUrl" type="url" class="form-input" placeholder="https://..." />
+			<FormField variant="settings" label="Logo URL">
+				<FormInput v-model="form.logoUrl" variant="settings" type="url" placeholder="https://..." />
 			</FormField>
 		</div>
 
 		<!-- Bölgesel Ayarlar: Dil, Zaman Dilimi, Format, Para -->
 		<div class="settings-grid-4col">
-			<FormField label="Varsayılan Dil">
-				<select v-model="form.defaultLanguage" class="form-input">
-					<option value="tr">Türkçe</option>
-					<option value="en">English</option>
-					<option value="de">Deutsch</option>
-				</select>
+			<FormField variant="settings" label="Varsayılan Dil">
+				<CustomSelect v-model="form.defaultLanguage" :options="options.languages" :show-label="false" />
 			</FormField>
 
-			<FormField label="Zaman Dilimi">
-				<select v-model="form.defaultTimezone" class="form-input">
-					<option value="Europe/Istanbul">Europe/Istanbul</option>
-					<option value="Europe/London">Europe/London</option>
-					<option value="UTC">UTC</option>
-				</select>
+			<FormField variant="settings" label="Zaman Dilimi">
+				<CustomSelect v-model="form.defaultTimezone" :options="options.timezones" :show-label="false" />
 			</FormField>
 
-			<FormField label="Tarih Formatı">
-				<select v-model="form.dateFormat" class="form-input">
-					<option value="DD.MM.YYYY">DD.MM.YYYY</option>
-					<option value="YYYY-MM-DD">YYYY-MM-DD</option>
-					<option value="MM/DD/YYYY">MM/DD/YYYY</option>
-				</select>
+			<FormField variant="settings" label="Tarih Formatı">
+				<CustomSelect v-model="form.dateFormat" :options="options.dateFormats" :show-label="false" />
 			</FormField>
 
-			<FormField label="Para Birimi">
-				<select v-model="form.defaultCurrency" class="form-input">
-					<option value="TRY">TRY (₺)</option>
-					<option value="USD">USD ($)</option>
-					<option value="EUR">EUR (€)</option>
-				</select>
+			<FormField variant="settings" label="Para Birimi">
+				<CustomSelect v-model="form.defaultCurrency" :options="options.currencies" :show-label="false" />
 			</FormField>
 		</div>
 
@@ -93,27 +77,32 @@
 
 		<!-- Conditional: Bakım Mesajı -->
 		<transition name="fade">
-			<FormField v-if="form.maintenanceMode" label="Bakım Mesajı">
-				<textarea v-model="form.maintenanceMessage" class="form-textarea" rows="3" placeholder="Bakım yapılıyor, lütfen daha sonra tekrar deneyin..."></textarea>
+			<FormField v-if="form.maintenanceMode" variant="settings" label="Bakım Mesajı">
+				<FormTextarea v-model="form.maintenanceMessage" class="settings-textarea" rows="3" placeholder="Bakım yapılıyor, lütfen daha sonra tekrar deneyin..." />
 			</FormField>
 		</transition>
 	</Card>
 </template>
 
 <script setup>
-import { defineProps, defineEmits } from 'vue'
+import { defineProps } from 'vue'
 import Card from '@/Components/Card.vue'
 import Badge from '@/Components/Badge.vue'
-import FormField from '@Modules/Shared/Resources/assets/js/Components/FormField.vue'
+import CustomSelect from '@/Components/CustomSelect.vue'
+import FormField from '@/Components/Form/FormField.vue'
+import FormInput from '@/Components/Form/FormInput.vue'
+import FormTextarea from '@/Components/Form/FormTextarea.vue'
 
 defineProps({
 	form: {
 		type: Object,
 		required: true,
 	},
+	options: {
+		type: Object,
+		required: true,
+	},
 })
-
-defineEmits(['update:form'])
 </script>
 
 <style scoped>
@@ -137,64 +126,6 @@ defineEmits(['update:form'])
 	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 	gap: 16px;
 	margin-bottom: 20px;
-}
-
-/* Form Input Styling */
-.form-input {
-	width: 100%;
-	height: 36px;
-	padding: 0 12px;
-	border: 1.5px solid var(--color-outline-variant);
-	border-radius: 8px;
-	font-family: inherit;
-	font-size: 13px;
-	color: var(--color-ink);
-	background: var(--color-surface-container-lowest);
-	outline: none;
-	transition: border-color 0.15s, background-color 0.15s;
-}
-
-.form-input:focus {
-	border-color: var(--color-primary);
-	background: var(--color-surface);
-	box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 12%, transparent);
-}
-
-.form-input::placeholder {
-	color: var(--color-muted);
-}
-
-.form-textarea {
-	width: 100%;
-	padding: 10px 12px;
-	border: 1.5px solid var(--color-outline-variant);
-	border-radius: 8px;
-	font-family: inherit;
-	font-size: 13px;
-	color: var(--color-ink);
-	background: var(--color-surface-container-lowest);
-	outline: none;
-	resize: vertical;
-	min-height: 80px;
-	transition: border-color 0.15s, background-color 0.15s;
-	line-height: 1.5;
-}
-
-.form-textarea:focus {
-	border-color: var(--color-primary);
-	background: var(--color-surface);
-	box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 12%, transparent);
-}
-
-.form-textarea::placeholder {
-	color: var(--color-muted);
-}
-
-.field-help {
-	font-size: 12px;
-	color: var(--color-muted);
-	margin-top: 4px;
-	line-height: 1.4;
 }
 
 /* Divider */
