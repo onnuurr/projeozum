@@ -113,12 +113,12 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-	<nav class="bg-primary h-14 sm:h-[72px] px-3 sm:px-6 flex items-center justify-between relative">
+	<nav class="bg-surface border-b border-line h-14 sm:h-[72px] px-3 sm:px-6 flex items-center justify-between relative">
 		<div class="flex items-center h-full min-w-0">
 			<button
 				type="button"
-				class="lg:hidden flex-shrink-0 mr-2 sm:mr-4 w-9 h-9 flex items-center justify-center text-white hover:bg-white/10 rounded-full transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
-				:class="mobileMenuOpen ? 'bg-white/10' : ''"
+				class="lg:hidden flex-shrink-0 mr-2 sm:mr-4 w-9 h-9 flex items-center justify-center text-ink hover:bg-canvas rounded-full transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+				:class="mobileMenuOpen ? 'bg-canvas' : ''"
 				title="Menü"
 				@click.stop="toggleMobileMenu"
 			>
@@ -146,8 +146,8 @@ onBeforeUnmount(() => {
 					:class="[
 						'flex flex-col items-center justify-center px-4 flex-shrink-0 transition-all cursor-pointer',
 						item.active
-							? 'h-[64px] bg-white text-primary rounded-t-lg'
-							: 'h-[64px] text-white opacity-80 hover:opacity-100',
+							? 'h-[64px] bg-primary/10 text-primary rounded-lg'
+							: 'h-[64px] text-muted hover:text-ink hover:bg-canvas rounded-lg',
 					]"
 				>
 					<span class="w-[18px] h-[18px] mb-1" v-html="item.icon"></span>
@@ -179,8 +179,8 @@ onBeforeUnmount(() => {
 			<!-- Profile -->
 			<div class="relative">
 				<button
-					class="w-10 h-10 rounded-full bg-white/15 ring-1 ring-white/30 text-white text-sm font-bold flex items-center justify-center hover:bg-white/25 transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
-					:class="activePanel === 'profile' ? 'bg-white/25 ring-white/40' : ''"
+					class="w-10 h-10 rounded-full bg-canvas ring-1 ring-line text-ink text-sm font-bold flex items-center justify-center hover:bg-line/60 transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+					:class="activePanel === 'profile' ? 'bg-line/60 ring-primary/30' : ''"
 					title="Profil"
 					@click.stop="togglePanel('profile')"
 				>

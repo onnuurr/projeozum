@@ -82,16 +82,16 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-	<div class="bg-ink h-9 sm:h-10 px-2 sm:px-3 md:px-6 flex items-center justify-between text-white/90 gap-1 sm:gap-2">
+	<div class="bg-surface h-9 sm:h-10 px-2 sm:px-3 md:px-6 flex items-center justify-between text-ink border-b border-line gap-1 sm:gap-2">
 		<div class="flex-grow min-w-0 max-w-md lg:max-w-lg mx-1 sm:mx-2 md:mx-4">
 			<button
 				type="button"
-				class="group relative w-full flex items-center bg-white/10 hover:bg-white/20 border border-white/10 rounded-full py-1.5 sm:py-1 pl-9 pr-3 text-sm text-white/60 transition-all cursor-pointer text-left max-sm:min-h-[36px] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+				class="group relative w-full flex items-center bg-canvas hover:bg-line/60 border border-line rounded-full py-1.5 sm:py-1 pl-9 pr-3 text-sm text-muted transition-all cursor-pointer text-left max-sm:min-h-[36px] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
 				@click="emit('open-search')"
 			>
-				<Search :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-white/50 group-hover:text-white/80 transition-colors" />
-				<span class="hidden sm:inline flex-1 group-hover:text-white/80 transition-colors truncate">Ara...</span>
-				<kbd class="hidden sm:inline-flex ml-auto items-center gap-0.5 px-2 py-0.5 bg-white/10 border border-white/20 rounded-md text-2xs text-white/60 font-medium">
+				<Search :size="16" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted group-hover:text-ink transition-colors" />
+				<span class="hidden sm:inline flex-1 group-hover:text-ink transition-colors truncate">Ara...</span>
+				<kbd class="hidden sm:inline-flex ml-auto items-center gap-0.5 px-2 py-0.5 bg-surface border border-line rounded-md text-2xs text-muted font-medium">
 					{{ isMac ? '⌘' : 'Ctrl' }} K
 				</kbd>
 			</button>
@@ -101,7 +101,7 @@ onBeforeUnmount(() => {
 			<div class="relative">
 				<button
 					type="button"
-					class="w-8 h-8 flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 rounded-full transition-colors relative cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+					class="w-8 h-8 flex items-center justify-center text-muted hover:text-ink hover:bg-canvas rounded-full transition-colors relative cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
 					:class="cartBump ? 'cart-bump' : ''"
 					title="Sepetim"
 					@click.stop="emit('open-cart')"
@@ -109,7 +109,7 @@ onBeforeUnmount(() => {
 					<ShoppingCart :size="18" />
 					<span
 						v-if="cartItemCount > 0"
-						class="absolute -top-0.5 -right-0.5 bg-primary text-white font-bold text-2xs min-w-[16px] h-4 px-1 rounded-full border border-ink flex items-center justify-center"
+						class="absolute -top-0.5 -right-0.5 bg-primary text-white font-bold text-2xs min-w-[16px] h-4 px-1 rounded-full border border-surface flex items-center justify-center"
 					>{{ cartItemCount > 99 ? '99+' : cartItemCount }}</span>
 				</button>
 			</div>
@@ -117,15 +117,15 @@ onBeforeUnmount(() => {
 			<div class="relative">
 				<button
 					type="button"
-					class="w-8 h-8 flex items-center justify-center text-white/80 hover:text-white hover:bg-white/10 rounded-full transition-colors relative cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
-					:class="activePanel === 'notifications' ? 'bg-white/10 text-white' : ''"
+					class="w-8 h-8 flex items-center justify-center text-muted hover:text-ink hover:bg-canvas rounded-full transition-colors relative cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+					:class="activePanel === 'notifications' ? 'bg-canvas text-ink' : ''"
 					title="Bildirimler"
 					@click.stop="togglePanel('notifications')"
 				>
 					<Bell :size="18" />
 					<span
 						v-if="unreadCount() > 0"
-						class="absolute -top-0.5 -right-0.5 bg-danger text-white font-bold text-2xs min-w-[16px] h-4 px-1 rounded-full border border-ink flex items-center justify-center"
+						class="absolute -top-0.5 -right-0.5 bg-danger text-white font-bold text-2xs min-w-[16px] h-4 px-1 rounded-full border border-surface flex items-center justify-center"
 					>{{ unreadCount() }}</span>
 				</button>
 			</div>
