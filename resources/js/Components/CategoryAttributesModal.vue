@@ -5,7 +5,7 @@
 				<template v-if="category">
 					<div class="modal-header">
 						<div class="modal-title">
-							<div class="modal-title-icon" style="background: rgb(var(--color-primary-soft-rgb))">🏷️</div>
+							<div class="modal-title-icon" style="background: rgb(var(--color-primary-soft-rgb))"><Tag :size="16" /></div>
 							<div>
 								<h4 id="cad-title">{{ category.name }} — Özellikler</h4>
 								<p>Bu kategorideki ürünlerde görünecek özel alanları tanımla</p>
@@ -28,7 +28,7 @@
 									<span class="cad-type">{{ typeLabel(def.type) }}</span>
 									<span v-if="def.required" class="cad-required">zorunlu</span>
 								</div>
-								<button class="cad-remove" @click="remove(def)" title="Sil">🗑️</button>
+								<button class="cad-remove" @click="remove(def)" title="Sil"><Trash2 :size="13" /></button>
 							</li>
 						</ul>
 
@@ -60,19 +60,17 @@
 								<input v-model="optionsText" class="form-input" type="text" placeholder="V yaka, Bisiklet yaka, Polo yaka" />
 							</div>
 							<span v-if="error" class="form-error">{{ error }}</span>
-							<button class="btn btn-primary btn-with-icon" type="submit" :disabled="busy">
-								<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-									<path d="M12 5v14M5 12h14" />
-								</svg>
+							<Button variant="primary" with-icon type="submit" :loading="busy">
+								<template #leading><Plus :size="13" /></template>
 								Ekle
-							</button>
+							</Button>
 						</form>
 					</div>
 
 					<div class="modal-divider"></div>
 
 					<div class="modal-footer">
-						<button class="btn btn-ghost" @click="close">Kapat</button>
+						<Button variant="ghost" @click="close">Kapat</Button>
 					</div>
 				</template>
 			</div>
@@ -83,7 +81,9 @@
 <script setup>
 import { ref, reactive, computed, watch } from 'vue'
 import { router } from '@inertiajs/vue3'
+import { Tag, Trash2, Plus } from 'lucide-vue-next'
 import CustomSelect from './CustomSelect.vue'
+import Button from './Button.vue'
 
 const props = defineProps({
 	modelValue: { type: Boolean, default: false },
@@ -201,10 +201,11 @@ function remove(def) {
 .cad-type { font-size: 11px; color: #888; }
 .cad-required { font-size: 10.5px; font-weight: 700; color: #dc2626; }
 .cad-remove {
-	background: none; border: none; cursor: pointer; font-size: 13px;
+	background: none; border: none; cursor: pointer; color: #999;
+	display: inline-flex; align-items: center;
 	padding: 4px 6px; border-radius: 6px; flex-shrink: 0;
 }
-.cad-remove:hover { background: #fee2e2; }
+.cad-remove:hover { background: #fee2e2; color: #dc2626; }
 
 .cad-divider { height: 1px; background: #f0f0f5; }
 

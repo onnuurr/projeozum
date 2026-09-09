@@ -34,7 +34,7 @@
 				<tr v-for="row in rows" :key="row.id">
 					<td>
 						<button class="star-btn" :class="{ active: row.starred }" @click="toggleStar(row)">
-							{{ row.starred ? '★' : '☆' }}
+							<Star :size="14" :fill="row.starred ? 'currentColor' : 'none'" />
 						</button>
 					</td>
 					<td>{{ row.subject }}</td>
@@ -50,6 +50,7 @@
 </template>
 
 <script setup>
+import { Star } from 'lucide-vue-next'
 import Badge from '@/Components/Badge.vue'
 
 const props = defineProps({

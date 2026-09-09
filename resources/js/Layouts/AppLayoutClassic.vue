@@ -89,11 +89,11 @@ const {
 </script>
 
 <style scoped>
-/* Sayfa (body) arka planı gri kalır (--color-bg), <main> saas-frontend'in kendi
+/* Sayfa (body) arka planı gri kalır (--color-bg), <main> saas-frontend’in kendi
    mx-1/my-1 + bg-surface + shadow-sm kartı olarak onun üzerinde yüzer — bu ayrım
    olmadan içerik sayfayla aynı renkte görünüp "düz beyaz" hissi veriyordu. Sadece ince
-   scrollbar burada, geri kalan spacing/renk/gölge tamamen SaasKit/layout/AppLayout.vue'nun
-   birebir Tailwind class'ları (bkz. şablon), uydurma piksel değeri yok. */
+   scrollbar burada, geri kalan spacing/renk/gölge tamamen SaasKit/layout/AppLayout.vue’nun
+   birebir Tailwind class’ları (bkz. şablon), uydurma piksel değeri yok. */
 .main-content::-webkit-scrollbar { width: 4px; }
 .main-content::-webkit-scrollbar-track { background: transparent; margin: 14px 0; }
 .main-content::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.12); border-radius: 4px; }

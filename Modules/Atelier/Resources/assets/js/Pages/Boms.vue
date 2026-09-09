@@ -49,7 +49,7 @@
 			</table>
 		</Card>
 
-		<AppModal v-model="modalOpen" title="Yeni Reçete" size="lg">
+		<AppDrawer v-model="modalOpen" title="Yeni Reçete" width="60vw">
 			<form id="bom-form" class="form-grid" @submit.prevent="submit">
 				<div class="form-row-inline">
 					<div class="form-row">
@@ -102,7 +102,7 @@
 				<Button variant="ghost" :disabled="form.processing" @click="close">İptal</Button>
 				<Button type="submit" form="bom-form" variant="primary" :loading="form.processing">Kaydet</Button>
 			</template>
-		</AppModal>
+		</AppDrawer>
 	</div>
 </template>
 
@@ -116,7 +116,7 @@ import PageHeader from '@/Components/PageHeader.vue'
 import Card from '@/Components/Card.vue'
 import Badge from '@/Components/Badge.vue'
 import Button from '@/Components/Button.vue'
-import AppModal from '@/Components/AppModal.vue'
+import AppDrawer from '@/Components/AppDrawer.vue'
 import EmptyState from '@/Components/EmptyState.vue'
 import AtelierNav from '../Components/AtelierNav.vue'
 import { useCan } from '@/composables/useCan'

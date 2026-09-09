@@ -9,27 +9,21 @@
 			]"
 		/>
 
-		<div class="page-header">
-			<div>
-				<h1 class="page-title">{{ order.order_no }}</h1>
-				<p class="page-subtitle">
-					{{ order.tenant?.name ?? '—' }} · {{ order.created_at?.slice(0, 10) }}
-				</p>
-			</div>
-			<span class="status-pill" :class="`status-${order.status}`">{{ statuses[order.status] ?? order.status }}</span>
-		</div>
-
-		<!-- Aksiyon butonları: yalnız izin verilen geçişler -->
-		<div v-if="canManage && allowedTransitions.length" class="actions-bar">
-			<button
-				v-for="to in allowedTransitions"
-				:key="to"
-				class="btn"
-				:class="to === 'cancelled' ? 'btn-danger' : 'btn-primary'"
-				:disabled="busy"
-				@click="promptTransition(to)"
-			>{{ statuses[to] ?? to }}</button>
-		</div>
+		<PageHeader :title="order.order_no">
+			<template #subtitle>{{ order.tenant?.name ?? '—' }} · {{ order.created_at?.slice(0, 10) }}</template>
+			<template #actions>
+				<span class="status-pill" :class="`status-${order.status}`">{{ statuses[order.status] ?? order.status }}</span>
+				<template v-if="canManage">
+					<Button
+						v-for="to in allowedTransitions"
+						:key="to"
+						:variant="to === 'cancelled' ? 'danger' : 'primary'"
+						:loading="busy"
+						@click="promptTransition(to)"
+					>{{ statuses[to] ?? to }}</Button>
+				</template>
+			</template>
+		</PageHeader>
 
 		<div class="grid">
 			<div class="col-main">
@@ -124,10 +118,10 @@
 			<label class="modal-label">Not (opsiyonel)</label>
 			<textarea v-model="note" class="modal-textarea" rows="3" placeholder="Açıklama…"></textarea>
 			<template #footer>
-				<button class="btn btn-ghost" @click="confirmOpen = false">Vazgeç</button>
-				<button class="btn" :class="pendingTo === 'cancelled' ? 'btn-danger' : 'btn-primary'" :disabled="busy" @click="submitTransition">
+				<Button variant="ghost" :disabled="busy" @click="confirmOpen = false">Vazgeç</Button>
+				<Button :variant="pendingTo === 'cancelled' ? 'danger' : 'primary'" :loading="busy" @click="submitTransition">
 					Onayla
-				</button>
+				</Button>
 			</template>
 		</AppModal>
 	</div>
@@ -138,6 +132,8 @@ import { ref, computed, inject } from 'vue'
 import { Head, router, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
+import PageHeader from '@/Components/PageHeader.vue'
+import Button from '@/Components/Button.vue'
 import AppModal from '@/Components/AppModal.vue'
 
 defineOptions({ layout: AppLayout })
@@ -186,10 +182,6 @@ function formatMoney(v) {
 </script>
 
 <style scoped>
-.page-title { font-size: 22px; font-weight: 700; color: #1a1a2e; }
-.page-subtitle { font-size: 13px; color: #888; margin: 4px 0; }
-.page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
-.actions-bar { display: flex; gap: 8px; margin-bottom: 16px; }
 .grid { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
 .col-main { display: flex; flex-direction: column; gap: 16px; }
 .card { background: #fff; border-radius: 16px; border: 1px solid #ebebf0; padding: 16px; }
@@ -221,11 +213,6 @@ function formatMoney(v) {
 .badge { padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; }
 .badge.debit { background: #fee2e2; color: #991b1b; }
 .badge.credit { background: #dcfce7; color: #166534; }
-.btn { padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid #ebebf0; background: #fff; }
-.btn-primary { background: #4338ca; color: #fff; border-color: #4338ca; }
-.btn-danger { background: #dc2626; color: #fff; border-color: #dc2626; }
-.btn-ghost { color: #555; }
-.btn:disabled { opacity: 0.6; cursor: not-allowed; }
 .modal-text { font-size: 14px; color: #333; margin-bottom: 12px; }
 .modal-label { font-size: 12px; font-weight: 600; color: #555; display: block; margin-bottom: 4px; }
 .modal-textarea { width: 100%; border: 1px solid #ebebf0; border-radius: 8px; padding: 8px; font-size: 13px; resize: vertical; }

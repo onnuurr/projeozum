@@ -71,7 +71,7 @@
 		</div>
 
 		<!-- Atama modalı -->
-		<AppModal v-model="assign.open" title="Yeni Atama" size="md">
+		<AppDrawer v-model="assign.open" title="Yeni Atama" width="640px">
 			<form id="assign-form" class="form-grid" @submit.prevent="submitAssign">
 				<div class="form-row">
 					<label class="form-label">İş başlığı <span class="req">*</span></label>
@@ -125,10 +125,10 @@
 				<Button variant="ghost" :disabled="assign.form.processing" @click="close">Vazgeç</Button>
 				<Button type="submit" form="assign-form" variant="primary" :loading="assign.form.processing">Ata</Button>
 			</template>
-		</AppModal>
+		</AppDrawer>
 
 		<!-- Teslim modalı -->
-		<AppModal v-model="deliver.open" title="İşi teslim et" size="md">
+		<AppDrawer v-model="deliver.open" title="İşi teslim et" width="640px">
 			<form id="deliver-form" class="form-grid" @submit.prevent="submitDeliver">
 				<label class="file-drop">
 					<span class="fd-label">Teslim dosyası (revize DXF/PDF — ops.)</span>
@@ -144,10 +144,10 @@
 				<Button variant="ghost" :disabled="deliver.form.processing" @click="close">Vazgeç</Button>
 				<Button type="submit" form="deliver-form" variant="primary" :loading="deliver.form.processing">Teslim et</Button>
 			</template>
-		</AppModal>
+		</AppDrawer>
 
 		<!-- Ret modalı -->
-		<AppModal v-model="reject.open" title="İşi reddet" size="md">
+		<AppDrawer v-model="reject.open" title="İşi reddet" width="640px">
 			<form id="reject-form" class="form-grid" @submit.prevent="submitReject">
 				<div class="form-row">
 					<label class="form-label">Ret gerekçesi</label>
@@ -158,7 +158,7 @@
 				<Button variant="ghost" :disabled="reject.form.processing" @click="close">Vazgeç</Button>
 				<Button type="submit" form="reject-form" variant="danger" :loading="reject.form.processing">Reddet</Button>
 			</template>
-		</AppModal>
+		</AppDrawer>
 	</div>
 </template>
 
@@ -171,7 +171,7 @@ import Breadcrumb from '@/Components/Breadcrumb.vue'
 import PageHeader from '@/Components/PageHeader.vue'
 import Badge from '@/Components/Badge.vue'
 import Button from '@/Components/Button.vue'
-import AppModal from '@/Components/AppModal.vue'
+import AppDrawer from '@/Components/AppDrawer.vue'
 import AtelierNav from '../Components/AtelierNav.vue'
 
 defineOptions({ layout: AppLayout })

@@ -9,49 +9,21 @@
 			]"
 		/>
 
-		<div class="page-header">
-			<div>
-				<h1 class="page-title">Kategoriler</h1>
-				<p class="page-subtitle">Ürün kategorilerini yönet, pazaryeri entegrasyonlarıyla eşleştir</p>
-			</div>
-			<button v-if="canManage" class="btn btn-primary btn-with-icon" @click="openNewCategoryModal">
-				<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-					<path d="M12 5v14M5 12h14" />
-				</svg>
-				Yeni Kategori
-			</button>
-		</div>
+		<PageHeader title="Kategoriler" subtitle="Ürün kategorilerini yönet, pazaryeri entegrasyonlarıyla eşleştir">
+			<template #actions>
+				<Button v-if="canManage" variant="primary" with-icon @click="openNewCategoryDrawer">
+					<template #leading><Plus :size="13" /></template>
+					Yeni Kategori
+				</Button>
+			</template>
+		</PageHeader>
 
 		<!-- İstatistik kartları -->
-		<div class="stats-grid">
-			<div class="stat-card">
-				<div class="stat-icon" style="background: rgb(var(--color-primary-soft-rgb))">📂</div>
-				<div class="stat-content">
-					<div class="stat-label">Toplam Kategori</div>
-					<div class="stat-value">{{ stats.total }}</div>
-				</div>
-			</div>
-			<div class="stat-card">
-				<div class="stat-icon" style="background: #f0fdf4">📦</div>
-				<div class="stat-content">
-					<div class="stat-label">Toplam Ürün</div>
-					<div class="stat-value">{{ stats.products.toLocaleString('tr-TR') }}</div>
-				</div>
-			</div>
-			<div class="stat-card">
-				<div class="stat-icon" style="background: rgb(var(--color-primary-soft-rgb))">🏪</div>
-				<div class="stat-content">
-					<div class="stat-label">Aktif Pazaryeri</div>
-					<div class="stat-value">{{ stats.activeMarketplaces }} / {{ marketplaces.length }}</div>
-				</div>
-			</div>
-			<div class="stat-card">
-				<div class="stat-icon" style="background: #fff7ed">🔗</div>
-				<div class="stat-content">
-					<div class="stat-label">Ortalama Eşleştirme</div>
-					<div class="stat-value">{{ stats.mappingRate }}%</div>
-				</div>
-			</div>
+		<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-5">
+			<StatWidget :icon="Folder" :value="stats.total" title="Toplam Kategori" color="primary" />
+			<StatWidget :icon="Package" :value="stats.products.toLocaleString('tr-TR')" title="Toplam Ürün" color="success" />
+			<StatWidget :icon="Store" :value="`${stats.activeMarketplaces} / ${marketplaces.length}`" title="Aktif Pazaryeri" color="info" />
+			<StatWidget :icon="Link2" :value="`${stats.mappingRate}%`" title="Ortalama Eşleştirme" color="warning" />
 		</div>
 
 		<!-- Kategori tablosu -->
@@ -82,10 +54,11 @@
 			<div v-if="canManage && selectedCount > 0" class="bulk-bar">
 				<span class="bulk-info"><strong>{{ selectedCount }}</strong> kategori seçildi</span>
 				<div class="bulk-actions">
-					<button class="btn btn-ghost btn-sm" @click="clearSelection">Vazgeç</button>
-					<button class="btn btn-danger btn-sm btn-with-icon" :disabled="bulkBusy" @click="bulkDelete">
-						🗑️ Seçilenleri Sil
-					</button>
+					<Button variant="ghost" size="sm" @click="clearSelection">Vazgeç</Button>
+					<Button variant="danger" size="sm" with-icon :loading="bulkBusy" @click="bulkDelete">
+						<template #leading><Trash2 :size="13" /></template>
+						Seçilenleri Sil
+					</Button>
 				</div>
 			</div>
 
@@ -157,9 +130,9 @@
 						<td class="dim">{{ cat.updatedAt }}</td>
 						<td>
 							<div class="table-actions">
-								<button v-if="canManage" class="table-action-btn view" @click="editCategory(cat)" title="Düzenle">✏️ Düzenle</button>
-								<button v-if="canManage" class="table-action-btn view" @click="openAttributesModal(cat)" title="Özellikler">🏷️</button>
-								<button v-if="canManage" class="table-action-btn delete" @click="confirmDelete(cat)" title="Sil">🗑️</button>
+								<button v-if="canManage" class="table-action-btn view" @click="editCategory(cat)" title="Düzenle"><Pencil :size="12" /> Düzenle</button>
+								<button v-if="canManage" class="table-action-btn view" @click="openAttributesModal(cat)" title="Özellikler"><Tag :size="12" /></button>
+								<button v-if="canManage" class="table-action-btn delete" @click="confirmDelete(cat)" title="Sil"><Trash2 :size="12" /></button>
 							</div>
 						</td>
 					</tr>
@@ -222,8 +195,12 @@
 <script setup>
 import { ref, computed, inject, watch, onBeforeUnmount } from 'vue'
 import { Head, router } from '@inertiajs/vue3'
+import { Plus, Trash2, Pencil, Tag, Folder, Package, Store, Link2 } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
+import PageHeader from '@/Components/PageHeader.vue'
+import Button from '@/Components/Button.vue'
+import StatWidget from '@/Components/StatWidget.vue'
 import CustomSelect from '@/Components/CustomSelect.vue'
 import MarketplaceConnectDrawer from '@/Components/MarketplaceConnectDrawer.vue'
 import MarketplaceCategoryPickerModal from '@/Components/MarketplaceCategoryPickerModal.vue'
@@ -473,7 +450,7 @@ async function openMarketplaceCheck(cat, mp) {
 			`,
 			showCancelButton: true,
 			showDenyButton: true,
-			confirmButtonText: '✏️ Düzenle',
+			confirmButtonText: 'Düzenle',
 			denyButtonText: 'Eşleştirmeyi Kaldır',
 			cancelButtonText: 'Kapat',
 			customClass: {
@@ -601,7 +578,7 @@ async function confirmUnmap(cat, mp) {
 }
 
 /* ── CRUD aksiyonları ── */
-function openNewCategoryModal() {
+function openNewCategoryDrawer() {
 	editingCategory.value = null
 	formErrors.value = {}
 	formDrawerOpen.value = true
@@ -668,47 +645,6 @@ async function confirmDelete(cat) {
 </script>
 
 <style scoped>
-.page-header {
-	display: flex;
-	align-items: flex-start;
-	justify-content: space-between;
-	margin-bottom: 20px;
-	gap: 16px;
-}
-
-.page-title { font-size: 22px; font-weight: 700; color: #1a1a2e; line-height: 1.2; }
-.page-subtitle { font-size: 13px; color: #888; margin-top: 4px; }
-
-/* ── Stats ── */
-.stats-grid {
-	display: grid;
-	grid-template-columns: repeat(4, 1fr);
-	gap: 16px;
-	margin-bottom: 20px;
-}
-@media (max-width: 900px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
-
-.stat-card {
-	background: #fff;
-	border-radius: 14px;
-	border: 1px solid #ebebf0;
-	padding: 18px 20px;
-	display: flex;
-	align-items: center;
-	gap: 14px;
-	min-height: 80px;
-	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-}
-.stat-icon {
-	width: 48px; height: 48px;
-	border-radius: 12px;
-	display: flex; align-items: center; justify-content: center;
-	font-size: 20px; flex-shrink: 0;
-}
-.stat-content { flex: 1; }
-.stat-label { font-size: 12px; color: #888; font-weight: 500; }
-.stat-value { font-size: 24px; font-weight: 700; color: #1a1a2e; }
-
 /* ── Kart ── */
 .card {
 	background: #fff;
@@ -755,9 +691,6 @@ async function confirmDelete(cat) {
 .bulk-info { font-size: 13px; color: rgb(var(--color-primary-hover-rgb)); }
 .bulk-info strong { font-weight: 800; }
 .bulk-actions { display: flex; gap: 8px; }
-.btn-danger { background: #dc2626; color: #fff; border: none; }
-.btn-danger:hover:not(:disabled) { background: #b91c1c; }
-.btn-danger:disabled { opacity: .55; cursor: not-allowed; }
 
 .col-check { width: 40px; text-align: center; padding-left: 16px; padding-right: 0; }
 .col-check input { width: 15px; height: 15px; accent-color: rgb(var(--color-primary-rgb)); cursor: pointer; }
@@ -924,6 +857,7 @@ async function confirmDelete(cat) {
 /* ── İşlem butonları ── */
 .table-actions { display: flex; gap: 4px; }
 .table-action-btn {
+	display: inline-flex; align-items: center; gap: 4px;
 	background: #f3f4f6;
 	border: none; cursor: pointer;
 	font-size: 11.5px;

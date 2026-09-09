@@ -1,33 +1,19 @@
 <template>
-	<Teleport to="body">
-		<div class="drawer-overlay" :class="{ open }" @click="close"></div>
-		<aside
-			class="drawer mp-listing-drawer"
-			:class="{ open }"
-			role="dialog"
-			aria-modal="true"
-			aria-label="Pazaryeri Listeleme"
-		>
-			<div class="drawer-header">
-				<div class="drawer-title">
-					<div class="drawer-title-icon mp-icon" :style="{ background: marketplace?.color || '#888' }">
-						{{ marketplace?.logoText }}
-					</div>
-					<div>
-						<h4>{{ marketplace?.name }} — Yeni Listeleme</h4>
-						<p>{{ product.name || 'Ürün listeleme' }}</p>
-					</div>
-				</div>
-				<button class="drawer-close" @click="close" aria-label="Kapat">
-					<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-						<path d="M18 6L6 18M6 6l12 12" />
-					</svg>
-				</button>
-			</div>
+	<AppDrawer
+		:model-value="open"
+		:title="`${marketplace?.name || ''} — Yeni Listeleme`"
+		:subtitle="product.name || 'Ürün listeleme'"
+		:icon-bg="marketplace?.color || '#888'"
+		width="64vw"
+		class="mp-listing-drawer"
+		aria-label="Pazaryeri Listeleme"
+		@update:model-value="(v) => !v && close()"
+	>
+		<template #icon><span class="mp-icon">{{ marketplace?.logoText }}</span></template>
 
-			<div v-if="loading" class="lst-loading">Yükleniyor…</div>
+		<div v-if="loading" class="lst-loading">Yükleniyor…</div>
 
-			<div v-else-if="form" class="drawer-body">
+		<template v-else-if="form">
 				<div class="lst-alert" :class="form.is_sent ? 'ok' : 'warn'">
 					{{ form.is_sent ? `Ürün ${marketplace.name} pazaryerine gönderildi.` : `Ürün ${marketplace.name} pazaryerine gönderilmedi.` }}
 				</div>
@@ -131,21 +117,20 @@
 						</div>
 					</aside>
 				</div>
-			</div>
+		</template>
 
-			<div class="drawer-footer">
-				<button class="btn btn-secondary" @click="close">Kapat</button>
-				<button class="btn btn-primary" :disabled="saving || loading" @click="save">
-					{{ saving ? 'Kaydediliyor…' : 'Kaydet' }}
-				</button>
-			</div>
-		</aside>
-	</Teleport>
+		<template #footer>
+			<Button variant="secondary" @click="close">Kapat</Button>
+			<Button variant="primary" :disabled="loading" :loading="saving" @click="save">Kaydet</Button>
+		</template>
+	</AppDrawer>
 </template>
 
 <script setup>
 import { ref, computed, watch, inject } from 'vue'
 import axios from 'axios'
+import AppDrawer from '@/Components/AppDrawer.vue'
+import Button from '@/Components/Button.vue'
 import CustomSelect from '@/Components/CustomSelect.vue'
 
 const props = defineProps({
@@ -234,17 +219,13 @@ watch(() => props.open, (v) => { if (v) load() })
 </script>
 
 <style scoped>
-/* Standart .drawer chrome'u (FilterDrawer global stilleri) kullanır; sadece genişlik + içerik. */
-.mp-listing-drawer {
-	width: 64vw;
-	max-width: calc(100vw - 24px);
-	min-width: 560px;
-}
+/* Drawer chrome'u AppDrawer'dan gelir; burada sadece genişlik + içerik stilleri var. */
+.mp-listing-drawer { min-width: 560px; }
 @media (max-width: 900px) {
-	.mp-listing-drawer { width: 100vw; min-width: 0; }
+	.mp-listing-drawer { width: 100vw !important; min-width: 0; }
 }
 
-.mp-icon { color: #fff; font-size: 11px; font-weight: 800; letter-spacing: 0.03em; }
+.mp-icon { font-size: 11px; font-weight: 800; letter-spacing: 0.03em; }
 
 .lst-loading { flex: 1; display: flex; align-items: center; justify-content: center; color: #888; font-size: 13px; }
 

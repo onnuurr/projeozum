@@ -41,7 +41,7 @@
 			</DataTable>
 		</Card>
 
-		<AppModal v-model="modalOpen" :title="editing ? 'Faturayı Düzenle' : 'Yeni Fatura'" size="lg">
+		<AppDrawer v-model="modalOpen" :title="editing ? 'Faturayı Düzenle' : 'Yeni Fatura'" width="60vw">
 			<form id="supplier-invoice-form" class="form-grid" @submit.prevent="submit">
 				<div class="form-row-inline">
 					<div class="form-row">
@@ -125,7 +125,7 @@
 					{{ editing ? 'Güncelle' : 'Ekle' }}
 				</Button>
 			</template>
-		</AppModal>
+		</AppDrawer>
 	</div>
 </template>
 
@@ -140,7 +140,7 @@ import Card from '@/Components/Card.vue'
 import DataTable from '@/Components/DataTable.vue'
 import Badge from '@/Components/Badge.vue'
 import Button from '@/Components/Button.vue'
-import AppModal from '@/Components/AppModal.vue'
+import AppDrawer from '@/Components/AppDrawer.vue'
 import FinanceNav from '../Components/FinanceNav.vue'
 
 defineOptions({ layout: AppLayout })

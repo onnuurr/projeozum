@@ -62,7 +62,7 @@ const activeTab = computed(() => tabs.find((tab) => tab.key === props.current) ?
 .fn-mobile-toggle { display: none; }
 .fn-mobile-backdrop { display: none; }
 
-/* ── Dar ekran (telefon): üst menü hamburger'a dönüşür ── */
+/* ── Dar ekran (telefon): üst menü hamburger’a dönüşür ── */
 @media (max-width: 640px) {
 	.fn-mobile-toggle {
 		display: flex;

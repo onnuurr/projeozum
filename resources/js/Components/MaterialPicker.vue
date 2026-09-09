@@ -15,7 +15,7 @@
 				<span v-if="row.material?.code" class="mp-code">{{ row.material.code }}</span>
 				<span v-if="specSummary(row.material)" class="mp-spec">{{ specSummary(row.material) }}</span>
 			</div>
-			<button type="button" class="mp-remove" @click="removeRow(idx)" aria-label="Kaldır">✕</button>
+			<button type="button" class="mp-remove" @click="removeRow(idx)" aria-label="Kaldır"><X :size="13" /></button>
 		</div>
 
 		<div class="mp-search">
@@ -52,6 +52,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import axios from 'axios'
+import { X } from 'lucide-vue-next'
 
 const props = defineProps({
 	modelValue: { type: Array, default: () => [] },

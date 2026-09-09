@@ -97,8 +97,8 @@ onBeforeUnmount(() => {
 	border-radius: 18px;
 	box-shadow: 0 8px 40px rgba(0, 0, 0, .14), 0 2px 8px rgba(0, 0, 0, .08);
 	width: 100%; max-width: 480px;
-	/* Overlay'in 20px dolgusuna göre viewport'a sığdır — aksi halde uzun formlar
-	   (ör. Kalıp ekle/düzenle) modal'ı ekranın dışına taşırır, alt kısım/kaydet
+	/* Overlay’in 20px dolgusuna göre viewport’a sığdır — aksi halde uzun formlar
+	   (ör. Kalıp ekle/düzenle) modal’ı ekranın dışına taşırır, alt kısım/kaydet
 	   butonu görünmez olur ve kaydırma imkânı olmazdı. */
 	max-height: calc(100vh - 40px);
 	display: flex; flex-direction: column;

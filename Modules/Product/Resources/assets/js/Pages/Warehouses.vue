@@ -9,36 +9,33 @@
 			]"
 		/>
 
-		<div class="page-header">
-			<div>
-				<h1 class="page-title">Depolar</h1>
-				<p class="page-subtitle"><strong>{{ warehouses.length }}</strong> depo kayıtlı</p>
-			</div>
-			<button v-if="canManage" class="btn btn-primary btn-with-icon" @click="openNew">
-				<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-					<path d="M12 5v14M5 12h14" />
-				</svg>
-				Yeni Depo
-			</button>
-		</div>
+		<PageHeader title="Depolar">
+			<template #subtitle><strong>{{ warehouses.length }}</strong> depo kayıtlı</template>
+			<template #actions>
+				<Button v-if="canManage" variant="primary" with-icon @click="openNew">
+					<template #leading><Plus :size="13" /></template>
+					Yeni Depo
+				</Button>
+			</template>
+		</PageHeader>
 
 		<div class="cards-grid">
 			<div v-if="warehouses.length === 0" class="empty-state">
-				<div class="empty-icon">🏭</div>
+				<div class="empty-icon"><Warehouse :size="36" /></div>
 				<div class="empty-text">Henüz depo eklenmemiş.</div>
 			</div>
 			<div v-for="w in warehouses" :key="w.id" class="warehouse-card">
 				<div class="card-top">
-					<div class="warehouse-icon">🏭</div>
+					<div class="warehouse-icon"><Warehouse :size="20" /></div>
 					<div class="card-actions">
-						<button v-if="canManage" class="icon-btn" @click="edit(w)" title="Düzenle">✏️</button>
-						<button v-if="canManage" class="icon-btn delete" @click="confirmDelete(w)" title="Sil">🗑️</button>
+						<button v-if="canManage" class="icon-btn" @click="edit(w)" title="Düzenle"><Pencil :size="13" /></button>
+						<button v-if="canManage" class="icon-btn delete" @click="confirmDelete(w)" title="Sil"><Trash2 :size="13" /></button>
 					</div>
 				</div>
 				<div class="warehouse-info">
 					<div class="warehouse-name">{{ w.name }}</div>
 					<div class="warehouse-code">{{ w.code }}</div>
-					<div v-if="w.city" class="warehouse-city">📍 {{ w.city }}</div>
+					<div v-if="w.city" class="warehouse-city"><MapPin :size="11" /> {{ w.city }}</div>
 				</div>
 				<div class="card-stats">
 					<div class="stat">
@@ -59,7 +56,7 @@
 			</div>
 		</div>
 
-		<AppModal v-model="formOpen" :title="editing ? 'Depoyu Düzenle' : 'Yeni Depo'" size="md" variant="info">
+		<AppDrawer v-model="formOpen" :title="editing ? 'Depoyu Düzenle' : 'Yeni Depo'" subtitle="Depo bilgilerini girin" variant="info" width="480px">
 			<form class="form-grid" @submit.prevent="submit">
 				<div class="form-row">
 					<label class="form-label">Depo Adı <span class="req">*</span></label>
@@ -90,21 +87,24 @@
 				</div>
 			</form>
 			<template #footer="{ close }">
-				<button class="btn btn-ghost" @click="close" :disabled="busy">İptal</button>
-				<button class="btn btn-primary" @click="submit" :disabled="busy">
+				<Button variant="ghost" :disabled="busy" @click="close">İptal</Button>
+				<Button variant="primary" :loading="busy" @click="submit">
 					{{ editing ? 'Kaydet' : 'Ekle' }}
-				</button>
+				</Button>
 			</template>
-		</AppModal>
+		</AppDrawer>
 	</div>
 </template>
 
 <script setup>
 import { ref, computed, inject, reactive, watch } from 'vue'
 import { Head, router, usePage } from '@inertiajs/vue3'
+import { Plus, Pencil, Trash2, Warehouse, MapPin } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
-import AppModal from '@/Components/AppModal.vue'
+import PageHeader from '@/Components/PageHeader.vue'
+import Button from '@/Components/Button.vue'
+import AppDrawer from '@/Components/AppDrawer.vue'
 
 defineOptions({ layout: AppLayout })
 
@@ -217,10 +217,6 @@ async function confirmDelete(w) {
 </script>
 
 <style scoped>
-.page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; gap: 16px; }
-.page-title { font-size: 22px; font-weight: 700; color: #1a1a2e; }
-.page-subtitle { font-size: 13px; color: #888; margin-top: 4px; }
-
 .cards-grid {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -235,7 +231,7 @@ async function confirmDelete(w) {
 	padding: 60px 20px;
 	text-align: center;
 }
-.empty-icon { font-size: 42px; margin-bottom: 8px; }
+.empty-icon { display: flex; justify-content: center; color: #c0c0d8; margin-bottom: 8px; }
 .empty-text { color: #888; font-size: 13px; }
 
 .warehouse-card {
@@ -259,13 +255,14 @@ async function confirmDelete(w) {
 	width: 44px; height: 44px;
 	border-radius: 12px;
 	background: #fff7ed;
+	color: #c2410c;
 	display: flex; align-items: center; justify-content: center;
-	font-size: 22px;
 }
 .card-actions { display: flex; gap: 4px; }
 .icon-btn {
+	display: inline-flex; align-items: center; justify-content: center;
 	background: #f3f4f6; border: none; cursor: pointer;
-	font-size: 13px; padding: 5px 8px; border-radius: 6px;
+	padding: 6px; border-radius: 6px;
 	color: #6b7280; transition: all .15s;
 }
 .icon-btn:hover { background: rgb(var(--color-primary-soft-rgb)); color: rgb(var(--color-primary-rgb)); }
@@ -278,7 +275,7 @@ async function confirmDelete(w) {
 	font-family: 'SF Mono', Menlo, Consolas, monospace;
 	letter-spacing: 0.04em;
 }
-.warehouse-city { font-size: 12px; color: #888; margin-top: 2px; }
+.warehouse-city { display: flex; align-items: center; gap: 4px; font-size: 12px; color: #888; margin-top: 2px; }
 
 .card-stats {
 	display: grid;
@@ -312,10 +309,4 @@ async function confirmDelete(w) {
 .form-hint { font-size: 11px; color: #888; }
 .form-error { font-size: 11.5px; color: #ef4444; }
 .form-check { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: #1a1a2e; }
-
-/* ── Dar ekran (telefon) ── */
-@media (max-width: 640px) {
-	.page-header { flex-wrap: wrap; }
-	.page-header .btn { width: 100%; justify-content: center; }
-}
 </style>

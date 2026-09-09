@@ -1,39 +1,16 @@
 <template>
-	<Teleport to="body">
-		<div
-			class="drawer-overlay"
-			:class="{ open: modelValue }"
-			@click="close"
-		></div>
-		<aside
-			class="drawer marketplace-connect-drawer"
-			:class="{ open: modelValue }"
-			role="dialog"
-			aria-modal="true"
-			aria-labelledby="mcd-title"
-		>
-			<template v-if="marketplace">
-				<div class="drawer-header">
-					<div class="drawer-title">
-						<div
-							class="drawer-title-icon mp-logo"
-							:style="{ background: marketplace.color, color: '#fff' }"
-						>
-							{{ marketplace.logoText }}
-						</div>
-						<div>
-							<h4 id="mcd-title">{{ marketplace.name }}</h4>
-							<p>{{ marketplace.description || 'Pazaryeri entegrasyonu' }}</p>
-						</div>
-					</div>
-					<button class="drawer-close" @click="close" aria-label="Kapat">
-						<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-							<path d="M18 6L6 18M6 6l12 12" />
-						</svg>
-					</button>
-				</div>
-
-				<div class="drawer-body">
+	<AppDrawer
+		v-if="marketplace"
+		:model-value="modelValue"
+		:title="marketplace.name"
+		:subtitle="marketplace.description || 'Pazaryeri entegrasyonu'"
+		:icon-bg="marketplace.color"
+		width="56vw"
+		class="marketplace-connect-drawer"
+		:aria-label="marketplace.name"
+		@update:model-value="$emit('update:modelValue', $event)"
+	>
+		<template #icon><span class="mp-logo">{{ marketplace.logoText }}</span></template>
 					<!-- Context banner -->
 					<div class="context-banner">
 						<div class="cb-icon" :style="{ background: marketplace.color }">
@@ -143,7 +120,7 @@
 								<input type="checkbox" :value="s" v-model="form.syncScopes" />
 								<div class="sc-content">
 									<div class="sc-head">
-										<span class="sc-icon">{{ scopeLabel(s).icon }}</span>
+										<span class="sc-icon"><component :is="scopeLabel(s).icon" :size="15" /></span>
 										<strong>{{ scopeLabel(s).label }}</strong>
 									</div>
 									<div class="sc-desc">{{ scopeLabel(s).description }}</div>
@@ -164,29 +141,22 @@
 							</span>
 						</label>
 					</section>
-				</div>
 
-				<div class="drawer-footer">
-					<button class="btn btn-ghost" @click="close">Vazgeç</button>
-					<button
-						class="btn btn-primary btn-with-icon"
-						:disabled="!canSubmit"
-						@click="submit"
-					>
-						<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-							<path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" />
-							<path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
-						</svg>
-						Bağla
-					</button>
-				</div>
-			</template>
-		</aside>
-	</Teleport>
+		<template #footer>
+			<Button variant="ghost" @click="close">Vazgeç</Button>
+			<Button variant="primary" with-icon :disabled="!canSubmit" @click="submit">
+				<template #leading><Link2 :size="13" /></template>
+				Bağla
+			</Button>
+		</template>
+	</AppDrawer>
 </template>
 
 <script setup>
 import { reactive, computed, watch } from 'vue'
+import { Package, Tag, BarChart3, Wallet, Truck, Link2 } from 'lucide-vue-next'
+import AppDrawer from '@/Components/AppDrawer.vue'
+import Button from '@/Components/Button.vue'
 
 const props = defineProps({
 	modelValue: { type: Boolean, default: false },
@@ -197,15 +167,15 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'submit'])
 
 const scopeLabels = {
-	orders:   { label: 'Siparişler',   icon: '📦', description: 'Yeni siparişleri çek' },
-	products: { label: 'Ürünler',      icon: '🏷️', description: 'Ürün katalogunu senkron tut' },
-	stock:    { label: 'Stok',          icon: '📊', description: 'Stok adetlerini güncelle' },
-	price:    { label: 'Fiyat',         icon: '💰', description: 'Fiyat değişikliklerini yansıt' },
-	shipment: { label: 'Kargo',         icon: '🚚', description: 'Takip numarası ve durumu' },
+	orders:   { label: 'Siparişler',   icon: Package,   description: 'Yeni siparişleri çek' },
+	products: { label: 'Ürünler',      icon: Tag,        description: 'Ürün katalogunu senkron tut' },
+	stock:    { label: 'Stok',          icon: BarChart3, description: 'Stok adetlerini güncelle' },
+	price:    { label: 'Fiyat',         icon: Wallet,     description: 'Fiyat değişikliklerini yansıt' },
+	shipment: { label: 'Kargo',         icon: Truck,      description: 'Takip numarası ve durumu' },
 }
 
 function scopeLabel(key) {
-	return scopeLabels[key] || { label: key, icon: '•', description: '' }
+	return scopeLabels[key] || { label: key, icon: Tag, description: '' }
 }
 
 const defaultForm = () => ({
@@ -268,17 +238,11 @@ watch(
 </script>
 
 <style scoped>
-.marketplace-connect-drawer {
-	width: 56vw;
-	max-width: calc(100vw - 24px);
-	min-width: 460px;
-}
+/* Drawer chrome'u AppDrawer'dan gelir; burada sadece genişlik + içerik stilleri var. */
+.marketplace-connect-drawer { min-width: 460px; }
 
 @media (max-width: 900px) {
-	.marketplace-connect-drawer {
-		width: 100vw;
-		min-width: 0;
-	}
+	.marketplace-connect-drawer { width: 100vw !important; min-width: 0; }
 }
 
 .mp-logo {
@@ -561,8 +525,4 @@ watch(
 	line-height: 1.4;
 }
 
-/* ── Footer ── */
-.drawer-footer { display: flex; gap: 8px; }
-.drawer-footer .btn { flex: 1; justify-content: center; }
-.drawer-footer .btn-ghost { flex: 0 0 auto; }
 </style>

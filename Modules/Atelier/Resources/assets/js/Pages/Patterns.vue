@@ -112,7 +112,7 @@
 		</div>
 
 		<!-- Ekle / Düzenle modalı -->
-		<AppModal v-model="modal" :title="editingId ? 'Kalıp Düzenle' : 'Yeni Kalıp'" size="md">
+		<AppDrawer v-model="modal" :title="editingId ? 'Kalıp Düzenle' : 'Yeni Kalıp'" width="640px">
 				<form id="pattern-form" @submit.prevent="submit" class="pattern-form">
 					<div class="form-2col">
 						<div class="form-row span2">
@@ -229,10 +229,10 @@
 					{{ editingId ? 'Güncelle' : 'Kaydet' }}
 				</Button>
 			</template>
-		</AppModal>
+		</AppDrawer>
 
 		<!-- Linkten içe aktarma -->
-		<AppModal v-model="importUrlModal" title="Linkten kalıp ekle" size="sm">
+		<AppDrawer v-model="importUrlModal" title="Linkten kalıp ekle" width="480px">
 			<p class="import-hint">Ürün sayfasının adresini yapıştırın; sayfadaki PDF ve önizleme görseli otomatik bulunup indirilir, taslak kalıp olarak eklenir ve arka planda incelenir.</p>
 			<div class="form-row">
 				<label class="form-label">Sayfa adresi</label>
@@ -243,10 +243,10 @@
 				<Button variant="ghost" :disabled="importUrlForm.processing" @click="close">Vazgeç</Button>
 				<Button variant="primary" :disabled="!importUrlForm.url" :loading="importUrlForm.processing" @click="submitImportUrl">İçe aktar</Button>
 			</template>
-		</AppModal>
+		</AppDrawer>
 
 		<!-- PDF içe aktarma -->
-		<AppModal v-model="importModal" title="PDF'ten kalıp ekle" size="sm">
+		<AppDrawer v-model="importModal" title="PDF'ten kalıp ekle" width="480px">
 			<p class="import-hint">Yüklenen her PDF taslak kalıp olarak eklenir; sistem arka planda inceleyip ürün tipi, beden, parça ve DXF'i çıkarır. <strong>Vektör kalıp PDF'i gerekir</strong> — taranmış/raster (resim) dosyalar baştan elenir.</p>
 			<label class="file-drop import-drop" :class="{ dragging }"
 				@dragover.prevent="dragging = true" @dragleave.prevent="dragging = false" @drop.prevent="onDrop">
@@ -266,10 +266,10 @@
 					{{ importForm.files.length }} PDF gönder
 				</Button>
 			</template>
-		</AppModal>
+		</AppDrawer>
 
 		<!-- Fotoğraf içe aktarma -->
-		<AppModal v-model="importPhotoModal" title="Fotoğraftan kalıp ekle" size="sm">
+		<AppDrawer v-model="importPhotoModal" title="Fotoğraftan kalıp ekle" width="480px">
 			<p class="import-hint">
 				Kalıp kağıdını düz bir yüzeye serip yanına ölçü referansı <strong>ArUco marker</strong>ı
 				(DICT_4X4_50, gerçek kenarı aşağıda girdiğiniz mm) koyarak fotoğraflayın — marker aynı
@@ -296,7 +296,7 @@
 					{{ importPhotoForm.files.length }} fotoğraf gönder
 				</Button>
 			</template>
-		</AppModal>
+		</AppDrawer>
 
 		<!-- Zoom -->
 		<div v-if="zoom" class="zoom-overlay" @click="zoom = null">
@@ -313,7 +313,7 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import PageHeader from '@/Components/PageHeader.vue'
 import Button from '@/Components/Button.vue'
-import AppModal from '@/Components/AppModal.vue'
+import AppDrawer from '@/Components/AppDrawer.vue'
 import EmptyState from '@/Components/EmptyState.vue'
 import AtelierNav from '../Components/AtelierNav.vue'
 

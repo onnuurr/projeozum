@@ -1,111 +1,95 @@
 <template>
-	<Teleport to="body">
-		<aside class="drawer category-form-drawer" :class="{ open: modelValue }" role="dialog" aria-modal="true">
-			<div class="drawer-header">
-				<div class="drawer-title">
-					<div class="drawer-title-icon" :class="isEdit ? 'icon-edit' : 'icon-add'">
-						<svg v-if="isEdit" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-							<path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-							<path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-						</svg>
-						<svg v-else width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-							<path d="M12 5v14M5 12h14" />
-						</svg>
-					</div>
-					<div>
-						<h4>{{ isEdit ? 'Kategoriyi Düzenle' : 'Yeni Kategori Ekle' }}</h4>
-						<p>{{ isEdit ? category.name : 'Ürün kataloğuna yeni bir kategori ekleyin' }}</p>
-					</div>
-				</div>
-				<button class="drawer-close" @click="close" aria-label="Kapat">
-					<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-						<path d="M18 6L6 18M6 6l12 12" />
-					</svg>
-				</button>
+	<AppDrawer
+		:model-value="modelValue"
+		:title="isEdit ? 'Kategoriyi Düzenle' : 'Yeni Kategori'"
+		:subtitle="isEdit ? category.name : 'Ürün kataloğuna yeni bir kategori ekleyin'"
+		variant="info"
+		width="480px"
+		@update:model-value="$emit('update:modelValue', $event)"
+	>
+		<div class="form-grid-2">
+			<div class="form-group full">
+				<label class="form-label">Kategori Adı <span class="required">*</span></label>
+				<input
+					v-model="form.name"
+					class="form-input"
+					type="text"
+					placeholder="örn. Erkek Tişört"
+					@input="onNameInput"
+					@keydown.enter="submit"
+				/>
+				<span v-if="errors.name" class="form-error">{{ errors.name }}</span>
 			</div>
 
-			<div class="drawer-body">
-				<div class="form-section form-grid-2">
-					<div class="form-group full">
-						<label class="form-label">Kategori Adı <span class="required">*</span></label>
-						<input
-							v-model="form.name"
-							class="form-input"
-							type="text"
-							placeholder="örn. Erkek Tişört"
-							@input="onNameInput"
-							@keydown.enter="submit"
-						/>
-						<span v-if="errors.name" class="form-error">{{ errors.name }}</span>
-					</div>
-
-					<div class="form-group">
-						<label class="form-label">Slug <span class="required">*</span></label>
-						<input
-							v-model="form.slug"
-							class="form-input"
-							type="text"
-							placeholder="erkek-tisort"
-							@input="slugTouched = true"
-						/>
-						<span v-if="errors.slug" class="form-error">{{ errors.slug }}</span>
-					</div>
-
-					<div class="form-group">
-						<label class="form-label">İkon (emoji)</label>
-						<input
-							v-model="form.icon"
-							class="form-input"
-							type="text"
-							maxlength="4"
-							placeholder="📦"
-						/>
-					</div>
-
-					<CustomSelect
-						label="Üst Kategori"
-						v-model="form.parent_id"
-						:options="parentOptions"
-						placeholder="— Yok (Ana kategori) —"
-					/>
-
-					<CustomSelect
-						label="Durum"
-						v-model="form.status"
-						:options="statusOptions"
-					/>
-
-					<div class="form-group">
-						<label class="form-label">Sıra</label>
-						<input
-							v-model.number="form.sort_order"
-							class="form-input"
-							type="number"
-							min="0"
-							placeholder="0"
-						/>
-					</div>
-				</div>
+			<div class="form-group">
+				<label class="form-label">Slug <span class="required">*</span></label>
+				<input
+					v-model="form.slug"
+					class="form-input"
+					type="text"
+					placeholder="erkek-tisort"
+					@input="slugTouched = true"
+				/>
+				<span v-if="errors.slug" class="form-error">{{ errors.slug }}</span>
 			</div>
 
-			<div class="drawer-footer">
-				<button class="btn btn-ghost" @click="close" :disabled="busy">İptal</button>
-				<button class="btn btn-primary btn-with-icon" @click="submit" :disabled="busy">
+			<div class="form-group">
+				<label class="form-label">İkon (emoji)</label>
+				<input
+					v-model="form.icon"
+					class="form-input"
+					type="text"
+					maxlength="4"
+					placeholder="📦"
+				/>
+			</div>
+
+			<CustomSelect
+				label="Üst Kategori"
+				v-model="form.parent_id"
+				:options="parentOptions"
+				placeholder="— Yok (Ana kategori) —"
+			/>
+
+			<CustomSelect
+				label="Durum"
+				v-model="form.status"
+				:options="statusOptions"
+			/>
+
+			<div class="form-group">
+				<label class="form-label">Sıra</label>
+				<input
+					v-model.number="form.sort_order"
+					class="form-input"
+					type="number"
+					min="0"
+					placeholder="0"
+				/>
+			</div>
+		</div>
+
+		<template #footer="{ close }">
+			<Button variant="ghost" :disabled="busy" @click="close">İptal</Button>
+			<Button variant="primary" with-icon :loading="busy" @click="submit">
+				<template #leading>
 					<svg v-if="isEdit" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
 						<path d="M20 6L9 17l-5-5" />
 					</svg>
 					<svg v-else width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
 						<path d="M12 5v14M5 12h14" />
 					</svg>
-					{{ isEdit ? 'Değişiklikleri Kaydet' : 'Kategori Ekle' }}
-				</button>
-			</div>
-		</aside>
-	</Teleport>
+				</template>
+				{{ isEdit ? 'Değişiklikleri Kaydet' : 'Kategori Ekle' }}
+			</Button>
+		</template>
+	</AppDrawer>
 </template>
 
 <script setup>
 import { reactive, computed, ref, watch } from 'vue'
+import AppDrawer from './AppDrawer.vue'
+import Button from './Button.vue'
 import CustomSelect from './CustomSelect.vue'
 
 const props = defineProps({
@@ -161,11 +145,6 @@ function onNameInput() {
 	if (!slugTouched.value) form.slug = slugify(form.name)
 }
 
-function close() {
-	if (props.busy) return
-	emit('update:modelValue', false)
-}
-
 function submit() {
 	emit('submit', {
 		id: props.category?.id ?? null,
@@ -210,15 +189,6 @@ watch(
 </script>
 
 <style scoped>
-.category-form-drawer {
-	width: 480px;
-	max-width: calc(100vw - 24px);
-}
-
-.icon-add  { background: rgb(var(--color-primary-soft-rgb)) !important; color: rgb(var(--color-primary-rgb)) !important; }
-.icon-edit { background: #fef3c7 !important; color: #d97706 !important; }
-
-.form-section { display: flex; flex-direction: column; gap: 12px; }
 .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .form-group { display: flex; flex-direction: column; gap: 5px; }
 .form-group.full { grid-column: 1 / -1; }

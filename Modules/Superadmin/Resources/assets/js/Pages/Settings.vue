@@ -593,11 +593,11 @@
 		</div>
 
 		<!-- ── Rol Düzenleme / Ekleme Modalı ── -->
-		<AppModal
+		<AppDrawer
 			v-model="showRoleModal"
 			:title="editingRole && editingRole.isNew ? 'Yeni Rol Oluştur' : 'Rolü Düzenle'"
 			:subtitle="editingRole && editingRole.isNew ? 'Ad, açıklama ve izinleri belirleyin' : 'Rol detaylarını ve izinleri güncelleyin'"
-			size="lg"
+			width="60vw"
 		>
 			<template #icon>
 				<Users :size="18" />
@@ -681,14 +681,14 @@
 					{{ editingRole && editingRole.isNew ? 'Rolü Oluştur' : 'Değişiklikleri Kaydet' }}
 				</Button>
 			</template>
-		</AppModal>
+		</AppDrawer>
 
 		<!-- ── İzin Modalı ── -->
-		<AppModal
+		<AppDrawer
 			v-model="showPermModal"
 			:title="editingPermission && editingPermission.isNew ? 'Yeni İzin' : 'İzni Düzenle'"
 			subtitle="Sistem adı (key) ve görünen ad belirleyin"
-			size="md"
+			width="640px"
 		>
 			<template #icon>
 				<ClipboardCheck :size="18" />
@@ -712,7 +712,7 @@
 					{{ editingPermission && editingPermission.isNew ? 'Oluştur' : 'Güncelle' }}
 				</Button>
 			</template>
-		</AppModal>
+		</AppDrawer>
 
 		<!-- ── Rol Silme Onay Modalı ── -->
 		<AppModal
@@ -758,6 +758,7 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import CustomSelect from '@/Components/CustomSelect.vue'
 import AppModal from '@/Components/AppModal.vue'
+import AppDrawer from '@/Components/AppDrawer.vue'
 import Card from '@/Components/Card.vue'
 import Badge from '@/Components/Badge.vue'
 import ProgressBar from '@/Components/ProgressBar.vue'
@@ -2522,7 +2523,7 @@ onBeforeUnmount(stopSystemPolling)
 
 	.sa-section { padding: 16px 14px 18px; }
 
-	/* İki kolonlu span'lar (SMTP Host, Fatura Öneki vb.) dar ekranda tek kolona insin */
+	/* İki kolonlu span’lar (SMTP Host, Fatura Öneki vb.) dar ekranda tek kolona insin */
 	.field-row { grid-template-columns: 1fr; }
 	.flex-2 { grid-column: auto; }
 

@@ -49,8 +49,14 @@
 			</DataTable>
 		</Card>
 
-		<!-- Form modal -->
-		<AppModal v-model="formOpen" :title="editing ? 'Markayı Düzenle' : 'Yeni Marka'" size="md" variant="info">
+		<!-- Form drawer -->
+		<AppDrawer
+			v-model="formOpen"
+			:title="editing ? 'Markayı Düzenle' : 'Yeni Marka'"
+			:subtitle="editing ? editing.name : 'Katalog için yeni bir marka ekleyin'"
+			variant="info"
+			width="480px"
+		>
 			<form class="form-grid" @submit.prevent="submit">
 				<div class="form-row">
 					<label class="form-label">Marka Adı <span class="req">*</span></label>
@@ -74,7 +80,7 @@
 					{{ editing ? 'Kaydet' : 'Ekle' }}
 				</Button>
 			</template>
-		</AppModal>
+		</AppDrawer>
 	</div>
 </template>
 
@@ -84,7 +90,7 @@ import { Head, router, usePage } from '@inertiajs/vue3'
 import { Plus, Search, Pencil, Trash2 } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
-import AppModal from '@/Components/AppModal.vue'
+import AppDrawer from '@/Components/AppDrawer.vue'
 import PageHeader from '@/Components/PageHeader.vue'
 import Button from '@/Components/Button.vue'
 import Card from '@/Components/Card.vue'

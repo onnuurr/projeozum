@@ -40,3 +40,7 @@ Thumbs.db
 
 # Şifre içerdiği için asla commit edilmez — bkz. dosyanın kendi başlık notu.
 /Modules/TrainingIngest/database/ops/create_training_db_roles.sql
+
+# graphify (/graphify skill) üretilen çıktı — her ortamda yeniden üretilir, commitlenmez.
+graphify-out/
+.graphify_*

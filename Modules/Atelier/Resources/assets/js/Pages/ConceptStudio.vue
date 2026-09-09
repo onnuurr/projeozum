@@ -164,7 +164,7 @@
 		</div>
 
 		<!-- Eşleme modalı (Akış Y) -->
-		<AppModal v-model="matchOpen" title="Kalıba eşle" subtitle="Konsepti kütüphanedeki en yakın kalıba bağla." size="sm">
+		<AppDrawer v-model="matchOpen" title="Kalıba eşle" subtitle="Konsepti kütüphanedeki en yakın kalıba bağla." width="480px">
 			<form id="match-form" class="form-grid" @submit.prevent="submitMatch">
 				<div class="form-row">
 					<label class="form-label">Kalıp <span class="req">*</span></label>
@@ -178,7 +178,7 @@
 				<Button variant="ghost" :disabled="match.form.processing" @click="close">Kapat</Button>
 				<Button type="submit" form="match-form" variant="primary" :disabled="!match.form.pattern_id" :loading="match.form.processing">Eşle</Button>
 			</template>
-		</AppModal>
+		</AppDrawer>
 
 		<!-- Görsel yakınlaştırma -->
 		<div v-if="zoom" class="zoom-overlay" @click="zoom = null">
@@ -198,7 +198,7 @@ import Card from '@/Components/Card.vue'
 import Badge from '@/Components/Badge.vue'
 import Tag from '@/Components/Tag.vue'
 import Button from '@/Components/Button.vue'
-import AppModal from '@/Components/AppModal.vue'
+import AppDrawer from '@/Components/AppDrawer.vue'
 import EmptyState from '@/Components/EmptyState.vue'
 import AtelierNav from '../Components/AtelierNav.vue'
 import { useCan } from '@/composables/useCan'

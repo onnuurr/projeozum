@@ -83,7 +83,7 @@
 		</Card>
 
 		<!-- ─── Kural Modal ───────────────────────────────────────────── -->
-		<AppModal v-model="ruleModalOpen" title="Yeni Blok Kuralı" size="md" variant="warning">
+		<AppDrawer v-model="ruleModalOpen" title="Yeni Blok Kuralı" subtitle="Marka veya kategori bazlı bir blok kuralı ekleyin" variant="warning" width="480px">
 			<form class="form-grid" @submit.prevent="submitRule">
 				<div class="form-row">
 					<label class="form-label">Kapsam Tipi <span class="req">*</span></label>
@@ -113,10 +113,10 @@
 				<Button variant="ghost" :disabled="ruleBusy" @click="close">İptal</Button>
 				<Button variant="primary" :loading="ruleBusy" @click="submitRule">Ekle</Button>
 			</template>
-		</AppModal>
+		</AppDrawer>
 
 		<!-- ─── Override Modal ────────────────────────────────────────── -->
-		<AppModal v-model="overrideModalOpen" :title="overrideEditing ? 'Override Düzenle' : 'Yeni Ürün Override'" size="md" variant="info">
+		<AppDrawer v-model="overrideModalOpen" :title="overrideEditing ? 'Override Düzenle' : 'Yeni Ürün Override'" subtitle="Ürün bazlı fiyat/erişim override tanımlayın" variant="info" width="480px">
 			<form class="form-grid" @submit.prevent="submitOverride">
 				<div class="form-row" v-if="!overrideEditing">
 					<label class="form-label">Ürün Ara <span class="req">*</span></label>
@@ -157,10 +157,10 @@
 					{{ overrideEditing ? 'Kaydet' : 'Ekle' }}
 				</Button>
 			</template>
-		</AppModal>
+		</AppDrawer>
 
 		<!-- ─── Özel Metin (Bayiye Özel) Modal ─────────────────────────── -->
-		<AppModal v-model="customCopyOpen" title="Bayiye Özel Ürün Metni" size="lg" variant="info">
+		<AppDrawer v-model="customCopyOpen" title="Bayiye Özel Ürün Metni" variant="info" width="60vw">
 			<div v-if="customCopy.product_name" class="picked-product">
 				<strong>{{ customCopy.product_name }}</strong>
 			</div>
@@ -190,7 +190,7 @@
 				<Button variant="ghost" :disabled="customCopy.busy" @click="close">İptal</Button>
 				<Button variant="primary" :loading="customCopy.busy" @click="submitCustomCopy">Kaydet</Button>
 			</template>
-		</AppModal>
+		</AppDrawer>
 	</div>
 </template>
 
@@ -206,7 +206,7 @@ import DataTable from '@/Components/DataTable.vue'
 import Badge from '@/Components/Badge.vue'
 import Alert from '@/Components/Alert.vue'
 import Button from '@/Components/Button.vue'
-import AppModal from '@/Components/AppModal.vue'
+import AppDrawer from '@/Components/AppDrawer.vue'
 
 defineOptions({ layout: AppLayout })
 

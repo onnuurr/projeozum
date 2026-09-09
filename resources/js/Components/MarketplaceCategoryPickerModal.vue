@@ -110,33 +110,21 @@
 
 					<div class="modal-footer">
 						<template v-if="stage === 'picking'">
-							<button class="btn btn-ghost" @click="close">Vazgeç</button>
-							<button
-								class="btn btn-primary btn-with-icon"
-								:disabled="!isLeaf"
-								@click="confirmPick"
-							>
-								<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-									<polyline points="20 6 9 17 4 12" />
-								</svg>
+							<Button variant="ghost" @click="close">Vazgeç</Button>
+							<Button variant="primary" with-icon :disabled="!isLeaf" @click="confirmPick">
+								<template #leading><Check :size="13" /></template>
 								Eşleştir
-							</button>
+							</Button>
 						</template>
 						<template v-else>
-							<button class="btn btn-ghost btn-with-icon" @click="backToPicker">
-								<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-									<polyline points="15 18 9 12 15 6" />
-								</svg>
+							<Button variant="ghost" with-icon @click="backToPicker">
+								<template #leading><ChevronLeft :size="13" /></template>
 								Geri Dön
-							</button>
-							<button class="btn btn-primary btn-with-icon" @click="save">
-								<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-									<path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
-									<polyline points="17 21 17 13 7 13 7 21" />
-									<polyline points="7 3 7 8 15 8" />
-								</svg>
+							</Button>
+							<Button variant="primary" with-icon @click="save">
+								<template #leading><Save :size="13" /></template>
 								Kaydet
-							</button>
+							</Button>
 						</template>
 					</div>
 				</template>
@@ -147,7 +135,9 @@
 
 <script setup>
 import { ref, computed, watch, onBeforeUnmount } from 'vue'
+import { Check, ChevronLeft, Save } from 'lucide-vue-next'
 import CustomSelect from './CustomSelect.vue'
+import Button from './Button.vue'
 
 const props = defineProps({
 	modelValue: { type: Boolean, default: false },
@@ -454,7 +444,7 @@ onBeforeUnmount(() => {
 </style>
 
 <style>
-/* ── Modal scaffold (AppModal ile aynı dil; Categories.vue AppModal'ı import
+/* ── Modal scaffold (AppModal ile aynı dil; Categories.vue AppModal’ı import
    etmediği için burada kendi kopyamızı barındırıyoruz). ── */
 .mcp-modal-host .modal-overlay,
 .modal-overlay {

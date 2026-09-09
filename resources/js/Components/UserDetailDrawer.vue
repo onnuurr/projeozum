@@ -360,7 +360,7 @@ const activitySummary = computed(() => {
 	}
 }
 
-/* Geniş drawer'da bilgi bölümlerini iki sütuna al */
+/* Geniş drawer’da bilgi bölümlerini iki sütuna al */
 .detail-grid {
 	display: grid;
 	grid-template-columns: 1fr 1fr;
@@ -444,7 +444,7 @@ const activitySummary = computed(() => {
 	margin-top: 8px;
 }
 
-/* Drawer'da kullanılan badge'ler (Users sayfasıyla aynı stil) */
+/* Drawer’da kullanılan badge’ler (Users sayfasıyla aynı stil) */
 .role-badge {
 	display: inline-block;
 	padding: 3px 10px;

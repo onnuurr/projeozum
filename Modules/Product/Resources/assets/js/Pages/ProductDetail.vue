@@ -319,7 +319,7 @@
 
 							<div v-if="product.ratingDistribution.length" class="rating-bars">
 								<div v-for="d in product.ratingDistribution" :key="d.star" class="rating-bar-row">
-									<span class="rb-label">{{ d.star }} ★</span>
+									<span class="rb-label">{{ d.star }} <Star :size="10" fill="currentColor" /></span>
 									<div class="rb-bar">
 										<div class="rb-fill" :style="{ width: d.pct + '%' }"></div>
 									</div>
@@ -382,6 +382,7 @@
 <script setup>
 import { ref, computed, inject, watch } from 'vue'
 import { Head, Link, router } from '@inertiajs/vue3'
+import { Star } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import ProductCard from '@/Components/ProductCard.vue'
@@ -531,7 +532,7 @@ function addToCart() {
 	})
 }
 
-/* ── Tab'lar ── */
+/* ── Tab’lar ── */
 const activeTab = ref('description')
 const tabsEl = ref(null)
 
@@ -982,7 +983,7 @@ function scrollToTabs() {
 	.price-new { font-size: 26px; }
 }
 
-/* ── Tab'lar ── */
+/* ── Tab’lar ── */
 .tabs-section {
 	background: #fff;
 	border: 1px solid #ebebf0;
@@ -1128,7 +1129,11 @@ function scrollToTabs() {
 	width: 26px;
 	font-weight: 600;
 	color: #666;
+	display: inline-flex;
+	align-items: center;
+	gap: 2px;
 }
+.rb-label svg { color: #f59e0b; }
 
 .rb-bar {
 	flex: 1;

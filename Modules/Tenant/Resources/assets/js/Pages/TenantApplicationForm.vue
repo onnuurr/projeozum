@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3'
+import { Check, X } from 'lucide-vue-next'
 import ApplicationLogo from '@/Components/ApplicationLogo.vue'
 import InputLabel from '@/Components/InputLabel.vue'
 import TextInput from '@/Components/TextInput.vue'
@@ -104,8 +105,8 @@ function submit() {
 						/>
 						<SecondaryButton type="button" @click="checkTaxNumber">Sorgula</SecondaryButton>
 					</div>
-					<p v-if="taxNumberCheck === true" class="mt-1 text-sm text-green-700">✓ Biçim geçerli.</p>
-					<p v-else-if="taxNumberCheck === false" class="mt-1 text-sm text-red-600">✗ Geçersiz VKN/TCKN — lütfen kontrol edin.</p>
+					<p v-if="taxNumberCheck === true" class="mt-1 text-sm text-green-700 flex items-center gap-1"><Check :size="14" /> Biçim geçerli.</p>
+					<p v-else-if="taxNumberCheck === false" class="mt-1 text-sm text-red-600 flex items-center gap-1"><X :size="14" /> Geçersiz VKN/TCKN — lütfen kontrol edin.</p>
 					<InputError class="mt-1" :message="form.errors.tax_number" />
 				</div>
 				<div>

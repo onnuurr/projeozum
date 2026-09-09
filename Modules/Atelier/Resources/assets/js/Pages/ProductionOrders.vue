@@ -39,7 +39,7 @@
 		</Card>
 
 		<!-- Wizard Modal -->
-		<AppModal v-model="showWizard" title="Yeni İş Emri" size="lg">
+		<AppDrawer v-model="showWizard" title="Yeni İş Emri" width="60vw">
 			<form id="production-order-form" class="wizard-body" @submit.prevent="submit">
 
 				<!-- Temel Bilgiler -->
@@ -122,7 +122,7 @@
 				<Button variant="ghost" :disabled="form.processing" @click="close">Kapat</Button>
 				<Button type="submit" form="production-order-form" variant="primary" :loading="form.processing">Oluştur</Button>
 			</template>
-		</AppModal>
+		</AppDrawer>
 	</div>
 </template>
 
@@ -138,7 +138,7 @@ import Card from '@/Components/Card.vue'
 import DataTable from '@/Components/DataTable.vue'
 import Badge from '@/Components/Badge.vue'
 import Button from '@/Components/Button.vue'
-import AppModal from '@/Components/AppModal.vue'
+import AppDrawer from '@/Components/AppDrawer.vue'
 import AtelierNav from '../Components/AtelierNav.vue'
 import { useCan } from '@/composables/useCan'
 

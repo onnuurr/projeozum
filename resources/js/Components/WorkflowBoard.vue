@@ -325,7 +325,7 @@ defineProps({
 	}
 	.wf-col { min-width: 200px; }
 
-	/* Etiket satırı sütunlarla aynı genişlikleri kullanır; kendi scroll-bar'ı
+	/* Etiket satırı sütunlarla aynı genişlikleri kullanır; kendi scroll-bar’ı
 	   ile yatayda kaydırılabilir kalır (üstteki sütun kaydırmasıyla birlikte
 	   kullanılır — bağımsız ama aynı genişlik referansı). */
 	.col-labels { overflow-x: auto; -webkit-overflow-scrolling: touch; }

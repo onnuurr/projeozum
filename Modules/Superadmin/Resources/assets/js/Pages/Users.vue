@@ -77,7 +77,7 @@
 
 		
 
-		<AppModal v-model="formOpen" :title="editing ? 'Kullanıcı Düzenle' : 'Yeni Kullanıcı'" size="md" variant="info">
+		<AppDrawer v-model="formOpen" :title="editing ? 'Kullanıcı Düzenle' : 'Yeni Kullanıcı'" variant="info" width="640px">
 			<form class="form-grid" @submit.prevent="submit">
 				<div class="form-row-2">
 					<div class="form-row">
@@ -137,7 +137,7 @@
 					{{ editing ? 'Kaydet' : 'Ekle' }}
 				</Button>
 			</template>
-		</AppModal>
+		</AppDrawer>
 	</div>
 </template>
 
@@ -147,7 +147,7 @@ import { Head, router } from '@inertiajs/vue3'
 import { Plus, Pencil, Pause, Play, Trash2 } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
-import AppModal from '@/Components/AppModal.vue'
+import AppDrawer from '@/Components/AppDrawer.vue'
 import Avatar from '@/Components/Avatar.vue'
 import Badge from '@/Components/Badge.vue'
 import DataTable from '@/Components/DataTable.vue'

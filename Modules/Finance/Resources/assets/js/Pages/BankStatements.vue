@@ -64,7 +64,7 @@
 			</DataTable>
 		</Card>
 
-		<AppModal v-model="importModalOpen" title="Ekstre İçe Aktar" size="md">
+		<AppDrawer v-model="importModalOpen" title="Ekstre İçe Aktar" width="640px">
 			<form id="statement-import-form" class="form-grid" @submit.prevent="submitImport">
 				<div class="form-row">
 					<label class="form-label">Banka Hesabı <span class="req">*</span></label>
@@ -94,7 +94,7 @@
 				<Button variant="ghost" :disabled="importForm.processing" @click="close">İptal</Button>
 				<Button type="submit" form="statement-import-form" variant="primary" :loading="importForm.processing">İçe Aktar</Button>
 			</template>
-		</AppModal>
+		</AppDrawer>
 	</div>
 </template>
 
@@ -109,7 +109,7 @@ import Card from '@/Components/Card.vue'
 import DataTable from '@/Components/DataTable.vue'
 import Badge from '@/Components/Badge.vue'
 import Button from '@/Components/Button.vue'
-import AppModal from '@/Components/AppModal.vue'
+import AppDrawer from '@/Components/AppDrawer.vue'
 import Tooltip from '@/Components/Tooltip.vue'
 import FinanceNav from '../Components/FinanceNav.vue'
 

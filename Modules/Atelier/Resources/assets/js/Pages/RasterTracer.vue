@@ -62,14 +62,17 @@
       <label class="rt-field"><span class="form-label">Parça adı</span><input v-model="current.name" class="form-input" /></label>
       <label class="rt-field"><span class="form-label">Adet</span><input v-model.number="current.quantity" type="number" min="1" class="form-input rt-narrow" /></label>
       <label class="rt-field"><span class="form-label">Beden</span><input v-model="current.size" class="form-input rt-mid" /></label>
-      <button class="btn btn-sm btn-success" :disabled="current.points.length < 3" @click="closeCurrentPiece">✓ Parçayı bitir</button>
-      <button class="btn btn-sm btn-secondary" :disabled="!current.points.length" @click="current.points = []">Temizle</button>
+      <Button variant="success" size="sm" with-icon :disabled="current.points.length < 3" @click="closeCurrentPiece">
+        <template #leading><Check :size="13" /></template>
+        Parçayı bitir
+      </Button>
+      <Button variant="secondary" size="sm" :disabled="!current.points.length" @click="current.points = []">Temizle</Button>
     </div>
 
     <ul v-if="pieces.length" class="rt-pieces">
       <li v-for="(pc, i) in pieces" :key="'l' + i">
         <span>{{ pc.name }} (×{{ pc.quantity }}{{ pc.size ? ', ' + pc.size : '' }})</span>
-        <button class="btn btn-xs btn-outline-danger" @click="pieces.splice(i, 1)">sil</button>
+        <Button variant="outline-danger" size="xs" @click="pieces.splice(i, 1)">Sil</Button>
       </li>
     </ul>
 
@@ -77,7 +80,10 @@
       <label class="rt-field"><span class="form-label">Kalıp adı</span><input v-model="meta.name" class="form-input" /></label>
       <label class="rt-field"><span class="form-label">Ürün tipi</span><input v-model="meta.product_type" class="form-input" /></label>
       <label class="rt-field"><span class="form-label">Beden aralığı</span><input v-model="meta.size_range" class="form-input" /></label>
-      <button class="btn btn-success" :disabled="!canSave" @click="save">💾 Kaydet (DXF)</button>
+      <Button variant="success" with-icon :disabled="!canSave" @click="save">
+        <template #leading><Save :size="14" /></template>
+        Kaydet (DXF)
+      </Button>
     </div>
   </div>
 </template>
@@ -85,8 +91,11 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { Head, router } from '@inertiajs/vue3'
+import { ChevronLeft, ChevronRight, Ruler, PenLine, Check, Save } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
+import PageHeader from '@/Components/PageHeader.vue'
+import Button from '@/Components/Button.vue'
 import AtelierNav from '../Components/AtelierNav.vue'
 
 defineOptions({ layout: AppLayout })

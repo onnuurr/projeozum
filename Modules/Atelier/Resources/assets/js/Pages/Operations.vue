@@ -37,7 +37,7 @@
 			</DataTable>
 		</Card>
 
-		<AppModal v-model="modalOpen" :title="editing ? 'Operasyon Düzenle' : 'Yeni Operasyon'" size="md">
+		<AppDrawer v-model="modalOpen" :title="editing ? 'Operasyon Düzenle' : 'Yeni Operasyon'" width="640px">
 			<form id="operation-form" class="form-grid-inline" @submit.prevent="submit">
 				<div class="form-row">
 					<label class="form-label">Kod <span class="req">*</span></label>
@@ -71,7 +71,7 @@
 					{{ editing ? 'Güncelle' : 'Ekle' }}
 				</Button>
 			</template>
-		</AppModal>
+		</AppDrawer>
 	</div>
 </template>
 
@@ -86,7 +86,7 @@ import Card from '@/Components/Card.vue'
 import DataTable from '@/Components/DataTable.vue'
 import Badge from '@/Components/Badge.vue'
 import Button from '@/Components/Button.vue'
-import AppModal from '@/Components/AppModal.vue'
+import AppDrawer from '@/Components/AppDrawer.vue'
 import AtelierNav from '../Components/AtelierNav.vue'
 import { useCan } from '@/composables/useCan'
 

@@ -38,10 +38,10 @@
 			<RouteCatalog :routes="routes" :disabled="saving" class="mp-catalog" />
 		</div>
 
-		<AppModal
+		<AppDrawer
 			v-model="modalOpen"
 			:title="editing ? 'Menüyü Düzenle' : 'Yeni Menü'"
-			size="md"
+			width="640px"
 		>
 			<form id="menu-form" class="mp-form" @submit.prevent="submitForm">
 				<label>Etiket *
@@ -85,7 +85,7 @@
 				<Button variant="ghost" @click="close">Vazgeç</Button>
 				<Button type="submit" form="menu-form" variant="primary" :loading="saving">Kaydet</Button>
 			</template>
-		</AppModal>
+		</AppDrawer>
 	</div>
 </template>
 
@@ -94,7 +94,7 @@ import { ref, watch, inject } from 'vue'
 import { router } from '@inertiajs/vue3'
 import { Plus } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import AppModal from '@/Components/AppModal.vue'
+import AppDrawer from '@/Components/AppDrawer.vue'
 import Toggle from '@/Components/Toggle.vue'
 import Card from '@/Components/Card.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'

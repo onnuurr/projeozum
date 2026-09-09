@@ -113,7 +113,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-	<nav class="bg-surface border-b border-line h-14 sm:h-[72px] px-3 sm:px-6 flex items-center justify-between relative">
+	<nav class="bg-surface h-14 sm:h-[72px] px-3 sm:px-6 flex items-center justify-between relative">
 		<div class="flex items-center h-full min-w-0">
 			<button
 				type="button"
@@ -144,10 +144,10 @@ onBeforeUnmount(() => {
 					:key="item.label"
 					:href="item.to || '#'"
 					:class="[
-						'flex flex-col items-center justify-center px-4 flex-shrink-0 transition-all cursor-pointer',
+						'flex flex-col items-center justify-center px-4 flex-shrink-0 transition-all cursor-pointer border-b-2 rounded-t-lg',
 						item.active
-							? 'h-[64px] bg-primary/10 text-primary rounded-lg'
-							: 'h-[64px] text-muted hover:text-ink hover:bg-canvas rounded-lg',
+							? 'h-[64px] bg-primary/10 text-primary border-primary'
+							: 'h-[64px] text-muted border-transparent hover:bg-primary/10 hover:text-primary hover:border-primary',
 					]"
 				>
 					<span class="w-[18px] h-[18px] mb-1" v-html="item.icon"></span>

@@ -37,7 +37,7 @@
 			</DataTable>
 		</Card>
 
-		<AppModal v-model="formModalOpen" :title="editing ? 'Hammadde Düzenle' : 'Yeni Hammadde'" size="md">
+		<AppDrawer v-model="formModalOpen" :title="editing ? 'Hammadde Düzenle' : 'Yeni Hammadde'" width="640px">
 			<form id="material-form" class="form-grid-inline" @submit.prevent="submit">
 				<div class="form-row">
 					<label class="form-label">Kod <span class="req">*</span></label>
@@ -76,20 +76,20 @@
 					{{ editing ? 'Güncelle' : 'Ekle' }}
 				</Button>
 			</template>
-		</AppModal>
+		</AppDrawer>
 
 		<!-- Materyal Özellikleri Modal (AI için) -->
-		<AppModal v-model="specsModalOpen" title="Materyal Özellikleri" :subtitle="specs.material_name" size="lg">
+		<AppDrawer v-model="specsModalOpen" title="Materyal Özellikleri" :subtitle="specs.material_name" width="60vw">
 			<p class="modal-desc">AI ürün açıklaması bu bilgilerden üretilir. Kumaş için kompozisyon ve gramaj yeterli.</p>
 			<MaterialSpecsPanel v-model="specs.data" />
 			<template #footer="{ close }">
 				<Button variant="ghost" @click="close">Kapat</Button>
 				<Button variant="primary" :loading="specsBusy" @click="submitSpecs">Kaydet</Button>
 			</template>
-		</AppModal>
+		</AppDrawer>
 
 		<!-- Stok Hareketi Modal -->
-		<AppModal v-model="moveModalOpen" title="Stok Hareketi" size="sm">
+		<AppDrawer v-model="moveModalOpen" title="Stok Hareketi" width="480px">
 			<form id="move-form" class="form-grid" @submit.prevent="submitMove">
 				<div class="form-row">
 					<label class="form-label">Tip <span class="req">*</span></label>
@@ -118,7 +118,7 @@
 				<Button variant="ghost" :disabled="move.processing" @click="close">Kapat</Button>
 				<Button type="submit" form="move-form" variant="primary" :loading="move.processing">Kaydet</Button>
 			</template>
-		</AppModal>
+		</AppDrawer>
 	</div>
 </template>
 
@@ -133,7 +133,7 @@ import Card from '@/Components/Card.vue'
 import DataTable from '@/Components/DataTable.vue'
 import Badge from '@/Components/Badge.vue'
 import Button from '@/Components/Button.vue'
-import AppModal from '@/Components/AppModal.vue'
+import AppDrawer from '@/Components/AppDrawer.vue'
 import AtelierNav from '../Components/AtelierNav.vue'
 import MaterialSpecsPanel from '../Components/MaterialSpecsPanel.vue'
 import axios from 'axios'

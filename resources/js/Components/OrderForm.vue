@@ -129,10 +129,10 @@
 						<div class="dz-sub">PDF, Word, Excel, JPG, PNG — maks. 10 MB</div>
 						<div class="dz-file-list">
 							<div v-for="(f, idx) in files" :key="idx" class="dz-file-item" @click.stop>
-								<div class="dz-file-icon">{{ fileIcon(f.name) }}</div>
+								<div class="dz-file-icon"><component :is="fileIcon(f.name)" :size="14" /></div>
 								<span class="dz-file-name">{{ f.name }}</span>
 								<span class="dz-file-size">{{ formatBytes(f.size) }}</span>
-								<button class="dz-file-remove" title="Kaldır" @click.stop="removeFile(idx)">✕</button>
+								<button class="dz-file-remove" title="Kaldır" @click.stop="removeFile(idx)"><X :size="12" /></button>
 							</div>
 						</div>
 					</div>
@@ -141,18 +141,20 @@
 		</div>
 
 		<div class="form-actions">
-			<button class="btn btn-danger" @click="onClear">Temizle</button>
+			<Button variant="danger" @click="onClear">Temizle</Button>
 			<div style="flex: 1"></div>
-			<button class="btn btn-secondary" @click="onCancel">İptal</button>
-			<button class="btn btn-primary" @click="onSubmit">İş Emri Oluştur</button>
+			<Button variant="secondary" @click="onCancel">İptal</Button>
+			<Button variant="primary" @click="onSubmit">İş Emri Oluştur</Button>
 		</div>
 	</div>
 </template>
 
 <script setup>
 import { ref, reactive } from 'vue'
+import { X, FileText, FileSpreadsheet, FileImage, Paperclip } from 'lucide-vue-next'
 import CustomSelect from './CustomSelect.vue'
 import DatePicker from './DatePicker.vue'
+import Button from './Button.vue'
 
 defineProps({
 	title: { type: String, default: 'Yeni İş Emri Oluştur' },
@@ -161,11 +163,11 @@ defineProps({
 const emit = defineEmits(['submit', 'cancel', 'clear'])
 
 const urunOptions = [
-	{ value: 'dokuma', label: '🧵 Dokuma Kumaş' },
-	{ value: 'orgu', label: '🪡 Örme Kumaş' },
-	{ value: 'boya', label: '🎨 Boyalı Kumaş' },
-	{ value: 'konfeksiyon', label: '👕 Konfeksiyon' },
-	{ value: 'aksesuar', label: '🔩 Aksesuar' },
+	{ value: 'dokuma', label: 'Dokuma Kumaş' },
+	{ value: 'orgu', label: 'Örme Kumaş' },
+	{ value: 'boya', label: 'Boyalı Kumaş' },
+	{ value: 'konfeksiyon', label: 'Konfeksiyon' },
+	{ value: 'aksesuar', label: 'Aksesuar' },
 ]
 
 const kumasOptions = [
@@ -230,11 +232,11 @@ const fileInput = ref(null)
 const files = ref([])
 const isDragging = ref(false)
 
-const fileIcons = { pdf: '📄', doc: '📝', docx: '📝', xls: '📊', xlsx: '📊', jpg: '🖼️', png: '🖼️' }
+const fileIcons = { pdf: FileText, doc: FileText, docx: FileText, xls: FileSpreadsheet, xlsx: FileSpreadsheet, jpg: FileImage, png: FileImage }
 
 function fileIcon(name) {
 	const ext = name.split('.').pop().toLowerCase()
-	return fileIcons[ext] || '📎'
+	return fileIcons[ext] || Paperclip
 }
 
 function formatBytes(b) {
@@ -305,35 +307,7 @@ function onClear() {
 	transform: translateY(-50%); color: #bbb; pointer-events: none;
 }
 
-/* Checkbox & Radio */
-.form-check-group { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 2px; }
-.form-check {
-	display: flex; align-items: center; gap: 7px;
-	cursor: pointer; user-select: none;
-}
-.form-check input[type=checkbox],
-.form-check input[type=radio] { display: none; }
-.form-check-box {
-	width: 16px; height: 16px; border-radius: 4px;
-	border: 1.5px solid #d0d0e0; background: #fafafe;
-	display: flex; align-items: center; justify-content: center;
-	flex-shrink: 0; transition: all .15s;
-}
-.form-check-radio .form-check-box { border-radius: 50%; }
-.form-check input:checked + .form-check-box {
-	background: rgb(var(--color-primary-rgb)); border-color: rgb(var(--color-primary-rgb));
-}
-.form-check input:checked + .form-check-box::after {
-	content: '';
-	display: block; width: 4px; height: 7px;
-	border: 2px solid #fff; border-top: none; border-left: none;
-	transform: rotate(45deg) translate(-1px, -1px);
-}
-.form-check-radio input:checked + .form-check-box::after {
-	width: 6px; height: 6px; border: none;
-	background: #fff; border-radius: 50%; transform: none;
-}
-.form-check-label { font-size: 12.5px; color: #444; font-weight: 500; }
+/* Checkbox & Radio — global tanım: resources/css/app.css (.form-check*) */
 
 /* Dropzone */
 .dropzone {

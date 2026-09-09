@@ -134,14 +134,11 @@
 					</div>
 
 					<div class="cart-actions">
-						<button class="btn btn-secondary" @click="continueShopping">Alışverişe Devam</button>
-						<button class="btn btn-primary btn-with-icon checkout-btn" @click="checkout">
+						<Button variant="secondary" @click="continueShopping">Alışverişe Devam</Button>
+						<Button variant="primary" with-icon class="checkout-btn" @click="checkout">
 							Ödemeye Geç
-							<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-								<line x1="5" y1="12" x2="19" y2="12" />
-								<polyline points="12 5 19 12 12 19" />
-							</svg>
-						</button>
+							<template #trailing><ArrowRight :size="13" /></template>
+						</Button>
 					</div>
 
 					<button v-if="items.length > 1" class="clear-cart-btn" @click="$emit('clear')">
@@ -156,6 +153,8 @@
 <script setup>
 import { computed } from 'vue'
 import { Link } from '@inertiajs/vue3'
+import { ArrowRight } from 'lucide-vue-next'
+import Button from './Button.vue'
 
 const props = defineProps({
 	modelValue: { type: Boolean, default: false },

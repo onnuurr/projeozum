@@ -55,9 +55,13 @@ Ham `<div class="page-header">...<h1 class="page-title">...` kopyalama —
 `docs/page-layout-ui-standard.md`'nin §3'ünde tanımlı, iki sanctioned şekil —
 başka bir yerleşim **icat etme**:
 
-1. **Modal içi CRUD** (liste sayfasında "+ Yeni"/"Düzenle" modalı): `AppModal`'ın
+1. **Drawer içi CRUD** (liste sayfasında "+ Yeni"/"Düzenle" formu): `AppDrawer`'ın
    `#footer` slot'u — İptal solda (`variant="ghost"`), Kaydet sağda
-   (`variant="primary"`).
+   (`variant="primary"`). (2026-09-09: önceden `AppModal` idi, standart drawer'a
+   çevrildi — bkz. doc §3.) `AppModal` hâlâ geçerli ama yalnızca CRUD-form
+   OLMAYAN diyaloglar için (onay/red, silme onayı, bir aksiyonu tetikleyen ama
+   varlık oluşturmayan diyaloglar) — formda kaydedilen alanlar + İptal/Kaydet
+   çifti varsa drawer, yoksa modal.
 2. **Tam-sayfa form** (kendi route'u olan, uzun/çok bölümlü form — `ProductForm.vue`
    örneği): sayfanın kendi sticky "form topbar"ı, sağ üstte İptal + Kaydet.
    Liste-sayfası `PageHeader`'ından farklı bir desen — badge yok, genelde bir

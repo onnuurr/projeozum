@@ -37,7 +37,7 @@
 			</DataTable>
 		</Card>
 
-		<AppModal v-model="formOpen" :title="editing ? 'Tipi Düzenle' : 'Yeni Tenant Tipi'" size="md" variant="info">
+		<AppDrawer v-model="formOpen" :title="editing ? 'Tipi Düzenle' : 'Yeni Tenant Tipi'" subtitle="Tenant tipi bilgilerini girin" variant="info" width="480px">
 			<form class="form-grid" @submit.prevent="submit">
 				<div class="form-row-2">
 					<div class="form-row">
@@ -85,7 +85,7 @@
 					{{ editing ? 'Kaydet' : 'Ekle' }}
 				</Button>
 			</template>
-		</AppModal>
+		</AppDrawer>
 	</div>
 </template>
 
@@ -100,7 +100,7 @@ import Card from '@/Components/Card.vue'
 import DataTable from '@/Components/DataTable.vue'
 import Badge from '@/Components/Badge.vue'
 import Button from '@/Components/Button.vue'
-import AppModal from '@/Components/AppModal.vue'
+import AppDrawer from '@/Components/AppDrawer.vue'
 
 defineOptions({ layout: AppLayout })
 

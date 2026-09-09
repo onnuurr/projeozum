@@ -287,7 +287,7 @@
 						</svg>
 						İletişime Geç
 					</a>
-					<button class="btn btn-primary" style="flex: 1; justify-content: center" @click="close">Kapat</button>
+					<Button variant="primary" style="flex: 1; justify-content: center" @click="close">Kapat</Button>
 				</div>
 			</template>
 		</aside>
@@ -296,6 +296,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import Button from './Button.vue'
 
 const props = defineProps({
 	modelValue: { type: Boolean, default: false },

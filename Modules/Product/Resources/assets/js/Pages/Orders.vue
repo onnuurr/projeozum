@@ -8,12 +8,9 @@
 			]"
 		/>
 
-		<div class="page-header">
-			<div>
-				<h1 class="page-title">Siparişler</h1>
-				<p class="page-subtitle"><strong>{{ orders.total }}</strong> sipariş kayıtlı</p>
-			</div>
-		</div>
+		<PageHeader title="Siparişler">
+			<template #subtitle><strong>{{ orders.total }}</strong> sipariş kayıtlı</template>
+		</PageHeader>
 
 		<!-- Durum filtre chip'leri -->
 		<div class="status-chips">
@@ -45,7 +42,7 @@
 			</select>
 			<input v-model="localFilters.date_from" type="date" class="filter-input" @change="applyFilters" />
 			<input v-model="localFilters.date_to" type="date" class="filter-input" @change="applyFilters" />
-			<button class="btn btn-ghost" @click="applyFilters">Filtrele</button>
+			<Button variant="ghost" @click="applyFilters">Filtrele</Button>
 		</div>
 
 		<div class="card">
@@ -97,6 +94,8 @@ import { reactive } from 'vue'
 import { Head, Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
+import PageHeader from '@/Components/PageHeader.vue'
+import Button from '@/Components/Button.vue'
 
 defineOptions({ layout: AppLayout })
 
@@ -134,15 +133,11 @@ function formatMoney(v) {
 </script>
 
 <style scoped>
-.page-title { font-size: 22px; font-weight: 700; color: #1a1a2e; }
-.page-subtitle { font-size: 13px; color: #888; margin: 4px 0 16px; }
-.page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
 .status-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .chip { padding: 6px 12px; border-radius: 999px; border: 1px solid #ebebf0; background: #fff; font-size: 12px; font-weight: 600; color: #555; cursor: pointer; }
 .chip.active { background: #4338ca; color: #fff; border-color: #4338ca; }
 .filters-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
 .filter-input { padding: 7px 10px; border-radius: 8px; border: 1px solid #ebebf0; font-size: 13px; background: #fff; }
-.btn { padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid #ebebf0; background: #fff; }
 .btn-ghost { color: #4338ca; text-decoration: none; padding: 4px 10px; border-radius: 6px; font-size: 12px; }
 .btn-ghost:hover { background: #eef2ff; }
 .mono { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; }

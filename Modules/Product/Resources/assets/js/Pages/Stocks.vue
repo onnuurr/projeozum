@@ -9,21 +9,18 @@
 			]"
 		/>
 
-		<div class="page-header">
-			<div>
-				<h1 class="page-title">Stok Yönetimi</h1>
-				<p class="page-subtitle">
-					<strong>{{ stocks.length }}</strong> varyant kaydı
-					<span v-if="criticalCount > 0" class="critical-chip">{{ criticalCount }} kritik</span>
-				</p>
-			</div>
-			<button class="btn btn-primary btn-with-icon" @click="openMovement()">
-				<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-					<polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-				</svg>
-				Stok Hareketi
-			</button>
-		</div>
+		<PageHeader title="Stok Yönetimi">
+			<template #subtitle>
+				<strong>{{ stocks.length }}</strong> varyant kaydı
+				<span v-if="criticalCount > 0" class="critical-chip">{{ criticalCount }} kritik</span>
+			</template>
+			<template #actions>
+				<Button variant="primary" with-icon @click="openMovement()">
+					<template #leading><Activity :size="13" /></template>
+					Stok Hareketi
+				</Button>
+			</template>
+		</PageHeader>
 
 		<div class="card">
 			<div class="card-header">
@@ -93,7 +90,7 @@
 							</span>
 						</td>
 						<td>
-							<button class="table-action-btn" @click="openMovement(s)" title="Hareket Ekle">↕️</button>
+							<button class="table-action-btn" @click="openMovement(s)" title="Hareket Ekle"><ArrowUpDown :size="13" /></button>
 						</td>
 					</tr>
 				</tbody>
@@ -101,8 +98,14 @@
 			</div>
 		</div>
 
-		<!-- Stok hareket modal -->
-		<AppModal v-model="movementOpen" title="Stok Hareketi" size="md" variant="info">
+		<!-- Stok hareket drawer -->
+		<AppDrawer
+			v-model="movementOpen"
+			title="Stok Hareketi"
+			:subtitle="selectedStock ? selectedStock.productName : 'Yeni stok hareketi kaydedin'"
+			variant="info"
+			width="480px"
+		>
 			<form class="form-grid" @submit.prevent="submitMovement">
 				<div v-if="selectedStock" class="info-box">
 					<div><strong>{{ selectedStock.productName }}</strong></div>
@@ -132,7 +135,7 @@
 							class="type-btn"
 							:class="{ active: movement.type === t.value }"
 							@click="movement.type = t.value"
-						>{{ t.icon }} {{ t.label }}</button>
+						><component :is="t.icon" :size="13" /> {{ t.label }}</button>
 					</div>
 				</div>
 				<div class="form-row">
@@ -149,19 +152,22 @@
 				</div>
 			</form>
 			<template #footer="{ close }">
-				<button class="btn btn-ghost" @click="close" :disabled="busy">İptal</button>
-				<button class="btn btn-primary" @click="submitMovement" :disabled="busy">Kaydet</button>
+				<Button variant="ghost" :disabled="busy" @click="close">İptal</Button>
+				<Button variant="primary" :loading="busy" @click="submitMovement">Kaydet</Button>
 			</template>
-		</AppModal>
+		</AppDrawer>
 	</div>
 </template>
 
 <script setup>
 import { ref, computed, inject, reactive, watch } from 'vue'
 import { Head, router } from '@inertiajs/vue3'
+import { Activity, ArrowUpDown, ArrowDown, ArrowUp, Pencil } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
-import AppModal from '@/Components/AppModal.vue'
+import PageHeader from '@/Components/PageHeader.vue'
+import Button from '@/Components/Button.vue'
+import AppDrawer from '@/Components/AppDrawer.vue'
 import CustomSelect from '@/Components/CustomSelect.vue'
 
 defineOptions({ layout: AppLayout })
@@ -199,9 +205,9 @@ function applyFilters() {
 
 /* ── Movement ── */
 const movementTypes = [
-	{ value: 'in',         label: 'Giriş',    icon: '⬇️' },
-	{ value: 'out',        label: 'Çıkış',    icon: '⬆️' },
-	{ value: 'adjustment', label: 'Düzeltme', icon: '✏️' },
+	{ value: 'in',         label: 'Giriş',    icon: ArrowDown },
+	{ value: 'out',        label: 'Çıkış',    icon: ArrowUp },
+	{ value: 'adjustment', label: 'Düzeltme', icon: Pencil },
 ]
 
 const movementOpen = ref(false)
@@ -269,9 +275,6 @@ function submitMovement() {
 </script>
 
 <style scoped>
-.page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; gap: 16px; }
-.page-title { font-size: 22px; font-weight: 700; color: #1a1a2e; }
-.page-subtitle { font-size: 13px; color: #888; margin-top: 4px; }
 .critical-chip { display: inline-block; margin-left: 8px; padding: 2px 8px; background: #fee2e2; color: #dc2626; border-radius: 999px; font-size: 11px; font-weight: 700; }
 
 .card { background: #fff; border-radius: 16px; border: 1px solid #ebebf0; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.04); }
@@ -309,7 +312,7 @@ function submitMovement() {
 .status-critical { background: #fef3c7; color: #d97706; }
 .status-empty { background: #fee2e2; color: #dc2626; }
 
-.table-action-btn { background: #f3f4f6; border: none; cursor: pointer; font-size: 13px; padding: 5px 9px; border-radius: 6px; color: #6b7280; transition: all .15s; }
+.table-action-btn { display: inline-flex; align-items: center; justify-content: center; background: #f3f4f6; border: none; cursor: pointer; padding: 6px; border-radius: 6px; color: #6b7280; transition: all .15s; }
 .table-action-btn:hover { background: rgb(var(--color-primary-soft-rgb)); color: rgb(var(--color-primary-rgb)); }
 
 /* Form */
@@ -333,6 +336,7 @@ function submitMovement() {
 
 .type-buttons { display: flex; gap: 6px; }
 .type-btn {
+	display: inline-flex; align-items: center; justify-content: center; gap: 5px;
 	flex: 1; padding: 10px 14px;
 	background: #fff; border: 1.5px solid #e8e8f0;
 	border-radius: 9px; font-family: inherit; font-size: 12.5px;

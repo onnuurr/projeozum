@@ -44,7 +44,7 @@
 			</DataTable>
 		</Card>
 
-		<AppModal v-model="modalOpen" :title="editing ? 'Fasoncu Düzenle' : 'Yeni Fasoncu'" size="md">
+		<AppDrawer v-model="modalOpen" :title="editing ? 'Fasoncu Düzenle' : 'Yeni Fasoncu'" width="640px">
 			<form id="fason-form" class="form-grid" @submit.prevent="submit">
 				<div class="form-row-inline">
 					<div class="form-row" style="flex: 2">
@@ -82,7 +82,7 @@
 					{{ editing ? 'Güncelle' : 'Ekle' }}
 				</Button>
 			</template>
-		</AppModal>
+		</AppDrawer>
 	</div>
 </template>
 
@@ -98,7 +98,7 @@ import DataTable from '@/Components/DataTable.vue'
 import Avatar from '@/Components/Avatar.vue'
 import Badge from '@/Components/Badge.vue'
 import Button from '@/Components/Button.vue'
-import AppModal from '@/Components/AppModal.vue'
+import AppDrawer from '@/Components/AppDrawer.vue'
 import AtelierNav from '../Components/AtelierNav.vue'
 import { useCan } from '@/composables/useCan'
 

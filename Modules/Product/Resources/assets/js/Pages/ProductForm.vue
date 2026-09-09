@@ -29,15 +29,17 @@
 			</div>
 			<div class="topbar-actions">
 				<Link href="/products" class="btn btn-ghost" :class="{ disabled: busy }">İptal</Link>
-				<button class="btn btn-primary btn-with-icon" @click="submit" :disabled="busy">
-					<svg v-if="isEdit" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-						<path d="M20 6L9 17l-5-5" />
-					</svg>
-					<svg v-else width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-						<path d="M12 5v14M5 12h14" />
-					</svg>
+				<FormButton variant="primary" with-icon :loading="busy" @click="submit">
+					<template #leading>
+						<svg v-if="isEdit" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+							<path d="M20 6L9 17l-5-5" />
+						</svg>
+						<svg v-else width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+							<path d="M12 5v14M5 12h14" />
+						</svg>
+					</template>
 					{{ busy ? 'Kaydediliyor…' : (isEdit ? 'Değişiklikleri Kaydet' : 'Ürünü Ekle') }}
-				</button>
+				</FormButton>
 			</div>
 		</div>
 
@@ -75,21 +77,17 @@
 						<p>Ürünün adı, stok kodu ve tanımlayıcı bilgileri.</p>
 					</header>
 					<div class="card-body">
-						<div class="form-group">
-							<label class="form-label">Ürün Adı <span class="required">*</span></label>
-							<input v-model="form.name" class="form-input" type="text" placeholder="örn. Basic Crew Tişört" @input="onNameInput" />
-							<span v-if="errors.name" class="form-error">{{ errors.name }}</span>
-						</div>
+						<FormField label="Ürün Adı" required :error="errors.name">
+							<FormInput v-model="form.name" variant="default" type="text" placeholder="örn. Basic Crew Tişört" @input="onNameInput" />
+						</FormField>
 
-						<div class="form-group">
-							<label class="form-label">Ana SKU <span class="required">*</span></label>
+						<FormField label="Ana SKU" required :error="errors.sku">
 							<div class="sku-row">
-								<input v-model="form.sku" class="form-input" type="text" placeholder="TEK-XXX-001" @input="skuTouched = true" />
-								<button type="button" class="btn btn-ghost btn-sm sku-gen" :disabled="!form.name || !form.brand_id" @click="generateBaseSku" title="Marka + ürün adından otomatik üret">↻</button>
+								<FormInput v-model="form.sku" variant="default" type="text" placeholder="TEK-XXX-001" @input="skuTouched = true" />
+								<FormButton variant="ghost" class="sku-gen" :disabled="!form.name || !form.brand_id" @click="generateBaseSku" title="Marka + ürün adından otomatik üret">↻</FormButton>
 							</div>
-							<span v-if="errors.sku" class="form-error">{{ errors.sku }}</span>
-							<span v-else class="form-help">Boş bırakıp ↻ ile otomatik üretebilirsiniz (marka + ürün adı gerekli).</span>
-						</div>
+							<span v-if="!errors.sku" class="form-help">Boş bırakıp ↻ ile otomatik üretebilirsiniz (marka + ürün adı gerekli).</span>
+						</FormField>
 					</div>
 				</section>
 
@@ -126,10 +124,7 @@
 							/>
 							<span v-if="errors.brand_id" class="form-error">{{ errors.brand_id }}</span>
 						</div>
-						<label class="toggle-row">
-							<input type="checkbox" v-model="form.is_new" />
-							<span class="toggle-text">Yeni gelen olarak işaretle</span>
-						</label>
+						<FormCheckbox v-model="form.is_new" label="Yeni gelen olarak işaretle" />
 					</div>
 				</section>
 			</div>
@@ -142,29 +137,21 @@
 						<p>Ürünün URL'i ve arama sonuçlarındaki görünümü (opsiyonel).</p>
 					</header>
 					<div class="card-body">
-						<div class="form-group">
-							<label class="form-label">URL (slug)</label>
-							<input v-model="form.slug" class="form-input" type="text" placeholder="otomatik üretilir" @input="form.slug = slugify(form.slug)" />
-							<span v-if="errors.slug" class="form-error">{{ errors.slug }}</span>
-							<span v-else class="form-help">/products/{{ form.slug || '…' }} — boş bırakırsanız ürün adından otomatik üretilir.</span>
-						</div>
-						<div class="form-group">
-							<label class="form-label">Meta Başlık</label>
-							<input v-model="form.meta_title" class="form-input" type="text" maxlength="191" placeholder="Boşsa ürün adı kullanılır" />
-							<span v-if="errors.meta_title" class="form-error">{{ errors.meta_title }}</span>
-						</div>
-						<div class="form-group">
-							<label class="form-label">Meta Açıklama</label>
-							<textarea v-model="form.meta_description" class="form-input" rows="3" maxlength="500" placeholder="Arama sonuçlarında görünecek kısa özet…" />
-							<span v-if="errors.meta_description" class="form-error">{{ errors.meta_description }}</span>
-							<span v-else class="form-help">{{ (form.meta_description || '').length }}/500 karakter</span>
-						</div>
-						<div class="form-group">
-							<label class="form-label">Anahtar Kelimeler</label>
-							<input v-model="form.meta_keywords" class="form-input" type="text" maxlength="255" placeholder="tişört, pamuklu, yazlık" />
-							<span v-if="errors.meta_keywords" class="form-error">{{ errors.meta_keywords }}</span>
-							<span v-else class="form-help">Virgülle ayırın.</span>
-						</div>
+						<FormField label="URL (slug)" :error="errors.slug">
+							<FormInput v-model="form.slug" variant="default" type="text" placeholder="otomatik üretilir" @input="form.slug = slugify(form.slug)" />
+							<span v-if="!errors.slug" class="form-help">/products/{{ form.slug || '…' }} — boş bırakırsanız ürün adından otomatik üretilir.</span>
+						</FormField>
+						<FormField label="Meta Başlık" :error="errors.meta_title">
+							<FormInput v-model="form.meta_title" variant="default" type="text" maxlength="191" placeholder="Boşsa ürün adı kullanılır" />
+						</FormField>
+						<FormField label="Meta Açıklama" :error="errors.meta_description">
+							<FormTextarea v-model="form.meta_description" rows="3" maxlength="500" placeholder="Arama sonuçlarında görünecek kısa özet…" />
+							<span v-if="!errors.meta_description" class="form-help">{{ (form.meta_description || '').length }}/500 karakter</span>
+						</FormField>
+						<FormField label="Anahtar Kelimeler" :error="errors.meta_keywords">
+							<FormInput v-model="form.meta_keywords" variant="default" type="text" maxlength="255" placeholder="tişört, pamuklu, yazlık" />
+							<span v-if="!errors.meta_keywords" class="form-help">Virgülle ayırın.</span>
+						</FormField>
 					</div>
 				</section>
 			</div>
@@ -181,8 +168,8 @@
 							Henüz varyant yok. Önce Stok-Varyant sekmesinden varyant oluşturun.
 						</div>
 						<div v-else class="bulk-price-row">
-							<input v-model.number="bulkPrice" type="number" step="0.01" min="0" class="form-input bulk-input" placeholder="Fiyat" />
-							<button type="button" class="btn btn-secondary btn-sm" @click="applyBulkPrice" :disabled="!bulkPrice">→ {{ form.variants.length }} varyantın hepsine uygula</button>
+							<FormInput v-model.number="bulkPrice" variant="default" type="number" step="0.01" min="0" class="bulk-input" placeholder="Fiyat" />
+							<FormButton variant="secondary" size="sm" @click="applyBulkPrice" :disabled="!bulkPrice">→ {{ form.variants.length }} varyantın hepsine uygula</FormButton>
 						</div>
 					</div>
 				</section>
@@ -194,16 +181,12 @@
 					</header>
 					<div class="card-body">
 						<div class="form-grid-2">
-							<div class="form-group">
-								<label class="form-label">Piyasa Fiyatı (₺)</label>
-								<input v-model.number="form.market_price" class="form-input" type="number" step="0.01" min="0" placeholder="örn. 125.86" />
-								<span v-if="errors.market_price" class="form-error">{{ errors.market_price }}</span>
-							</div>
-							<div class="form-group">
-								<label class="form-label">Alış Fiyatı (₺)</label>
-								<input v-model.number="form.purchase_price" class="form-input" type="number" step="0.01" min="0" placeholder="örn. 89.90" />
-								<span v-if="errors.purchase_price" class="form-error">{{ errors.purchase_price }}</span>
-							</div>
+							<FormField label="Piyasa Fiyatı (₺)" :error="errors.market_price">
+								<FormInput v-model.number="form.market_price" variant="default" type="number" step="0.01" min="0" placeholder="örn. 125.86" />
+							</FormField>
+							<FormField label="Alış Fiyatı (₺)" :error="errors.purchase_price">
+								<FormInput v-model.number="form.purchase_price" variant="default" type="number" step="0.01" min="0" placeholder="örn. 89.90" />
+							</FormField>
 						</div>
 					</div>
 				</section>
@@ -214,36 +197,25 @@
 						<p>Kargo etiketi ve teslimat bilgileri (opsiyonel).</p>
 					</header>
 					<div class="card-body">
-						<label class="toggle-row">
-							<input type="checkbox" v-model="form.free_shipping" />
-							<span class="toggle-text">Ücretsiz kargo</span>
-						</label>
+						<FormCheckbox v-model="form.free_shipping" label="Ücretsiz kargo" />
 
 						<div class="form-grid-2">
-							<div class="form-group">
-								<label class="form-label">Ağırlık (kg)</label>
-								<input v-model.number="form.weight" class="form-input" type="number" step="0.001" min="0" placeholder="örn. 0.250" />
-								<span v-if="errors.weight" class="form-error">{{ errors.weight }}</span>
-							</div>
-							<div class="form-group">
-								<label class="form-label">Desi</label>
-								<input v-model.number="form.desi" class="form-input" type="number" step="0.01" min="0" placeholder="örn. 1.5" />
-								<span v-if="errors.desi" class="form-error">{{ errors.desi }}</span>
-							</div>
+							<FormField label="Ağırlık (kg)" :error="errors.weight">
+								<FormInput v-model.number="form.weight" variant="default" type="number" step="0.001" min="0" placeholder="örn. 0.250" />
+							</FormField>
+							<FormField label="Desi" :error="errors.desi">
+								<FormInput v-model.number="form.desi" variant="default" type="number" step="0.01" min="0" placeholder="örn. 1.5" />
+							</FormField>
 						</div>
 
 						<div class="form-grid-2">
-							<div class="form-group">
-								<label class="form-label">Kargo Süresi</label>
-								<input v-model="form.shipping_time" class="form-input" type="text" maxlength="50" placeholder="örn. 1-3 iş günü" />
-								<span v-if="errors.shipping_time" class="form-error">{{ errors.shipping_time }}</span>
-							</div>
-							<div class="form-group">
-								<label class="form-label">Sabit Kargo Ücreti (₺)</label>
-								<input v-model.number="form.shipping_fee" class="form-input" type="number" step="0.01" min="0" placeholder="Ücretsiz kargo kapalıysa" :disabled="form.free_shipping" />
-								<span v-if="errors.shipping_fee" class="form-error">{{ errors.shipping_fee }}</span>
-								<span v-else-if="form.free_shipping" class="form-help">Ücretsiz kargo açık — kargo ücreti uygulanmaz.</span>
-							</div>
+							<FormField label="Kargo Süresi" :error="errors.shipping_time">
+								<FormInput v-model="form.shipping_time" variant="default" type="text" maxlength="50" placeholder="örn. 1-3 iş günü" />
+							</FormField>
+							<FormField label="Sabit Kargo Ücreti (₺)" :error="errors.shipping_fee">
+								<FormInput v-model.number="form.shipping_fee" variant="default" type="number" step="0.01" min="0" placeholder="Ücretsiz kargo kapalıysa" :disabled="form.free_shipping" />
+								<span v-if="!errors.shipping_fee && form.free_shipping" class="form-help">Ücretsiz kargo açık — kargo ücreti uygulanmaz.</span>
+							</FormField>
 						</div>
 					</div>
 				</section>
@@ -277,17 +249,17 @@
 							<details class="color-custom">
 								<summary>+ Özel renk</summary>
 								<div class="color-custom-row">
-									<input v-model="customColor.name" class="form-input" type="text" placeholder="Renk adı" />
-									<input v-model="customColor.hex" class="form-input color-hex" type="color" />
-									<button type="button" class="btn btn-secondary btn-sm" :disabled="!customColor.name" @click="addCustomColor">Ekle</button>
+									<FormInput v-model="customColor.name" variant="default" type="text" placeholder="Renk adı" />
+									<FormInput v-model="customColor.hex" variant="default" class="color-hex" type="color" />
+									<FormButton variant="secondary" size="sm" :disabled="!customColor.name" @click="addCustomColor">Ekle</FormButton>
 								</div>
 							</details>
 						</div>
 
-						<button type="button" class="btn btn-secondary btn-sm regen-btn" @click="regenerateVariants" :disabled="!canGenerate">
+						<FormButton variant="secondary" size="sm" class="regen-btn" @click="regenerateVariants" :disabled="!canGenerate">
 							↻ Varyantları Oluştur
 							<span v-if="canGenerate" class="hint-inline">— {{ matrixCount }} kombinasyon</span>
-						</button>
+						</FormButton>
 					</div>
 				</section>
 
@@ -298,14 +270,14 @@
 							<p>Her varyant için SKU, fiyat ve stok girin.</p>
 						</div>
 						<div class="bulk-controls" v-if="form.variants.length">
-							<input v-model.number="bulkStock" type="number" min="0" class="form-input bulk-input" placeholder="Stok" />
-							<button type="button" class="btn btn-ghost btn-sm" @click="applyBulkStock" :disabled="bulkStock === null || bulkStock === ''">→ Hepsine uygula</button>
+							<FormInput v-model.number="bulkStock" variant="default" type="number" min="0" class="bulk-input" placeholder="Stok" />
+							<FormButton variant="ghost" size="sm" @click="applyBulkStock" :disabled="bulkStock === null || bulkStock === ''">→ Hepsine uygula</FormButton>
 						</div>
 					</header>
 					<div class="card-body">
 						<div v-if="!form.variants.length" class="variant-empty">
 							Varyant yok. Beden veya renk seçip "Varyantları Oluştur" butonuna bas, ya da aşağıdan tek satır ekle.
-							<button type="button" class="btn btn-secondary btn-sm" @click="addEmptyVariant">+ Boş varyant ekle</button>
+							<FormButton variant="secondary" size="sm" @click="addEmptyVariant">+ Boş varyant ekle</FormButton>
 						</div>
 
 						<div v-else class="variant-table">
@@ -325,17 +297,17 @@
 									<span class="variant-color-name">{{ v.color_name || '—' }}</span>
 								</span>
 								<span class="variant-size">{{ v.size || '—' }}</span>
-								<input v-model="v.sku" type="text" class="form-input variant-sku" placeholder="SKU" />
-								<input v-model.number="v.price" type="number" step="0.01" min="0" class="form-input" placeholder="Fiyat" />
-								<input v-model.number="v.old_price" type="number" step="0.01" min="0" class="form-input" placeholder="—" />
-								<input v-model.number="v.stock" type="number" min="0" class="form-input" placeholder="Stok" />
+								<FormInput v-model="v.sku" variant="default" type="text" class="variant-sku" placeholder="SKU" />
+								<FormInput v-model.number="v.price" variant="default" type="number" step="0.01" min="0" placeholder="Fiyat" />
+								<FormInput v-model.number="v.old_price" variant="default" type="number" step="0.01" min="0" placeholder="—" />
+								<FormInput v-model.number="v.stock" variant="default" type="number" min="0" placeholder="Stok" />
 								<button type="button" class="variant-remove" @click="removeVariant(idx)" aria-label="Sil">
 									<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
 										<path d="M18 6L6 18M6 6l12 12" />
 									</svg>
 								</button>
 							</div>
-							<button type="button" class="btn btn-ghost btn-sm add-row-btn" @click="addEmptyVariant">+ Satır ekle</button>
+							<FormButton variant="ghost" size="sm" class="add-row-btn" @click="addEmptyVariant">+ Satır ekle</FormButton>
 						</div>
 
 						<span v-if="errors.variants" class="form-error">{{ errors.variants }}</span>
@@ -356,15 +328,15 @@
 								<img :src="img.url" alt="" />
 								<span v-if="img.is_cover" class="img-badge cover-badge">Kapak</span>
 								<div class="img-actions">
-									<button type="button" v-if="!img.is_cover" class="img-act" title="Kapak yap" @click="setCover(img)">★</button>
-									<button type="button" class="img-act del" title="Sil" @click="deleteExisting(img)">✕</button>
+									<button type="button" v-if="!img.is_cover" class="img-act" title="Kapak yap" @click="setCover(img)"><Star :size="13" /></button>
+									<button type="button" class="img-act del" title="Sil" @click="deleteExisting(img)"><X :size="13" /></button>
 								</div>
 							</div>
 							<div v-for="(img, i) in newImages" :key="'n' + i" class="img-thumb new">
 								<img :src="img.preview" alt="" />
 								<span class="img-badge new-badge">Yeni</span>
 								<div class="img-actions">
-									<button type="button" class="img-act del" title="Kaldır" @click="removeNewImage(i)">✕</button>
+									<button type="button" class="img-act del" title="Kaldır" @click="removeNewImage(i)"><X :size="13" /></button>
 								</div>
 							</div>
 						</div>
@@ -390,22 +362,16 @@
 					</header>
 					<div class="card-body">
 						<div class="form-grid-2">
-							<div class="form-group">
-								<label class="form-label">Kumaş İçeriği (özet)</label>
-								<input v-model="form.material" class="form-input" type="text" placeholder="örn. %100 Pamuk" />
-								<span v-if="errors.material" class="form-error">{{ errors.material }}</span>
-							</div>
-							<div class="form-group">
-								<label class="form-label">Menşei Ülke</label>
-								<input v-model="form.origin_country" class="form-input" type="text" maxlength="2" placeholder="TR" @input="form.origin_country = (form.origin_country || '').toUpperCase()" />
-								<span v-if="errors.origin_country" class="form-error">{{ errors.origin_country }}</span>
-							</div>
+							<FormField label="Kumaş İçeriği (özet)" :error="errors.material">
+								<FormInput v-model="form.material" variant="default" type="text" placeholder="örn. %100 Pamuk" />
+							</FormField>
+							<FormField label="Menşei Ülke" :error="errors.origin_country">
+								<FormInput v-model="form.origin_country" variant="default" type="text" maxlength="2" placeholder="TR" @input="form.origin_country = (form.origin_country || '').toUpperCase()" />
+							</FormField>
 						</div>
-						<div class="form-group">
-							<label class="form-label">Yıkama / Bakım Talimatları</label>
-							<textarea v-model="form.care_instructions" class="form-input" rows="3" placeholder="örn. 30°C'de yıkanır, ütülenmez…" />
-							<span v-if="errors.care_instructions" class="form-error">{{ errors.care_instructions }}</span>
-						</div>
+						<FormField label="Yıkama / Bakım Talimatları" :error="errors.care_instructions">
+							<FormTextarea v-model="form.care_instructions" rows="3" placeholder="örn. 30°C'de yıkanır, ütülenmez…" />
+						</FormField>
 					</div>
 				</section>
 
@@ -427,26 +393,32 @@
 					</header>
 					<div class="card-body">
 						<div class="form-grid-2">
-							<div v-for="def in activeAttributeDefinitions" :key="def.key" class="form-group">
-								<label class="form-label">{{ def.label }}<span v-if="def.required" class="required">*</span></label>
-								<CustomSelect
-									v-if="def.type === 'enum'"
+							<template v-for="def in activeAttributeDefinitions" :key="def.key">
+								<FormCheckbox
+									v-if="def.type === 'boolean'"
 									v-model="form.attributes[def.key]"
-									:options="def.options.map((o) => ({ value: o, label: o }))"
-									:show-label="false"
+									:label="def.label"
 								/>
-								<label v-else-if="def.type === 'boolean'" class="toggle-row">
-									<input type="checkbox" v-model="form.attributes[def.key]" />
-									<span class="toggle-text">{{ def.label }}</span>
-								</label>
-								<input
+								<FormField
 									v-else
-									v-model="form.attributes[def.key]"
-									class="form-input"
-									:type="def.type === 'number' ? 'number' : 'text'"
-								/>
-								<span v-if="errors[`attributes.${def.key}`]" class="form-error">{{ errors[`attributes.${def.key}`] }}</span>
-							</div>
+									:label="def.label"
+									:required="def.required"
+									:error="errors[`attributes.${def.key}`]"
+								>
+									<CustomSelect
+										v-if="def.type === 'enum'"
+										v-model="form.attributes[def.key]"
+										:options="def.options.map((o) => ({ value: o, label: o }))"
+										:show-label="false"
+									/>
+									<FormInput
+										v-else
+										v-model="form.attributes[def.key]"
+										variant="default"
+										:type="def.type === 'number' ? 'number' : 'text'"
+									/>
+								</FormField>
+							</template>
 						</div>
 					</div>
 				</section>
@@ -462,16 +434,19 @@
 						</div>
 						<div class="ai-actions">
 							<span v-if="aiGeneratedAt" class="ai-stamp">Son üretim: {{ new Date(aiGeneratedAt).toLocaleString('tr-TR') }}</span>
-							<button
+							<FormButton
 								v-if="canUseAi"
-								type="button"
-								class="btn btn-primary btn-sm"
-								:disabled="aiBusy || !isEdit"
+								variant="primary"
+								size="sm"
+								with-icon
+								:loading="aiBusy"
+								:disabled="!isEdit"
 								:title="!isEdit ? 'Önce ürünü kaydedin' : 'AI ile açıklama üret'"
 								@click="generateAiDescription"
 							>
-								{{ aiBusy ? '✨ Üretiliyor…' : '✨ AI ile Üret' }}
-							</button>
+								<template #leading><Sparkles :size="13" /></template>
+								AI ile Üret
+							</FormButton>
 						</div>
 					</header>
 					<div class="card-body">
@@ -480,49 +455,42 @@
 						</div>
 						<div v-if="aiError" class="error-inline">{{ aiError }}</div>
 
-						<div class="form-group">
-							<div class="label-row">
-								<label class="form-label">Storefront Adı <span class="form-help">(B2C, opsiyonel — boşsa "Ürün Adı" kullanılır)</span></label>
-							</div>
-							<input v-model="form.public_name" class="form-input" type="text" maxlength="255" placeholder="örn. Ege Pamuğu Basic Tişört" />
-							<span v-if="errors.public_name" class="form-error">{{ errors.public_name }}</span>
-						</div>
+						<FormField :error="errors.public_name">
+							<label class="form-label">Storefront Adı <span class="form-help">(B2C, opsiyonel — boşsa "Ürün Adı" kullanılır)</span></label>
+							<FormInput v-model="form.public_name" variant="default" type="text" maxlength="255" placeholder="örn. Ege Pamuğu Basic Tişört" />
+						</FormField>
 
-						<div class="form-group">
+						<FormField :error="errors.public_description">
 							<div class="label-row">
 								<label class="form-label">B2C Açıklama (Storefront)</label>
-								<button type="button" class="btn btn-ghost btn-xs" @click="previewMode.public = !previewMode.public">
+								<FormButton variant="ghost" size="xs" @click="previewMode.public = !previewMode.public">
 									{{ previewMode.public ? 'Metin' : 'Önizleme' }}
-								</button>
+								</FormButton>
 							</div>
-							<textarea
+							<FormTextarea
 								v-if="!previewMode.public"
 								v-model="form.public_description"
-								class="form-input"
 								rows="8"
 								placeholder="Müşteriye storytelling — markdown desteklenir (**kalın**, *italik*, - liste)"
 							/>
 							<MarkdownPreview v-else :source="form.public_description" />
-							<span v-if="errors.public_description" class="form-error">{{ errors.public_description }}</span>
-						</div>
+						</FormField>
 
-						<div class="form-group">
+						<FormField :error="errors.tenant_description">
 							<div class="label-row">
 								<label class="form-label">B2B Açıklama (Bayi Portalı — Varsayılan)</label>
-								<button type="button" class="btn btn-ghost btn-xs" @click="previewMode.tenant = !previewMode.tenant">
+								<FormButton variant="ghost" size="xs" @click="previewMode.tenant = !previewMode.tenant">
 									{{ previewMode.tenant ? 'Metin' : 'Önizleme' }}
-								</button>
+								</FormButton>
 							</div>
-							<textarea
+							<FormTextarea
 								v-if="!previewMode.tenant"
 								v-model="form.tenant_description"
-								class="form-input"
 								rows="8"
 								placeholder="Bayiye spec-forward: kompozisyon, gramaj, bakım, satılabilirlik. Markdown desteklenir."
 							/>
 							<MarkdownPreview v-else :source="form.tenant_description" />
-							<span v-if="errors.tenant_description" class="form-error">{{ errors.tenant_description }}</span>
-						</div>
+						</FormField>
 					</div>
 				</section>
 			</div>
@@ -536,31 +504,22 @@
 					</header>
 					<div class="card-body">
 						<div class="form-grid-2">
-							<div class="form-group">
-								<label class="form-label">Barkod / GTIN</label>
+							<FormField label="Barkod / GTIN" :error="errors.barcode">
 								<div class="sku-row">
-									<input v-model="form.barcode" class="form-input" type="text" maxlength="64" placeholder="örn. 8690000000000" />
-									<button type="button" class="btn btn-ghost btn-sm" :disabled="barcodeBusy" @click="generateBarcode" title="Ayarlardaki önek + aralığa göre otomatik üret">
-										{{ barcodeBusy ? 'Üretiliyor…' : '↻ Yeniden Üret' }}
-									</button>
+									<FormInput v-model="form.barcode" variant="default" type="text" maxlength="64" placeholder="örn. 8690000000000" />
+									<FormButton variant="ghost" size="sm" :loading="barcodeBusy" @click="generateBarcode" title="Ayarlardaki önek + aralığa göre otomatik üret">
+										↻ Yeniden Üret
+									</FormButton>
 								</div>
-								<span v-if="errors.barcode" class="form-error">{{ errors.barcode }}</span>
-							</div>
-							<div class="form-group">
-								<label class="form-label">Üretici / Tedarikçi Kodu</label>
-								<input v-model="form.manufacturer_code" class="form-input" type="text" maxlength="64" placeholder="İç üretici kodu" />
-								<span v-if="errors.manufacturer_code" class="form-error">{{ errors.manufacturer_code }}</span>
-							</div>
+							</FormField>
+							<FormField label="Üretici / Tedarikçi Kodu" :error="errors.manufacturer_code">
+								<FormInput v-model="form.manufacturer_code" variant="default" type="text" maxlength="64" placeholder="İç üretici kodu" />
+							</FormField>
 						</div>
-						<div class="form-group">
-							<label class="form-label">GTIP / HS Kodu</label>
-							<input v-model="form.gtip_code" class="form-input" type="text" maxlength="32" placeholder="Gümrük tarife pozisyon kodu" />
-							<span v-if="errors.gtip_code" class="form-error">{{ errors.gtip_code }}</span>
-						</div>
-						<label class="toggle-row">
-							<input type="checkbox" v-model="form.is_domestic" />
-							<span class="toggle-text">Yerli üretim ürünü</span>
-						</label>
+						<FormField label="GTIP / HS Kodu" :error="errors.gtip_code">
+							<FormInput v-model="form.gtip_code" variant="default" type="text" maxlength="32" placeholder="Gümrük tarife pozisyon kodu" />
+						</FormField>
+						<FormCheckbox v-model="form.is_domestic" label="Yerli üretim ürünü" />
 					</div>
 				</section>
 			</div>
@@ -571,11 +530,17 @@
 <script setup>
 import { reactive, ref, computed, onMounted, inject } from 'vue'
 import { Head, Link, router, usePage } from '@inertiajs/vue3'
+import { Star, X, Sparkles } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import CustomSelect from '@/Components/CustomSelect.vue'
 import MaterialPicker from '@/Components/MaterialPicker.vue'
 import MarkdownPreview from '@/Components/MarkdownPreview.vue'
+import FormField from '@/Components/Form/FormField.vue'
+import FormInput from '@/Components/Form/FormInput.vue'
+import FormTextarea from '@/Components/Form/FormTextarea.vue'
+import FormCheckbox from '@/Components/Form/FormCheckbox.vue'
+import FormButton from '@/Components/Form/FormButton.vue'
 import axios from 'axios'
 import { useCan } from '@/composables/useCan'
 
@@ -1185,7 +1150,7 @@ onMounted(() => {
 	margin-bottom: 18px;
 	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
-.topbar-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.topbar-left { display: flex; align-items: center; gap: 12px; min-width: 0; overflow: hidden; }
 .back-btn {
 	width: 36px; height: 36px; flex-shrink: 0;
 	display: flex; align-items: center; justify-content: center;
@@ -1194,7 +1159,10 @@ onMounted(() => {
 	transition: all .12s; text-decoration: none;
 }
 .back-btn:hover { background: #f5f5f8; color: #1a1a2e; }
-.topbar-title { font-size: 18px; font-weight: 700; color: #1a1a2e; line-height: 1.2; }
+.topbar-title {
+	font-size: 18px; font-weight: 700; color: #1a1a2e; line-height: 1.2;
+	white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .topbar-sub {
 	font-size: 12.5px; color: #888; margin-top: 2px;
 	display: flex; align-items: center; gap: 8px;
@@ -1207,6 +1175,12 @@ onMounted(() => {
 }
 .topbar-actions { display: flex; gap: 8px; flex-shrink: 0; }
 .btn.disabled { pointer-events: none; opacity: .55; }
+
+@media (max-width: 640px) {
+	.form-topbar { flex-wrap: wrap; }
+	.topbar-left { width: 100%; }
+	.topbar-actions { width: 100%; justify-content: flex-end; }
+}
 
 /* ── Hata bandı ── */
 .error-banner {
@@ -1221,7 +1195,10 @@ onMounted(() => {
 .tab-strip {
 	display: flex;
 	gap: 4px;
-	flex-wrap: wrap;
+	flex-wrap: nowrap;
+	overflow-x: auto;
+	-webkit-overflow-scrolling: touch;
+	scrollbar-width: none;
 	background: #fff;
 	border: 1px solid #ebebf0;
 	border-radius: 12px;
@@ -1229,11 +1206,13 @@ onMounted(() => {
 	margin-bottom: 18px;
 	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
+.tab-strip::-webkit-scrollbar { display: none; }
 .tab-btn {
 	position: relative;
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
+	flex-shrink: 0;
 	border: none;
 	background: none;
 	font-family: inherit;
@@ -1268,7 +1247,7 @@ onMounted(() => {
 	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 	overflow: hidden;
 }
-/* Select dropdown'ı kesilmesin diye: içinde CustomSelect olan kart taşmaya izin verir. */
+/* Select dropdown’ı kesilmesin diye: içinde CustomSelect olan kart taşmaya izin verir. */
 .card.card-overflow { overflow: visible; }
 .tab-panel-overflow { overflow: visible; }
 .card-head {
@@ -1293,7 +1272,6 @@ onMounted(() => {
 }
 .form-group { display: flex; flex-direction: column; gap: 5px; }
 .form-label { font-size: 12.5px; font-weight: 600; color: #444; }
-.required { color: #ef4444; margin-left: 2px; }
 .form-error { color: #dc2626; font-size: 11px; margin-top: 2px; }
 .form-help { color: #aaa; font-size: 11px; margin-top: 2px; }
 .hint-inline { color: #888; font-weight: 500; margin-left: 4px; }
@@ -1406,19 +1384,9 @@ onMounted(() => {
 .variant-remove:hover { background: #fef2f2; }
 .add-row-btn { align-self: flex-start; margin-top: 4px; }
 
-/* ── Toggle ── */
-.toggle-row {
-	display: flex; align-items: center; gap: 10px;
-	padding: 9px 11px; border-radius: 8px;
-	background: #fafafe; border: 1px solid #f0f0f6; cursor: pointer;
-}
-.toggle-row input { accent-color: rgb(var(--color-primary-rgb)); width: 14px; height: 14px; cursor: pointer; }
-.toggle-text { font-size: 12.5px; color: #444; font-weight: 600; }
-
 /* AI Açıklama tab */
 .ai-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .ai-stamp { font-size: 11.5px; color: #888; }
-.btn-xs { padding: 3px 10px; font-size: 11px; height: 26px; border-radius: 6px; }
 .label-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .error-inline {
 	background: #fef2f2; border: 1px solid #fecaca;

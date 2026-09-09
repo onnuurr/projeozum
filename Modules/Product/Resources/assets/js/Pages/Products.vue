@@ -9,7 +9,20 @@
 			]"
 		/>
 
-		<!-- Üst bar: Filtreler toggle + hızlı arama + Yeni Ürün -->
+		<PageHeader title="Ürün Kataloğu">
+			<template #subtitle>
+				<strong>{{ filtered.length }}</strong> ürün listeleniyor
+				<span v-if="activeFilterCount > 0" class="filter-chip">{{ activeFilterCount }} filtre aktif</span>
+			</template>
+			<template #actions>
+				<Button v-if="canAdd" variant="primary" with-icon @click="openNewProduct">
+					<template #leading><Plus :size="13" /></template>
+					Yeni Ürün
+				</Button>
+			</template>
+		</PageHeader>
+
+		<!-- Üst bar: Filtreler toggle + hızlı arama -->
 		<div class="toolbar">
 			<button class="filter-toggle" :class="{ open: filtersOpen }" @click="filtersOpen = !filtersOpen">
 				<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -28,13 +41,6 @@
 				</svg>
 				<input v-model="searchQuery" type="text" placeholder="Hızlı ara.." />
 			</div>
-
-			<button v-if="canAdd" class="btn btn-primary btn-with-icon toolbar-add" @click="openNewProduct">
-				<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-					<path d="M12 5v14M5 12h14" />
-				</svg>
-				Yeni Ürün
-			</button>
 		</div>
 
 		<!-- Açılır filtre paneli -->
@@ -104,19 +110,8 @@
 			</div>
 
 			<div class="filter-actions">
-				<button class="btn btn-primary btn-sm" @click="filtersOpen = true">Filtrele</button>
+				<Button variant="primary" size="sm" @click="filtersOpen = true">Filtrele</Button>
 				<button class="clear-link" @click="clearFilters">Temizle</button>
-			</div>
-		</div>
-
-		<!-- Başlık -->
-		<div class="list-head">
-			<div>
-				<h1 class="page-title">Ürün Kataloğu</h1>
-				<p class="page-subtitle">
-					<strong>{{ filtered.length }}</strong> ürün listeleniyor
-					<span v-if="activeFilterCount > 0" class="filter-chip">{{ activeFilterCount }} filtre aktif</span>
-				</p>
 			</div>
 		</div>
 
@@ -124,8 +119,11 @@
 		<div v-if="canDelete && selectedCount" class="bulk-bar">
 			<span class="bulk-info"><strong>{{ selectedCount }}</strong> ürün seçili</span>
 			<div class="bulk-actions">
-				<button class="btn btn-ghost btn-sm" @click="clearSelection">Temizle</button>
-				<button class="btn btn-danger btn-sm" :disabled="bulkBusy" @click="bulkDelete">🗑️ Seçilenleri Sil ({{ selectedCount }})</button>
+				<Button variant="ghost" size="sm" @click="clearSelection">Temizle</Button>
+				<Button variant="danger" size="sm" with-icon :loading="bulkBusy" @click="bulkDelete">
+					<template #leading><Trash2 :size="13" /></template>
+					Seçilenleri Sil ({{ selectedCount }})
+				</Button>
 			</div>
 		</div>
 
@@ -136,7 +134,7 @@
 			</svg>
 			<h3>Eşleşen ürün bulunamadı</h3>
 			<p>Filtreleri gevşeterek tekrar deneyebilirsiniz.</p>
-			<button class="btn btn-secondary btn-sm" @click="clearFilters">Filtreleri Temizle</button>
+			<Button variant="secondary" size="sm" @click="clearFilters">Filtreleri Temizle</Button>
 		</div>
 
 		<!-- Tablo -->
@@ -237,26 +235,19 @@
 									class="readiness-dot"
 									:class="{ ready: p.readiness?.[cap.key]?.ready }"
 									:title="readinessTooltip(p, cap)"
-								>{{ cap.icon }}</span>
+								><component :is="cap.icon" :size="12" /></span>
 							</div>
 						</td>
 						<td class="col-actions">
 							<div class="action-btns">
 								<Link :href="`/products/${p.slug ?? p.id}`" class="icon-btn" title="Önizleme">
-									<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-										<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
-									</svg>
+									<Eye :size="15" />
 								</Link>
 								<button v-if="canAdd" class="icon-btn" title="Düzenle" @click="editProduct(p)">
-									<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-										<path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-										<path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-									</svg>
+									<Pencil :size="15" />
 								</button>
 								<button v-if="canDelete" class="icon-btn icon-danger" title="Sil" @click="confirmDeleteProduct(p)">
-									<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-										<polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
-									</svg>
+									<Trash2 :size="15" />
 								</button>
 							</div>
 						</td>
@@ -297,8 +288,11 @@
 <script setup>
 import { ref, computed, watch, inject, reactive } from 'vue'
 import { Head, Link, router, usePage } from '@inertiajs/vue3'
+import { Plus, Trash2, Eye, Pencil, Shirt, Palette, Store } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
+import PageHeader from '@/Components/PageHeader.vue'
+import Button from '@/Components/Button.vue'
 import CustomSelect from '@/Components/CustomSelect.vue'
 import MarketplaceListingDrawer from '../Components/MarketplaceListingDrawer.vue'
 
@@ -377,9 +371,9 @@ function formatPrice(value) {
  * (ProductCatalogPresenter::catalogRow()'daki `readiness` key'i) gösterir.
  * Buradaki rozetler hiçbir akışı engellemez, yalnızca bilgi verir. */
 const readinessCapabilities = [
-	{ key: 'try_on', icon: '👕', label: 'Sanal Giydirme' },
-	{ key: 'creative_render', icon: '🎨', label: 'Kreatif Görsel Üretimi' },
-	{ key: 'marketplace_push', icon: '🏪', label: 'Pazaryeri Gönderimi' },
+	{ key: 'try_on', icon: Shirt, label: 'Sanal Giydirme' },
+	{ key: 'creative_render', icon: Palette, label: 'Kreatif Görsel Üretimi' },
+	{ key: 'marketplace_push', icon: Store, label: 'Pazaryeri Gönderimi' },
 ]
 
 function readinessTooltip(p, cap) {
@@ -662,8 +656,6 @@ async function bulkDelete() {
 }
 .search-box input::placeholder { color: #bbb; }
 
-.toolbar-add { flex-shrink: 0; }
-
 /* ── Filtre paneli ── */
 .filter-panel {
 	background: #fff;
@@ -728,13 +720,6 @@ async function bulkDelete() {
 .clear-link:hover { color: rgb(var(--color-primary-rgb)); background: rgb(var(--color-primary-soft-rgb)); }
 
 /* ── Başlık ── */
-.list-head { margin-bottom: 12px; }
-.page-title { font-size: 22px; font-weight: 700; color: #1a1a2e; line-height: 1.2; }
-.page-subtitle {
-	font-size: 13px; color: #888; margin-top: 4px;
-	display: flex; align-items: center; gap: 8px;
-}
-.page-subtitle strong { color: #1a1a2e; font-weight: 700; }
 .filter-chip {
 	display: inline-flex; align-items: center;
 	padding: 2px 8px;
@@ -757,9 +742,6 @@ async function bulkDelete() {
 .bulk-info { font-size: 12.5px; color: rgb(var(--color-primary-hover-rgb)); }
 .bulk-info strong { font-weight: 800; }
 .bulk-actions { display: flex; gap: 8px; margin-left: auto; }
-.btn-danger { background: #dc2626; color: #fff; border: none; }
-.btn-danger:hover:not(:disabled) { background: #b91c1c; }
-.btn-danger:disabled { opacity: .55; cursor: not-allowed; }
 
 /* ── Tablo ── */
 .table-wrap {
@@ -814,13 +796,11 @@ async function bulkDelete() {
 	width: 22px; height: 22px;
 	border-radius: 7px;
 	display: inline-flex; align-items: center; justify-content: center;
-	font-size: 11px;
+	color: #aaa;
 	background: #f5f5f8;
-	filter: grayscale(1);
-	opacity: .45;
 	cursor: default;
 }
-.readiness-dot.ready { background: #dcfce7; filter: none; opacity: 1; }
+.readiness-dot.ready { background: #dcfce7; color: #16a34a; }
 
 .mono { font-family: 'SF Mono', Consolas, monospace; color: #888; font-size: 12px; }
 

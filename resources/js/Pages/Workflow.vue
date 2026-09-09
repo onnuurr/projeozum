@@ -28,12 +28,13 @@
 			@open-drawer="drawer.open()"
 		/>
 
-		<!-- Modal: Bilgi -->
-		<AppModal
+		<!-- Drawer: Yeni Kumaş Türü -->
+		<AppDrawer
 			v-model="infoModalOpen"
 			variant="info"
 			title="Yeni Kumaş Türü Ekle"
 			subtitle="Kumaş kataloğuna yeni bir tür ekleyebilirsiniz"
+			width="480px"
 		>
 			<div class="modal-info-row">
 				<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -64,13 +65,13 @@
 				</div>
 			</div>
 			<template #footer="{ close }">
-				<button class="btn btn-ghost" @click="close">İptal</button>
-				<button class="btn btn-primary btn-with-icon" @click="submitFabric(close)">
-					<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+				<Button variant="ghost" @click="close">İptal</Button>
+				<Button variant="primary" with-icon @click="submitFabric(close)">
+					<template #leading><Plus :size="13" /></template>
 					Ekle
-				</button>
+				</Button>
 			</template>
-		</AppModal>
+		</AppDrawer>
 
 	</div>
 </template>
@@ -78,6 +79,7 @@
 <script setup>
 import { ref, reactive, inject } from 'vue'
 import { Head } from '@inertiajs/vue3'
+import { Plus } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import WorkflowBoard from '@/Components/WorkflowBoard.vue'
@@ -85,7 +87,8 @@ import ProductionTable from '@/Components/ProductionTable.vue'
 import OrderStatusCharts from '@/Components/OrderStatusCharts.vue'
 import OrderForm from '@/Components/OrderForm.vue'
 import ButtonShowcase from '@/Components/ButtonShowcase.vue'
-import AppModal from '@/Components/AppModal.vue'
+import AppDrawer from '@/Components/AppDrawer.vue'
+import Button from '@/Components/Button.vue'
 
 defineOptions({ layout: AppLayout })
 

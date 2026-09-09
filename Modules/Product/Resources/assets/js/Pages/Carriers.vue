@@ -36,7 +36,7 @@
 			</DataTable>
 		</Card>
 
-		<AppModal v-model="formOpen" :title="editing ? 'Firmayı Düzenle' : 'Yeni Kargo Firması'" size="md" variant="info">
+		<AppDrawer v-model="formOpen" :title="editing ? 'Firmayı Düzenle' : 'Yeni Kargo Firması'" subtitle="Kargo firması bilgilerini girin" variant="info" width="480px">
 			<form class="form-grid" @submit.prevent="submit">
 				<div class="form-row-2">
 					<div class="form-row">
@@ -74,7 +74,7 @@
 					{{ editing ? 'Kaydet' : 'Ekle' }}
 				</Button>
 			</template>
-		</AppModal>
+		</AppDrawer>
 	</div>
 </template>
 
@@ -84,7 +84,7 @@ import { Head, router, usePage } from '@inertiajs/vue3'
 import { Plus, Pencil, Trash2 } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
-import AppModal from '@/Components/AppModal.vue'
+import AppDrawer from '@/Components/AppDrawer.vue'
 import PageHeader from '@/Components/PageHeader.vue'
 import Button from '@/Components/Button.vue'
 import Card from '@/Components/Card.vue'

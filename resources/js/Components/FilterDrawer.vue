@@ -84,14 +84,12 @@
 			</div>
 
 			<div class="drawer-footer">
-				<button class="btn btn-ghost" @click="reset">Sıfırla</button>
-				<button class="btn btn-primary btn-with-icon" @click="apply">
-					<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-						<path d="M20 6L9 17l-5-5" />
-					</svg>
+				<Button variant="ghost" @click="reset">Sıfırla</Button>
+				<Button variant="primary" with-icon @click="apply">
+					<template #leading><Check :size="13" /></template>
 					Uygula
-					<span class="drawer-result-badge">{{ activeCount }}</span>
-				</button>
+					<template #trailing><span class="drawer-result-badge">{{ activeCount }}</span></template>
+				</Button>
 			</div>
 		</div>
 	</Teleport>
@@ -99,6 +97,8 @@
 
 <script setup>
 import { reactive, computed, watch } from 'vue'
+import { Check } from 'lucide-vue-next'
+import Button from './Button.vue'
 
 const props = defineProps({
 	modelValue: { type: Boolean, default: false },

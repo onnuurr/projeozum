@@ -87,13 +87,27 @@ taşınması gerekiyor.
 
 Denetimde 4 farklı yerleşim bulundu (modal footer / sayfa-içi form kartı /
 sticky topbar / header-actions). **Tek bir evrensel konum gerçekçi değil**
-(tam-sayfa form ile modal-içi hızlı düzenleme farklı ihtiyaçlar) — bunun yerine
+(tam-sayfa form ile hızlı ekle/düzenle farklı ihtiyaçlar) — bunun yerine
 **iki sanctioned şekil**, üçüncüsü yasak:
 
 | Sayfa tipi | Kaydet/İptal nerede | Örnek |
 |---|---|---|
-| **Modal içi CRUD** (liste sayfasında "+ Yeni"/"Düzenle" modalı) | `AppModal`'ın `#footer` slot'u — İptal solda (`ghost`), Kaydet sağda (`primary`) | `TenantTypes.vue:110-116` (desen doğru, component'e geçirilmeli) |
+| **Drawer içi CRUD** (liste sayfasında "+ Yeni"/"Düzenle" formu) | `AppDrawer`'ın `#footer` slot'u — İptal solda (`ghost`), Kaydet sağda (`primary`) | `Brands.vue`, `Categories.vue` (CategoryFormDrawer) |
 | **Tam-sayfa form** (kendi route'u olan, uzun/çok bölümlü form) | §2'deki "Form Topbar" — sağ üstte İptal + Kaydet, sabit (sticky) | `ProductForm.vue:28-38` |
+
+> **2026-09-09 güncellemesi:** Bu satır önceden "Modal içi CRUD" idi ve
+> `AppModal` kullanıyordu (bkz. eski örnek `TenantTypes.vue:110-116`). Kullanıcı
+> onayıyla standart **drawer'a** çevrildi — "+ Yeni"/"Düzenle" gibi tek-varlık
+> ekle/düzenle formları artık `AppModal` değil `AppDrawer` kullanır. Bu geçiş
+> aynı gün Tenant/Atelier/Finance/Superadmin/Product/Creative modüllerindeki
+> ilgili tüm sayfalarda uygulandı (bkz. §6). `AppModal` hâlâ geçerli — ama
+> yalnızca gerçek CRUD-form OLMAYAN diyaloglar için: salt-okuma onay/red
+> diyaloğu (ör. `TenantApplications.vue` başvuru reddi, `OrderDetail.vue`
+> durum onayı), silme onayı (ör. `Settings.vue` rol silme), veya bir aksiyonu
+> tetikleyen ama kalıcı bir varlık oluşturmayan diyaloglar (ör.
+> `CreativeTemplates.vue`'de AI üretim tetikleyici, `Conversions.vue`'de
+> inceleme/karar diyaloğu). Şüpheli durumda: formda kaydedilen alanlar var ve
+> İptal/Kaydet çifti mi var → drawer; yoksa (onay/bilgi/tetikleyici) → modal.
 
 **Yasak:** "sayfa-içi form kartı" (header'dan bağımsız, formun kendi altında
 gömülü Kaydet butonu — ör. `Materials.vue:59-61`, `BankAccounts.vue:65`) ve
@@ -141,26 +155,35 @@ dokümanın operasyonel (Claude Code oturumları için) karşılığı.
 
 ## 6. Uygulama durumu ve sıradaki adımlar
 
-**Şu an uyumlu:** Sadece `Modules/Superadmin/**` (9 sayfa) — `PageHeader`,
-`Button`, breadcrumb hepsi doğru.
+**2026-09-09 itibarıyla uyumlu:** `Superadmin`, `Product`, `Atelier`, `Finance`,
+`Tenant` (Portal hariç), `Creative` modüllerindeki liste/detay sayfalarının
+büyük çoğunluğu — `PageHeader`, `Button`, breadcrumb, ve (§3'teki 2026-09-09
+güncellemesiyle) `AppDrawer`-tabanlı ekle/düzenle formları artık standart.
+Bu geçiş tek oturumda, modül modül yapıldı (Product önce elle, sonra
+Atelier/Finance/Superadmin/Tenant/Creative/Product'ın geri kalanı üç paralel
+ajanla) — her `AppModal` kullanımı tek tek incelenip gerçek CRUD-form olanlar
+`AppDrawer`'a taşındı, onay/bilgi/tetikleyici diyaloglar bilinçli olarak
+`AppModal` olarak bırakıldı (liste §3'teki not).
 
-**Uyumlu değil:** Tenant, Atelier, Finance, Creative, Product modülleri (40+
-sayfa) — breadcrumb zaten doğru (§1), ama page-header component'e geçmemiş,
-buton component'i kullanılmıyor, loading state text-swap.
+**Hâlâ bilinçli olarak dışarıda:**
+- **Tenant Portal** (`Modules/Tenant/.../Pages/Portal/**`) — kendi
+  `TenantPortalLayout`'u var, bu standardın kapsamı dışında (bkz. §5).
+- Birkaç ham (Teleport ile elle yazılmış, `AppModal`/`AppDrawer` component'ini
+  kullanmayan) drawer/modal — `FilterDrawer.vue`, `CartDrawer.vue`,
+  `UserFormDrawer.vue`, `SupplierDetailDrawer.vue`,
+  `MarketplaceCategoryPickerModal.vue`, `CategoryAttributesModal.vue`. Bunların
+  içindeki ham `<button class="btn ...">` kullanımları `Button.vue`'ya
+  çevrildi, ama kendi Teleport/`.drawer`/`.modal` iskeletleri henüz
+  `AppDrawer`/`AppModal` component'ine taşınmadı — yapısal olarak zaten doğru
+  şekilde (drawer ya da modal) kurulu oldukları için düşük öncelikli, ayrı bir
+  iş kalemi.
+- `ButtonShowcase.vue` / `ComponentShowcase.vue` — kasıtlı olarak ham `.btn`
+  class'larını sergileyen tasarım-sistemi referans sayfaları, dönüştürülmez.
 
-**Bu doküman kod değişikliği içermiyor** — kullanıcının onayıyla sıradaki adım:
-
-1. **Değerlendirme/pilot**: bir modülü (öneri: en küçük olanı — muhtemelen
-   Finance veya Creative) bu standarda göre dönüştürüp component'lerin
-   (`PageHeader`, `Button`, gerekirse `EmptyState`/`StatWidget`) app-wide
-   kullanım için yeterli olduğunu doğrula.
+**Sıradaki adımlar (opsiyonel, düşük öncelik):**
+1. Yukarıdaki ham Teleport drawer/modal'ları `AppDrawer`/`AppModal`
+   component'ine taşı (yapısal risk taşıdığı için ayrı, dikkatli bir geçiş).
 2. **`PageHeader.vue`'yu genişlet**: `backHref` (opsiyonel geri oku) + `sticky`
    prop'u ekle, `ProductForm.vue`'nun `.form-topbar`'ını bu component'e taşı —
    böylece §2'deki iki desen (liste-sayfası header / form-topbar) tek
    component'in iki varyasyonu olur.
-3. **Modül modül taşı** (Superadmin'de kullanılan sıralama mantığıyla aynı:
-   basit/küçük sayfalardan büyük/riskli olanlara, her sayfa kendi commit'i).
-4. **`admin-page-ui` skill'ini güncelle**: bu doküman onaylandıktan sonra
-   skill'in "Buton konvansiyonu" ve "Page header" bölümlerine bu dokümana
-   referans ekle, `loading`-prop kuralının artık sadece Superadmin'e değil
-   tüm modüllere geçerli olduğunu belirt.

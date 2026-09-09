@@ -401,12 +401,12 @@ const cancelOtp = () => {
 }
 
 /*
- * Bu blok global (scoped değil) çünkü BrandPanel gibi alt component'lerin
- * iç şablonuna Vue'nun scoped CSS mekanizması ulaşamıyor. Bunun yerine tüm
+ * Bu blok global (scoped değil) çünkü BrandPanel gibi alt component’lerin
+ * iç şablonuna Vue’nun scoped CSS mekanizması ulaşamıyor. Bunun yerine tüm
  * kurallar `.login-page` ata seçicisiyle sınırlandırılıyor; aksi halde bu
  * sayfaya özgü .btn/.btn-primary/.form-input/.toast gibi genel isimli
  * kurallar, login sayfası SPA içinde unmount olduktan sonra bile aynı
- * class isimlerini kullanan paylaşılan component'lere (FormButton,
+ * class isimlerini kullanan paylaşılan component’lere (FormButton,
  * ToastContainer vb.) sızıyordu.
  */
 

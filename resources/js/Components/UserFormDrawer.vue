@@ -110,16 +110,14 @@
 			</div>
 
 			<div class="drawer-footer">
-				<button class="btn btn-ghost" @click="close">İptal</button>
-				<button class="btn btn-primary btn-with-icon" @click="submit">
-					<svg v-if="isEdit" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-						<path d="M20 6L9 17l-5-5" />
-					</svg>
-					<svg v-else width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-						<path d="M12 5v14M5 12h14" />
-					</svg>
+				<Button variant="ghost" @click="close">İptal</Button>
+				<Button variant="primary" with-icon @click="submit">
+					<template #leading>
+						<Check v-if="isEdit" :size="13" />
+						<Plus v-else :size="13" />
+					</template>
 					{{ isEdit ? 'Değişiklikleri Kaydet' : 'Kullanıcı Ekle' }}
-				</button>
+				</Button>
 			</div>
 		</aside>
 	</Teleport>
@@ -127,7 +125,9 @@
 
 <script setup>
 import { reactive, computed, watch } from 'vue'
+import { Check, Plus } from 'lucide-vue-next'
 import CustomSelect from './CustomSelect.vue'
+import Button from './Button.vue'
 
 const props = defineProps({
 	modelValue: { type: Boolean, default: false },

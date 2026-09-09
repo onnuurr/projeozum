@@ -88,7 +88,7 @@
 		</Card>
 
 		<!-- Form modal -->
-		<AppModal v-model="formOpen" :title="editing ? 'Tenant Düzenle' : 'Yeni Tenant'" size="lg" variant="info">
+		<AppDrawer v-model="formOpen" :title="editing ? 'Tenant Düzenle' : 'Yeni Tenant'" variant="info" width="60vw">
 			<form class="form-grid" @submit.prevent="submit">
 				<div class="form-section">
 					<h4 class="form-section-title">Temel Bilgiler</h4>
@@ -176,8 +176,8 @@
 								<input v-model="form.tax_number" type="text" class="form-input mono" placeholder="1234567890" @input="taxNumberCheck = null" />
 								<Button variant="ghost" size="sm" type="button" @click="checkTaxNumber">Sorgula</Button>
 							</div>
-							<span v-if="taxNumberCheck === true" class="form-hint-ok">✓ Biçim geçerli.</span>
-							<span v-else-if="taxNumberCheck === false" class="form-error">✗ Geçersiz VKN/TCKN.</span>
+							<span v-if="taxNumberCheck === true" class="form-hint-ok"><Check :size="12" /> Biçim geçerli.</span>
+							<span v-else-if="taxNumberCheck === false" class="form-error"><X :size="12" /> Geçersiz VKN/TCKN.</span>
 							<span v-if="errors.tax_number" class="form-error">{{ errors.tax_number }}</span>
 						</div>
 						<div class="form-row">
@@ -311,14 +311,14 @@
 					{{ editing ? 'Kaydet' : 'Ekle' }}
 				</Button>
 			</template>
-		</AppModal>
+		</AppDrawer>
 	</div>
 </template>
 
 <script setup>
 import { ref, computed, inject, reactive, watch, onMounted } from 'vue'
 import { Head, router, usePage } from '@inertiajs/vue3'
-import { Plus, Search, KeyRound, Pencil, Pause, Play, Trash2, FileText, ClipboardList } from 'lucide-vue-next'
+import { Plus, Search, KeyRound, Pencil, Pause, Play, Trash2, FileText, ClipboardList, Check, X } from 'lucide-vue-next'
 import { isValidTaxNumber } from '../utils/turkishTaxNumber'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
@@ -329,7 +329,7 @@ import Badge from '@/Components/Badge.vue'
 import Avatar from '@/Components/Avatar.vue'
 import ProgressBar from '@/Components/ProgressBar.vue'
 import Button from '@/Components/Button.vue'
-import AppModal from '@/Components/AppModal.vue'
+import AppDrawer from '@/Components/AppDrawer.vue'
 
 defineOptions({ layout: AppLayout })
 
@@ -677,8 +677,8 @@ async function confirmDelete(t) {
 .form-input { padding: 9px 12px; border: 1px solid rgb(var(--color-border-rgb)); border-radius: 8px; font-family: inherit; font-size: 13px; color: rgb(var(--color-ink-rgb)); background: rgb(var(--color-surface-rgb)); outline: none; transition: border-color .15s; }
 .form-input.mono { font-family: 'SF Mono', Menlo, Consolas, monospace; }
 .form-input:focus { border-color: rgb(var(--color-primary-rgb)); }
-.form-error { font-size: 11.5px; color: rgb(var(--color-danger-rgb)); }
-.form-hint-ok { font-size: 11.5px; color: rgb(var(--color-success-rgb)); }
+.form-error { display: inline-flex; align-items: center; gap: 3px; font-size: 11.5px; color: rgb(var(--color-danger-rgb)); }
+.form-hint-ok { display: inline-flex; align-items: center; gap: 3px; font-size: 11.5px; color: rgb(var(--color-success-rgb)); }
 .form-check { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: rgb(var(--color-ink-rgb)); }
 
 .form-inline-btn { display: flex; align-items: center; gap: 8px; }
