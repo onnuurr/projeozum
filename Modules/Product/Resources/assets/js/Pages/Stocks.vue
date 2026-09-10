@@ -58,7 +58,8 @@
 					<tr v-for="s in stocks" :key="s.id" :class="{ 'row-critical': s.isCritical }">
 						<td>
 							<div class="product-cell">
-								<div class="product-name">{{ s.productName }}</div>
+								<Link v-if="s.productId" :href="`/products/${s.productId}/card?tab=stok`" class="product-name product-link">{{ s.productName }}</Link>
+								<div v-else class="product-name">{{ s.productName }}</div>
 								<div class="variant-info">
 									<span v-if="s.size" class="chip">{{ s.size }}</span>
 									<span v-if="s.colorName" class="chip">
@@ -161,7 +162,7 @@
 
 <script setup>
 import { ref, computed, inject, reactive, watch } from 'vue'
-import { Head, router } from '@inertiajs/vue3'
+import { Head, Link, router } from '@inertiajs/vue3'
 import { Activity, ArrowUpDown, ArrowDown, ArrowUp, Pencil } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
@@ -297,6 +298,8 @@ function submitMovement() {
 
 .product-cell { display: flex; flex-direction: column; gap: 4px; }
 .product-name { font-weight: 600; color: #1a1a2e; font-size: 13px; }
+.product-link { text-decoration: none; }
+.product-link:hover { color: rgb(var(--color-primary-rgb)); text-decoration: underline; }
 .variant-info { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; background: #f0f0f5; color: #555; border-radius: 6px; font-size: 11px; font-weight: 600; }
 .chip .dot { width: 8px; height: 8px; border-radius: 50%; border: 1px solid #d0d0db; }

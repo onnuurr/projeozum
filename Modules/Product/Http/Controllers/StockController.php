@@ -50,6 +50,7 @@ class StockController extends Controller
                 'warehouse_id'       => $s->warehouse_id,
                 'warehouseName'      => $s->warehouse?->name,
                 'warehouseCode'      => $s->warehouse?->code,
+                'productId'          => $s->variant?->product?->id,
                 'productName'        => $s->variant?->product?->name,
                 'productSlug'        => $s->variant?->product?->slug,
                 'category'           => $s->variant?->product?->category?->name,
@@ -93,8 +94,11 @@ class StockController extends Controller
             userId: $request->user()?->id,
         );
 
-        // Flash basılmıyor — Stocks.vue onSuccess'te kendi toast'unu gösteriyor.
-        return redirect()->route('products.stocks.index');
+        // Flash basılmıyor — çağıran sayfa (liste veya ürün kartı) onSuccess'te
+        // kendi toast'unu gösteriyor. back(): hem Stocks.vue hem ProductCard.vue
+        // aynı endpoint'i kullandığı için hedef route'u sabitlemek yerine
+        // formu gönderen sayfaya döner.
+        return back();
     }
 
     public function history(Request $request): Response

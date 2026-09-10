@@ -143,6 +143,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->middleware('can:stock.manage')->name('history');
     });
 
+    // ─── Ürün Kartı (SAP MM03 benzeri) ────────────────────────────────────
+    // Temel veri + stok + fiyat + pazaryeri listeleme tek sayfada. Salt-okuma
+    // agregasyon — yazma aksiyonları kendi route'larında (stok/fiyat/pazaryeri)
+    // kalır, bu yüzden burada özel bir `can:` şartı yok (ürün listesi/edit gibi).
+    Route::get('/products/{product:id}/card', [\Modules\Product\Http\Controllers\ProductCardController::class, 'show'])
+        ->whereNumber('product')->name('products.card');
+
     // ─── Ürün Görselleri ─────────────────────────────────────────────────
     Route::prefix('products/{product:id}/images')->name('products.images.')
         ->whereNumber('product')->middleware('can:product.add')
