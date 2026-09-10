@@ -13,6 +13,14 @@
 
 		<PageHeader title="Poz Kütüphanesi" subtitle="Mankenden bağımsız pozlar; her poz nötr bir figürle önizlenir, giydirmede seçilir">
 			<template #actions>
+				<Badge
+					v-if="geminiSpend"
+					:icon="CreditCard"
+					:color="geminiSpendFormatted ? 'neutral' : 'danger'"
+					variant="tonal"
+					:label="geminiSpendFormatted ? `Gemini (bu ay): ${geminiSpendFormatted}` : 'Gemini harcaması alınamadı'"
+					:title="geminiSpend.error ?? undefined"
+				/>
 				<Button variant="ghost" @click="refresh">Yenile</Button>
 				<Button v-if="can('creative.asset.manage')" variant="primary" with-icon :loading="busy" @click="generateAll">
 					<template #leading><Sparkles :size="14" /></template>
@@ -72,7 +80,7 @@
 <script setup>
 import { ref, reactive, computed, inject, onMounted, onUnmounted } from 'vue'
 import { Head, router } from '@inertiajs/vue3'
-import { Sparkles, Footprints, AlertTriangle } from 'lucide-vue-next'
+import { Sparkles, Footprints, AlertTriangle, CreditCard } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import PageHeader from '@/Components/PageHeader.vue'
@@ -90,6 +98,7 @@ const { can } = useCan()
 const props = defineProps({
 	poses: { type: Array, default: () => [] },
 	catalog_count: { type: Number, default: 0 },
+	geminiSpend: { type: Object, default: null },
 })
 
 const showToast = inject('showToast', null)
@@ -109,6 +118,15 @@ function statusLabel(s) { return STATUS_LABELS[s] || s }
 
 const STATUS_COLORS = { draft: 'neutral', generating: 'warning', ready: 'success', failed: 'danger' }
 function statusColor(s) { return STATUS_COLORS[s] ?? 'neutral' }
+
+// GCP billing export ayarlanmadıysa (bkz. creative.ai.gemini.billing.*) sunucu
+// null döner. "Kalan kredi" değil, "bu ay şu ana kadar Gemini API için biriken
+// tahmini maliyet" (accrued cost) — bkz. CreativeTryon.vue'daki aynı rozet.
+const geminiSpendFormatted = computed(() => {
+	const s = props.geminiSpend
+	if (!s || s.amount === null || s.amount === undefined) return null
+	return new Intl.NumberFormat('en-US', { style: 'currency', currency: s.currency || 'USD' }).format(s.amount)
+})
 
 function generateAll() {
 	if (busy.value) return

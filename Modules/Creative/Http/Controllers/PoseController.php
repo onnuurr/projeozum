@@ -11,11 +11,12 @@ use Inertia\Response;
 use Modules\Creative\Http\Requests\StorePoseRequest;
 use Modules\Creative\Jobs\GeneratePosePreviewJob;
 use Modules\Creative\Models\Pose;
+use Modules\Creative\Services\GeminiSpendService;
 use Modules\Creative\Services\PoseService;
 
 class PoseController extends Controller
 {
-    public function index(): Response
+    public function index(GeminiSpendService $geminiSpend): Response
     {
         $poses = Pose::query()
             ->orderBy('sort_order')
@@ -32,6 +33,10 @@ class PoseController extends Controller
         return Inertia::render('Creative::CreativePoses', [
             'poses'         => $poses,
             'catalog_count' => count((array) config('creative.mannequin.poses', [])),
+            // 30dk cache'li (bkz. GeminiSpendService) — CreativeTryon'daki ile aynı
+            // desen, poz önizlemeleri de Gemini ile üretildiği için ayrı bir uç
+            // noktaya gerek yok, ilk sayfa yükünde senkron gelir.
+            'geminiSpend'   => $geminiSpend->currentMonthSpend(),
         ]);
     }
 
