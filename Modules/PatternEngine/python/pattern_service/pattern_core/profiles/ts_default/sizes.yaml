@@ -1,0 +1,48 @@
+profile: ts_default
+unit: mm
+measurement_type: body        # body | garment — karıştırılırsa bolluk iki kez eklenir
+
+sizes:
+  "4Y":
+    height:            1040   # beden anahtarı — çocukta ana referans
+    chest_circ:         580
+    waist_circ:         540
+    shoulder_width:     260
+    neck_circ:           270
+    back_width:         250
+    arm_length:         340
+    armhole_depth:      130
+    upper_arm_circ:     200
+    body_length:        400
+
+  "8Y":
+    height:            1280
+    chest_circ:         670
+    waist_circ:         600
+    shoulder_width:     310
+    neck_circ:           290
+    back_width:         290
+    arm_length:         430
+    armhole_depth:      155
+    upper_arm_circ:     230
+    body_length:        480
+
+  "12Y":
+    height:            1520
+    chest_circ:         780
+    waist_circ:         660
+    shoulder_width:     360
+    neck_circ:           320
+    back_width:         330
+    arm_length:         520
+    armhole_depth:      185
+    upper_arm_circ:     265
+    body_length:        580
+
+provenance:
+  source: TS_standard_placeholder
+  verified_by_modelist: false
+  verified_at: null
+  note: >
+    Bu değerler geçicidir ve istatistiksel ortalamadır, bir markanın
+    kalıbı değildir. Modelist onayı gelmeden üretim vaadi verilmez.

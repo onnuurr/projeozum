@@ -1,0 +1,46 @@
+garment: tshirt
+unit: mm
+
+ease:
+  chest:   60        # bolluk — body ölçüsüne eklenir
+  neck:    10
+  armhole: 15
+  sleeve:  20        # kol kalıbı (pazı) bolluğu
+  cap:     20        # kol kavisi kabarma payı — kavis, kol oyuntusundan bu kadar uzun kesilir
+
+derived:
+  chest_garment:
+    formula: "chest_circ + ease.chest"
+    depends: [chest_circ]
+
+  front_width:
+    formula: "chest_garment / 4"
+    depends: [chest_garment]
+
+  armhole_depth_calc:
+    formula: "chest_garment / 8 + 45"
+    depends: [chest_garment]
+
+  neck_width:
+    formula: "neck_circ / 5"
+    depends: [neck_circ]
+
+  neck_depth_front:
+    formula: "neck_width + 20"
+    depends: [neck_width]
+
+  neck_depth_back:
+    formula: "neck_width / 3"
+    depends: [neck_width]
+
+  shoulder_slope:
+    formula: "shoulder_width / 10"
+    depends: [shoulder_width]
+
+  sleeve_cap_height:
+    formula: "armhole_depth_calc * 0.72"
+    depends: [armhole_depth_calc]
+
+  sleeve_width_calc:
+    formula: "(upper_arm_circ + ease.sleeve) / 2"
+    depends: [upper_arm_circ]

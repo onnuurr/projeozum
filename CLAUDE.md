@@ -42,6 +42,15 @@ sınırda (dış API entegratörü / bağımsız modül) Eloquent model sızdır
    `ReportResult`) — `Modules/Marketplace` hiçbir modüle (Tenant/Product dahil) bağımlı
    olmaması gerektiği için (bkz. modülün `module.json` açıklaması) Eloquent model yerine
    bu DTO'ları kullanır; `Modules/Tenant` bunları besleyen taraf.
+3. `Modules/PatternEngine/DTOs/*` (`DesignParamsDTO`, `GeneratePatternRequestDTO`,
+   `NamedPointDTO`, `SegmentDTO`, `PieceDTO`, `ValidationFindingDTO`, `PatternResultDTO`,
+   `GradePatternRequestDTO`, `GradedPatternResultDTO`, `ProvenanceDTO`,
+   `PatternProfileSummaryDTO`, `PatternProfileDTO`, `SaveProfileRequestDTO`,
+   `DigitizeSuggestionDTO`) —
+   `Modules/PatternEngine` de Marketplace gibi hiçbir modüle bağımlı değildir (bkz.
+   `module.json` `allowed_dependencies: []`); ayrı bir Python/FastAPI kalıp-üretim
+   mikroservisiyle (framework bağımsız `pattern-core`) konuşur, çağıran modül (ör.
+   Product/Atelier) kendi Eloquent verisinden bu DTO'ları kurar.
 
 Yeni bir modül sınırında benzer bir izolasyon ihtiyacı doğarsa aynı desen kullanılabilir —
 ama yine bu listeye eklenmeli. Bunların dışında yeni DTO eklemeden önce bu dosya güncellenir.

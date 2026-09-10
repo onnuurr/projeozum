@@ -38,6 +38,7 @@ return static function (DeptracConfig $config): void {
     $bagisto = Layer::withName('Modules_Bagisto')->collectors(DirectoryConfig::create('Modules/Bagisto/'));
     $finance = Layer::withName('Modules_Finance')->collectors(DirectoryConfig::create('Modules/Finance/'));
     $marketplace = Layer::withName('Modules_Marketplace')->collectors(DirectoryConfig::create('Modules/Marketplace/'));
+    $patternEngine = Layer::withName('Modules_PatternEngine')->collectors(DirectoryConfig::create('Modules/PatternEngine/'));
     $product = Layer::withName('Modules_Product')->collectors(DirectoryConfig::create('Modules/Product/'));
     $superadmin = Layer::withName('Modules_Superadmin')->collectors(DirectoryConfig::create('Modules/Superadmin/'));
     $tenant = Layer::withName('Modules_Tenant')->collectors(DirectoryConfig::create('Modules/Tenant/'));
@@ -53,6 +54,7 @@ return static function (DeptracConfig $config): void {
             $creativeDomain,
             $finance,
             $marketplace,
+            $patternEngine,
             $product,
             $superadmin,
             $tenant,
@@ -62,11 +64,16 @@ return static function (DeptracConfig $config): void {
             // Controller/User modeli, HandleInertiaRequests gibi cross-cutting wiring).
             Ruleset::forLayer($app)->accesses(
                 $atelier, $bagisto, $creativeAiInfra, $creativeDomain, $finance, $marketplace,
-                $product, $superadmin, $tenant,
+                $patternEngine, $product, $superadmin, $tenant,
             ),
             // Marketplace ve AI infra katmanı tamamen bağımsız — hiçbir şeye bağımlı olamaz
             // (App dahil — mevcut kodda da hiç kullanmıyorlar, bu yüzden istisna eklenmedi).
             Ruleset::forLayer($marketplace),
+            // PatternEngine: framework/domain bağımsız kalıp motoru (Marketplace ile aynı
+            // izolasyon deseni) — hiçbir modüle bağımlı değil, DTO üzerinden çağrılır. Marketplace'ten
+            // farklı olarak kendi admin sayfası (Inertia controller) var, bu yüzden App'e (base
+            // Controller/kernel) bağımlı olabilir — tıpkı Atelier/Creative/Tenant gibi.
+            Ruleset::forLayer($patternEngine)->accesses($app),
             // Bagisto: Modules/Marketplace pattern'inden kasıtlı olarak bağımsız, ayrı bir
             // senkron modülü (bkz. Product event'lerini dinler, Marketplace contract/DTO'larını
             // kullanmaz). Product'ın domain event'lerine/modeline VE Tenant'ın domain

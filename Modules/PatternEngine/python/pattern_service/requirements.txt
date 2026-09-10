@@ -1,0 +1,12 @@
+fastapi>=0.110
+uvicorn[standard]>=0.29
+shapely>=2.0
+ezdxf>=1.2
+numpy>=1.26
+scipy>=1.12
+pyyaml>=6.0
+asteval>=0.9.32
+pydantic>=2.6
+python-multipart>=0.0.9
+# Yalnızca digitizer/ paketinde kullanılır (§4.1, §11 — pattern-core OpenCV'ye bağımlı değildir).
+opencv-python-headless>=4.9

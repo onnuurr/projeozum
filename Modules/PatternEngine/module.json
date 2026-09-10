@@ -1,0 +1,14 @@
+{
+    "name": "PatternEngine",
+    "alias": "patternengine",
+    "description": "Parametrik çocuk giyim kalıp motoru: DesignParams + beden ölçü profilinden doğrulanmış DXF kalıp üretir (ayrı Python/FastAPI mikroservisi). Bağımsız: hiçbir modüle bağımlı değil, DTO üzerinden çağrılır.",
+    "keywords": ["pattern", "dxf", "kalıp", "cad"],
+    "priority": 0,
+    "providers": [
+        "Modules\\PatternEngine\\Providers\\PatternEngineServiceProvider"
+    ],
+    "files": [],
+    "architecture": {
+        "allowed_dependencies": []
+    }
+}

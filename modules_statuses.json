@@ -7,5 +7,6 @@
     "Finance": true,
     "Marketplace": true,
     "Bagisto": true,
-    "TrainingIngest": true
+    "TrainingIngest": true,
+    "PatternEngine": true
 }

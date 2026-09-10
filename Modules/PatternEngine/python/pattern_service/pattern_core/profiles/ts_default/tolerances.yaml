@@ -1,0 +1,6 @@
+tolerances:
+  seam_match:          5     # eşleşmesi gereken dikiş uzunlukları (mm) — Sprint 2 (çok parça)
+  armhole_sleeve:      8     # kol oyuntusu ↔ kol kavisi (mm) — Sprint 2 (kol parçası)
+  reference_pattern:   3     # modelist referansına karşı regresyon (mm) — modelist onayı bekliyor
+  symmetry:            1     # mm
+  closed_contour_gap:  0.01  # mm — kontur kapanma toleransı (kayan nokta epsilon'u)

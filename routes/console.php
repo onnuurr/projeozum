@@ -7,6 +7,7 @@ use App\Models\ActivityLog;
 use App\Models\ErrorLog;
 use Modules\Atelier\Models\MaterialMovement;
 use Modules\Finance\Models\BankTransaction;
+use Modules\PatternEngine\Models\PatternGenerationJob;
 use Modules\Product\Models\PriceList;
 use Modules\Product\Models\ProductImage;
 use Modules\Product\Models\Stock;
@@ -43,6 +44,7 @@ Schedule::command('model:prune', [
         MarketplaceSyncLog::class,
         BankTransaction::class,
         BackupRun::class,
+        PatternGenerationJob::class,
     ],
 ])->daily()->onOneServer()->runInBackground();
 
