@@ -113,6 +113,13 @@ sadeleştirmek için `Button.vue` seçildi):
 - **İstisna:** `<Link>` bir butona benziyorsa (`class="btn ..."` ile
   stillenmiş navigasyon linki) `Button`'a zorlama — `Button`'ın href/link
   modu yok, `<Link class="btn ...">` olarak kalmalı.
+- **İstisna:** dosya indirme linki (`<a href="..." download class="btn ...">`
+  veya harici/ZIP/stream response'a giden `<a href>`) — Inertia `router.visit`
+  bunu bozar, native `<a>` kalmalı. Örnek: `CreativeGallery.vue`'nun ZIP
+  indir linki, lightbox'lardaki `lb-download` linkleri.
+- **İstisna:** gizli `<input type="file">`'ı saran `<label class="btn ...">`
+  — dosya seçiciyi native olarak tetikleyen tek yol bu, `Button`'a
+  dönüştürülemez. Örnek: `CreativeTemplates.vue`'nun "SVG Yükle" etiketi.
 - Segmented control / toggle-group gibi buton-olmayan özel etkileşim
   şekillerini (ör. görünüm değiştirici, kopyala-butonu varyantları)
   `Button`'a zorlamak yerine bilinçli olarak özel bırakmak da geçerli bir
