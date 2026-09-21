@@ -1,81 +1,66 @@
 <template>
-	<Teleport to="body">
-		<div class="modal-overlay" :class="{ open: modelValue }" @click.self="close">
-			<div class="modal cad-modal" role="dialog" aria-modal="true" aria-labelledby="cad-title">
-				<template v-if="category">
-					<div class="modal-header">
-						<div class="modal-title">
-							<div class="modal-title-icon" style="background: rgb(var(--color-primary-soft-rgb))"><Tag :size="16" /></div>
-							<div>
-								<h4 id="cad-title">{{ category.name }} — Özellikler</h4>
-								<p>Bu kategorideki ürünlerde görünecek özel alanları tanımla</p>
-							</div>
-						</div>
-						<button class="modal-close" @click="close" aria-label="Kapat">
-							<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-								<path d="M18 6L6 18M6 6l12 12" />
-							</svg>
-						</button>
+	<AppModal
+		:model-value="modelValue"
+		:title="category ? `${category.name} — Özellikler` : ''"
+		subtitle="Bu kategorideki ürünlerde görünecek özel alanları tanımla"
+		size="md"
+		@update:model-value="$emit('update:modelValue', $event)"
+	>
+		<template #icon><Tag :size="16" /></template>
+
+		<div class="cad-body">
+			<div v-if="!definitions.length" class="cad-empty">Henüz özellik tanımı yok.</div>
+			<ul v-else class="cad-list">
+				<li v-for="def in definitions" :key="def.id" class="cad-row">
+					<div class="cad-row-info">
+						<span class="cad-key">{{ def.key }}</span>
+						<span class="cad-label">{{ def.label }}</span>
+						<span class="cad-type">{{ typeLabel(def.type) }}</span>
+						<span v-if="def.required" class="cad-required">zorunlu</span>
 					</div>
+					<button class="cad-remove" @click="remove(def)" title="Sil"><Trash2 :size="13" /></button>
+				</li>
+			</ul>
 
-					<div class="modal-body cad-body">
-						<div v-if="!definitions.length" class="cad-empty">Henüz özellik tanımı yok.</div>
-						<ul v-else class="cad-list">
-							<li v-for="def in definitions" :key="def.id" class="cad-row">
-								<div class="cad-row-info">
-									<span class="cad-key">{{ def.key }}</span>
-									<span class="cad-label">{{ def.label }}</span>
-									<span class="cad-type">{{ typeLabel(def.type) }}</span>
-									<span v-if="def.required" class="cad-required">zorunlu</span>
-								</div>
-								<button class="cad-remove" @click="remove(def)" title="Sil"><Trash2 :size="13" /></button>
-							</li>
-						</ul>
+			<div class="cad-divider"></div>
 
-						<div class="cad-divider"></div>
-
-						<form class="cad-form" @submit.prevent="submit">
-							<div class="cad-form-grid">
-								<div class="form-group">
-									<label class="form-label">Anahtar</label>
-									<input v-model="form.key" class="form-input" type="text" placeholder="örn. yaka" />
-								</div>
-								<div class="form-group">
-									<label class="form-label">Etiket</label>
-									<input v-model="form.label" class="form-input" type="text" placeholder="örn. Yaka Tipi" />
-								</div>
-								<div class="form-group">
-									<label class="form-label">Tip</label>
-									<CustomSelect v-model="form.type" :options="typeOptions" :show-label="false" />
-								</div>
-								<div class="form-group">
-									<label class="toggle-row">
-										<input type="checkbox" v-model="form.required" />
-										<span class="toggle-text">Zorunlu</span>
-									</label>
-								</div>
-							</div>
-							<div v-if="form.type === 'enum'" class="form-group">
-								<label class="form-label">Seçenekler (virgülle ayır)</label>
-								<input v-model="optionsText" class="form-input" type="text" placeholder="V yaka, Bisiklet yaka, Polo yaka" />
-							</div>
-							<span v-if="error" class="form-error">{{ error }}</span>
-							<Button variant="primary" with-icon type="submit" :loading="busy">
-								<template #leading><Plus :size="13" /></template>
-								Ekle
-							</Button>
-						</form>
+			<form class="cad-form" @submit.prevent="submit">
+				<div class="cad-form-grid">
+					<div class="form-group">
+						<label class="form-label">Anahtar</label>
+						<input v-model="form.key" class="form-input" type="text" placeholder="örn. yaka" />
 					</div>
-
-					<div class="modal-divider"></div>
-
-					<div class="modal-footer">
-						<Button variant="ghost" @click="close">Kapat</Button>
+					<div class="form-group">
+						<label class="form-label">Etiket</label>
+						<input v-model="form.label" class="form-input" type="text" placeholder="örn. Yaka Tipi" />
 					</div>
-				</template>
-			</div>
+					<div class="form-group">
+						<label class="form-label">Tip</label>
+						<CustomSelect v-model="form.type" :options="typeOptions" :show-label="false" />
+					</div>
+					<div class="form-group">
+						<label class="toggle-row">
+							<input type="checkbox" v-model="form.required" />
+							<span class="toggle-text">Zorunlu</span>
+						</label>
+					</div>
+				</div>
+				<div v-if="form.type === 'enum'" class="form-group">
+					<label class="form-label">Seçenekler (virgülle ayır)</label>
+					<input v-model="optionsText" class="form-input" type="text" placeholder="V yaka, Bisiklet yaka, Polo yaka" />
+				</div>
+				<span v-if="error" class="form-error">{{ error }}</span>
+				<Button variant="primary" with-icon type="submit" :loading="busy">
+					<template #leading><Plus :size="13" /></template>
+					Ekle
+				</Button>
+			</form>
 		</div>
-	</Teleport>
+
+		<template #footer="{ close: closeModal }">
+			<Button variant="ghost" @click="closeModal">Kapat</Button>
+		</template>
+	</AppModal>
 </template>
 
 <script setup>
@@ -84,6 +69,7 @@ import { router } from '@inertiajs/vue3'
 import { Tag, Trash2, Plus } from 'lucide-vue-next'
 import CustomSelect from './CustomSelect.vue'
 import Button from './Button.vue'
+import AppModal from './AppModal.vue'
 
 const props = defineProps({
 	modelValue: { type: Boolean, default: false },
@@ -125,10 +111,6 @@ watch(
 		}
 	},
 )
-
-function close() {
-	emit('update:modelValue', false)
-}
 
 function submit() {
 	if (busy.value) return
@@ -178,47 +160,46 @@ function remove(def) {
 </script>
 
 <style scoped>
-.cad-modal { max-width: 560px; width: 100%; }
 .cad-body { display: flex; flex-direction: column; gap: 14px; }
 
-.cad-empty { color: #aaa; font-size: 12.5px; font-style: italic; }
+.cad-empty { color: rgb(var(--color-muted-rgb)); font-size: 12.5px; font-style: italic; }
 
 .cad-list { display: flex; flex-direction: column; gap: 6px; }
 .cad-row {
 	display: flex; align-items: center; justify-content: space-between;
 	padding: 8px 12px;
-	background: #fafafe;
-	border: 1px solid #f0f0f5;
+	background: rgb(var(--color-bg-rgb) / .5);
+	border: 1px solid rgb(var(--color-border-rgb));
 	border-radius: 9px;
 }
 .cad-row-info { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .cad-key {
 	font-family: 'SF Mono', Menlo, Consolas, monospace;
-	font-size: 11.5px; font-weight: 700; color: #1a1a2e;
-	background: #eee; padding: 2px 7px; border-radius: 5px;
+	font-size: 11.5px; font-weight: 700; color: rgb(var(--color-ink-rgb));
+	background: rgb(var(--color-border-rgb)); padding: 2px 7px; border-radius: 5px;
 }
-.cad-label { font-size: 12.5px; color: #444; }
-.cad-type { font-size: 11px; color: #888; }
-.cad-required { font-size: 10.5px; font-weight: 700; color: #dc2626; }
+.cad-label { font-size: 12.5px; color: rgb(var(--color-ink-rgb) / .8); }
+.cad-type { font-size: 11px; color: rgb(var(--color-muted-rgb)); }
+.cad-required { font-size: 10.5px; font-weight: 700; color: rgb(var(--color-danger-rgb)); }
 .cad-remove {
-	background: none; border: none; cursor: pointer; color: #999;
+	background: none; border: none; cursor: pointer; color: rgb(var(--color-muted-rgb));
 	display: inline-flex; align-items: center;
 	padding: 4px 6px; border-radius: 6px; flex-shrink: 0;
 }
-.cad-remove:hover { background: #fee2e2; color: #dc2626; }
+.cad-remove:hover { background: rgb(var(--color-danger-rgb) / .12); color: rgb(var(--color-danger-rgb)); }
 
-.cad-divider { height: 1px; background: #f0f0f5; }
+.cad-divider { height: 1px; background: rgb(var(--color-border-rgb)); }
 
 .cad-form { display: flex; flex-direction: column; gap: 10px; }
 .cad-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
 .form-group { display: flex; flex-direction: column; gap: 5px; }
-.form-label { font-size: 11.5px; font-weight: 600; color: #555; }
+.form-label { font-size: 11.5px; font-weight: 600; color: rgb(var(--color-muted-rgb)); }
 .form-input {
 	height: 38px; padding: 0 12px;
-	border: 1px solid #e0e0ea; border-radius: 8px;
-	font-size: 13px; color: #1a1a2e;
+	border: 1px solid rgb(var(--color-border-rgb)); border-radius: 8px;
+	font-size: 13px; color: rgb(var(--color-ink-rgb));
 }
-.form-error { color: #dc2626; font-size: 11.5px; }
-.toggle-row { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: #444; cursor: pointer; }
+.form-error { color: rgb(var(--color-danger-rgb)); font-size: 11.5px; }
+.toggle-row { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: rgb(var(--color-ink-rgb) / .8); cursor: pointer; }
 </style>
