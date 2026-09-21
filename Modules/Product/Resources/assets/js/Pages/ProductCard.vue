@@ -9,12 +9,7 @@
 			]"
 		/>
 
-		<Link href="/products" class="back-link">
-			<ArrowLeft :size="13" />
-			Kataloğa dön
-		</Link>
-
-		<PageHeader :title="product.name">
+		<PageHeader :title="product.name" back-href="/products">
 			<template #subtitle>
 				<span class="mono">{{ product.sku }}</span>
 				<span v-if="product.barcode"> · <span class="mono">{{ product.barcode }}</span></span>
@@ -363,7 +358,7 @@
 import { computed, inject, reactive, ref, watch } from 'vue'
 import { Head, Link, router, usePage } from '@inertiajs/vue3'
 import {
-	Activity, ArrowDown, ArrowLeft, ArrowUp, ArrowUpDown,
+	Activity, ArrowDown, ArrowUp, ArrowUpDown,
 	AlertTriangle, Boxes, CheckCircle2, Info, Lock, Pencil, Store, Tag,
 } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
@@ -599,13 +594,6 @@ function openListing(mp) {
 
 <style scoped>
 .page-product-card { display: flex; flex-direction: column; gap: 14px; }
-
-.back-link {
-	display: inline-flex; align-items: center; gap: 6px;
-	font-size: 12.5px; font-weight: 600; color: rgb(var(--color-muted-rgb));
-	text-decoration: none; width: fit-content;
-}
-.back-link:hover { color: rgb(var(--color-primary-rgb)); }
 
 .mono { font-family: 'SF Mono', Menlo, Consolas, monospace; }
 .dim { color: rgb(var(--color-muted-rgb)); }
