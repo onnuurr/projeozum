@@ -1,126 +1,115 @@
 <template>
-	<Teleport to="body">
-		<aside class="drawer user-form-drawer" :class="{ open: modelValue }" role="dialog" aria-modal="true">
-			<div class="drawer-header">
-				<div class="drawer-title">
-					<div class="drawer-title-icon" :class="isEdit ? 'icon-edit' : 'icon-add'">
-						<svg v-if="isEdit" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-							<path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-							<path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-						</svg>
-						<svg v-else width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-							<path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
-							<circle cx="8.5" cy="7" r="4" />
-							<line x1="20" y1="8" x2="20" y2="14" />
-							<line x1="23" y1="11" x2="17" y2="11" />
-						</svg>
-					</div>
-					<div>
-						<h4>{{ isEdit ? 'Kullanıcıyı Düzenle' : 'Yeni Kullanıcı Ekle' }}</h4>
-						<p>{{ isEdit ? user.name : 'Sisteme yeni bir kullanıcı kaydedin' }}</p>
-					</div>
-				</div>
-				<button class="drawer-close" @click="close" aria-label="Kapat">
-					<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-						<path d="M18 6L6 18M6 6l12 12" />
-					</svg>
-				</button>
+	<AppDrawer
+		:model-value="modelValue"
+		:title="isEdit ? 'Kullanıcıyı Düzenle' : 'Yeni Kullanıcı Ekle'"
+		:subtitle="isEdit ? user.name : 'Sisteme yeni bir kullanıcı kaydedin'"
+		width="61vw"
+		@update:model-value="$emit('update:modelValue', $event)"
+	>
+		<template #icon>
+			<svg v-if="isEdit" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+				<path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+				<path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+			</svg>
+			<svg v-else width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+				<path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+				<circle cx="8.5" cy="7" r="4" />
+				<line x1="20" y1="8" x2="20" y2="14" />
+				<line x1="23" y1="11" x2="17" y2="11" />
+			</svg>
+		</template>
+
+		<div v-if="!isEdit" class="info-banner">
+			<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+				<circle cx="12" cy="12" r="10" />
+				<line x1="12" y1="8" x2="12" y2="12" />
+				<line x1="12" y1="16" x2="12.01" y2="16" />
+			</svg>
+			Davet bağlantısı kullanıcının e-posta adresine gönderilecektir.
+		</div>
+		<div v-else class="info-banner edit-banner">
+			<div class="edit-banner-avatar" :style="{ background: user.avatarGradient }">{{ user.initials }}</div>
+			<div class="edit-banner-text">
+				<div class="edit-banner-name">{{ user.name }}</div>
+				<div class="edit-banner-email">{{ user.email }}</div>
 			</div>
+		</div>
 
-			<div class="drawer-body">
-				<div v-if="!isEdit" class="info-banner">
-					<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-						<circle cx="12" cy="12" r="10" />
-						<line x1="12" y1="8" x2="12" y2="12" />
-						<line x1="12" y1="16" x2="12.01" y2="16" />
+		<div class="form-section form-grid-2">
+			<div class="form-group">
+				<label class="form-label">Ad Soyad <span class="required">*</span></label>
+				<div class="form-input-wrap">
+					<svg class="form-input-icon" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+						<path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+						<circle cx="12" cy="7" r="4" />
 					</svg>
-					Davet bağlantısı kullanıcının e-posta adresine gönderilecektir.
-				</div>
-				<div v-else class="info-banner edit-banner">
-					<div class="edit-banner-avatar" :style="{ background: user.avatarGradient }">{{ user.initials }}</div>
-					<div class="edit-banner-text">
-						<div class="edit-banner-name">{{ user.name }}</div>
-						<div class="edit-banner-email">{{ user.email }}</div>
-					</div>
-				</div>
-
-				<div class="form-section form-grid-2">
-					<div class="form-group">
-						<label class="form-label">Ad Soyad <span class="required">*</span></label>
-						<div class="form-input-wrap">
-							<svg class="form-input-icon" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-								<path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
-								<circle cx="12" cy="7" r="4" />
-							</svg>
-							<input
-								v-model="form.name"
-								class="form-input"
-								type="text"
-								placeholder="örn. Ali Yılmaz"
-								@keydown.enter="submit"
-							/>
-						</div>
-					</div>
-
-					<div class="form-group">
-						<label class="form-label">E-posta <span class="required">*</span></label>
-						<div class="form-input-wrap">
-							<svg class="form-input-icon" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-								<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-								<polyline points="22,6 12,13 2,6" />
-							</svg>
-							<input
-								v-model="form.email"
-								class="form-input"
-								type="email"
-								placeholder="ornek@tekstilerp.com"
-								@keydown.enter="submit"
-							/>
-						</div>
-					</div>
-
-					<CustomSelect
-						label="Rol"
-						v-model="form.role"
-						:options="roleOptions"
-						placeholder="Rol seçiniz..."
-					/>
-
-					<CustomSelect
-						label="Durum"
-						v-model="form.status"
-						:options="statusOptions"
-						placeholder="Durum seçiniz..."
+					<input
+						v-model="form.name"
+						class="form-input"
+						type="text"
+						placeholder="örn. Ali Yılmaz"
+						@keydown.enter="submit"
 					/>
 				</div>
+			</div>
 
-				<div class="form-section">
-					<div class="drawer-section-title">Yetkiler</div>
-					<div class="permission-list permission-grid">
-						<label v-for="perm in permissions" :key="perm.key" class="perm-row">
-							<input type="checkbox" v-model="form.permissions[perm.key]" />
-							<span class="perm-check"></span>
-							<div class="perm-text">
-								<span class="perm-label">{{ perm.label }}</span>
-								<span class="perm-desc">{{ perm.desc }}</span>
-							</div>
-						</label>
-					</div>
+			<div class="form-group">
+				<label class="form-label">E-posta <span class="required">*</span></label>
+				<div class="form-input-wrap">
+					<svg class="form-input-icon" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+						<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+						<polyline points="22,6 12,13 2,6" />
+					</svg>
+					<input
+						v-model="form.email"
+						class="form-input"
+						type="email"
+						placeholder="ornek@tekstilerp.com"
+						@keydown.enter="submit"
+					/>
 				</div>
 			</div>
 
-			<div class="drawer-footer">
-				<Button variant="ghost" @click="close">İptal</Button>
-				<Button variant="primary" with-icon @click="submit">
-					<template #leading>
-						<Check v-if="isEdit" :size="13" />
-						<Plus v-else :size="13" />
-					</template>
-					{{ isEdit ? 'Değişiklikleri Kaydet' : 'Kullanıcı Ekle' }}
-				</Button>
+			<CustomSelect
+				label="Rol"
+				v-model="form.role"
+				:options="roleOptions"
+				placeholder="Rol seçiniz..."
+			/>
+
+			<CustomSelect
+				label="Durum"
+				v-model="form.status"
+				:options="statusOptions"
+				placeholder="Durum seçiniz..."
+			/>
+		</div>
+
+		<div class="form-section">
+			<div class="drawer-section-title">Yetkiler</div>
+			<div class="permission-list permission-grid">
+				<label v-for="perm in permissions" :key="perm.key" class="perm-row">
+					<input type="checkbox" v-model="form.permissions[perm.key]" />
+					<span class="perm-check"></span>
+					<div class="perm-text">
+						<span class="perm-label">{{ perm.label }}</span>
+						<span class="perm-desc">{{ perm.desc }}</span>
+					</div>
+				</label>
 			</div>
-		</aside>
-	</Teleport>
+		</div>
+
+		<template #footer>
+			<Button variant="ghost" @click="close">İptal</Button>
+			<Button variant="primary" with-icon @click="submit">
+				<template #leading>
+					<Check v-if="isEdit" :size="13" />
+					<Plus v-else :size="13" />
+				</template>
+				{{ isEdit ? 'Değişiklikleri Kaydet' : 'Kullanıcı Ekle' }}
+			</Button>
+		</template>
+	</AppDrawer>
 </template>
 
 <script setup>
@@ -128,6 +117,7 @@ import { reactive, computed, watch } from 'vue'
 import { Check, Plus } from 'lucide-vue-next'
 import CustomSelect from './CustomSelect.vue'
 import Button from './Button.vue'
+import AppDrawer from './AppDrawer.vue'
 
 const props = defineProps({
 	modelValue: { type: Boolean, default: false },
@@ -216,20 +206,6 @@ watch(
 </script>
 
 <style scoped>
-.user-form-drawer {
-	width: 61vw;
-	max-width: calc(100vw - 24px);
-}
-
-.icon-add {
-	background: rgb(var(--color-primary-soft-rgb)) !important;
-	color: rgb(var(--color-primary-rgb)) !important;
-}
-.icon-edit {
-	background: #fef3c7 !important;
-	color: #d97706 !important;
-}
-
 .info-banner {
 	display: flex;
 	align-items: center;
