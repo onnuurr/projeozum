@@ -11,24 +11,14 @@
 			]"
 		/>
 
-		<!-- Yapışkan başlık çubuğu -->
-		<div class="form-topbar">
-			<div class="topbar-left">
-				<Link href="/products" class="back-btn" aria-label="Geri">
-					<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-						<path d="M19 12H5M12 19l-7-7 7-7" />
-					</svg>
-				</Link>
-				<div>
-					<h1 class="topbar-title">{{ isEdit ? 'Ürünü Düzenle' : 'Yeni Ürün Ekle' }}</h1>
-					<p class="topbar-sub">
-						{{ isEdit ? form.name : 'Ürün kataloğuna yeni bir ürün ekleyin' }}
-						<span v-if="isEdit && form.sku" class="topbar-sku">{{ form.sku }}</span>
-					</p>
-				</div>
-			</div>
-			<div class="topbar-actions">
-				<Link href="/products" class="btn btn-ghost" :class="{ disabled: busy }">İptal</Link>
+		<PageHeader
+			:title="isEdit ? 'Ürünü Düzenle' : 'Yeni Ürün Ekle'"
+			:subtitle="(isEdit ? form.name : 'Ürün kataloğuna yeni bir ürün ekleyin') + (isEdit && form.sku ? ` · ${form.sku}` : '')"
+			back-href="/products"
+			sticky
+		>
+			<template #actions>
+				<FormButton variant="ghost" :disabled="busy" @click="router.visit('/products')">İptal</FormButton>
 				<FormButton variant="primary" with-icon :loading="busy" @click="submit">
 					<template #leading>
 						<svg v-if="isEdit" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
@@ -40,8 +30,8 @@
 					</template>
 					{{ busy ? 'Kaydediliyor…' : (isEdit ? 'Değişiklikleri Kaydet' : 'Ürünü Ekle') }}
 				</FormButton>
-			</div>
-		</div>
+			</template>
+		</PageHeader>
 
 		<!-- Doğrulama özeti -->
 		<div v-if="hasErrors" class="error-banner">
@@ -529,10 +519,11 @@
 
 <script setup>
 import { reactive, ref, computed, onMounted, inject } from 'vue'
-import { Head, Link, router, usePage } from '@inertiajs/vue3'
+import { Head, router, usePage } from '@inertiajs/vue3'
 import { Star, X, Sparkles } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
+import PageHeader from '@/Components/PageHeader.vue'
 import CustomSelect from '@/Components/CustomSelect.vue'
 import MaterialPicker from '@/Components/MaterialPicker.vue'
 import MarkdownPreview from '@/Components/MarkdownPreview.vue'
@@ -1132,55 +1123,6 @@ onMounted(() => {
 
 <style scoped>
 .page-product-form { padding-bottom: 40px; }
-
-/* ── Topbar ── */
-.form-topbar {
-	position: sticky;
-	top: 0;
-	z-index: 20;
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 16px;
-	background: rgba(255, 255, 255, 0.92);
-	backdrop-filter: blur(8px);
-	border: 1px solid #ebebf0;
-	border-radius: 14px;
-	padding: 12px 16px;
-	margin-bottom: 18px;
-	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-}
-.topbar-left { display: flex; align-items: center; gap: 12px; min-width: 0; overflow: hidden; }
-.back-btn {
-	width: 36px; height: 36px; flex-shrink: 0;
-	display: flex; align-items: center; justify-content: center;
-	border: 1px solid #e8e8f0; border-radius: 9px;
-	background: #fff; color: #555; cursor: pointer;
-	transition: all .12s; text-decoration: none;
-}
-.back-btn:hover { background: #f5f5f8; color: #1a1a2e; }
-.topbar-title {
-	font-size: 18px; font-weight: 700; color: #1a1a2e; line-height: 1.2;
-	white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.topbar-sub {
-	font-size: 12.5px; color: #888; margin-top: 2px;
-	display: flex; align-items: center; gap: 8px;
-	white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.topbar-sku {
-	font-family: 'SF Mono', Consolas, monospace;
-	font-size: 11px; color: rgb(var(--color-primary-hover-rgb));
-	background: #f3eefe; padding: 1px 7px; border-radius: 5px;
-}
-.topbar-actions { display: flex; gap: 8px; flex-shrink: 0; }
-.btn.disabled { pointer-events: none; opacity: .55; }
-
-@media (max-width: 640px) {
-	.form-topbar { flex-wrap: wrap; }
-	.topbar-left { width: 100%; }
-	.topbar-actions { width: 100%; justify-content: flex-end; }
-}
 
 /* ── Hata bandı ── */
 .error-banner {
