@@ -147,6 +147,12 @@ dokümanın operasyonel (Claude Code oturumları için) karşılığı.
 
 - **Tenant Portal** (`Modules/Tenant/.../Pages/Portal/**`) — müşteri yüzü,
   kendi tasarım dili olabilir, bu standart admin paneli için.
+- **`Modules/Product/.../Pages/ProductDetail.vue`** — admin liste/detay sayfası değil,
+  tenant'a (bayi) gösterilen B2B katalog/storefront önizlemesi (sepete ekle, favori,
+  galeri zoom, kargo/iade "perk" bilgileri — `ProductController::show()`, tenant
+  fiyatlandırması içeriyor). `PageHeader` bu sayfanın hero-galeri düzenine uymuyor;
+  `.btn`/ham markup kullanımı bilinçli, "raw markup" taraması bu dosyayı yanlışlıkla
+  yakalar — `ProductCard.vue` (gerçek admin ürün kartı, SAP-tarzı) ile karıştırılmamalı.
 - **Auth/Profile sayfaları** (`resources/js/Pages/Auth/**`, `Profile/**`) —
   özel, izole tasarım (login ekranı gibi), bu standardın kapsamı dışında.
 - **`DataTable`'ın server-side pagination desteklememesi** ve **`Breadcrumb`'ın
