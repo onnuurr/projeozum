@@ -156,4 +156,8 @@ onBeforeUnmount(() => {
 }
 .drawer-footer .btn { flex: 1; justify-content: center; }
 .drawer-footer .btn-ghost { flex: 0 0 auto; }
+
+@media (max-width: 480px) {
+	.drawer { top: 0; right: 0; bottom: 0; width: 100vw; max-width: 100vw; border-radius: 0; }
+}
 </style>
