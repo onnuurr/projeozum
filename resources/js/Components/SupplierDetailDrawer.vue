@@ -1,47 +1,21 @@
 <template>
-	<Teleport to="body">
-		<aside
-			class="drawer supplier-drawer"
-			:class="{ open: modelValue }"
-			role="dialog"
-			aria-modal="true"
-		>
-			<template v-if="supplier">
-				<div class="drawer-header">
-					<div class="drawer-title">
-						<div class="drawer-title-icon">
-							<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-								<rect x="3" y="3" width="18" height="18" rx="2" />
-								<path d="M3 9h18M9 21V9" />
-							</svg>
-						</div>
-						<div>
-							<h4>Tedarikçi Detayı</h4>
-							<p>{{ supplier.shortName || supplier.name }}</p>
-						</div>
-					</div>
-					<div class="drawer-header-actions">
-						<a
-							class="drawer-edit-btn"
-							:href="`mailto:${supplier.email}`"
-							title="E-posta gönder"
-							aria-label="E-posta gönder"
-						>
-							<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-								<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-								<polyline points="22,6 12,13 2,6" />
-							</svg>
-						</a>
-						<button class="drawer-close" @click="close" aria-label="Kapat">
-							<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-								<path d="M18 6L6 18M6 6l12 12" />
-							</svg>
-						</button>
-					</div>
-				</div>
+	<AppDrawer
+		:model-value="modelValue"
+		title="Tedarikçi Detayı"
+		:subtitle="supplier ? (supplier.shortName || supplier.name) : ''"
+		width="64vw"
+		class="supplier-drawer"
+		@update:model-value="$emit('update:modelValue', $event)"
+	>
+		<template #icon>
+			<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+				<rect x="3" y="3" width="18" height="18" rx="2" />
+				<path d="M3 9h18M9 21V9" />
+			</svg>
+		</template>
 
-				<div class="drawer-body">
-					<!-- Profil özeti -->
+		<template v-if="supplier">
+			<!-- Profil özeti -->
 					<div class="supplier-profile">
 						<div class="supplier-profile-avatar" :style="{ background: supplier.avatarGradient }">
 							{{ supplier.initials }}
@@ -277,9 +251,9 @@
 							<p>{{ supplier.notes }}</p>
 						</div>
 					</section>
-				</div>
+				</template>
 
-				<div class="drawer-footer">
+				<template v-if="supplier" #footer>
 					<a class="btn btn-secondary" :href="`mailto:${supplier.email}`">
 						<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
 							<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
@@ -288,15 +262,14 @@
 						İletişime Geç
 					</a>
 					<Button variant="primary" style="flex: 1; justify-content: center" @click="close">Kapat</Button>
-				</div>
-			</template>
-		</aside>
-	</Teleport>
+				</template>
+	</AppDrawer>
 </template>
 
 <script setup>
 import { computed } from 'vue'
 import Button from './Button.vue'
+import AppDrawer from './AppDrawer.vue'
 
 const props = defineProps({
 	modelValue: { type: Boolean, default: false },
@@ -346,11 +319,6 @@ const recentOrders = computed(() => {
 </script>
 
 <style scoped>
-.supplier-drawer {
-	width: 64vw;
-	max-width: calc(100vw - 24px);
-}
-
 /* Profil özeti */
 .supplier-profile {
 	display: flex;
@@ -460,33 +428,6 @@ const recentOrders = computed(() => {
 	letter-spacing: 0;
 }
 
-/* Drawer header sağ aksiyon */
-.drawer-header-actions {
-	display: flex;
-	align-items: center;
-	gap: 6px;
-}
-
-.drawer-edit-btn {
-	width: 30px;
-	height: 30px;
-	border-radius: 8px;
-	border: 1.5px solid #e8e8f2;
-	background: #fff;
-	color: rgb(var(--color-primary-rgb));
-	cursor: pointer;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	transition: background .15s, border-color .15s, color .15s;
-	flex-shrink: 0;
-	text-decoration: none;
-}
-.drawer-edit-btn:hover {
-	background: rgb(var(--color-primary-soft-rgb));
-	border-color: #c0c8f8;
-	color: rgb(var(--color-primary-hover-rgb));
-}
 
 /* Drawer section */
 .drawer-section {
@@ -667,9 +608,6 @@ const recentOrders = computed(() => {
 	line-height: 1.55;
 	margin: 0;
 }
-
-.drawer-footer { display: flex; gap: 8px; }
-.drawer-footer .btn { flex: 1; justify-content: center; }
 
 @media (max-width: 560px) {
 	.info-list-grid { grid-template-columns: 1fr; }
