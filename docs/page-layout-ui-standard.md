@@ -171,18 +171,32 @@ ajanla) — her `AppModal` kullanımı tek tek incelenip gerçek CRUD-form olanl
 `AppDrawer`'a taşındı, onay/bilgi/tetikleyici diyaloglar bilinçli olarak
 `AppModal` olarak bırakıldı (liste §3'teki not).
 
+**2026-09-22 itibarıyla ek olarak tamamlandı:** Son 6 ham (Teleport ile elle
+yazılmış) drawer/modal — `FilterDrawer.vue`, `CartDrawer.vue`,
+`UserFormDrawer.vue`, `SupplierDetailDrawer.vue`,
+`MarketplaceCategoryPickerModal.vue`, `CategoryAttributesModal.vue` — artık
+sanctioned `AppDrawer`/`AppModal` primitiflerini kullanıyor (kendi
+Teleport/`.drawer`/`.modal` iskeletlerini elle tekrar etmiyorlar). Bu geçişte
+2 gerçek davranış eksikliği bulundu ve düzeltildi: `UserFormDrawer.vue`'nun
+hiç ESC/dışa-tıkla-kapat mantığı yoktu (başka bir componentin artık
+kaldırılmış global CSS sızıntısına güveniyordu), `CartDrawer.vue`'nun da
+ESC handling'i yoktu. `AppDrawer.vue`'nun kendisine, `FilterDrawer.vue`'da
+zaten var olan mobil tam-ekran davranışı (`@media max-width:480px`) taşındı
+— artık bunu kullanan her drawer bu davranışı bedava alıyor. Ayrıca
+`MarketplaceCategoryPickerModal.vue`'nun barındırdığı, "Categories.vue
+AppModal'ı import etmiyor" diye açıklanan tam bir AppModal-shell CSS kopyası
+artık gereksizdi (Categories.vue'daki her iki modal component'i de artık
+gerçek `AppModal`'ı import ediyor) — silindi.
+- `UserFormDrawer.vue` ve `SupplierDetailDrawer.vue` **hâlâ hiçbir sayfadan
+  import edilmiyor** (grep ile doğrulandı) — dönüştürüldüler ama aktif
+  kullanılmıyorlar, `resources/js/Layouts/AppLayoutClassic.vue` ile aynı
+  yetim-dosya deseni.
+
 **Hâlâ bilinçli olarak dışarıda:**
 - **Tenant Portal** (`Modules/Tenant/.../Pages/Portal/**`) — kendi
   `TenantPortalLayout`'u var, bu standardın kapsamı dışında (bkz. §5).
-- Birkaç ham (Teleport ile elle yazılmış, `AppModal`/`AppDrawer` component'ini
-  kullanmayan) drawer/modal — `FilterDrawer.vue`, `CartDrawer.vue`,
-  `UserFormDrawer.vue`, `SupplierDetailDrawer.vue`,
-  `MarketplaceCategoryPickerModal.vue`, `CategoryAttributesModal.vue`. Bunların
-  içindeki ham `<button class="btn ...">` kullanımları `Button.vue`'ya
-  çevrildi, ama kendi Teleport/`.drawer`/`.modal` iskeletleri henüz
-  `AppDrawer`/`AppModal` component'ine taşınmadı — yapısal olarak zaten doğru
-  şekilde (drawer ya da modal) kurulu oldukları için düşük öncelikli, ayrı bir
-  iş kalemi.
+- **`Modules/Product/.../Pages/ProductDetail.vue`** — admin sayfası değil,
+  tenant'a gösterilen B2B storefront önizlemesi, bkz. §5.
 - `ButtonShowcase.vue` / `ComponentShowcase.vue` — kasıtlı olarak ham `.btn`
   class'larını sergileyen tasarım-sistemi referans sayfaları, dönüştürülmez.
 
