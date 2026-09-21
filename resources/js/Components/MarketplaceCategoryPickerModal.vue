@@ -1,41 +1,23 @@
 <template>
-	<Teleport to="body">
-		<div class="modal-overlay" :class="{ open: modelValue }" @click.self="close">
-			<div class="modal mcp-modal" role="dialog" aria-modal="true" aria-labelledby="mcp-title">
-				<template v-if="category && marketplace">
-					<div class="modal-header">
-						<div class="modal-title">
-							<div
-								class="modal-title-icon mp-logo"
-								:style="{ background: marketplace.color, color: '#fff' }"
-							>
-								{{ marketplace.logoText }}
-							</div>
-							<div>
-								<h4 id="mcp-title">
-									{{ category.name }}
-									<span class="arrow">→</span>
-									{{ marketplace.name }}
-								</h4>
-								<p>
-									<template v-if="stage === 'picking'">
-										Pazaryeri kategorisini kademeli olarak seç
-									</template>
-									<template v-else>
-										Eşleştirmeyi gözden geçir ve kaydet
-									</template>
-								</p>
-							</div>
-						</div>
-						<button class="modal-close" @click="close" aria-label="Kapat">
-							<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-								<path d="M18 6L6 18M6 6l12 12" />
-							</svg>
-						</button>
-					</div>
+	<AppModal
+		:model-value="modelValue"
+		:title="category && marketplace ? `${category.name} → ${marketplace.name}` : ''"
+		:subtitle="stage === 'picking' ? 'Pazaryeri kategorisini kademeli olarak seç' : 'Eşleştirmeyi gözden geçir ve kaydet'"
+		size="md"
+		@update:model-value="$emit('update:modelValue', $event)"
+	>
+		<template #icon>
+			<div
+				v-if="marketplace"
+				class="mp-logo"
+				:style="{ background: marketplace.color, color: '#fff' }"
+			>
+				{{ marketplace.logoText }}
+			</div>
+		</template>
 
-					<div class="modal-body">
-						<!-- ─────────── Stage 1: Kademeli select'ler ─────────── -->
+		<template v-if="category && marketplace">
+			<!-- ─────────── Stage 1: Kademeli select'ler ─────────── -->
 						<div v-if="stage === 'picking'" class="picker-stage">
 							<div
 								v-for="(level, idx) in levels"
@@ -103,41 +85,37 @@
 									<span class="pm-val">{{ pathParts.length }} seviye</span>
 								</div>
 							</div>
-						</div>
-					</div>
-
-					<div class="modal-divider"></div>
-
-					<div class="modal-footer">
-						<template v-if="stage === 'picking'">
-							<Button variant="ghost" @click="close">Vazgeç</Button>
-							<Button variant="primary" with-icon :disabled="!isLeaf" @click="confirmPick">
-								<template #leading><Check :size="13" /></template>
-								Eşleştir
-							</Button>
-						</template>
-						<template v-else>
-							<Button variant="ghost" with-icon @click="backToPicker">
-								<template #leading><ChevronLeft :size="13" /></template>
-								Geri Dön
-							</Button>
-							<Button variant="primary" with-icon @click="save">
-								<template #leading><Save :size="13" /></template>
-								Kaydet
-							</Button>
-						</template>
-					</div>
-				</template>
 			</div>
-		</div>
-	</Teleport>
+		</template>
+
+		<template v-if="category && marketplace" #footer>
+			<template v-if="stage === 'picking'">
+				<Button variant="ghost" @click="close">Vazgeç</Button>
+				<Button variant="primary" with-icon :disabled="!isLeaf" @click="confirmPick">
+					<template #leading><Check :size="13" /></template>
+					Eşleştir
+				</Button>
+			</template>
+			<template v-else>
+				<Button variant="ghost" with-icon @click="backToPicker">
+					<template #leading><ChevronLeft :size="13" /></template>
+					Geri Dön
+				</Button>
+				<Button variant="primary" with-icon @click="save">
+					<template #leading><Save :size="13" /></template>
+					Kaydet
+				</Button>
+			</template>
+		</template>
+	</AppModal>
 </template>
 
 <script setup>
-import { ref, computed, watch, onBeforeUnmount } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { Check, ChevronLeft, Save } from 'lucide-vue-next'
 import CustomSelect from './CustomSelect.vue'
 import Button from './Button.vue'
+import AppModal from './AppModal.vue'
 
 const props = defineProps({
 	modelValue: { type: Boolean, default: false },
@@ -255,47 +233,25 @@ function rehydrateFromPath(path) {
 watch(
 	() => props.modelValue,
 	(open) => {
-		document.body.style.overflow = open ? 'hidden' : ''
 		if (open) {
 			reset()
 			rehydrateFromPath(props.initialPath)
 		}
 	}
 )
-
-function handleEsc(e) {
-	if (e.key === 'Escape' && props.modelValue) close()
-}
-watch(
-	() => props.modelValue,
-	(open) => {
-		if (open) document.addEventListener('keydown', handleEsc)
-		else document.removeEventListener('keydown', handleEsc)
-	}
-)
-
-onBeforeUnmount(() => {
-	document.removeEventListener('keydown', handleEsc)
-	document.body.style.overflow = ''
-})
 </script>
 
 <style scoped>
-.mcp-modal {
-	max-width: 560px;
-	width: 100%;
-}
-
 .mp-logo {
+	width: 100%;
+	height: 100%;
+	border-radius: 10px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 	font-size: 11px;
 	font-weight: 800;
 	letter-spacing: 0.04em;
-}
-
-.arrow {
-	color: #aaa;
-	margin: 0 4px;
-	font-weight: 400;
 }
 
 /* ── Stage 1 ── */
@@ -440,69 +396,5 @@ onBeforeUnmount(() => {
 	color: #1a1a2e;
 	font-weight: 700;
 	text-align: right;
-}
-</style>
-
-<style>
-/* ── Modal scaffold (AppModal ile aynı dil; Categories.vue AppModal’ı import
-   etmediği için burada kendi kopyamızı barındırıyoruz). ── */
-.mcp-modal-host .modal-overlay,
-.modal-overlay {
-	position: fixed; inset: 0; z-index: 9000;
-	background: rgba(30, 30, 50, .35);
-	backdrop-filter: blur(6px);
-	-webkit-backdrop-filter: blur(6px);
-	display: flex; align-items: center; justify-content: center;
-	padding: 20px;
-	opacity: 0; pointer-events: none;
-	transition: opacity .2s ease;
-}
-.modal-overlay.open { opacity: 1; pointer-events: all; }
-
-.modal {
-	background: #fff;
-	border-radius: 18px;
-	box-shadow: 0 8px 40px rgba(0, 0, 0, .14), 0 2px 8px rgba(0, 0, 0, .08);
-	width: 100%; max-width: 480px;
-	display: flex; flex-direction: column;
-	transform: scale(.95) translateY(10px);
-	transition: transform .22s cubic-bezier(.34, 1.56, .64, 1), opacity .2s ease;
-	opacity: 0;
-	overflow: hidden;
-}
-.modal-overlay.open .modal { transform: scale(1) translateY(0); opacity: 1; }
-
-.modal-header {
-	display: flex; align-items: center; justify-content: space-between;
-	padding: 20px 22px 0;
-}
-.modal-title { display: flex; align-items: center; gap: 10px; }
-.modal-title-icon {
-	width: 36px; height: 36px; border-radius: 10px;
-	display: flex; align-items: center; justify-content: center;
-	flex-shrink: 0;
-}
-.modal-title h4 { font-size: 15px; font-weight: 600; color: #1a1a2e; }
-.modal-title p { font-size: 12px; color: #9898b0; margin-top: 1px; }
-
-.modal-close {
-	width: 30px; height: 30px; border-radius: 8px; border: none;
-	background: #f5f5f8; color: #888; cursor: pointer;
-	display: flex; align-items: center; justify-content: center;
-	transition: background .15s, color .15s;
-	flex-shrink: 0;
-}
-.modal-close:hover { background: #fee2e2; color: #ef4444; }
-
-.modal-body {
-	padding: 18px 22px;
-	font-size: 13.5px; color: #4a4a6a; line-height: 1.65;
-}
-
-.modal-divider { height: 1px; background: #f0f0f6; margin: 0 22px; }
-
-.modal-footer {
-	display: flex; align-items: center; justify-content: flex-end;
-	gap: 8px; padding: 16px 22px;
 }
 </style>
