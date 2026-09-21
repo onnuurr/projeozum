@@ -1,153 +1,134 @@
 <template>
-	<Teleport to="body">
-		<div
-			class="drawer-overlay"
-			:class="{ open: modelValue }"
-			@click="close"
-		></div>
-		<aside
-			class="drawer cart-drawer"
-			:class="{ open: modelValue }"
-			role="dialog"
-			aria-modal="true"
-			aria-label="Sepetim"
-		>
-			<div class="drawer-header">
-				<div class="drawer-title">
-					<div class="drawer-title-icon">
-						<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-							<circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" />
-							<path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6" />
+	<AppDrawer
+		:model-value="modelValue"
+		title="Sepetim"
+		:subtitle="items.length ? `${totalItems} ürün` : 'Henüz ürün yok'"
+		width="440px"
+		class="cart-drawer"
+		aria-label="Sepetim"
+		@update:model-value="$emit('update:modelValue', $event)"
+	>
+		<template #icon>
+			<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+				<circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" />
+				<path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6" />
+			</svg>
+		</template>
+
+		<div v-if="items.length === 0" class="empty-cart">
+			<div class="empty-icon">
+				<svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+					<circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" />
+					<path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6" />
+				</svg>
+			</div>
+			<h3>Sepetiniz boş</h3>
+			<p>Beğendiğiniz ürünleri sepete ekleyerek alışverişe başlayabilirsiniz.</p>
+			<Link href="/products" class="btn btn-primary btn-with-icon" @click="close">
+				<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+					<rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18M9 21V9" />
+				</svg>
+				Kataloğa Göz At
+			</Link>
+		</div>
+
+		<template v-else>
+			<div class="cart-progress" v-if="freeShippingTarget > 0">
+				<div class="cart-progress-text">
+					<template v-if="subtotal >= freeShippingTarget">
+						<svg width="14" height="14" fill="#16a34a" viewBox="0 0 24 24">
+							<path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="#fff" stroke-width="2" fill="#16a34a" />
 						</svg>
-					</div>
-					<div>
-						<h4>Sepetim</h4>
-						<p v-if="items.length">{{ totalItems }} ürün</p>
-						<p v-else>Henüz ürün yok</p>
-					</div>
+						Tebrikler! <strong>Ücretsiz kargo</strong> kazandın.
+					</template>
+					<template v-else>
+						<svg width="14" height="14" fill="none" stroke="rgb(var(--color-primary-rgb))" stroke-width="2" viewBox="0 0 24 24">
+							<rect x="1" y="3" width="15" height="13" /><polygon points="16 8 20 8 23 11 23 16 16 16 16 8" />
+							<circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" />
+						</svg>
+						Ücretsiz kargo için <strong>{{ formatPrice(freeShippingTarget - subtotal) }}</strong> daha ekleyin
+					</template>
 				</div>
-				<button class="drawer-close" @click="close" aria-label="Kapat">
-					<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-						<path d="M18 6L6 18M6 6l12 12" />
-					</svg>
+				<div class="cart-progress-bar">
+					<div class="cart-progress-fill" :style="{ width: progressPct + '%' }"></div>
+				</div>
+			</div>
+
+			<div class="cart-body">
+				<TransitionGroup name="cart-item" tag="div" class="cart-items">
+					<article v-for="item in items" :key="item.key" class="cart-item">
+						<Link :href="`/products/${item.productSlug ?? item.productId}`" class="cart-item-image" @click="close">
+							<img :src="item.image" :alt="item.name" loading="lazy" />
+						</Link>
+						<div class="cart-item-body">
+							<div class="cart-item-brand">{{ item.brand }}</div>
+							<Link :href="`/products/${item.productSlug ?? item.productId}`" class="cart-item-name" @click="close">
+								{{ item.name }}
+							</Link>
+							<div class="cart-item-meta">
+								<span v-if="item.color" class="cart-color" :style="{ background: item.color }" :title="item.color"></span>
+								<span v-if="item.size">Beden: <strong>{{ item.size }}</strong></span>
+							</div>
+							<div class="cart-item-foot">
+								<div class="qty-stepper">
+									<button :disabled="item.qty <= 1" @click="$emit('update-qty', item.key, item.qty - 1)" aria-label="Azalt">−</button>
+									<span class="qty-value">{{ item.qty }}</span>
+									<button
+										:disabled="item.maxQty != null && item.qty >= item.maxQty"
+										:title="item.maxQty != null && item.qty >= item.maxQty ? `En fazla ${item.maxQty} adet (stok sınırı)` : ''"
+										@click="$emit('update-qty', item.key, item.qty + 1)"
+										aria-label="Artır"
+									>+</button>
+								</div>
+								<button class="remove-btn" @click="$emit('remove', item.key)" aria-label="Kaldır">
+									<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+										<polyline points="3 6 5 6 21 6" />
+										<path d="M19 6l-1 14H6L5 6" />
+										<path d="M10 11v6M14 11v6" />
+										<path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
+									</svg>
+								</button>
+							</div>
+						</div>
+						<div class="cart-item-price">
+							<div class="ci-total">{{ formatPrice(item.price * item.qty) }}</div>
+							<div v-if="item.qty > 1" class="ci-unit">{{ formatPrice(item.price) }} / adet</div>
+						</div>
+					</article>
+				</TransitionGroup>
+			</div>
+		</template>
+
+		<template v-if="items.length" #footer>
+			<div class="cart-footer-content">
+				<div class="sum-row">
+					<span>Ara Toplam</span>
+					<strong>{{ formatPrice(subtotal) }}</strong>
+				</div>
+				<div class="sum-row">
+					<span>Kargo</span>
+					<strong v-if="subtotal >= freeShippingTarget" class="text-success">Ücretsiz</strong>
+					<strong v-else>{{ formatPrice(shippingFee) }}</strong>
+				</div>
+				<div class="sum-row sum-total">
+					<span>Toplam</span>
+					<strong>{{ formatPrice(totalWithShipping) }}</strong>
+				</div>
+
+				<div class="cart-actions">
+					<Button variant="secondary" @click="continueShopping">Alışverişe Devam</Button>
+					<Button variant="primary" with-icon class="checkout-btn" @click="checkout">
+						Ödemeye Geç
+						<template #trailing><ArrowRight :size="13" /></template>
+					</Button>
+				</div>
+
+				<button v-if="items.length > 1" class="clear-cart-btn" @click="$emit('clear')">
+					Sepeti boşalt
 				</button>
 			</div>
-
-			<!-- Boş durum -->
-			<div v-if="items.length === 0" class="empty-cart">
-				<div class="empty-icon">
-					<svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-						<circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" />
-						<path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6" />
-					</svg>
-				</div>
-				<h3>Sepetiniz boş</h3>
-				<p>Beğendiğiniz ürünleri sepete ekleyerek alışverişe başlayabilirsiniz.</p>
-				<Link href="/products" class="btn btn-primary btn-with-icon" @click="close">
-					<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-						<rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18M9 21V9" />
-					</svg>
-					Kataloğa Göz At
-				</Link>
-			</div>
-
-			<!-- Sepet ürünleri -->
-			<template v-else>
-				<div class="cart-progress" v-if="freeShippingTarget > 0">
-					<div class="cart-progress-text">
-						<template v-if="subtotal >= freeShippingTarget">
-							<svg width="14" height="14" fill="#16a34a" viewBox="0 0 24 24">
-								<path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="#fff" stroke-width="2" fill="#16a34a" />
-							</svg>
-							Tebrikler! <strong>Ücretsiz kargo</strong> kazandın.
-						</template>
-						<template v-else>
-							<svg width="14" height="14" fill="none" stroke="rgb(var(--color-primary-rgb))" stroke-width="2" viewBox="0 0 24 24">
-								<rect x="1" y="3" width="15" height="13" /><polygon points="16 8 20 8 23 11 23 16 16 16 16 8" />
-								<circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" />
-							</svg>
-							Ücretsiz kargo için <strong>{{ formatPrice(freeShippingTarget - subtotal) }}</strong> daha ekleyin
-						</template>
-					</div>
-					<div class="cart-progress-bar">
-						<div class="cart-progress-fill" :style="{ width: progressPct + '%' }"></div>
-					</div>
-				</div>
-
-				<div class="cart-body">
-					<TransitionGroup name="cart-item" tag="div" class="cart-items">
-						<article v-for="item in items" :key="item.key" class="cart-item">
-							<Link :href="`/products/${item.productSlug ?? item.productId}`" class="cart-item-image" @click="close">
-								<img :src="item.image" :alt="item.name" loading="lazy" />
-							</Link>
-							<div class="cart-item-body">
-								<div class="cart-item-brand">{{ item.brand }}</div>
-								<Link :href="`/products/${item.productSlug ?? item.productId}`" class="cart-item-name" @click="close">
-									{{ item.name }}
-								</Link>
-								<div class="cart-item-meta">
-									<span v-if="item.color" class="cart-color" :style="{ background: item.color }" :title="item.color"></span>
-									<span v-if="item.size">Beden: <strong>{{ item.size }}</strong></span>
-								</div>
-								<div class="cart-item-foot">
-									<div class="qty-stepper">
-										<button :disabled="item.qty <= 1" @click="$emit('update-qty', item.key, item.qty - 1)" aria-label="Azalt">−</button>
-										<span class="qty-value">{{ item.qty }}</span>
-										<button
-											:disabled="item.maxQty != null && item.qty >= item.maxQty"
-											:title="item.maxQty != null && item.qty >= item.maxQty ? `En fazla ${item.maxQty} adet (stok sınırı)` : ''"
-											@click="$emit('update-qty', item.key, item.qty + 1)"
-											aria-label="Artır"
-										>+</button>
-									</div>
-									<button class="remove-btn" @click="$emit('remove', item.key)" aria-label="Kaldır">
-										<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-											<polyline points="3 6 5 6 21 6" />
-											<path d="M19 6l-1 14H6L5 6" />
-											<path d="M10 11v6M14 11v6" />
-											<path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
-										</svg>
-									</button>
-								</div>
-							</div>
-							<div class="cart-item-price">
-								<div class="ci-total">{{ formatPrice(item.price * item.qty) }}</div>
-								<div v-if="item.qty > 1" class="ci-unit">{{ formatPrice(item.price) }} / adet</div>
-							</div>
-						</article>
-					</TransitionGroup>
-				</div>
-
-				<div class="cart-footer">
-					<div class="sum-row">
-						<span>Ara Toplam</span>
-						<strong>{{ formatPrice(subtotal) }}</strong>
-					</div>
-					<div class="sum-row">
-						<span>Kargo</span>
-						<strong v-if="subtotal >= freeShippingTarget" class="text-success">Ücretsiz</strong>
-						<strong v-else>{{ formatPrice(shippingFee) }}</strong>
-					</div>
-					<div class="sum-row sum-total">
-						<span>Toplam</span>
-						<strong>{{ formatPrice(totalWithShipping) }}</strong>
-					</div>
-
-					<div class="cart-actions">
-						<Button variant="secondary" @click="continueShopping">Alışverişe Devam</Button>
-						<Button variant="primary" with-icon class="checkout-btn" @click="checkout">
-							Ödemeye Geç
-							<template #trailing><ArrowRight :size="13" /></template>
-						</Button>
-					</div>
-
-					<button v-if="items.length > 1" class="clear-cart-btn" @click="$emit('clear')">
-						Sepeti boşalt
-					</button>
-				</div>
-			</template>
-		</aside>
-	</Teleport>
+		</template>
+	</AppDrawer>
 </template>
 
 <script setup>
@@ -155,6 +136,7 @@ import { computed } from 'vue'
 import { Link } from '@inertiajs/vue3'
 import { ArrowRight } from 'lucide-vue-next'
 import Button from './Button.vue'
+import AppDrawer from './AppDrawer.vue'
 
 const props = defineProps({
 	modelValue: { type: Boolean, default: false },
@@ -191,14 +173,11 @@ function checkout() {
 </script>
 
 <style scoped>
-.cart-drawer {
-	width: 440px;
-	max-width: calc(100vw - 24px);
-}
-
-@media (max-width: 480px) {
-	.cart-drawer { width: 100vw; }
-}
+/* AppDrawer'ın .drawer-body'si varsayılan 18px/20px padding + 16px gap verir;
+   sepet satırlarının kenardan kenara (full-bleed) hover/ayraç görünümü için
+   bu padding'i sıfırlayıp her alt bölümün kendi padding'ini kullanmasını
+   sağlıyoruz. */
+:deep(.drawer-body) { padding: 0; gap: 0; }
 
 /* ── Boş durum ── */
 .empty-cart {
@@ -237,7 +216,12 @@ function checkout() {
 }
 
 /* ── Free shipping progress ── */
+/* AppDrawer'ın tek scroll bölgesi (.drawer-body) içinde kaldığı için,
+   listeyle birlikte kaymaması adına kendi başına sticky. */
 .cart-progress {
+	position: sticky;
+	top: 0;
+	z-index: 1;
 	padding: 12px 16px 14px;
 	background: rgb(var(--color-primary-soft-rgb));
 	border-bottom: 1px solid #f0f0f5;
@@ -450,12 +434,9 @@ function checkout() {
 }
 
 /* ── Footer ── */
-.cart-footer {
-	border-top: 1px solid #f0f0f5;
-	padding: 14px 16px 16px;
-	background: #fff;
-	flex-shrink: 0;
-}
+/* Kutu stili (border/padding/background) artık AppDrawer'ın kendi
+   .drawer-footer'ından geliyor — burada sadece içerik düzeni var. */
+.cart-footer-content { width: 100%; }
 
 .sum-row {
 	display: flex;
@@ -503,12 +484,4 @@ function checkout() {
 	transition: color .15s;
 }
 .clear-cart-btn:hover { color: #dc2626; text-decoration: underline; }
-</style>
-
-<style>
-/* CartDrawer Teleport'la body'ye gittiği için scoped olmayan minimal flex destek */
-.cart-drawer.drawer {
-	display: flex;
-	flex-direction: column;
-}
 </style>
