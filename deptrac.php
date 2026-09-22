@@ -69,11 +69,12 @@ return static function (DeptracConfig $config): void {
             // Marketplace ve AI infra katmanı tamamen bağımsız — hiçbir şeye bağımlı olamaz
             // (App dahil — mevcut kodda da hiç kullanmıyorlar, bu yüzden istisna eklenmedi).
             Ruleset::forLayer($marketplace),
-            // PatternEngine: framework/domain bağımsız kalıp motoru (Marketplace ile aynı
-            // izolasyon deseni) — hiçbir modüle bağımlı değil, DTO üzerinden çağrılır. Marketplace'ten
-            // farklı olarak kendi admin sayfası (Inertia controller) var, bu yüzden App'e (base
-            // Controller/kernel) bağımlı olabilir — tıpkı Atelier/Creative/Tenant gibi.
-            Ruleset::forLayer($patternEngine)->accesses($app),
+            // PatternEngine: iş-alanı modüllerine (Product/Tenant) bağımlı değil, DTO üzerinden
+            // çağrılır. Kendi admin sayfası (Inertia controller) var, bu yüzden App'e (base
+            // Controller/kernel) bağımlı olabilir — tıpkı Atelier/Creative/Tenant gibi. 2026-09-22'de
+            // Atelier'den taşınan Kalıp Kütüphanesi/Konsept Stüdyosu/Dönüştürücü, Atelier'in de
+            // kullandığı Creative AI infra'sına (Gemini istemcisi) bağımlı — Atelier'le aynı kural.
+            Ruleset::forLayer($patternEngine)->accesses($creativeAiInfra, $app),
             // Bagisto: Modules/Marketplace pattern'inden kasıtlı olarak bağımsız, ayrı bir
             // senkron modülü (bkz. Product event'lerini dinler, Marketplace contract/DTO'larını
             // kullanmaz). Product'ın domain event'lerine/modeline VE Tenant'ın domain

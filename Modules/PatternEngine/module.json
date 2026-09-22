@@ -1,7 +1,7 @@
 {
     "name": "PatternEngine",
     "alias": "patternengine",
-    "description": "Parametrik çocuk giyim kalıp motoru: DesignParams + beden ölçü profilinden doğrulanmış DXF kalıp üretir (ayrı Python/FastAPI mikroservisi). Bağımsız: hiçbir modüle bağımlı değil, DTO üzerinden çağrılır.",
+    "description": "Parametrik çocuk giyim kalıp motoru: DesignParams + beden ölçü profilinden doğrulanmış DXF kalıp üretir (ayrı Python/FastAPI mikroservisi). Ayrıca 2026-09-22'de Atelier'den taşınan Kalıp Kütüphanesi (DXF arşivi), AI Konsept Stüdyosu ve PDF→DXF Dönüştürücü'yü barındırır. İş-alanı modüllerine (Product/Tenant) bağımlı değil, DTO üzerinden çağrılır — Product/Tenant gibi Marketplace/Product tarafından da kullanılan Creative'in paylaşılan AI istemci altyapısı (Gemini) istisna.",
     "keywords": ["pattern", "dxf", "kalıp", "cad"],
     "priority": 0,
     "providers": [
@@ -9,6 +9,7 @@
     ],
     "files": [],
     "architecture": {
-        "allowed_dependencies": []
+        "allowed_dependencies": [],
+        "shared_infrastructure": ["Creative.Services.Ai"]
     }
 }

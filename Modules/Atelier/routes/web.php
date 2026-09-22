@@ -76,66 +76,8 @@ Route::middleware(['auth', 'verified'])
         Route::put('production-orders/{productionOrder}/steps/{step}', [\Modules\Atelier\Http\Controllers\ProductionOrderController::class, 'updateStep'])
             ->middleware('can:atelier.production.manage')->name('production-orders.steps.update');
 
-        // Atölye İş Akışı — kalıpçı/tasarımcı ataması (Modül D)
-        Route::get('assignments', [\Modules\Atelier\Http\Controllers\AssignmentController::class, 'index'])
-            ->middleware('can:atelier.view')->name('assignments.index');
-        Route::post('assignments', [\Modules\Atelier\Http\Controllers\AssignmentController::class, 'store'])
-            ->middleware('can:atelier.assignment.manage')->name('assignments.store');
-        // Başla/teslim: atanan kişi de yapabilir → yetki controller'da kontrol edilir.
-        Route::post('assignments/{assignment}/start', [\Modules\Atelier\Http\Controllers\AssignmentController::class, 'start'])
-            ->name('assignments.start');
-        Route::post('assignments/{assignment}/deliver', [\Modules\Atelier\Http\Controllers\AssignmentController::class, 'deliver'])
-            ->name('assignments.deliver');
-        Route::post('assignments/{assignment}/accept', [\Modules\Atelier\Http\Controllers\AssignmentController::class, 'accept'])
-            ->middleware('can:atelier.assignment.manage')->name('assignments.accept');
-        Route::post('assignments/{assignment}/reject', [\Modules\Atelier\Http\Controllers\AssignmentController::class, 'reject'])
-            ->middleware('can:atelier.assignment.manage')->name('assignments.reject');
-
-        // PDF→DXF Sayısallaştırma onay kuyruğu (Kol 1)
-        Route::get('conversions', [\Modules\Atelier\Http\Controllers\ConversionController::class, 'index'])
-            ->middleware('can:atelier.view')->name('conversions.index');
-        Route::post('conversions', [\Modules\Atelier\Http\Controllers\ConversionController::class, 'store'])
-            ->middleware('can:atelier.conversion.manage')->name('conversions.store');
-        Route::post('conversions/{job}/approve', [\Modules\Atelier\Http\Controllers\ConversionController::class, 'approve'])
-            ->middleware('can:atelier.conversion.manage')->name('conversions.approve');
-        Route::post('conversions/{job}/reject', [\Modules\Atelier\Http\Controllers\ConversionController::class, 'reject'])
-            ->middleware('can:atelier.conversion.manage')->name('conversions.reject');
-        Route::post('conversions/{job}/retry', [\Modules\Atelier\Http\Controllers\ConversionController::class, 'retry'])
-            ->middleware('can:atelier.conversion.manage')->name('conversions.retry');
-
-        // Kalıp Kütüphanesi (DXF arşivi — Modül C)
-        Route::get('patterns', [\Modules\Atelier\Http\Controllers\PatternController::class, 'index'])
-            ->middleware('can:atelier.pattern.view')->name('patterns.index');
-        Route::post('patterns', [\Modules\Atelier\Http\Controllers\PatternController::class, 'store'])
-            ->middleware('can:atelier.pattern.manage')->name('patterns.store');
-        Route::post('patterns/import', [\Modules\Atelier\Http\Controllers\PatternController::class, 'importPdf'])
-            ->middleware('can:atelier.pattern.manage')->name('patterns.import');
-        Route::post('patterns/import-url', [\Modules\Atelier\Http\Controllers\PatternController::class, 'importFromUrl'])
-            ->middleware('can:atelier.pattern.manage')->name('patterns.import-url');
-        Route::post('patterns/import-photo', [\Modules\Atelier\Http\Controllers\PatternController::class, 'importPhoto'])
-            ->middleware('can:atelier.pattern.manage')->name('patterns.import-photo');
-        Route::post('patterns/{pattern}/retry-extraction', [\Modules\Atelier\Http\Controllers\PatternController::class, 'retryExtraction'])
-            ->middleware('can:atelier.pattern.manage')->name('patterns.retry-extraction');
-        Route::get('patterns/{pattern}/tracer', [\Modules\Atelier\Http\Controllers\PatternController::class, 'tracer'])
-            ->middleware('can:atelier.pattern.manage')->name('patterns.tracer');
-        Route::get('patterns/{pattern}/tracer-image', [\Modules\Atelier\Http\Controllers\PatternController::class, 'tracerImage'])
-            ->middleware('can:atelier.pattern.manage')->name('patterns.tracer-image');
-        Route::post('patterns/{pattern}/traced', [\Modules\Atelier\Http\Controllers\PatternController::class, 'saveTraced'])
-            ->middleware('can:atelier.pattern.manage')->name('patterns.traced');
-        Route::put('patterns/{pattern}', [\Modules\Atelier\Http\Controllers\PatternController::class, 'update'])
-            ->middleware('can:atelier.pattern.manage')->name('patterns.update');
-        Route::delete('patterns/{pattern}', [\Modules\Atelier\Http\Controllers\PatternController::class, 'destroy'])
-            ->middleware('can:atelier.pattern.manage')->name('patterns.destroy');
-
-        // AI Konsept Stüdyosu (kalıp platformu — Kol 2)
-        Route::get('concepts', [\Modules\Atelier\Http\Controllers\ConceptStudioController::class, 'index'])
-            ->middleware('can:atelier.view')->name('concepts.index');
-        Route::post('concepts', [\Modules\Atelier\Http\Controllers\ConceptStudioController::class, 'generate'])
-            ->middleware('can:atelier.design.manage')->name('concepts.generate');
-        Route::post('concepts/{card}/regenerate', [\Modules\Atelier\Http\Controllers\ConceptStudioController::class, 'regenerate'])
-            ->middleware('can:atelier.design.manage')->name('concepts.regenerate');
-        Route::post('concepts/{card}/match', [\Modules\Atelier\Http\Controllers\ConceptStudioController::class, 'match'])
-            ->middleware('can:atelier.design.manage')->name('concepts.match');
-        Route::delete('concepts/{card}', [\Modules\Atelier\Http\Controllers\ConceptStudioController::class, 'destroy'])
-            ->middleware('can:atelier.design.manage')->name('concepts.destroy');
+        // Kalıp Kütüphanesi / Konsept Stüdyosu / Dönüştürücü / Atama route'ları
+        // 2026-09-22'de Modules/PatternEngine/routes/web.php'ye taşındı (aynı
+        // 'atelier.' prefix/name grubu altında — URL ve route adları değişmedi,
+        // bkz. docs/superpowers/specs/2026-09-22-modul-calisma-mantigi-revizyonu-design.md §3).
     });

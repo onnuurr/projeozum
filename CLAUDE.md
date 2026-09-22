@@ -47,10 +47,15 @@ sınırda (dış API entegratörü / bağımsız modül) Eloquent model sızdır
    `GradePatternRequestDTO`, `GradedPatternResultDTO`, `ProvenanceDTO`,
    `PatternProfileSummaryDTO`, `PatternProfileDTO`, `SaveProfileRequestDTO`,
    `DigitizeSuggestionDTO`) —
-   `Modules/PatternEngine` de Marketplace gibi hiçbir modüle bağımlı değildir (bkz.
-   `module.json` `allowed_dependencies: []`); ayrı bir Python/FastAPI kalıp-üretim
-   mikroservisiyle (framework bağımsız `pattern-core`) konuşur, çağıran modül (ör.
-   Product/Atelier) kendi Eloquent verisinden bu DTO'ları kurar.
+   `Modules/PatternEngine` de Marketplace gibi iş-alanı modüllerine (Product/Tenant) bağımlı
+   değildir (bkz. `module.json` `allowed_dependencies: []`); ayrı bir Python/FastAPI
+   kalıp-üretim mikroservisiyle (framework bağımsız `pattern-core`) konuşur, çağıran modül
+   (ör. Product/Atelier) kendi Eloquent verisinden bu DTO'ları kurar. **İstisna:**
+   2026-09-22'de Atelier'den taşınan Kalıp Kütüphanesi/Konsept Stüdyosu/Dönüştürücü,
+   Product/Atelier'in de kullandığı `Creative.Services.Ai` paylaşılan AI istemci
+   altyapısını (Gemini) `shared_infrastructure` olarak kullanır — bu, iş-alanı
+   bağımsızlığını bozmaz (Creative'in kendisi de bu altyapıyı tam olarak bu amaçla,
+   "provides_shared_infrastructure" ile başka modüllere açıyor).
 
 Yeni bir modül sınırında benzer bir izolasyon ihtiyacı doğarsa aynı desen kullanılabilir —
 ama yine bu listeye eklenmeli. Bunların dışında yeni DTO eklemeden önce bu dosya güncellenir.

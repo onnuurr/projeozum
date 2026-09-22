@@ -4,15 +4,6 @@ namespace Modules\Atelier\Providers;
 
 use Nwidart\Modules\Support\ModuleServiceProvider;
 use Illuminate\Console\Scheduling\Schedule;
-use Modules\Atelier\Services\Ai\Contracts\PatternMetadataExtractorContract;
-use Modules\Atelier\Services\Ai\Drivers\Gemini\GeminiPatternMetadataExtractor;
-use Modules\Atelier\Services\Ai\Drivers\Mock\MockPatternMetadataExtractor;
-use Modules\Atelier\Services\Concept\Contracts\ConceptImageGeneratorContract;
-use Modules\Atelier\Services\Concept\Drivers\GeminiConceptGenerator;
-use Modules\Atelier\Services\Concept\Drivers\MockConceptGenerator;
-use Modules\Atelier\Services\Conversion\Contracts\PdfDxfConverterContract;
-use Modules\Atelier\Services\Conversion\Drivers\HttpPdfDxfConverter;
-use Modules\Atelier\Services\Conversion\Drivers\MockPdfDxfConverter;
 
 class AtelierServiceProvider extends ModuleServiceProvider
 {
@@ -43,39 +34,9 @@ class AtelierServiceProvider extends ModuleServiceProvider
         RouteServiceProvider::class,
     ];
 
-    public function register(): void
-    {
-        parent::register();
-
-        // Konsept görsel sürücüsü: gemini (anahtar varsa), aksi halde mock.
-        // Model-agnostik soyutlama — sağlayıcı config ile değişir (yol haritası §3).
-        $this->app->bind(ConceptImageGeneratorContract::class, function ($app) {
-            $useGemini = config('atelier.concept.driver') === 'gemini'
-                && config('creative.ai.gemini.api_key');
-
-            return $app->make($useGemini ? GeminiConceptGenerator::class : MockConceptGenerator::class);
-        });
-
-        // PDF→DXF dönüştürücü: http (servis URL'i varsa), aksi halde mock.
-        $this->app->bind(PdfDxfConverterContract::class, function ($app) {
-            $useHttp = config('atelier.conversion.driver') === 'http'
-                && config('atelier.conversion.service_url');
-
-            return $app->make($useHttp ? HttpPdfDxfConverter::class : MockPdfDxfConverter::class);
-        });
-
-        // Kalıp metadata AI çıkarımı (PİLOT): gemini (anahtar varsa), aksi halde mock.
-        $this->app->bind(PatternMetadataExtractorContract::class, function ($app) {
-            $useGemini = config('atelier.pattern_metadata_ai.driver') === 'gemini'
-                && config('creative.ai.gemini.api_key');
-
-            return $app->make($useGemini ? GeminiPatternMetadataExtractor::class : MockPatternMetadataExtractor::class);
-        });
-    }
-
     /**
      * Define module schedules.
-     * 
+     *
      * @param $schedule
      */
     // protected function configureSchedules(Schedule $schedule): void
