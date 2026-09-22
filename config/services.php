@@ -35,4 +35,18 @@ return [
         ],
     ],
 
+    // İşlemsel SMS (OTP, fason/sipariş bildirimi) — bkz. App\Contracts\SmsProviderInterface.
+    // key/hash/sender tanımlı değilse App\Services\Sms\NullSmsProvider (dış istek atmaz).
+    'sms' => [
+        'driver' => env('SMS_DRIVER', 'iletimerkezi'),
+
+        'iletimerkezi' => [
+            'base_url' => env('ILETIMERKEZI_BASE_URL', 'https://api.iletimerkezi.com/v1'),
+            'key'      => env('ILETIMERKEZI_KEY'),
+            'hash'     => env('ILETIMERKEZI_HASH'),
+            // Panelde onaylı gönderici başlığı (max 11 karakter).
+            'sender'   => env('ILETIMERKEZI_SENDER'),
+        ],
+    ],
+
 ];

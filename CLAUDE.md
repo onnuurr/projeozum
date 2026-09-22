@@ -33,7 +33,7 @@ veritabanı şişti (bkz. `php artisan schema:audit`). Tekrarını önlemek içi
 ## DTO kullanım istisnaları
 
 Projenin genel kuralı (`laravel-service` skill): **DTO kullanılmaz**, servisler doğrudan
-Eloquent model/Collection döner. Bunun iki sanctioned istisnası var — her ikisi de bir dış
+Eloquent model/Collection döner. Bunun sanctioned istisnaları var — hepsi bir dış
 sınırda (dış API entegratörü / bağımsız modül) Eloquent model sızdırmamak için:
 
 1. `Modules/Finance/DTO/EInvoiceSendResult.php` — e-Fatura entegratörü dönüş değeri.
@@ -56,6 +56,14 @@ sınırda (dış API entegratörü / bağımsız modül) Eloquent model sızdır
    altyapısını (Gemini) `shared_infrastructure` olarak kullanır — bu, iş-alanı
    bağımsızlığını bozmaz (Creative'in kendisi de bu altyapıyı tam olarak bu amaçla,
    "provides_shared_infrastructure" ile başka modüllere açıyor).
+4. `App/DTO/SmsSendResult.php` — bu bir modül değil, `app/` (kernel katmanı,
+   `deptrac.php`'de tüm modüllerin bağımlı olabildiği `App` layer'ı) altında yaşayan
+   paylaşılan SMS entegrasyonunun (`App\Contracts\SmsProviderInterface`, sürücü:
+   `App\Services\Sms\IletiMerkeziSmsProvider`, 2026-09-22) dönüş değeri. Aynı gerekçe:
+   dış entegratörün (iletiMerkezi) ham cevabını sarıyor, bir Eloquent modelin yerine
+   geçmiyor. `Modules/Finance/DTO/EInvoiceSendResult.php` ile birebir aynı desen —
+   modül sınırında değil ama aynı "dış API entegratörü sonucu" kategorisinde.
 
-Yeni bir modül sınırında benzer bir izolasyon ihtiyacı doğarsa aynı desen kullanılabilir —
-ama yine bu listeye eklenmeli. Bunların dışında yeni DTO eklemeden önce bu dosya güncellenir.
+Yeni bir modül sınırında (veya `app/` kernel katmanında) benzer bir izolasyon ihtiyacı
+doğarsa aynı desen kullanılabilir — ama yine bu listeye eklenmeli. Bunların dışında yeni
+DTO eklemeden önce bu dosya güncellenir.

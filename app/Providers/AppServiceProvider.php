@@ -2,12 +2,15 @@
 
 namespace App\Providers;
 
+use App\Contracts\SmsProviderInterface;
 use App\Listeners\LogFailedLogin;
 use App\Listeners\LogLockout;
 use App\Listeners\LogModelActivity;
 use App\Listeners\LogPasswordReset;
 use App\Listeners\LogSuccessfulLogin;
 use App\Listeners\LogSuccessfulLogout;
+use App\Services\Sms\IletiMerkeziSmsProvider;
+use App\Services\Sms\NullSmsProvider;
 use App\Support\PostLoginRedirect;
 use ArchitectureDoctor\Console\ArchitectureDoctorCommand;
 use Illuminate\Auth\Events\Failed;
@@ -29,7 +32,20 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // İşlemsel SMS sağlayıcısı: key/hash/sender tanımlıysa gerçek iletiMerkezi
+        // sürücüsü, yoksa hiçbir dış istek atmayan NullSmsProvider (bkz.
+        // Modules\Finance\Providers\FinanceServiceProvider'ın e-Fatura binding'iyle
+        // aynı desen).
+        $this->app->bind(SmsProviderInterface::class, function () {
+            $config = (array) config('services.sms.iletimerkezi', []);
+
+            $usable = config('services.sms.driver') === 'iletimerkezi'
+                && ! empty($config['key'])
+                && ! empty($config['hash'])
+                && ! empty($config['sender']);
+
+            return $usable ? new IletiMerkeziSmsProvider($config) : new NullSmsProvider();
+        });
     }
 
     /**
