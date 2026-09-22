@@ -26,7 +26,7 @@ class GenerateCreativesRequest extends FormRequest
             'pose'          => ['sometimes', 'nullable', 'string', 'max:500'],
             // Creative Rules Engine kanalı — yalnız use_ai (svg+AI sahne) yolunda
             // anlamlı, ai_compose (Faz J) bundan bağımsız kalır.
-            'channel'             => ['sometimes', 'string', Rule::in([
+            'channel'             => ['sometimes', 'nullable', 'string', Rule::in([
                 CreativeSpec::CHANNEL_BRAND_POST,
                 CreativeSpec::CHANNEL_PARTNER_SHARE,
                 CreativeSpec::CHANNEL_CAMPAIGN,

@@ -125,6 +125,30 @@
 					<option v-for="p in poseOptions" :key="p.label" :value="p.value">{{ p.label }}</option>
 				</select>
 			</label>
+			<label
+				v-if="useAi"
+				class="pose-select"
+				title="Creative Rules Engine kanalı — AI kompozisyon kuralları (dekoratif öğe sınırı, logo alanı) kanala göre değişir"
+			>
+				<span class="fs-label">Kanal</span>
+				<select v-model="selectedChannel">
+					<option v-for="c in channelOptions" :key="c.value" :value="c.value">{{ c.label }}</option>
+				</select>
+			</label>
+			<label
+				v-if="useAi && selectedChannel === 'partner_share'"
+				class="pose-select"
+				title="Görsel bu iş ortağının hesabında paylaşılacak — logosu/iletişim bilgisi render'a eklenir"
+			>
+				<span class="fs-label">İş Ortağı</span>
+				<select v-model="selectedPartnerBrandKitId">
+					<option :value="null">— seçin —</option>
+					<option v-for="p in props.partner_brand_kits" :key="p.id" :value="p.id">{{ p.name }}</option>
+				</select>
+			</label>
+			<span v-if="useAi && selectedChannel === 'partner_share' && props.partner_brand_kits.length === 0" class="hint copy-hint">
+				Henüz iş ortağı profili yok — önce "İş Ortağı Profilleri" sayfasından ekleyin.
+			</span>
 			<Button
 				v-if="can('creative.generate')"
 				variant="primary"
@@ -163,6 +187,7 @@ const props = defineProps({
 	formats: { type: Array, default: () => [] },
 	default_format: { type: String, default: null },
 	ai_compose_available: { type: Boolean, default: false },
+	partner_brand_kits: { type: Array, default: () => [] },
 })
 
 const showToast = inject('showToast', null)
@@ -194,6 +219,16 @@ const poseOptions = [
 ]
 const selectedPose = ref('')
 
+// Creative Rules Engine kanalı — yalnız useAi (svg+AI sahne) yolunda anlamlı
+// (bkz. CreativeRenderService::buildCreativeSpec, sadece wantsAi() dalında çağrılır).
+const channelOptions = [
+	{ value: 'brand_post', label: 'Marka paylaşımı' },
+	{ value: 'partner_share', label: 'İş ortağı paylaşımı' },
+	{ value: 'campaign', label: 'Kampanya' },
+]
+const selectedChannel = ref('brand_post')
+const selectedPartnerBrandKitId = ref(null)
+
 const filteredProducts = computed(() => {
 	const q = search.value.trim().toLowerCase()
 	if (!q) return props.products
@@ -205,7 +240,11 @@ const allFilteredSelected = computed(() =>
 	filteredProducts.value.every(p => selectedProducts.has(p.id)),
 )
 
-const canGenerate = computed(() => selectedTemplate.value !== null && selectedProducts.size > 0)
+const canGenerate = computed(() => {
+	if (selectedTemplate.value === null || selectedProducts.size === 0) return false
+	if (useAi.value && selectedChannel.value === 'partner_share' && !selectedPartnerBrandKitId.value) return false
+	return true
+})
 
 function toggleProduct(id) {
 	if (selectedProducts.has(id)) selectedProducts.delete(id)
@@ -231,6 +270,8 @@ function generate() {
 		render_engine: useAiCompose.value ? 'ai_compose' : 'svg',
 		format: selectedFormat.value,
 		pose: useAi.value ? (selectedPose.value || null) : null,
+		channel: useAi.value ? selectedChannel.value : null,
+		partner_brand_kit_id: useAi.value && selectedChannel.value === 'partner_share' ? selectedPartnerBrandKitId.value : null,
 	}, {
 		onError: (errs) => {
 			showToast?.({

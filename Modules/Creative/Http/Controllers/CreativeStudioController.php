@@ -14,6 +14,7 @@ use Modules\Creative\Http\Requests\GenerateCreativesRequest;
 use Modules\Creative\Jobs\GenerateCreativeJob;
 use Modules\Creative\Models\CreativeAsset;
 use Modules\Creative\Models\CreativeTemplate;
+use Modules\Creative\Models\PartnerBrandKit;
 use Modules\Creative\Services\ReviewNotifier;
 use Modules\Product\Models\Product;
 
@@ -54,11 +55,22 @@ class CreativeStudioController extends Controller
                 'height' => $f['height'],
             ])->values();
 
+        $partnerBrandKits = PartnerBrandKit::query()
+            ->active()
+            ->orderBy('name')
+            ->get(['id', 'name', 'logo_path'])
+            ->map(fn (PartnerBrandKit $k) => [
+                'id'       => $k->id,
+                'name'     => $k->name,
+                'logo_url' => $k->logo_path ? $this->url($k->logo_path) : null,
+            ]);
+
         return Inertia::render('Creative::CreativeStudio', [
-            'templates'      => $templates,
-            'products'       => $products,
-            'formats'        => $formats,
-            'default_format' => config('creative.default_format'),
+            'templates'          => $templates,
+            'products'           => $products,
+            'formats'            => $formats,
+            'default_format'     => config('creative.default_format'),
+            'partner_brand_kits' => $partnerBrandKits,
             // ai_compose toggle'ı yalnızca gerçek bir fal sürücüsü + OCR
             // doğrulaması yapılandırılmışsa gösterilir — mock'ken sessizce
             // gizli kalır, yanıltıcı bir "özellik" vaadi vermez (bkz. Faz J).
