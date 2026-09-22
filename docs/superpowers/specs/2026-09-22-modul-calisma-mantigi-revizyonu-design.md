@@ -23,8 +23,8 @@ Hiçbir madde bu doküman yazılırken **uygulanmadı** — sıradaki adım, en 
 **Kararlar:**
 1. **Bayi Portalı tamamen kaldırılacak** (kod + route + tablo). `CLAUDE.md`'deki kademeli silme disiplinine göre: önce `pg_dump` yedek, sonra `_deprecated_<tarih>` karantina rename, birkaç sürüm sonra gerçek `dropIfExists`. **Bu ayrı bir etki-analizi + migration planı gerektiriyor** (bkz. Açık Sorular).
 2. **Başvuru süreci 2 aşamaya bölünecek:**
-   - **Aşama 1 (ön başvuru):** E-posta + SMS doğrulamalı yeni hesap oluşturma.
-   - **Aşama 2** (ön başvuru onaylanıp müşteriyle görüşüldükten sonra): vergi levhası + yasal belgeler istenir. **Kredi limiti ihtiyacı bu aşamada netleşir** (aşağıdaki madde 3 ile bağlantılı).
+   - **Aşama 1 (ön başvuru/ilk kayıt):** **SMS doğrulamalı** yeni hesap oluşturma (VatanSMS) — e-posta bu aşamada zorunlu değil, sadece telefon+SMS OTP ile doğrulanır.
+   - **Aşama 2** (ön başvuru onaylanıp müşteriyle görüşüldükten sonra, gerçek bayi kaydı): vergi levhası + yasal belgeler istenir, **e-posta burada zorunlu hale gelir**. Kredi limiti ihtiyacı bu aşamada netleşir (aşağıdaki madde 3 ile bağlantılı).
 3. **Kredi özelliği opsiyonel olacak.** Kartla ödemeyi tercih eden / kredi sistemini hiç kullanmayacak bayilerde `credit_limit`/`current_balance` hiç tanımlanmayabilecek — şu an her tenant'ta bu alanlar hep var (`Tenant.php` fillable), "kredi kullanmıyor" gerçek bir durum haline gelecek.
 4. **Erişim kuralları / toplu alım:** Yeni bir özellik gerekmiyor — mevcut mekanizma (`TenantAccessController`: marka/kategori toptan blok + `TenantProductAccess` ürün bazlı özel fiyat/blok) zaten yeterli. Süreç: bayi önce iletişime geçer, personel görüşüp uygun görürse mevcut ekrandan elle tanımlar. Otomatik bir "toplu alım talebi" akışı **istenmiyor**.
 5. **Pazaryeri entegrasyon hub'ı** (`Portal/MarketplaceHubController` + `Portal/Marketplace/{Trendyol,Hepsiburada,N11,Ciceksepeti}Controller`) Portal'la birlikte kalkıyor — yerini Bagisto'nun kendi (ayrı) sitesindeki panel alıyor (bkz. §7 Bagisto, §6 Marketplace).
@@ -32,7 +32,7 @@ Hiçbir madde bu doküman yazılırken **uygulanmadı** — sıradaki adım, en 
 **Çözülen sorular:**
 - **SMS sağlayıcısı:** VatanSMS düşünülüyor (kesinleşmedi ama yön belli — entegrasyon bu varsayımla tasarlanabilir, API değişirse adaptör katmanı düşük maliyetli değişir).
 - **Portal kaldırmanın etki analizi tamamlandı** — bkz. `docs/superpowers/specs/2026-09-22-bayi-portali-kaldirma-etki-analizi.md`. Özet: Portal UI + Portal'dan bağımsız çalışan pazaryeri senkron arka-plan sistemi (webhook/job/satış-gider-komisyon takibi) birlikte kalkıyor; `TenantInvoice`/`TenantCreditLedger`/`TenantPriceList`/`feed.xml` Portal'a benziyor ama kalıyor (Finance'in çekirdek akışı / bağımsız mekanizma).
-- **Aşama-1 "hesap oluşturma":** Önerilen çözüm — başvuran kişi e-posta+SMS OTP doğrulamasıyla gerçek bir `User` hesabı alır (henüz bir `Tenant`'a bağlı değil, "beklemede" durumda). Aşama-2 onaylanıp bir `Tenant` kaydı oluşturulunca, bu kullanıcı o tenant'ın owner'ı olarak bağlanır — şu anki `TenantController::store()`'un owner-hesabı-oluşturma adımını daha erken bir noktaya (Aşama-1'e) taşımak gibi düşünülebilir. **Bu bir tasarım önerisi, uygulamadan önce onay ister.**
+- **Aşama-1 "hesap oluşturma" — onaylandı:** Başvuran kişi Aşama-1'de **sadece SMS OTP** ile doğrulanmış gerçek bir `User` hesabı alır (henüz bir `Tenant`'a bağlı değil, "beklemede" durumda), e-posta bu adımda istenmez. Aşama-2 onaylanıp gerçek bayi kaydı yapılınca **e-posta zorunlu hale gelir** ve bu kullanıcı o tenant'ın owner'ı olarak bağlanır — şu anki `TenantController::store()`'un owner-hesabı-oluşturma adımı, telefon kısmı Aşama-1'e taşınmış, e-posta kısmı Aşama-2'de kalmış şekilde ikiye bölünüyor.
 
 ---
 
@@ -64,7 +64,7 @@ Hiçbir madde bu doküman yazılırken **uygulanmadı** — sıradaki adım, en 
 **Çözülen sorular:**
 - **PatternEngine'e taşımada bağımsızlık ilkesi nasıl korunacak:** PatternEngine'in `allowed_dependencies: []` ilkesi **değişmeyecek**. Taşınan özellikler (Concept Studio/Pattern/Converter), tıpkı `CLAUDE.md`'nin zaten tanımladığı DTO istisnası deseniyle (bkz. `CLAUDE.md` "DTO kullanım istisnaları" madde 3 — PatternEngine zaten bu deseni kullanıyor) Product'a **doğrudan Eloquent ilişkisiyle değil, çağıran taraf (Atelier/Product) kendi verisinden DTO kurup PatternEngine'e vererek** bağlanacak. Yani `Pattern`/`DesignCard`/`ConversionJob` modelleri PatternEngine tarafında yaşayacak ama `product_id` gibi FK'ler yerine DTO parametreleri (ürün adı/tipi gibi düz veri) kullanacak — mevcut desenin bir devamı, yeni bir mimari kural icat edilmiyor.
 - **Fason SMS + Tenant doğrulama SMS'i aynı sağlayıcı:** VatanSMS (bkz. §1), tek entegrasyon iki yerde kullanılır.
-- **WhatsApp entegrasyonu — hâlâ "ileride değerlendirilecek" statüsünde, bilinçli olarak çözülmedi.** Kullanıcı bunu net bir karar değil, bir olasılık olarak çerçeveledi ("belki entegre edilebilir") — bu nedenle plan bunu bir sonraki fazın konusu olarak bırakıyor, zorla bir sağlayıcı/mekanizma seçilmedi. Uygulama sırası bölümünde bu iş **kapsam dışı** tutuldu.
+- **WhatsApp entegrasyonu — kullanıcı onayıyla resmen ertelendi ("daha sonra aktif edeceğiz").** Bu ilk uygulama dalgasının kapsamı dışında; fason karar akışı (madde 3) SMS bildirimiyle ilk sürümde tamamlanır, WhatsApp ayrı bir sonraki faz.
 
 ---
 
@@ -157,16 +157,16 @@ Hiçbir madde bu doküman yazılırken **uygulanmadı** — sıradaki adım, en 
 | # | Soru | Çözüm |
 |---|---|---|
 | 1 | SMS sağlayıcısı | VatanSMS (düşünülüyor, kesinleşmedi ama tasarım bu varsayımla ilerleyebilir) |
-| 2 | WhatsApp entegrasyonu | Bilinçli olarak **açık bırakıldı** — kullanıcı bunu bir olasılık olarak çerçeveledi, bu fazın kapsamı dışında |
+| 2 | WhatsApp entegrasyonu | **Ertelendi** — kullanıcı onayıyla, bu fazın kapsamı dışında ("daha sonra aktif edeceğiz") |
 | 3 | Product↔Atelier mimari ihlali | `Product::boms()` kullanılmıyor (grep doğrulandı) → silinecek |
 | 4 | Portal kaldırmanın etki analizi | Tamamlandı, ayrı doküman: `2026-09-22-bayi-portali-kaldirma-etki-analizi.md` |
 | 5 | PatternEngine bağımsızlık ilkesi | Korunacak, mevcut DTO deseniyle (`CLAUDE.md` DTO istisnası madde 3) |
 | 6 | Bagisto çoklu-tenant mimarisi | Tek paylaşımlı site — webhook mimarisi değişmiyor |
 | 7 | `SupplierInvoice.production_order_id` | Tam kaldırılacak (migration + tüm katmanlar) |
 | 8 | `PriceList` akıbeti | Product'un kendi `PriceList`'i Portal'la ilgisiz, dokunulmuyor; `TenantPriceList` zaten §4'te (etki analizinde) çözüldü — kalıyor |
-| 9 | Aşama-1 "hesap oluşturma" | Öneri: erken `User` oluşturma + e-posta/SMS OTP, tenant'a Aşama-2'de bağlanır — **onay ister** |
+| 9 | Aşama-1 "hesap oluşturma" | Onaylandı: Aşama-1 sadece SMS OTP ile `User` oluşturur (e-posta yok), Aşama-2'de (gerçek bayi kaydı) e-posta zorunlu olur ve tenant'a bağlanır |
 
-**Yalnızca madde 2 (WhatsApp) ve madde 9 (Aşama-1 hesap modeli) hâlâ kullanıcı onayı/tercihi gerektiriyor** — geri kalan 7 madde ya kod doğrulamasıyla kesinleşen teknik kararlar, ya da zaten netleşmiş kullanıcı tercihleri.
+**Tüm 9 madde çözüldü ve onaylandı.** Planlama tamamlandı, uygulamaya geçilebilir.
 
 ## Önerilen sıralama (nihai)
 
