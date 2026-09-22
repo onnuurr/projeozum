@@ -6,6 +6,7 @@ use Modules\Creative\Http\Controllers\CreativeStudioController;
 use Modules\Creative\Http\Controllers\CreativeTemplateController;
 use Modules\Creative\Http\Controllers\GarmentScanController;
 use Modules\Creative\Http\Controllers\MannequinController;
+use Modules\Creative\Http\Controllers\PartnerBrandKitController;
 use Modules\Creative\Http\Controllers\PoseController;
 use Modules\Creative\Http\Controllers\RejectionReasonController;
 use Modules\Creative\Http\Controllers\ReviewChatController;
@@ -169,4 +170,18 @@ Route::middleware(['auth', 'verified'])
         ->middleware('can:creative.brandkit.manage')->whereNumber('brandKit')->name('brandkits.update');
     Route::delete('/brandkits/{brandKit}', [BrandKitController::class, 'destroy'])
         ->middleware('can:creative.brandkit.manage')->whereNumber('brandKit')->name('brandkits.destroy');
+
+    // ─── İş Ortağı Kreatif Profili (Partner Brand Kit) ─────────────────────
+    // 2026-09-22: Creative Rules Engine'in partner_share kanalı için
+    // (bkz. docs/superpowers/specs/2026-09-22-creative-ai-pazarlama-gorseli-design.md).
+    Route::get('/partner-brandkits', [PartnerBrandKitController::class, 'index'])
+        ->middleware('can:creative.view')->name('partner-brandkits.index');
+    Route::post('/partner-brandkits', [PartnerBrandKitController::class, 'store'])
+        ->middleware('can:creative.partnerbrandkit.manage')->name('partner-brandkits.store');
+    Route::post('/partner-brandkits/logo', [PartnerBrandKitController::class, 'uploadLogo'])
+        ->middleware('can:creative.partnerbrandkit.manage')->name('partner-brandkits.logo');
+    Route::put('/partner-brandkits/{partnerBrandKit}', [PartnerBrandKitController::class, 'update'])
+        ->middleware('can:creative.partnerbrandkit.manage')->whereNumber('partnerBrandKit')->name('partner-brandkits.update');
+    Route::delete('/partner-brandkits/{partnerBrandKit}', [PartnerBrandKitController::class, 'destroy'])
+        ->middleware('can:creative.partnerbrandkit.manage')->whereNumber('partnerBrandKit')->name('partner-brandkits.destroy');
 });

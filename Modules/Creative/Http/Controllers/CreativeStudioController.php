@@ -84,6 +84,15 @@ class CreativeStudioController extends Controller
             $meta['pose'] = $pose;
         }
 
+        // Creative Rules Engine kanalı (bkz. CreativeRenderService::buildCreativeSpec).
+        // channel gönderilmezse 'brand_post' varsayılır — geriye dönük uyumlu.
+        if ($channel = $request->validated('channel')) {
+            $meta['channel'] = $channel;
+        }
+        if ($partnerBrandKitId = $request->validated('partner_brand_kit_id')) {
+            $meta['partner_brand_kit_id'] = (int) $partnerBrandKitId;
+        }
+
         foreach ($productIds as $productId) {
             $asset = CreativeAsset::create([
                 'product_id'       => (int) $productId,

@@ -2,6 +2,7 @@
 
 namespace Modules\Creative\Services\Ai\Drivers\Gemini;
 
+use Modules\Creative\Services\Ai\Support\CreativeSpec;
 use Modules\Creative\Services\Ai\SceneRequest;
 
 /**
@@ -34,8 +35,15 @@ class GeminiPromptBuilder
             sprintf('Create a photorealistic, social-media-ready scene that prominently and faithfully features this product ("%s").', $request->productName),
             'Critically: preserve the product\'s real shape, colors, materials, branding, text and details exactly as in the reference photos — do not redesign, replace or invent a different product.',
             'Place it naturally in an attractive, clean lifestyle or studio setting with tasteful props and soft realistic lighting.',
-            'Leave some uncluttered space for overlaid text.',
         ];
+
+        // Creative Rules Engine spec'i varsa kanal/format'a özel kompozisyon
+        // kuralları eklenir (2026-09-22, bkz. CreativeSpec docblock'u).
+        if ($request->spec) {
+            $lines = array_merge($lines, $this->specLines($request->spec));
+        } else {
+            $lines[] = 'Leave some uncluttered space for overlaid text.';
+        }
 
         // Manken + poz planlaması: ürünü taşıyacak modeli ve duruşunu tarif eder.
         $lines[] = $this->posePlan($request);
@@ -55,6 +63,49 @@ class GeminiPromptBuilder
         }
 
         return implode(' ', $lines);
+    }
+
+    /**
+     * CreativeSpec'ten kanal/format'a özel yönergeler üretir. KRİTİK: hiçbir
+     * satır AI'dan metin/logo/fiyat/CTA ÇİZMESİNİ istemez — bunlar her zaman
+     * spec'ten bağımsız, ayrı bir render adımında (SVG şablon motoru)
+     * yerleştirilir. Bu fonksiyon yalnızca atmosfer/kompozisyon/dekoratif
+     * öğe sınırlarını tarif eder.
+     *
+     * @return array<int,string>
+     */
+    private function specLines(CreativeSpec $spec): array
+    {
+        $lines = [
+            sprintf('Visual style: %s.', str_replace('_', ' ', $spec->visualStyle)),
+            'Do NOT render any text, numbers, prices, logos, phone numbers, website addresses, '
+            . 'or calls-to-action anywhere in the image — leave clean, uncluttered negative space '
+            . 'where such elements will be added separately in a precise post-processing step.',
+        ];
+
+        if ($spec->logoRequired) {
+            $lines[] = $spec->logoSafeArea
+                ? 'Reserve a clean, empty corner or edge area suitable for a logo overlay — do not place busy detail there.'
+                : 'Leave room for a logo overlay.';
+        }
+
+        if ($spec->partnerLogoRequired) {
+            $lines[] = 'Reserve a second clean area (distinct from the brand logo area) for a partner logo overlay.';
+        }
+
+        $lines[] = $spec->maxDecorativeElements > 0
+            ? sprintf('You may include up to %d tasteful decorative visual elements (props, shapes, light effects) — no more.', $spec->maxDecorativeElements)
+            : 'Keep the scene free of extra decorative props — focus entirely on the product and atmosphere.';
+
+        if ($spec->bannedWords !== []) {
+            // Metin zaten yasak (yukarıda) ama marka banned_words'ü varsa AI'ın
+            // arka plandaki tabela/ambalaj gibi öğelerde bile bu kelimeleri
+            // "hayal etmemesi" için ayrıca belirtiyoruz.
+            $lines[] = 'Do not depict or imply any of these words/brands in the scene: '
+                . implode(', ', $spec->bannedWords) . '.';
+        }
+
+        return $lines;
     }
 
     /**

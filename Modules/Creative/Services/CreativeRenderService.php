@@ -7,11 +7,13 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Modules\Creative\Models\CreativeAsset;
 use Modules\Creative\Models\CreativeTemplate;
+use Modules\Creative\Models\PartnerBrandKit;
 use Modules\Creative\Services\Ai\AiSceneService;
 use Modules\Creative\Services\Ai\CompositionRequest;
 use Modules\Creative\Services\Ai\Contracts\CompositionComposerContract;
 use Modules\Creative\Services\Ai\Contracts\CopyGeneratorContract;
 use Modules\Creative\Services\Ai\CopyRequest;
+use Modules\Creative\Services\Ai\Support\CreativeSpec;
 use Modules\Creative\Services\Ai\SceneRequest;
 use Modules\Creative\Services\Ai\Support\ImageFile;
 use Modules\Creative\Services\Enhancement\ImageEnhancerContract;
@@ -39,6 +41,7 @@ class CreativeRenderService
         private CompositionComposerContract $composer,
         private TextRecognizerContract $textRecognizer,
         private LayoutConstraintEngine $layoutConstraints,
+        private CreativeRulesEngine $rulesEngine,
     ) {}
 
     /**
@@ -125,6 +128,7 @@ class CreativeRenderService
         $imagePaths = [];
         $usedImage  = null;
         $aiStored   = null;
+        $spec       = null;
 
         if ($src = $this->pickImageSrc($product)) {
             if ($local = $this->resolver->toLocalPath($src)) {
@@ -145,6 +149,8 @@ class CreativeRenderService
                         }
                     }
 
+                    $spec = $this->buildCreativeSpec($asset, $brand, $format);
+
                     $scene = $this->aiScenes->generate(
                         new SceneRequest(
                             productName: (string) $product->name,
@@ -154,6 +160,7 @@ class CreativeRenderService
                             aspectLabel: $format['aspect'] ?? null,
                             pose: $this->resolvePose($asset),
                             designBrief: $briefWithExtra !== '' ? $briefWithExtra : null,
+                            spec: $spec,
                         ),
                         (int) $product->id,
                     );
@@ -206,17 +213,18 @@ class CreativeRenderService
             'review_status' => CreativeAsset::REVIEW_PENDING,
             'error'         => null,
             'meta'          => array_merge($asset->meta ?? [], [
-                'used_image' => $usedImage,
-                'ai_scene'   => $aiStored,
-                'caption'    => $caption['caption'] ?? null,
-                'hashtags'   => $caption['hashtags'] ?? [],
-                'render_ms'  => (int) round((microtime(true) - $startedAt) * 1000),
-                'format'       => $format['key'] ?? null,
-                'format_label' => $format['label'] ?? null,
-                'width'        => $format['width'] ?? $template->width,
-                'height'       => $format['height'] ?? $template->height,
-                'copy'        => array_filter($copy['values'] ?? [], fn ($v) => $v !== '') ?: null,
-                'copy_ai_raw' => $copy['envelope'] ?? null,
+                'used_image'    => $usedImage,
+                'ai_scene'      => $aiStored,
+                'creative_spec' => $spec?->toArray(),
+                'caption'       => $caption['caption'] ?? null,
+                'hashtags'      => $caption['hashtags'] ?? [],
+                'render_ms'     => (int) round((microtime(true) - $startedAt) * 1000),
+                'format'        => $format['key'] ?? null,
+                'format_label'  => $format['label'] ?? null,
+                'width'         => $format['width'] ?? $template->width,
+                'height'        => $format['height'] ?? $template->height,
+                'copy'          => array_filter($copy['values'] ?? [], fn ($v) => $v !== '') ?: null,
+                'copy_ai_raw'   => $copy['envelope'] ?? null,
             ]),
         ])->save();
 
@@ -463,6 +471,29 @@ class CreativeRenderService
     private function wantsAi(CreativeAsset $asset): bool
     {
         return (bool) ($asset->meta['use_ai'] ?? false);
+    }
+
+    /**
+     * Asset'in kanalına (meta.channel) ve — partner_share ise — bağlı
+     * PartnerBrandKit'e göre Creative Rules Engine'den bir CreativeSpec üretir.
+     * meta.channel yoksa 'brand_post' varsayılır (geriye dönük uyumlu —
+     * eski asset'ler/istekler bu alanı hiç göndermiyordu).
+     */
+    private function buildCreativeSpec(CreativeAsset $asset, array $brand, array $format): CreativeSpec
+    {
+        $channel = (string) ($asset->meta['channel'] ?? CreativeSpec::CHANNEL_BRAND_POST);
+
+        $partner = null;
+        if ($channel === CreativeSpec::CHANNEL_PARTNER_SHARE && ! empty($asset->meta['partner_brand_kit_id'])) {
+            $partner = PartnerBrandKit::find((int) $asset->meta['partner_brand_kit_id']);
+        }
+
+        return $this->rulesEngine->buildSpec(
+            brandTokens: $brand,
+            channel: $channel,
+            formatKey: (string) ($format['key'] ?? 'instagram_post'),
+            partner: $partner,
+        );
     }
 
     /**

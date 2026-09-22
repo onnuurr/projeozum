@@ -30,7 +30,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { Link } from '@inertiajs/vue3'
-import { Menu, Play, LayoutGrid, PersonStanding, Footprints, Shirt, ScanSearch, LayoutTemplate, Palette } from 'lucide-vue-next'
+import { Menu, Play, LayoutGrid, PersonStanding, Footprints, Shirt, ScanSearch, LayoutTemplate, Palette, Handshake } from 'lucide-vue-next'
 
 const props = defineProps({
 	current: { type: String, required: true },
@@ -47,6 +47,7 @@ const tabs = [
 	{ key: 'garment-scans', label: 'Parça Tespiti',  href: '/creative/garment-scans', icon: ScanSearch },
 	{ key: 'templates',     label: 'Şablonlar',      href: '/creative/templates',     icon: LayoutTemplate },
 	{ key: 'brandkits',     label: 'Marka Kiti',     href: '/creative/brandkits',     icon: Palette },
+	{ key: 'partner-brandkits', label: 'İş Ortağı Profilleri', href: '/creative/partner-brandkits', icon: Handshake },
 ]
 
 const activeTab = computed(() => tabs.find((tab) => tab.key === props.current) ?? tabs[0])

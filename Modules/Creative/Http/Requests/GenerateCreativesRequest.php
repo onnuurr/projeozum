@@ -4,6 +4,7 @@ namespace Modules\Creative\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Modules\Creative\Services\Ai\Support\CreativeSpec;
 
 class GenerateCreativesRequest extends FormRequest
 {
@@ -23,6 +24,14 @@ class GenerateCreativesRequest extends FormRequest
             'render_engine' => ['sometimes', 'string', Rule::in(['svg', 'ai_compose'])],
             'format'        => ['sometimes', 'string', Rule::in(array_keys((array) config('creative.formats', [])))],
             'pose'          => ['sometimes', 'nullable', 'string', 'max:500'],
+            // Creative Rules Engine kanalı — yalnız use_ai (svg+AI sahne) yolunda
+            // anlamlı, ai_compose (Faz J) bundan bağımsız kalır.
+            'channel'             => ['sometimes', 'string', Rule::in([
+                CreativeSpec::CHANNEL_BRAND_POST,
+                CreativeSpec::CHANNEL_PARTNER_SHARE,
+                CreativeSpec::CHANNEL_CAMPAIGN,
+            ])],
+            'partner_brand_kit_id' => ['sometimes', 'nullable', 'integer', 'exists:partner_brand_kits,id'],
         ];
     }
 }

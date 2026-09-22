@@ -2,6 +2,8 @@
 
 namespace Modules\Creative\Services\Ai;
 
+use Modules\Creative\Services\Ai\Support\CreativeSpec;
+
 /**
  * AI sahne kurgusu için girdi taşıyıcı (DTO).
  *
@@ -21,6 +23,11 @@ class SceneRequest
      *                                          ürün adına göre kürate bir poz seçer
      * @param  string|null  $designBrief        Marka brief'i (admin tanımlı, sahnenin genel
      *                                          mood/kompozisyonu için ipucu)
+     * @param  CreativeSpec|null  $spec         Creative Rules Engine çıktısı — verilmişse
+     *                                          Prompt Builder kanal/format'a özel kompozisyon
+     *                                          kurallarını (visual_style/logo-safe-area/
+     *                                          dekoratif öğe sınırı/banned_words) uygular.
+     *                                          null ise eski (kanal-agnostik) davranış korunur.
      */
     public function __construct(
         public string $productName,
@@ -31,5 +38,6 @@ class SceneRequest
         public ?string $promptOverride = null,
         public ?string $pose = null,
         public ?string $designBrief = null,
+        public ?CreativeSpec $spec = null,
     ) {}
 }
