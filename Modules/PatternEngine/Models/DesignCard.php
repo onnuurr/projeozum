@@ -1,6 +1,6 @@
 <?php
 
-namespace Modules\Atelier\Models;
+namespace Modules\PatternEngine\Models;
 
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;

@@ -1,6 +1,6 @@
 <?php
 
-namespace Modules\Atelier\Http\Controllers;
+namespace Modules\PatternEngine\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Support\Media;
@@ -10,14 +10,14 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
-use Modules\Atelier\Http\Requests\ImportPatternFromUrlRequest;
-use Modules\Atelier\Http\Requests\SaveTracedPatternRequest;
-use Modules\Atelier\Jobs\ExtractPatternFromPdfJob;
-use Modules\Atelier\Jobs\ExtractPatternFromPhotoJob;
-use Modules\Atelier\Models\Pattern;
-use Modules\Atelier\Services\Conversion\Contracts\PdfDxfConverterContract;
-use Modules\Atelier\Services\PatternLibraryService;
-use Modules\Atelier\Services\PatternUrlImportService;
+use Modules\PatternEngine\Http\Requests\ImportPatternFromUrlRequest;
+use Modules\PatternEngine\Http\Requests\SaveTracedPatternRequest;
+use Modules\PatternEngine\Jobs\ExtractPatternFromPdfJob;
+use Modules\PatternEngine\Jobs\ExtractPatternFromPhotoJob;
+use Modules\PatternEngine\Models\Pattern;
+use Modules\PatternEngine\Services\Conversion\Contracts\PdfDxfConverterContract;
+use Modules\PatternEngine\Services\PatternLibraryService;
+use Modules\PatternEngine\Services\PatternUrlImportService;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 class PatternController extends Controller
@@ -78,7 +78,7 @@ class PatternController extends Controller
         $allTags = Pattern::query()->join('pattern_tags', 'patterns.id', '=', 'pattern_tags.pattern_id')
             ->select('pattern_tags.tag')->distinct()->orderBy('tag')->pluck('tag');
 
-        return Inertia::render('Atelier::Patterns', [
+        return Inertia::render('PatternEngine::Patterns', [
             'patterns'     => $patterns,
             'productTypes' => $productTypes,
             'allTags'      => $allTags,
@@ -201,7 +201,7 @@ class PatternController extends Controller
             404,
         );
 
-        return Inertia::render('Atelier::RasterTracer', [
+        return Inertia::render('PatternEngine::RasterTracer', [
             'pattern' => [
                 'id'          => $pattern->id,
                 'name'        => $pattern->name,

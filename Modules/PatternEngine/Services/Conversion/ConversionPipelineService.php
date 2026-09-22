@@ -1,15 +1,15 @@
 <?php
 
-namespace Modules\Atelier\Services\Conversion;
+namespace Modules\PatternEngine\Services\Conversion;
 
 use App\Support\Media;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Modules\Atelier\Models\ConversionJob;
-use Modules\Atelier\Models\Pattern;
-use Modules\Atelier\Services\Conversion\Contracts\PdfDxfConverterContract;
+use Modules\PatternEngine\Models\ConversionJob;
+use Modules\PatternEngine\Models\Pattern;
+use Modules\PatternEngine\Services\Conversion\Contracts\PdfDxfConverterContract;
 use Throwable;
 
 /**
@@ -24,7 +24,7 @@ class ConversionPipelineService
 
     private function disk(): string
     {
-        return (string) config('atelier.conversion.disk', 'public');
+        return (string) config('patternengine.conversion.disk', 'public');
     }
 
     /**
@@ -32,7 +32,7 @@ class ConversionPipelineService
      */
     public function submit(UploadedFile $pdf, ?int $createdBy = null): ConversionJob
     {
-        $path = $pdf->store((string) config('atelier.conversion.pdf_dir', 'atelier/conversions/pdf'), $this->disk());
+        $path = $pdf->store((string) config('patternengine.conversion.pdf_dir', 'atelier/conversions/pdf'), $this->disk());
 
         return ConversionJob::create([
             'source_pdf_path' => $path,
@@ -58,7 +58,7 @@ class ConversionPipelineService
 
             $dxfPath = null;
             if ($result->dxf !== null && $result->dxf !== '') {
-                $dxfPath = trim((string) config('atelier.conversion.dxf_dir', 'atelier/conversions/dxf'), '/')
+                $dxfPath = trim((string) config('patternengine.conversion.dxf_dir', 'atelier/conversions/dxf'), '/')
                     . '/' . Str::uuid() . '.dxf';
                 Storage::disk($this->disk())->put($dxfPath, $result->dxf);
             }

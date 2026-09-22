@@ -1,10 +1,10 @@
 <?php
 
-namespace Modules\Atelier\Notifications;
+namespace Modules\PatternEngine\Notifications;
 
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
-use Modules\Atelier\Models\Assignment;
+use Modules\PatternEngine\Models\Assignment;
 
 /**
  * Atölye iş akışı bildirimleri (Modül D). Tek sınıf, fabrika metodlarıyla.

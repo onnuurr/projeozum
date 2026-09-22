@@ -1,13 +1,13 @@
 <?php
 
-namespace Modules\Atelier\Services;
+namespace Modules\PatternEngine\Services;
 
 use App\Support\Media;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
-use Modules\Atelier\Models\Assignment;
-use Modules\Atelier\Notifications\AssignmentNotification;
+use Modules\PatternEngine\Models\Assignment;
+use Modules\PatternEngine\Notifications\AssignmentNotification;
 
 /**
  * Atölye iş akışı (Modül D): tasarım kartı/kalıp → kalıpçı/tasarımcı ataması →

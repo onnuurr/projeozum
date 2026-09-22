@@ -1,6 +1,6 @@
 <?php
 
-namespace Modules\Atelier\Jobs;
+namespace Modules\PatternEngine\Jobs;
 
 use App\Support\Media;
 use Illuminate\Bus\Queueable;
@@ -9,11 +9,11 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
-use Modules\Atelier\Models\Pattern;
-use Modules\Atelier\Services\Ai\Contracts\PatternMetadataExtractorContract;
-use Modules\Atelier\Services\Conversion\Contracts\PdfDxfConverterContract;
-use Modules\Atelier\Services\PatternLibraryService;
-use Modules\Atelier\Services\PatternMetadataRuleEngine;
+use Modules\PatternEngine\Models\Pattern;
+use Modules\PatternEngine\Services\AiExtraction\Contracts\PatternMetadataExtractorContract;
+use Modules\PatternEngine\Services\Conversion\Contracts\PdfDxfConverterContract;
+use Modules\PatternEngine\Services\PatternLibraryService;
+use Modules\PatternEngine\Services\PatternMetadataRuleEngine;
 use Throwable;
 
 /**

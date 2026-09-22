@@ -1,6 +1,6 @@
 <?php
 
-namespace Modules\Atelier\Http\Controllers;
+namespace Modules\PatternEngine\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
@@ -9,11 +9,11 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
-use Modules\Atelier\Jobs\GenerateConceptJob;
-use Modules\Atelier\Models\DesignCard;
-use Modules\Atelier\Models\Pattern;
-use Modules\Atelier\Services\Concept\ConceptRequest;
-use Modules\Atelier\Services\Concept\ConceptStudioService;
+use Modules\PatternEngine\Jobs\GenerateConceptJob;
+use Modules\PatternEngine\Models\DesignCard;
+use Modules\PatternEngine\Models\Pattern;
+use Modules\PatternEngine\Services\Concept\ConceptRequest;
+use Modules\PatternEngine\Services\Concept\ConceptStudioService;
 
 class ConceptStudioController extends Controller
 {
@@ -21,7 +21,7 @@ class ConceptStudioController extends Controller
 
     public function index(): Response
     {
-        $disk = (string) config('atelier.concept.disk', 'public');
+        $disk = (string) config('patternengine.concept.disk', 'public');
 
         $cards = DesignCard::query()
             ->with('pattern:id,name,product_type')
@@ -56,18 +56,18 @@ class ConceptStudioController extends Controller
                 'productType' => $p->product_type, 'sizeRange' => $p->size_range,
             ]);
 
-        return Inertia::render('Atelier::ConceptStudio', [
+        return Inertia::render('PatternEngine::ConceptStudio', [
             'cards'       => $cards,
             'patterns'    => $patterns,
-            'maxVariants' => (int) config('atelier.concept.max_variants', 4),
-            'driver'      => config('atelier.concept.driver') === 'gemini' && config('creative.ai.gemini.api_key')
+            'maxVariants' => (int) config('patternengine.concept.max_variants', 4),
+            'driver'      => config('patternengine.concept.driver') === 'gemini' && config('creative.ai.gemini.api_key')
                 ? 'gemini' : 'mock',
         ]);
     }
 
     public function generate(Request $request): RedirectResponse
     {
-        $max  = (int) config('atelier.concept.max_variants', 4);
+        $max  = (int) config('patternengine.concept.max_variants', 4);
         $data = $request->validate([
             'product_type' => ['required', 'string', 'max:100'],
             'source'       => ['required', Rule::in([DesignCard::SOURCE_CONCEPT_FIRST, DesignCard::SOURCE_PATTERN_FIRST])],

@@ -1,8 +1,8 @@
 <?php
 
-namespace Modules\Atelier\Services\Concept\Contracts;
+namespace Modules\PatternEngine\Services\Concept\Contracts;
 
-use Modules\Atelier\Services\Concept\ConceptRequest;
+use Modules\PatternEngine\Services\Concept\ConceptRequest;
 
 /**
  * Model-agnostik konsept görsel üreticisi.

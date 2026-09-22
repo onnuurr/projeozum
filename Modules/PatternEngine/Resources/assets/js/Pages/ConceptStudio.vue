@@ -200,7 +200,7 @@ import Tag from '@/Components/Tag.vue'
 import Button from '@/Components/Button.vue'
 import AppDrawer from '@/Components/AppDrawer.vue'
 import EmptyState from '@/Components/EmptyState.vue'
-import AtelierNav from '../Components/AtelierNav.vue'
+import AtelierNav from '@Modules/Atelier/Resources/assets/js/Components/AtelierNav.vue'
 import { useCan } from '@/composables/useCan'
 
 defineOptions({ layout: AppLayout })

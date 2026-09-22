@@ -1,6 +1,6 @@
 <?php
 
-namespace Modules\Atelier\Http\Controllers;
+namespace Modules\PatternEngine\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
@@ -8,9 +8,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
-use Modules\Atelier\Jobs\ProcessConversionJob;
-use Modules\Atelier\Models\ConversionJob;
-use Modules\Atelier\Services\Conversion\ConversionPipelineService;
+use Modules\PatternEngine\Jobs\ProcessConversionJob;
+use Modules\PatternEngine\Models\ConversionJob;
+use Modules\PatternEngine\Services\Conversion\ConversionPipelineService;
 
 class ConversionController extends Controller
 {
@@ -18,7 +18,7 @@ class ConversionController extends Controller
 
     public function index(Request $request): Response
     {
-        $disk   = (string) config('atelier.conversion.disk', 'public');
+        $disk   = (string) config('patternengine.conversion.disk', 'public');
         $status = (string) $request->input('status', '');
 
         $jobs = ConversionJob::query()
@@ -46,11 +46,11 @@ class ConversionController extends Controller
         $counts = ConversionJob::query()
             ->selectRaw('status, count(*) as c')->groupBy('status')->pluck('c', 'status');
 
-        return Inertia::render('Atelier::Conversions', [
+        return Inertia::render('PatternEngine::Conversions', [
             'jobs'      => $jobs,
             'filters'   => ['status' => $status],
             'counts'    => $counts,
-            'driver'    => config('atelier.conversion.driver') === 'http' && config('atelier.conversion.service_url')
+            'driver'    => config('patternengine.conversion.driver') === 'http' && config('patternengine.conversion.service_url')
                 ? 'http' : 'mock',
         ]);
     }

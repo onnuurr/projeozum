@@ -1,8 +1,8 @@
 <?php
 
-namespace Modules\Atelier\Services\Ai\Drivers\Mock;
+namespace Modules\PatternEngine\Services\AiExtraction\Drivers\Mock;
 
-use Modules\Atelier\Services\Ai\Contracts\PatternMetadataExtractorContract;
+use Modules\PatternEngine\Services\AiExtraction\Contracts\PatternMetadataExtractorContract;
 
 /**
  * Gemini anahtarı yokken / driver=mock iken devreye giren passthrough
@@ -15,7 +15,7 @@ class MockPatternMetadataExtractor implements PatternMetadataExtractorContract
         return [
             'analysis_version' => 1,
             'model'            => 'mock',
-            'prompt_version'   => (int) config('atelier.pattern_metadata_ai.prompt_version', 1),
+            'prompt_version'   => (int) config('patternengine.pattern_metadata_ai.prompt_version', 1),
             'generated_at'     => now()->toIso8601String(),
             'data'             => [
                 'product_type' => ['value' => null, 'raw_text' => null, 'confidence' => 0.0],

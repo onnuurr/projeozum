@@ -1,6 +1,6 @@
 <?php
 
-namespace Modules\Atelier\Services\Ai\Contracts;
+namespace Modules\PatternEngine\Services\AiExtraction\Contracts;
 
 /**
  * Kalıp PDF'inin kapak sayfası görselinden ürün tipi + beden aralığını tahmin
@@ -12,7 +12,7 @@ namespace Modules\Atelier\Services\Ai\Contracts;
  * generated_at/data) — Creative modülünün {@see \Modules\Creative\Services\Ai\
  * Contracts\GarmentPartAnalyzerContract} ile AYNI desen. Bu sonuç ASLA doğrudan
  * patterns.product_type/size_range kolonlarına yazılmaz; aradaki
- * {@see \Modules\Atelier\Services\PatternMetadataRuleEngine} confidence
+ * {@see \Modules\PatternEngine\Services\PatternMetadataRuleEngine} confidence
  * eşiğinin altındaki alanları eler. Sürücü herhangi bir hata durumunda (API
  * hatası, geçersiz JSON) tüm alanları confidence=0 ile döner — asla istisna
  * fırlatmaz, çıkarım pipeline'ı bu adım yüzünden bozulmaz.

@@ -1,8 +1,8 @@
 <?php
 
-namespace Modules\Atelier\Services\Conversion\Contracts;
+namespace Modules\PatternEngine\Services\Conversion\Contracts;
 
-use Modules\Atelier\Services\Conversion\ConversionResult;
+use Modules\PatternEngine\Services\Conversion\ConversionResult;
 
 /**
  * PDF→DXF dönüştürücü soyutlaması.

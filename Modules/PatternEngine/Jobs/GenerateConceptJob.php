@@ -1,14 +1,14 @@
 <?php
 
-namespace Modules\Atelier\Jobs;
+namespace Modules\PatternEngine\Jobs;
 
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Modules\Atelier\Models\DesignCard;
-use Modules\Atelier\Services\Concept\ConceptStudioService;
+use Modules\PatternEngine\Models\DesignCard;
+use Modules\PatternEngine\Services\Concept\ConceptStudioService;
 
 /**
  * AI konsept görsellerini arka planda üretir (Gemini çoklu görselde yavaş olabilir).

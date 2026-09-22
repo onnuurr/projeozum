@@ -1,6 +1,6 @@
 <?php
 
-namespace Modules\Atelier\Http\Requests;
+namespace Modules\PatternEngine\Http\Requests;
 
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
@@ -33,7 +33,7 @@ class ImportPatternFromUrlRequest extends FormRequest
                 return;
             }
 
-            $allowed = (array) config('atelier.pattern_import.allowed_hosts', []);
+            $allowed = (array) config('patternengine.pattern_import.allowed_hosts', []);
             $scheme  = parse_url($url, PHP_URL_SCHEME);
             $host    = parse_url($url, PHP_URL_HOST);
 

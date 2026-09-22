@@ -96,7 +96,7 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import PageHeader from '@/Components/PageHeader.vue'
 import Button from '@/Components/Button.vue'
-import AtelierNav from '../Components/AtelierNav.vue'
+import AtelierNav from '@Modules/Atelier/Resources/assets/js/Components/AtelierNav.vue'
 
 defineOptions({ layout: AppLayout })
 const props = defineProps({ pattern: Object, imageBase: String })

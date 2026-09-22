@@ -1,10 +1,10 @@
 <?php
 
-namespace Modules\Atelier\Services\Conversion\Drivers;
+namespace Modules\PatternEngine\Services\Conversion\Drivers;
 
 use Illuminate\Support\Facades\Http;
-use Modules\Atelier\Services\Conversion\ConversionResult;
-use Modules\Atelier\Services\Conversion\Contracts\PdfDxfConverterContract;
+use Modules\PatternEngine\Services\Conversion\ConversionResult;
+use Modules\PatternEngine\Services\Conversion\Contracts\PdfDxfConverterContract;
 use RuntimeException;
 
 /**
@@ -18,9 +18,9 @@ class HttpPdfDxfConverter implements PdfDxfConverterContract
             throw new RuntimeException("Dönüştürülecek PDF bulunamadı: {$pdfAbsolutePath}");
         }
 
-        $base = rtrim((string) config('atelier.conversion.service_url'), '/');
+        $base = rtrim((string) config('patternengine.conversion.service_url'), '/');
 
-        $response = Http::timeout((int) config('atelier.conversion.timeout', 300))
+        $response = Http::timeout((int) config('patternengine.conversion.timeout', 300))
             ->attach('file', (string) file_get_contents($pdfAbsolutePath), basename($pdfAbsolutePath))
             ->post("{$base}/convert");
 
@@ -41,9 +41,9 @@ class HttpPdfDxfConverter implements PdfDxfConverterContract
             throw new RuntimeException("Dönüştürülecek fotoğraf bulunamadı: {$photoAbsolutePath}");
         }
 
-        $base = rtrim((string) config('atelier.conversion.service_url'), '/');
+        $base = rtrim((string) config('patternengine.conversion.service_url'), '/');
 
-        $response = Http::timeout((int) config('atelier.conversion.timeout', 300))
+        $response = Http::timeout((int) config('patternengine.conversion.timeout', 300))
             ->attach('file', (string) file_get_contents($photoAbsolutePath), basename($photoAbsolutePath))
             ->post("{$base}/convert-photo", ['marker_mm' => $markerMm]);
 
@@ -64,7 +64,7 @@ class HttpPdfDxfConverter implements PdfDxfConverterContract
             return null;
         }
 
-        $base = rtrim((string) config('atelier.conversion.service_url'), '/');
+        $base = rtrim((string) config('patternengine.conversion.service_url'), '/');
 
         try {
             $response = Http::timeout(20)
@@ -88,8 +88,8 @@ class HttpPdfDxfConverter implements PdfDxfConverterContract
         if (! is_file($pdfAbsolutePath)) {
             throw new RuntimeException("Render edilecek PDF bulunamadı: {$pdfAbsolutePath}");
         }
-        $base = rtrim((string) config('atelier.conversion.service_url'), '/');
-        $response = Http::timeout((int) config('atelier.conversion.timeout', 300))
+        $base = rtrim((string) config('patternengine.conversion.service_url'), '/');
+        $response = Http::timeout((int) config('patternengine.conversion.timeout', 300))
             ->attach('file', (string) file_get_contents($pdfAbsolutePath), basename($pdfAbsolutePath))
             ->post("{$base}/render", ['page' => $page, 'dpi' => $dpi]);
 
@@ -102,8 +102,8 @@ class HttpPdfDxfConverter implements PdfDxfConverterContract
 
     public function buildDxf(array $polylines): string
     {
-        $base = rtrim((string) config('atelier.conversion.service_url'), '/');
-        $response = Http::timeout((int) config('atelier.conversion.timeout', 300))
+        $base = rtrim((string) config('patternengine.conversion.service_url'), '/');
+        $response = Http::timeout((int) config('patternengine.conversion.timeout', 300))
             ->asJson()->post("{$base}/build-dxf", ['polylines' => $polylines]);
 
         if ($response->failed()) {

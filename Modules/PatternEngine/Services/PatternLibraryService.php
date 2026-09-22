@@ -1,14 +1,14 @@
 <?php
 
-namespace Modules\Atelier\Services;
+namespace Modules\PatternEngine\Services;
 
 use App\Support\Media;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Modules\Atelier\Models\Pattern;
-use Modules\Atelier\Services\Conversion\ConversionResult;
+use Modules\PatternEngine\Models\Pattern;
+use Modules\PatternEngine\Services\Conversion\ConversionResult;
 
 /**
  * Kalıp kütüphanesi yazma işlemleri (Modül C).

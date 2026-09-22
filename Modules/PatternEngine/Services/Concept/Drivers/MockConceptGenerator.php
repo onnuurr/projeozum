@@ -1,9 +1,9 @@
 <?php
 
-namespace Modules\Atelier\Services\Concept\Drivers;
+namespace Modules\PatternEngine\Services\Concept\Drivers;
 
-use Modules\Atelier\Services\Concept\ConceptRequest;
-use Modules\Atelier\Services\Concept\Contracts\ConceptImageGeneratorContract;
+use Modules\PatternEngine\Services\Concept\ConceptRequest;
+use Modules\PatternEngine\Services\Concept\Contracts\ConceptImageGeneratorContract;
 use Modules\Creative\Services\Ai\Drivers\Mock\MockImageFactory;
 
 /**

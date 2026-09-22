@@ -1,6 +1,6 @@
 <?php
 
-namespace Modules\Atelier\Http\Controllers;
+namespace Modules\PatternEngine\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
@@ -10,10 +10,10 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
-use Modules\Atelier\Models\Assignment;
-use Modules\Atelier\Models\DesignCard;
-use Modules\Atelier\Models\Pattern;
-use Modules\Atelier\Services\AssignmentService;
+use Modules\PatternEngine\Models\Assignment;
+use Modules\PatternEngine\Models\DesignCard;
+use Modules\PatternEngine\Models\Pattern;
+use Modules\PatternEngine\Services\AssignmentService;
 
 class AssignmentController extends Controller
 {
@@ -21,7 +21,7 @@ class AssignmentController extends Controller
 
     public function index(Request $request): Response
     {
-        $disk    = (string) config('atelier.conversion.disk', 'public');
+        $disk    = (string) config('patternengine.conversion.disk', 'public');
         $userId  = $request->user()?->id;
         $mine    = $request->boolean('mine');
         $status  = (string) $request->input('status', '');
@@ -54,7 +54,7 @@ class AssignmentController extends Controller
 
         $counts = Assignment::query()->selectRaw('status, count(*) as c')->groupBy('status')->pluck('c', 'status');
 
-        return Inertia::render('Atelier::Assignments', [
+        return Inertia::render('PatternEngine::Assignments', [
             'assignments' => $assignments,
             'filters'     => ['mine' => $mine, 'status' => $status],
             'counts'      => $counts,

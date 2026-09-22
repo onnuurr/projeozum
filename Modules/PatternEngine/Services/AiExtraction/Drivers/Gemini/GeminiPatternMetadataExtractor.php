@@ -1,9 +1,9 @@
 <?php
 
-namespace Modules\Atelier\Services\Ai\Drivers\Gemini;
+namespace Modules\PatternEngine\Services\AiExtraction\Drivers\Gemini;
 
 use Illuminate\Support\Facades\Log;
-use Modules\Atelier\Services\Ai\Contracts\PatternMetadataExtractorContract;
+use Modules\PatternEngine\Services\AiExtraction\Contracts\PatternMetadataExtractorContract;
 use Modules\Creative\Services\Ai\Drivers\Gemini\GeminiClient;
 use Throwable;
 
@@ -33,7 +33,7 @@ class GeminiPatternMetadataExtractor implements PatternMetadataExtractorContract
         return [
             'analysis_version' => 1,
             'model'            => (string) config('creative.ai.gemini.text_model', config('creative.ai.gemini.model')),
-            'prompt_version'   => (int) config('atelier.pattern_metadata_ai.prompt_version', 1),
+            'prompt_version'   => (int) config('patternengine.pattern_metadata_ai.prompt_version', 1),
             'generated_at'     => now()->toIso8601String(),
             'data'             => $data,
         ];
@@ -41,7 +41,7 @@ class GeminiPatternMetadataExtractor implements PatternMetadataExtractorContract
 
     private function buildPrompt(): string
     {
-        $enum = implode(', ', (array) config('atelier.pattern_metadata_ai.product_type_enum', []));
+        $enum = implode(', ', (array) config('patternengine.pattern_metadata_ai.product_type_enum', []));
 
         return <<<PROMPT
         You are looking at the COVER PAGE of a sewing pattern PDF (may be in Russian,

@@ -1,10 +1,10 @@
 <?php
 
-namespace Modules\Atelier\Services\Conversion\Drivers;
+namespace Modules\PatternEngine\Services\Conversion\Drivers;
 
-use Modules\Atelier\Models\ConversionJob;
-use Modules\Atelier\Services\Conversion\ConversionResult;
-use Modules\Atelier\Services\Conversion\Contracts\PdfDxfConverterContract;
+use Modules\PatternEngine\Models\ConversionJob;
+use Modules\PatternEngine\Services\Conversion\ConversionResult;
+use Modules\PatternEngine\Services\Conversion\Contracts\PdfDxfConverterContract;
 
 /**
  * Servissiz dev/test için sahte dönüştürücü.

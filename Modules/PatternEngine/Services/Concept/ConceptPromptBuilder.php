@@ -1,6 +1,6 @@
 <?php
 
-namespace Modules\Atelier\Services\Concept;
+namespace Modules\PatternEngine\Services\Concept;
 
 /**
  * Tarif → text-to-image prompt'u.

@@ -1,11 +1,11 @@
 <?php
 
-namespace Modules\Atelier\Services\Concept;
+namespace Modules\PatternEngine\Services\Concept;
 
 use InvalidArgumentException;
-use Modules\Atelier\Models\DesignCard;
-use Modules\Atelier\Models\Pattern;
-use Modules\Atelier\Services\Concept\Contracts\ConceptImageGeneratorContract;
+use Modules\PatternEngine\Models\DesignCard;
+use Modules\PatternEngine\Models\Pattern;
+use Modules\PatternEngine\Services\Concept\Contracts\ConceptImageGeneratorContract;
 use Throwable;
 
 /**

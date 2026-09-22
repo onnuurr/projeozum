@@ -1,8 +1,8 @@
 <?php
 
-namespace Modules\Atelier\Services\Conversion;
+namespace Modules\PatternEngine\Services\Conversion;
 
-use Modules\Atelier\Models\ConversionJob;
+use Modules\PatternEngine\Models\ConversionJob;
 
 /**
  * PDF→DXF dönüştürme çıktısı (mikroservisten dönen yapı).

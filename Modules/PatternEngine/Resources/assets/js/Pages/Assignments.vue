@@ -172,7 +172,7 @@ import PageHeader from '@/Components/PageHeader.vue'
 import Badge from '@/Components/Badge.vue'
 import Button from '@/Components/Button.vue'
 import AppDrawer from '@/Components/AppDrawer.vue'
-import AtelierNav from '../Components/AtelierNav.vue'
+import AtelierNav from '@Modules/Atelier/Resources/assets/js/Components/AtelierNav.vue'
 
 defineOptions({ layout: AppLayout })
 

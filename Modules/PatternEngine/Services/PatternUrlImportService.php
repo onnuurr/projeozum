@@ -1,14 +1,14 @@
 <?php
 
-namespace Modules\Atelier\Services;
+namespace Modules\PatternEngine\Services;
 
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Process;
-use Modules\Atelier\Http\Requests\ImportPatternFromUrlRequest;
-use Modules\Atelier\Jobs\ExtractPatternFromPdfJob;
-use Modules\Atelier\Models\Pattern;
-use Modules\Atelier\Services\Conversion\Contracts\PdfDxfConverterContract;
+use Modules\PatternEngine\Http\Requests\ImportPatternFromUrlRequest;
+use Modules\PatternEngine\Jobs\ExtractPatternFromPdfJob;
+use Modules\PatternEngine\Models\Pattern;
+use Modules\PatternEngine\Services\Conversion\Contracts\PdfDxfConverterContract;
 
 /**
  * Sabit-domain tedarikçi ürün sayfalarından ("vikroim.ru" tarzı — bkz.
@@ -147,7 +147,7 @@ class PatternUrlImportService
     {
         $scriptDir = base_path('Modules/Atelier/resolvers/vk-doc');
         $outPath   = tempnam(sys_get_temp_dir(), 'atelier_vkdoc_');
-        $timeout   = (int) config('atelier.pattern_import.headless_timeout', 60);
+        $timeout   = (int) config('patternengine.pattern_import.headless_timeout', 60);
 
         try {
             // PLAYWRIGHT_BROWSERS_PATH=0: Chromium'u node_modules/playwright-core/.local-browsers
@@ -189,7 +189,7 @@ class PatternUrlImportService
     {
         $this->assertAllowedHost($url);
 
-        $timeout  = (int) config('atelier.pattern_import.timeout', 20);
+        $timeout  = (int) config('patternengine.pattern_import.timeout', 20);
         $response = Http::withHeaders(['User-Agent' => 'Mozilla/5.0 (compatible; OzumServerAtelierBot/1.0)'])
             ->timeout($timeout)
             ->connectTimeout(10)
@@ -211,7 +211,7 @@ class PatternUrlImportService
     {
         $scheme = parse_url($url, PHP_URL_SCHEME);
         $host   = parse_url($url, PHP_URL_HOST);
-        $allowed = (array) config('atelier.pattern_import.allowed_hosts', []);
+        $allowed = (array) config('patternengine.pattern_import.allowed_hosts', []);
 
         if ($scheme !== 'https' || $host === null || ! ImportPatternFromUrlRequest::hostAllowed($host, $allowed)) {
             throw new \RuntimeException("İzinli olmayan kaynak: {$url}");

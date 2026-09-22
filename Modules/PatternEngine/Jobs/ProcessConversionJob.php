@@ -1,14 +1,14 @@
 <?php
 
-namespace Modules\Atelier\Jobs;
+namespace Modules\PatternEngine\Jobs;
 
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Modules\Atelier\Models\ConversionJob;
-use Modules\Atelier\Services\Conversion\ConversionPipelineService;
+use Modules\PatternEngine\Models\ConversionJob;
+use Modules\PatternEngine\Services\Conversion\ConversionPipelineService;
 
 /**
  * Tek bir PDF'i arka planda DXF'e çevirir (PyMuPDF/ezdxf servisi yavaş olabilir).

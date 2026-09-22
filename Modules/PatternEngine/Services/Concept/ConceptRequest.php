@@ -1,8 +1,8 @@
 <?php
 
-namespace Modules\Atelier\Services\Concept;
+namespace Modules\PatternEngine\Services\Concept;
 
-use Modules\Atelier\Models\DesignCard;
+use Modules\PatternEngine\Models\DesignCard;
 
 /**
  * AI konsept üretimi için tarif (değer nesnesi).

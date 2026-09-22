@@ -1,11 +1,11 @@
 <?php
 
-namespace Modules\Atelier\Services;
+namespace Modules\PatternEngine\Services;
 
 /**
  * Confidence eşiği altındaki AI çıkarım alanlarını eleyen SAF iş kuralı
  * katmanı (PİLOT). Hiçbir AI çağrısı YAPMAZ, hiçbir DB sorgusu YAPMAZ — girdi
- * tamamen {@see \Modules\Atelier\Services\Ai\Contracts\PatternMetadataExtractorContract}'ın
+ * tamamen {@see \Modules\PatternEngine\Services\AiExtraction\Contracts\PatternMetadataExtractorContract}'ın
  * ürettiği versioned zarftır. Ham 'data' ASLA doğrudan Pattern kolonlarına
  * yazılmaz; her zaman bu katmandan geçer (bkz. Creative modülünün
  * {@see \Modules\Creative\Services\GarmentIdentityRuleEngine} ile aynı desen).
@@ -27,7 +27,7 @@ class PatternMetadataRuleEngine
      */
     public function decide(array $envelope): array
     {
-        $threshold = (float) config('atelier.pattern_metadata_ai.confidence_threshold', 0.6);
+        $threshold = (float) config('patternengine.pattern_metadata_ai.confidence_threshold', 0.6);
         $data = $envelope['data'] ?? [];
 
         return [
