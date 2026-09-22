@@ -13,7 +13,6 @@ use Modules\Product\Models\ProductImage;
 use Modules\Product\Models\Stock;
 use Modules\Product\Models\StockMovement;
 use Modules\Superadmin\Models\BackupRun;
-use Modules\Tenant\Models\MarketplaceSyncLog;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -41,7 +40,6 @@ Schedule::command('model:prune', [
         StockMovement::class,
         PriceList::class,
         MaterialMovement::class,
-        MarketplaceSyncLog::class,
         BankTransaction::class,
         BackupRun::class,
         PatternGenerationJob::class,
@@ -62,9 +60,6 @@ Schedule::command('cache:prune-stale-tags')->hourly();
 
 // Geçerlilik tarihi dolmuş proforma faturaları expired yapar (Finance modülü).
 Schedule::command('finance:expire-proformas')->daily();
-
-// 30 günden eski terk edilmiş sepet kalemleri (UX hijyeni — stok/fiyat place()'te çözülür).
-Schedule::command('product:prune-stale-carts')->daily()->onOneServer();
 
 /*
 |--------------------------------------------------------------------------

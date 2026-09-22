@@ -1,7 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use Modules\Tenant\Http\Controllers\Portal\TenantFeedController;
+use Modules\Tenant\Http\Controllers\TenantFeedController;
 
 /*
 |--------------------------------------------------------------------------

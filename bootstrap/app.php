@@ -23,10 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'permission'         => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
             'log.access'         => \App\Http\Middleware\EnsureLogAccess::class,
-            'tenant.subdomain'   => \Modules\Tenant\Http\Middleware\ResolveTenantFromSubdomain::class,
             'tenant.owns'        => \Modules\Tenant\Http\Middleware\EnforceTenantOwnership::class,
-            'active'             => \Modules\Tenant\Http\Middleware\EnsureUserActive::class,
-            'marketplace.tenant-only' => \Modules\Tenant\Http\Middleware\BlockSuperadminFromMarketplace::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -122,11 +122,11 @@
 				</div>
 
 				<div v-if="!editing || ownerExists" class="form-section">
-					<h4 class="form-section-title">Portal Giriş Hesabı</h4>
+					<h4 class="form-section-title">Yetkili Giriş Hesabı</h4>
 					<p class="form-section-hint">
 						{{ editing
-							? 'Tenant portalına giriş yapan yetkili hesap. Şifreyi yalnızca değiştirmek istiyorsanız doldurun.'
-							: 'Tenant subdomain portalına giriş yapacak ilk (yetkili) kullanıcı — sonradan tenant kendi alt kullanıcılarını portaldan ekleyebilir.' }}
+							? 'Tenant\'ın birincil yetkili hesabı. Şifreyi yalnızca değiştirmek istiyorsanız doldurun.'
+							: 'Tenant\'ın birincil yetkili hesabı.' }}
 					</p>
 					<div class="form-row-2">
 						<div class="form-row">
@@ -153,8 +153,8 @@
 					</div>
 				</div>
 				<div v-else class="form-section">
-					<h4 class="form-section-title">Portal Giriş Hesabı</h4>
-					<p class="form-section-hint">Bu tenant için portal giriş hesabı bulunamadı.</p>
+					<h4 class="form-section-title">Yetkili Giriş Hesabı</h4>
+					<p class="form-section-hint">Bu tenant için yetkili hesap bulunamadı.</p>
 				</div>
 
 				<div v-if="prefillDocuments.length" class="form-section">

@@ -6,19 +6,17 @@ use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-// Portal subdomain rotaları web dosyasının en tepesinde tanımlanmalı ki
+// Tenant XML feed subdomain rotası web dosyasının en tepesinde tanımlanmalı ki
 // domain-siz "/" gibi rotalardan ÖNCE eşleşme kontrolü yapılsın.
 // (İlk eşleşen kazanır — bkz. Illuminate\Routing\RouteCollection::matchAgainstRoutes.)
+// Not: Bayi Portalı (self-servis) 2026-09-22'de tamamen kaldırıldı — bkz.
+// docs/superpowers/specs/2026-09-22-bayi-portali-kaldirma-etki-analizi.md.
+// feed.xml token-tabanlı, auth'siz olduğu için ayrı ve kalmaya devam ediyor.
 $portalDomain = config('app.portal_domain') ?: env('PORTAL_DOMAIN');
 if ($portalDomain) {
     Route::domain('{slug}.'.$portalDomain)
         ->middleware(['throttle:60,1'])
         ->group(base_path('Modules/Tenant/routes/feed.php'));
-
-    Route::domain('{slug}.'.$portalDomain)
-        ->middleware(['auth', 'verified', 'active', 'tenant.subdomain', 'can:portal.access'])
-        ->name('portal.')
-        ->group(base_path('Modules/Tenant/routes/portal.php'));
 }
 
 Route::get('/', function () {

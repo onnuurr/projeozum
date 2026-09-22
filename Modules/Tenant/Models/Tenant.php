@@ -91,7 +91,7 @@ class Tenant extends Model
         return $this->hasMany(User::class, 'tenant_id');
     }
 
-    /** Portal'a giriş yapan yetkili hesap — 'tenant' rolüne sahip ilk kullanıcı. */
+    /** Tenant'ın birincil yetkili hesabı — 'tenant' rolüne sahip ilk kullanıcı. */
     public function owner(): HasOne
     {
         return $this->hasOne(User::class, 'tenant_id')->role('tenant');
@@ -117,11 +117,6 @@ class Tenant extends Model
     public function productAccess(): HasMany
     {
         return $this->hasMany(TenantProductAccess::class);
-    }
-
-    public function marketplaceCredentials(): HasMany
-    {
-        return $this->hasMany(TenantMarketplaceCredential::class);
     }
 
     public function priceLists(): HasMany

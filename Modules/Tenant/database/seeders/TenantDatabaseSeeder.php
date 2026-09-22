@@ -11,7 +11,6 @@ class TenantDatabaseSeeder extends Seeder
         $this->call([
             TenantTypeSeeder::class,
             TenantPermissionSeeder::class,
-            MarketplaceCommissionSeeder::class,
         ]);
     }
 }
