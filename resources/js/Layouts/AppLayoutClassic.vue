@@ -3,9 +3,7 @@
 		<header class="w-full flex flex-col shadow-sm flex-shrink-0 relative z-10">
 			<TopBar
 				:notifications="visibleNotifications"
-				:cart-item-count="cartItemCount"
 				@open-search="searchOpen = true"
-				@open-cart="cartOpen = true"
 				@mark-all-read="markAllNotificationsRead"
 				@read-notification="readNotification"
 				@notification-click="onNotificationClick"
@@ -33,15 +31,6 @@
 			@reset="showToast({ type: 'info', title: 'Filtreler Sıfırlandı', message: 'Tüm filtreler kaldırıldı.' })"
 		/>
 
-		<CartDrawer
-			v-model="cartOpen"
-			:items="cartItems"
-			@update-qty="updateCartQty"
-			@remove="removeCartItem"
-			@clear="clearCart"
-			@checkout="onCheckout"
-		/>
-
 		<SearchModal v-model="searchOpen" :recent="searchRecent" :quick="searchQuick" />
 
 		<ToastContainer :toasts="toasts" @dismiss="dismissToast" />
@@ -53,7 +42,6 @@ import TopBar from '@/Components/TopBar.vue'
 import MainNav from '@/Components/MainNav.vue'
 import ActionBar from '@/Components/ActionBar.vue'
 import FilterDrawer from '@/Components/FilterDrawer.vue'
-import CartDrawer from '@/Components/CartDrawer.vue'
 import SearchModal from '@/Components/SearchModal.vue'
 import ToastContainer from '@/Components/ToastContainer.vue'
 import { useAppShell } from '@/composables/useAppShell.js'
@@ -66,7 +54,6 @@ const {
 	visibleNotifications,
 	currentUser,
 	userMenu,
-	cartItemCount,
 	markAllNotificationsRead,
 	readNotification,
 	handleUserAction,
@@ -76,12 +63,6 @@ const {
 	searchOpen,
 	searchRecent,
 	searchQuick,
-	cartOpen,
-	cartItems,
-	updateCartQty,
-	removeCartItem,
-	clearCart,
-	onCheckout,
 	toasts,
 	showToast,
 	dismissToast,

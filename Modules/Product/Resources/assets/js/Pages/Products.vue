@@ -302,7 +302,6 @@ const props = defineProps({
 	products: { type: Array, default: () => [] },
 	categories: { type: Array, default: () => [] },
 	brands: { type: Array, default: () => [] },
-	favoriteIds: { type: Array, default: () => [] },
 	marketplaces: { type: Array, default: () => [] },
 })
 

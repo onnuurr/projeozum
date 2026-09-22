@@ -2,9 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\Product\Http\Controllers\BrandController;
-use Modules\Product\Http\Controllers\CartController;
 use Modules\Product\Http\Controllers\CategoryController;
-use Modules\Product\Http\Controllers\FavoriteController;
 use Modules\Product\Http\Controllers\OrderController;
 use Modules\Product\Http\Controllers\PriceListController;
 use Modules\Product\Http\Controllers\ProductController;
@@ -14,13 +12,6 @@ use Modules\Product\Http\Controllers\WarehouseController;
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/products', [ProductController::class, 'index'])->name('products.index');
-
-    // NOT: Product::getRouteKeyName() = 'slug'. Bu yüzden numeric id ile çağrılan
-    // route'lar binding'i açıkça `{product:id}` ile id'ye sabitlemeli; aksi halde
-    // slug üzerinden aranır ve 404 döner.
-    Route::post('/products/{product:id}/favorite', [FavoriteController::class, 'toggle'])
-        ->whereNumber('product')
-        ->name('products.favorite.toggle');
 
     // Tam sayfa ürün formları (eski drawer yerine). Slug catch-all'dan önce
     // tanımlanmalı; aksi halde `/products/create` slug olarak yorumlanır.
@@ -193,21 +184,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->whereNumber('order')->middleware('can:order.view')->name('orders.show');
     Route::put('/orders/{order}/status', [OrderController::class, 'updateStatus'])
         ->whereNumber('order')->middleware('can:order.manage')->name('orders.update-status');
-
-    Route::prefix('cart')->name('cart.')->group(function () {
-        Route::post('/', [CartController::class, 'add'])->name('add');
-        Route::put('/{cartItem}', [CartController::class, 'updateQty'])
-            ->whereNumber('cartItem')
-            ->name('update');
-        Route::delete('/{cartItem}', [CartController::class, 'remove'])
-            ->whereNumber('cartItem')
-            ->name('remove');
-        Route::delete('/', [CartController::class, 'clear'])->name('clear');
-    });
-
-    // NOT (Faz 3 · D5): ana domain B2C `/checkout` ve `/checkout/addresses/*` rotaları
-    // kaldırıldı (tenant-only B2B; checkout portal subdomain'de PortalCheckoutController).
-    // `/cart/*` KALIR — portal bu sepet altyapısını subdomain üzerinden kullanır.
 
     // Ürün detay slug ile çözülür. Literal `/products/*` route'larından
     // (categories, marketplaces, vb.) sonra tanımlanmalı; aksi halde

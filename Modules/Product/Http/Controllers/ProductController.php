@@ -18,7 +18,6 @@ use Modules\Product\Models\Category;
 use Modules\Product\Models\CategoryAttributeDefinition;
 use Modules\Product\Models\Marketplace;
 use Modules\Product\Models\Product;
-use Modules\Product\Models\ProductFavorite;
 use Modules\Product\Services\ProductCatalogPresenter;
 use Modules\Product\Services\ProductService;
 use Modules\Tenant\Models\Tenant;
@@ -59,11 +58,6 @@ class ProductController extends Controller
 
         [$categories, $brands] = $this->formReferenceData();
 
-        $favoriteIds = ProductFavorite::query()
-            ->where('user_id', $user->id)
-            ->pluck('product_id')
-            ->all();
-
         // Tüm pazaryeri listesi (eşleşmesi olmayan üründe de ikon göstermek için).
         $marketplaces = Marketplace::query()
             ->orderBy('sort_order')
@@ -79,7 +73,6 @@ class ProductController extends Controller
             'products'     => $products,
             'categories'   => $categories,
             'brands'       => $brands,
-            'favoriteIds'  => $favoriteIds,
             'marketplaces' => $marketplaces,
         ]);
     }
@@ -208,13 +201,7 @@ class ProductController extends Controller
         $pricingCollection = $similar->prepend($product);
         [$customPriceByProduct, $priceListByVariant] = $this->presenter->loadTenantPricing($tenant, $pricingCollection);
 
-        $isFavorite = ProductFavorite::query()
-            ->where('user_id', $user->id)
-            ->where('product_id', $product->id)
-            ->exists();
-
         return Inertia::render('Product::ProductDetail', [
-            'isFavorite' => $isFavorite,
             'product'    => $this->presenter->detail($product, $tenant, $customPriceByProduct, $priceListByVariant),
             'similar'    => $similar
                 ->map(fn (Product $p) => $this->presenter->card($p, $customPriceByProduct, $priceListByVariant))

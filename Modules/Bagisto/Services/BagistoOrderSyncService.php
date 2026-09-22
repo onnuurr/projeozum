@@ -10,7 +10,6 @@ use Modules\Product\Models\Order;
 use Modules\Product\Models\OrderItem;
 use Modules\Product\Models\ProductImage;
 use Modules\Product\Models\ProductVariant;
-use Modules\Product\Services\CheckoutService;
 use Modules\Product\Services\OrderService;
 use Modules\Product\Services\StockService;
 use Modules\Tenant\Exceptions\InsufficientCreditException;
@@ -28,7 +27,6 @@ use Throwable;
 class BagistoOrderSyncService
 {
     public function __construct(
-        private CheckoutService $checkout,
         private TenantAccessService $access,
         private StockService $stock,
         private TenantCreditService $credit,
@@ -57,7 +55,7 @@ class BagistoOrderSyncService
             [$lines, $subtotal] = $this->buildLines($tenant, $data['items']);
 
             $order = Order::create([
-                'order_no' => $this->checkout->generateOrderNo(),
+                'order_no' => $this->orders->generateOrderNo(),
                 'user_id' => $actorUserId,
                 'tenant_id' => $tenant->id,
                 'bagisto_order_id' => $bagistoOrderId,

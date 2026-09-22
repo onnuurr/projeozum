@@ -8,15 +8,14 @@
 	useAppShell.js'in sağladığı hâliyle korundu (plan notu #2).
 -->
 <script setup>
-import { ref, watch, onMounted, onBeforeUnmount } from 'vue';
-import { Search, Bell, ShoppingCart } from 'lucide-vue-next';
+import { ref, onMounted, onBeforeUnmount } from 'vue';
+import { Search, Bell } from 'lucide-vue-next';
 
 const props = defineProps({
 	notifications: { type: Array, required: true },
-	cartItemCount: { type: Number, default: 0 },
 });
 
-const emit = defineEmits(['open-search', 'open-cart', 'mark-all-read', 'read-notification', 'notification-click', 'notifications-opened']);
+const emit = defineEmits(['open-search', 'mark-all-read', 'read-notification', 'notification-click', 'notifications-opened']);
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad|iPod/i.test(navigator.userAgent);
 const activePanel = ref(null);
@@ -46,16 +45,6 @@ function onNotifClick(n) {
 		emit('notification-click', n);
 	}
 }
-
-const cartBump = ref(false);
-let bumpTimer = null;
-watch(() => props.cartItemCount, (newVal, oldVal) => {
-	if (newVal > oldVal) {
-		cartBump.value = true;
-		clearTimeout(bumpTimer);
-		bumpTimer = setTimeout(() => { cartBump.value = false; }, 400);
-	}
-});
 
 function onGlobalKeydown(e) {
 	if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
@@ -98,22 +87,6 @@ onBeforeUnmount(() => {
 		</div>
 
 		<div ref="containerRef" class="relative flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
-			<div class="relative">
-				<button
-					type="button"
-					class="w-8 h-8 flex items-center justify-center text-muted hover:text-ink hover:bg-canvas rounded-full transition-colors relative cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-					:class="cartBump ? 'cart-bump' : ''"
-					title="Sepetim"
-					@click.stop="emit('open-cart')"
-				>
-					<ShoppingCart :size="18" />
-					<span
-						v-if="cartItemCount > 0"
-						class="absolute -top-0.5 -right-0.5 bg-primary text-white font-bold text-2xs min-w-[16px] h-4 px-1 rounded-full border border-surface flex items-center justify-center"
-					>{{ cartItemCount > 99 ? '99+' : cartItemCount }}</span>
-				</button>
-			</div>
-
 			<div class="relative">
 				<button
 					type="button"
@@ -177,12 +150,3 @@ onBeforeUnmount(() => {
 	</div>
 </template>
 
-<style scoped>
-@keyframes cart-bump {
-	0% { transform: scale(1); }
-	35% { transform: scale(1.18) rotate(-6deg); }
-	70% { transform: scale(0.96) rotate(3deg); }
-	100% { transform: scale(1); }
-}
-.cart-bump { animation: cart-bump .42s ease-out; }
-</style>

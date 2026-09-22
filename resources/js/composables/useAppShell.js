@@ -7,10 +7,10 @@ import { useToast } from '@/composables/useToast.js'
 const STAFF_ROLES = ['designer', 'reviewer', 'superadmin']
 
 /**
- * AppLayout kabuğunun (TopNav/Sidebar/drawer/cart/toast/$swal) tüm state ve
+ * AppLayout kabuğunun (TopNav/Sidebar/drawer/toast/$swal) tüm state ve
  * provide() sözleşmesini barındırır. AppLayoutClassic bu composable'ı çağırır —
- * böylece sayfaların inject('showToast')/inject('$swal')/inject('cart')/
- * inject('drawer') beklentisi karşılanır.
+ * böylece sayfaların inject('showToast')/inject('$swal')/inject('drawer')
+ * beklentisi karşılanır.
  */
 export function useAppShell() {
 	const page = usePage()
@@ -327,122 +327,6 @@ export function useAppShell() {
 		if (echoChannel) window.Echo.leave(`App.Models.User.${currentUser.value.id}`)
 	})
 
-	/* ── Sepet (DB destekli) ── */
-	const cartOpen = ref(false)
-	const cartItems = ref(Array.isArray(page.props.cart?.items) ? [...page.props.cart.items] : [])
-
-	const cartItemCount = computed(() => cartItems.value.reduce((acc, i) => acc + i.qty, 0))
-
-	// Backend her Inertia response'unda 'cart' prop'unu paylaşır; UI bunu daima
-	// otoritatif kabul eder, böylece sayfa yenilense bile veri kaybolmaz.
-	watch(
-		() => page.props.cart?.items,
-		(items) => {
-			if (Array.isArray(items)) cartItems.value = [...items]
-		},
-		{ deep: true }
-	)
-
-	function addToCart({ product, variant = null, color = null, size = null, qty = 1, openDrawer = true } = {}) {
-		if (!product) return
-
-		// `color` çağırandan obje ({name, hex}), string veya null gelebilir; backend string istiyor.
-		const colorStr = color && typeof color === 'object'
-			? (color.name ?? color.hex ?? null)
-			: (color ?? null)
-
-		router.post(
-			'/cart',
-			{
-				product_id: product.id,
-				variant_id: variant?.id ?? null,
-				color: colorStr,
-				size: size ?? null,
-				qty,
-			},
-			{
-				preserveScroll: true,
-				preserveState: true,
-				only: ['cart', 'flash', 'products', 'product'],
-				onSuccess: () => {
-					if (openDrawer) cartOpen.value = true
-				},
-				onError: (errs) => {
-					showToast({
-						type: 'error',
-						title: 'Sepete eklenemedi',
-						message: Object.values(errs)[0] || 'Sunucu hatası.',
-					})
-				},
-			}
-		)
-	}
-
-	function updateCartQty(key, qty) {
-		if (qty <= 0) {
-			removeCartItem(key)
-			return
-		}
-		router.put(
-			`/cart/${key}`,
-			{ qty },
-			{
-				preserveScroll: true,
-				preserveState: true,
-				only: ['cart', 'products', 'product'],
-				onError: (errs) => {
-					showToast({
-						type: 'error',
-						title: 'Adet güncellenemedi',
-						message: Object.values(errs)[0] || 'Sunucu hatası.',
-					})
-				},
-			}
-		)
-	}
-
-	function removeCartItem(key) {
-		const removed = cartItems.value.find((i) => i.key === key)
-		router.delete(`/cart/${key}`, {
-			preserveScroll: true,
-			preserveState: true,
-			only: ['cart', 'products', 'product'],
-			onSuccess: () => {
-				if (removed) {
-					showToast({ type: 'info', title: 'Sepetten kaldırıldı', message: removed.name })
-				}
-			},
-		})
-	}
-
-	function clearCart({ silent = false } = {}) {
-		router.delete('/cart', {
-			preserveScroll: true,
-			preserveState: true,
-			only: ['cart', 'products', 'product'],
-			onSuccess: () => {
-				if (!silent) {
-					showToast({ type: 'info', title: 'Sepet boşaltıldı', message: 'Tüm ürünler kaldırıldı.' })
-				}
-			},
-		})
-	}
-
-	function onCheckout() {
-		cartOpen.value = false
-		router.visit('/checkout')
-	}
-
-	provide('cart', {
-		add: addToCart,
-		remove: removeCartItem,
-		updateQty: updateCartQty,
-		clear: clearCart,
-		open: () => { cartOpen.value = true },
-		items: cartItems,
-		itemCount: cartItemCount,
-	})
-
 	// Global Ctrl+K artık TopBar.vue (new/) kendi içinde dinliyor — burada ikinci bir
 	// keydown listener tutmak aynı anda iki farklı search modalının açılmasına yol açıyordu.
 
@@ -470,13 +354,5 @@ export function useAppShell() {
 		toasts,
 		showToast,
 		dismissToast,
-		cartOpen,
-		cartItems,
-		cartItemCount,
-		addToCart,
-		updateCartQty,
-		removeCartItem,
-		clearCart,
-		onCheckout,
 	}
 }

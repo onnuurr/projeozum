@@ -5,7 +5,6 @@ namespace App\Http\Middleware;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
-use Modules\Product\Models\CartItem;
 use Modules\Superadmin\Services\MenuTreeBuilder;
 
 class HandleInertiaRequests extends Middleware
@@ -43,7 +42,6 @@ class HandleInertiaRequests extends Middleware
             'app' => [
                 'name' => config('app.name'),
             ],
-            'cart'  => fn () => $this->cartPayload($user?->id),
             'menu'  => fn () => MenuTreeBuilder::forUser($user),
             'notifications' => fn () => $this->notificationsPayload($user),
             'flash' => fn () => [
@@ -110,50 +108,4 @@ class HandleInertiaRequests extends Middleware
         return null;
     }
 
-    /**
-     * Build the cart payload shared with every Inertia response.
-     *
-     * @return array{items: array<int, array<string, mixed>>}
-     */
-    private function cartPayload(?int $userId): array
-    {
-        if (! $userId) {
-            return ['items' => []];
-        }
-
-        $items = CartItem::query()
-            ->with([
-                'product:id,name,slug,brand_id',
-                'product.brand:id,name',
-                'variant:id,stock',
-            ])
-            ->where('user_id', $userId)
-            ->orderBy('id')
-            ->get()
-            ->map(function (CartItem $i) {
-                // variant.stock zaten "sepete eklendikten sonra kalan" değer.
-                // Bu yüzden maxQty = sepetteki adet + kalan stok.
-                $remaining = (int) ($i->variant?->stock ?? 0);
-                $maxQty    = $i->variant_id ? ($i->qty + $remaining) : 99;
-                return [
-                    'id'          => $i->id,
-                    'key'         => $i->id,
-                    'productId'   => $i->product_id,
-                    'productSlug' => $i->product?->slug,
-                    'variantId'   => $i->variant_id,
-                    'name'        => $i->product?->name ?? 'Ürün',
-                    'brand'       => $i->product?->brand?->name ?? '',
-                    'image'       => "https://picsum.photos/seed/tek-p{$i->product_id}/200/250",
-                    'color'       => $i->color,
-                    'size'        => $i->size,
-                    'qty'         => (int) $i->qty,
-                    'maxQty'      => min(99, $maxQty),
-                    'price'       => (float) $i->price,
-                ];
-            })
-            ->values()
-            ->all();
-
-        return ['items' => $items];
-    }
 }

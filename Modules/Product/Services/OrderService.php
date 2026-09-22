@@ -4,6 +4,7 @@ namespace Modules\Product\Services;
 
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Modules\Product\Exceptions\InvalidOrderTransitionException;
 use Modules\Product\Models\Order;
 use Modules\Product\Models\OrderStatusHistory;
@@ -64,5 +65,10 @@ class OrderService
 
             return $order;
         });
+    }
+
+    public function generateOrderNo(): string
+    {
+        return 'SIP-' . now()->format('Ymd') . '-' . strtoupper(Str::random(6));
     }
 }

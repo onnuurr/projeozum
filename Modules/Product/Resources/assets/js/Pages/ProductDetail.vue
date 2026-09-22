@@ -37,11 +37,6 @@
 
 					<!-- Sağ üst aksiyon -->
 					<div class="gallery-actions">
-						<button class="round-btn" :class="{ active: isFavorite }" @click="toggleFavorite" aria-label="Favori">
-							<svg width="16" height="16" :fill="isFavorite ? '#ef4444' : 'none'" :stroke="isFavorite ? '#ef4444' : 'currentColor'" stroke-width="2" viewBox="0 0 24 24">
-								<path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
-							</svg>
-						</button>
 						<button class="round-btn" @click="shareProduct" aria-label="Paylaş">
 							<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
 								<circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
@@ -180,31 +175,6 @@
 							<span class="dot"></span> Stokta · {{ displayStock }} adet
 						</div>
 					</div>
-				</div>
-
-				<!-- Aksiyon butonları -->
-				<div class="cta-row">
-					<button
-						class="btn btn-primary btn-lg cta-add"
-						:disabled="displayStock === 0"
-						@click="addToCart"
-					>
-						<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-							<circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" />
-							<path d="M1 1h4l2.68 13.39a2 2 0 002 1.61h9.72a2 2 0 002-1.61L23 6H6" />
-						</svg>
-						{{ displayStock === 0 ? 'Tükendi' : 'Sepete Ekle' }}
-					</button>
-					<button
-						class="btn btn-outline-danger btn-lg btn-icon"
-						:class="{ active: isFavorite }"
-						@click="toggleFavorite"
-						aria-label="Favori"
-					>
-						<svg width="16" height="16" :fill="isFavorite ? '#ef4444' : 'none'" :stroke="isFavorite ? '#ef4444' : 'currentColor'" stroke-width="2" viewBox="0 0 24 24">
-							<path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
-						</svg>
-					</button>
 				</div>
 
 				<!-- Gönderim/iade/garanti -->
@@ -381,7 +351,7 @@
 
 <script setup>
 import { ref, computed, inject, watch } from 'vue'
-import { Head, Link, router } from '@inertiajs/vue3'
+import { Head, Link } from '@inertiajs/vue3'
 import { Star } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
@@ -392,11 +362,9 @@ defineOptions({ layout: AppLayout })
 const props = defineProps({
 	product: { type: Object, required: true },
 	similar: { type: Array, default: () => [] },
-	isFavorite: { type: Boolean, default: false },
 })
 
 const showToast = inject('showToast')
-const cart = inject('cart')
 
 /* ── Galeri ── */
 const images = computed(() => {
@@ -461,37 +429,6 @@ watch(displayStock, (s) => {
 	if (quantity.value > s) quantity.value = Math.max(1, s)
 })
 
-/* ── Favori ── */
-const isFavorite = ref(props.isFavorite)
-
-watch(() => props.isFavorite, (v) => { isFavorite.value = v })
-
-function toggleFavorite() {
-	const willAdd = !isFavorite.value
-
-	// Optimistic
-	isFavorite.value = willAdd
-	showToast?.({
-		type:    willAdd ? 'success' : 'info',
-		title:   willAdd ? 'Favorilere eklendi' : 'Favoriden çıkarıldı',
-		message: props.product.name,
-	})
-
-	router.post(`/products/${props.product.id}/favorite`, {}, {
-		preserveScroll: true,
-		preserveState: true,
-		only: ['isFavorite'],
-		onError: () => {
-			isFavorite.value = !willAdd
-			showToast?.({
-				type: 'error',
-				title: 'Favori işlemi başarısız',
-				message: props.product.name,
-			})
-		},
-	})
-}
-
 function shareProduct() {
 	const url = window.location.href
 	if (navigator.clipboard?.writeText) {
@@ -510,26 +447,6 @@ const discountPercent = computed(() => {
 
 function formatPrice(value) {
 	return '₺' + Number(value || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
-
-/* ── Sepete ekle ── */
-function addToCart() {
-	if (displayStock.value === 0) return
-	if (props.product.sizes.length && !selectedSize.value) {
-		showToast?.({ type: 'warning', title: 'Beden seçin', message: 'Lütfen bir beden seçiniz.' })
-		return
-	}
-	if (props.product.colors.length && !selectedColor.value) {
-		showToast?.({ type: 'warning', title: 'Renk seçin', message: 'Lütfen bir renk seçiniz.' })
-		return
-	}
-	cart?.add({
-		product: props.product,
-		variant: selectedVariant.value,
-		color: selectedColor.value,
-		size: selectedSize.value,
-		qty: quantity.value,
-	})
 }
 
 /* ── Tab’lar ── */
@@ -638,7 +555,6 @@ function scrollToTabs() {
 	transition: transform .15s, color .15s;
 }
 .round-btn:hover { transform: scale(1.08); }
-.round-btn.active { color: #ef4444; }
 
 /* Nav arrows */
 .nav-arrow {
@@ -931,24 +847,6 @@ function scrollToTabs() {
 .stock-ok  { background: #f0fdf4; color: #16a34a; }
 .stock-low { background: #fffbeb; color: #ca8a04; }
 .stock-out { background: #fef2f2; color: #dc2626; }
-
-/* CTA */
-.cta-row {
-	display: flex;
-	gap: 10px;
-	margin-top: 6px;
-}
-
-.cta-add {
-	flex: 1;
-	justify-content: center;
-	font-size: 14px;
-}
-
-.btn-outline-danger.active {
-	background: #fef2f2;
-	border-color: #fecaca;
-}
 
 /* Perks */
 .perks {
