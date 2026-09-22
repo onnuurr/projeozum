@@ -1,8 +1,8 @@
 <?php
 
-namespace Tests\Unit\Atelier;
+namespace Tests\Unit\PatternEngine;
 
-use Modules\Atelier\Services\PatternMetadataRuleEngine;
+use Modules\PatternEngine\Services\PatternMetadataRuleEngine;
 use Tests\TestCase;
 
 class PatternMetadataRuleEngineTest extends TestCase

@@ -1,9 +1,9 @@
 <?php
 
-namespace Tests\Unit\Atelier;
+namespace Tests\Unit\PatternEngine;
 
 use Illuminate\Support\Facades\Validator;
-use Modules\Atelier\Http\Requests\SaveTracedPatternRequest;
+use Modules\PatternEngine\Http\Requests\SaveTracedPatternRequest;
 use Tests\TestCase;
 
 class SaveTracedPatternRequestTest extends TestCase

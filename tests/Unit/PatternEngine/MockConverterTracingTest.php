@@ -1,8 +1,8 @@
 <?php
 
-namespace Tests\Unit\Atelier;
+namespace Tests\Unit\PatternEngine;
 
-use Modules\Atelier\Services\Conversion\Drivers\MockPdfDxfConverter;
+use Modules\PatternEngine\Services\Conversion\Drivers\MockPdfDxfConverter;
 use Tests\TestCase;
 
 class MockConverterTracingTest extends TestCase

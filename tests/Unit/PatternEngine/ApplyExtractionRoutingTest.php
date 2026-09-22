@@ -1,12 +1,12 @@
 <?php
 
-namespace Tests\Unit\Atelier;
+namespace Tests\Unit\PatternEngine;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
-use Modules\Atelier\Models\Pattern;
-use Modules\Atelier\Services\Conversion\ConversionResult;
-use Modules\Atelier\Services\PatternLibraryService;
+use Modules\PatternEngine\Models\Pattern;
+use Modules\PatternEngine\Services\Conversion\ConversionResult;
+use Modules\PatternEngine\Services\PatternLibraryService;
 use Tests\TestCase;
 
 class ApplyExtractionRoutingTest extends TestCase

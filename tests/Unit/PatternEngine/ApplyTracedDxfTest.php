@@ -1,11 +1,11 @@
 <?php
 
-namespace Tests\Unit\Atelier;
+namespace Tests\Unit\PatternEngine;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
-use Modules\Atelier\Models\Pattern;
-use Modules\Atelier\Services\PatternLibraryService;
+use Modules\PatternEngine\Models\Pattern;
+use Modules\PatternEngine\Services\PatternLibraryService;
 use Tests\TestCase;
 
 class ApplyTracedDxfTest extends TestCase
