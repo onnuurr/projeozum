@@ -125,10 +125,29 @@ class CreativeRenderService
             return $this->generateAiComposition($asset, $product, $template, $brand, $format, $briefWithExtra, $startedAt, $expectedToken);
         }
 
+        // Creative Rules Engine kanalı + (partner_share ise) bağlı PartnerBrandKit —
+        // hem AI sahne spec'ini (aşağı) hem de partner logosu/CTA'sını (render/copy) besler.
+        // meta.channel yoksa 'brand_post' varsayılır (geriye dönük uyumlu).
+        $channel = (string) ($asset->meta['channel'] ?? CreativeSpec::CHANNEL_BRAND_POST);
+        $partner = null;
+        if ($channel === CreativeSpec::CHANNEL_PARTNER_SHARE && ! empty($asset->meta['partner_brand_kit_id'])) {
+            $partner = PartnerBrandKit::find((int) $asset->meta['partner_brand_kit_id']);
+        }
+
         $imagePaths = [];
         $usedImage  = null;
         $aiStored   = null;
         $spec       = null;
+
+        // Partner logosu: şablon bir 'partner_logo' slotu tanımlıyorsa PythonRenderer
+        // bunu otomatik yerleştirir (composite_images() slot key'e göre eşler — bkz.
+        // render.py). Marka logosunun aksine burada auto-inject PythonRenderer'da değil,
+        // burada yapılıyor çünkü PartnerBrandKit BrandTokenService'in kapsamında değil.
+        if ($partner?->logo_path) {
+            if ($partnerLogo = Media::localPath($partner->logo_path, config('creative.disk', 'public'))) {
+                $imagePaths['partner_logo'] = $partnerLogo;
+            }
+        }
 
         if ($src = $this->pickImageSrc($product)) {
             if ($local = $this->resolver->toLocalPath($src)) {
@@ -149,7 +168,7 @@ class CreativeRenderService
                         }
                     }
 
-                    $spec = $this->buildCreativeSpec($asset, $brand, $format);
+                    $spec = $this->buildCreativeSpec($channel, $partner, $brand, $format);
 
                     $scene = $this->aiScenes->generate(
                         new SceneRequest(
@@ -172,7 +191,7 @@ class CreativeRenderService
             }
         }
 
-        $copy   = $this->buildCopy($asset, $product, $template, $brand);
+        $copy   = $this->buildCopy($asset, $product, $template, $brand, partner: $partner);
         $values = array_merge(['product_name' => (string) $product->name], $copy['values'] ?? []);
 
         try {
@@ -363,7 +382,7 @@ class CreativeRenderService
      *
      * @return array{values:array<string,string>,envelope:?array}
      */
-    private function buildCopy(CreativeAsset $asset, Product $product, CreativeTemplate $template, array $brand, bool $force = false): array
+    private function buildCopy(CreativeAsset $asset, Product $product, CreativeTemplate $template, array $brand, bool $force = false, ?PartnerBrandKit $partner = null): array
     {
         $slotsByKey = collect($template->slots ?? [])
             ->filter(fn ($s) => in_array($s['key'] ?? null, ['headline', 'sub_headline', 'cta_button'], true))
@@ -375,6 +394,14 @@ class CreativeRenderService
 
         $resolved = ['headline' => null, 'sub_headline' => null, 'cta_button' => null];
         $envelope = null;
+
+        // partner_share'de PartnerBrandKit kendi CTA listesini tanımlamışsa marka
+        // kitinin genel CTA listesinin YERİNE geçer (kullanıcı notu: "partner'a özel
+        // fiyat/CTA PartnerBrandKit'ten gelir") — tanımlı değilse marka kitine düşer.
+        $criteria = $brand['criteria'] ?? [];
+        if (! empty($partner?->cta_phrases)) {
+            $criteria['cta_phrases'] = $partner->cta_phrases;
+        }
 
         // $force: ai_compose motorunun SVG fallback'i yok — metin slotu
         // tanımlıysa AI'dan metin istemek isteğe bağlı değil (bkz. generateAiComposition).
@@ -396,11 +423,11 @@ class CreativeRenderService
                     ),
                     designBrief: $briefWithExtra !== '' ? $briefWithExtra : null,
                     tone: $brand['criteria']['tone'] ?? null,
-                    ctaPhrases: $brand['criteria']['cta_phrases'] ?? [],
+                    ctaPhrases: $criteria['cta_phrases'] ?? [],
                     bannedWords: $brand['criteria']['banned_words'] ?? [],
                 );
                 $envelope = $this->copyGenerator->generate($request);
-                $resolved = $this->copyRules->resolve($envelope['data'] ?? [], $brand['criteria'] ?? [], $slotsByKey);
+                $resolved = $this->copyRules->resolve($envelope['data'] ?? [], $criteria, $slotsByKey);
             } catch (\Throwable $e) {
                 Log::warning('Creative AI copywriting başarısız.', [
                     'product_id' => $product->id,
@@ -474,20 +501,12 @@ class CreativeRenderService
     }
 
     /**
-     * Asset'in kanalına (meta.channel) ve — partner_share ise — bağlı
-     * PartnerBrandKit'e göre Creative Rules Engine'den bir CreativeSpec üretir.
-     * meta.channel yoksa 'brand_post' varsayılır (geriye dönük uyumlu —
-     * eski asset'ler/istekler bu alanı hiç göndermiyordu).
+     * Kanal + (partner_share ise) bağlı PartnerBrandKit'e göre Creative Rules
+     * Engine'den bir CreativeSpec üretir. Kanal/partner generate()'de bir kez
+     * çözülüp buraya ve buildCopy()'e aynen aktarılır (tekrar sorgu atmaz).
      */
-    private function buildCreativeSpec(CreativeAsset $asset, array $brand, array $format): CreativeSpec
+    private function buildCreativeSpec(string $channel, ?PartnerBrandKit $partner, array $brand, array $format): CreativeSpec
     {
-        $channel = (string) ($asset->meta['channel'] ?? CreativeSpec::CHANNEL_BRAND_POST);
-
-        $partner = null;
-        if ($channel === CreativeSpec::CHANNEL_PARTNER_SHARE && ! empty($asset->meta['partner_brand_kit_id'])) {
-            $partner = PartnerBrandKit::find((int) $asset->meta['partner_brand_kit_id']);
-        }
-
         return $this->rulesEngine->buildSpec(
             brandTokens: $brand,
             channel: $channel,
