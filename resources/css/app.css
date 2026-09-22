@@ -113,9 +113,33 @@
   --color-bg-rgb: 248 250 252;
   --color-border-rgb: 226 232 240;
   --color-success-rgb: 22 163 74;
+
   --color-warning-rgb: 245 158 11;
   --color-danger-rgb: 220 38 38;
   --color-info-rgb: 37 99 235;
+}
+
+/* AppLayoutClassic.vue'nun (TopNav+LeftSidebar) kök grid'i — bu component'in
+   kendi <style scoped> bloğunda değil burada yaşıyor, çünkü .top-nav/.left-sidebar
+   grid item'ları Teleport ile body'ye taşınan içerikle birlikte konumlanıyor. */
+.layout-root {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  grid-template-rows: auto 1fr;
+  height: 100vh;
+  height: 100dvh;
+  padding: 12px;
+  gap: 8px;
+}
+
+/* Dar ekranlarda (telefon) kenar boşluklarını daralt — içerik alanını büyüt.
+   Sol sidebar mobilde gizlendiği (bkz. LeftSidebar.vue) için sütun kaldırılır. */
+@media (max-width: 640px) {
+  .layout-root {
+    grid-template-columns: 1fr;
+    padding: 6px;
+    gap: 6px;
+  }
 }
 
 @layer components {

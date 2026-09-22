@@ -327,8 +327,15 @@ export function useAppShell() {
 		if (echoChannel) window.Echo.leave(`App.Models.User.${currentUser.value.id}`)
 	})
 
-	// Global Ctrl+K artık TopBar.vue (new/) kendi içinde dinliyor — burada ikinci bir
-	// keydown listener tutmak aynı anda iki farklı search modalının açılmasına yol açıyordu.
+	/* ── Global Ctrl+K (arama) ── */
+	function onKey(e) {
+		if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+			e.preventDefault()
+			searchOpen.value = true
+		}
+	}
+	onMounted(() => document.addEventListener('keydown', onKey))
+	onBeforeUnmount(() => document.removeEventListener('keydown', onKey))
 
 	return {
 		page,

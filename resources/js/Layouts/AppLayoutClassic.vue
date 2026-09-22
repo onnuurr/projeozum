@@ -1,28 +1,22 @@
 <template>
-	<div class="h-screen overflow-hidden flex flex-col">
-		<header class="w-full flex flex-col shadow-sm flex-shrink-0 relative z-10">
-			<TopBar
-				:notifications="visibleNotifications"
-				@open-search="searchOpen = true"
-				@mark-all-read="markAllNotificationsRead"
-				@read-notification="readNotification"
-				@notification-click="onNotificationClick"
-			/>
+	<div class="layout-root">
+		<TopNav
+			:nav-items="navItems"
+			:sidebar-items="sidebarTop"
+			:notifications="visibleNotifications"
+			:user="currentUser"
+			:user-menu="userMenu"
+			@open-search="searchOpen = true"
+			@mark-all-read="markAllNotificationsRead"
+			@read-notification="readNotification"
+			@user-action="handleUserAction"
+			@notification-click="onNotificationClick"
+		/>
 
-			<MainNav
-				:menu-items="sidebarTop"
-				:user="currentUser"
-				:user-menu="userMenu"
-				@user-action="handleUserAction"
-			/>
+		<LeftSidebar :top-buttons="sidebarTop" :bottom-buttons="sidebarBottom" :nav-items="navItems" />
 
-			<ActionBar :title="activeRoot?.label" :icon="activeRoot?.icon ? renderMenuIcon(activeRoot.icon) : ''" :tabs="navItems" />
-		</header>
-
-		<main class="flex-1 min-h-0 mx-1 sm:mx-2 my-1 sm:my-2 bg-surface rounded-xl sm:rounded-2xl shadow-sm overflow-hidden">
-			<div class="main-content h-full overflow-y-auto p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-5" scroll-region>
-				<slot />
-			</div>
+		<main class="main-content">
+			<slot />
 		</main>
 
 		<FilterDrawer
@@ -31,26 +25,29 @@
 			@reset="showToast({ type: 'info', title: 'Filtreler Sıfırlandı', message: 'Tüm filtreler kaldırıldı.' })"
 		/>
 
-		<SearchModal v-model="searchOpen" :recent="searchRecent" :quick="searchQuick" />
+		<SearchModal
+			v-model="searchOpen"
+			:recent="searchRecent"
+			:quick="searchQuick"
+			@select="showToast({ type: 'info', title: 'Arama Sonucu', message: $event.text })"
+		/>
 
 		<ToastContainer :toasts="toasts" @dismiss="dismissToast" />
 	</div>
 </template>
 
 <script setup>
-import TopBar from '@/Components/TopBar.vue'
-import MainNav from '@/Components/MainNav.vue'
-import ActionBar from '@/Components/ActionBar.vue'
+import TopNav from '@/Components/TopNav.vue'
+import LeftSidebar from '@/Components/LeftSidebar.vue'
 import FilterDrawer from '@/Components/FilterDrawer.vue'
 import SearchModal from '@/Components/SearchModal.vue'
 import ToastContainer from '@/Components/ToastContainer.vue'
 import { useAppShell } from '@/composables/useAppShell.js'
-import { renderMenuIcon } from '@/menuIcons.js'
 
 const {
 	navItems,
-	activeRoot,
 	sidebarTop,
+	sidebarBottom,
 	visibleNotifications,
 	currentUser,
 	userMenu,
@@ -70,13 +67,25 @@ const {
 </script>
 
 <style scoped>
-/* Sayfa (body) arka planı gri kalır (--color-bg), <main> saas-frontend’in kendi
-   mx-1/my-1 + bg-surface + shadow-sm kartı olarak onun üzerinde yüzer — bu ayrım
-   olmadan içerik sayfayla aynı renkte görünüp "düz beyaz" hissi veriyordu. Sadece ince
-   scrollbar burada, geri kalan spacing/renk/gölge tamamen SaasKit/layout/AppLayout.vue’nun
-   birebir Tailwind class’ları (bkz. şablon), uydurma piksel değeri yok. */
+.main-content {
+	grid-column: 2;
+	grid-row: 2;
+	padding: 20px 20px 20px 18px;
+	overflow-x: hidden;
+	overflow-y: auto;
+	background: #f7f7fb;
+	border-radius: 14px;
+	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
 .main-content::-webkit-scrollbar { width: 4px; }
 .main-content::-webkit-scrollbar-track { background: transparent; margin: 14px 0; }
 .main-content::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.12); border-radius: 4px; }
 .main-content::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.22); }
+
+/* ── Dar ekran (telefon): iç boşlukları daralt — içerik alanını büyüt.
+   Alt boşluk, TopNav.vue'daki sabit mobil sekme çubuğunun (.mobile-tab-bar)
+   içeriğin üzerine binmemesi için genişletilir. ── */
+@media (max-width: 640px) {
+	.main-content { grid-column: 1; padding: 14px 12px calc(64px + env(safe-area-inset-bottom)); border-radius: 10px; }
+}
 </style>
