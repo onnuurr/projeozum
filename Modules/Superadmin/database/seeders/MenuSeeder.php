@@ -184,9 +184,9 @@ class MenuSeeder extends Seeder
                 ['label' => 'Stok Analizi'],
             ]],
             ['label' => 'İlişkiler', 'icon' => 'relations', 'url' => '/tenants', 'children' => [
-                ['label' => 'Tenant\'lar', 'url' => '/tenants'],
+                ['label' => 'İş Ortakları', 'url' => '/tenants'],
                 ['label' => 'Başvurular', 'url' => '/tenants/applications'],
-                ['label' => 'Tenant Tipleri', 'url' => '/tenants/types'],
+                ['label' => 'İş Ortağı Tipleri', 'url' => '/tenants/types'],
                 ['label' => 'Müşteriler'],
                 ['label' => 'Tedarikçiler', 'url' => '/suppliers'],
                 ['label' => 'Kullanıcılar', 'url' => '/users'],

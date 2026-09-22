@@ -11,11 +11,11 @@ class TenantPermissionSeeder extends Seeder
     public function run(): void
     {
         $adminPermissions = [
-            'tenant.view'              => 'Tenant\'ları Görüntüle',
-            'tenant.manage'            => 'Tenant Yönet',
-            'tenant-type.manage'       => 'Tenant Tipi Yönet',
-            'tenant-access.manage'     => 'Tenant Erişimi Yönet',
-            'tenant.product.customize' => 'Tenant\'a Özel Ürün Metni Yaz',
+            'tenant.view'              => 'İş Ortaklarını Görüntüle',
+            'tenant.manage'            => 'İş Ortağı Yönet',
+            'tenant-type.manage'       => 'İş Ortağı Tipi Yönet',
+            'tenant-access.manage'     => 'İş Ortağı Erişimi Yönet',
+            'tenant.product.customize' => 'İş Ortağına Özel Ürün Metni Yaz',
         ];
 
         $allCreated = [];

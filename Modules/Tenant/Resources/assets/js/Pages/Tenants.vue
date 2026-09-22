@@ -1,16 +1,16 @@
 <template>
-	<Head title="Tenant'lar" />
+	<Head title="İş Ortakları" />
 	<div class="page-tenants">
 		<Breadcrumb
 			:items="[
 				{ label: 'Ana Sayfa', to: '/workflow', icon: 'home' },
 				{ label: 'İlişkiler' },
-				{ label: 'Tenant\'lar' },
+				{ label: 'İş Ortakları' },
 			]"
 		/>
 
-		<PageHeader title="Tenant'lar">
-			<template #subtitle><strong>{{ tenants.length }}</strong> tenant kayıtlı</template>
+		<PageHeader title="İş Ortakları">
+			<template #subtitle><strong>{{ tenants.length }}</strong> iş ortağı kayıtlı</template>
 			<template v-if="canManage" #actions>
 				<Button variant="ghost" with-icon @click="router.visit('/tenants/applications')">
 					<template #leading><ClipboardList :size="13" /></template>
@@ -18,17 +18,17 @@
 				</Button>
 				<Button variant="primary" with-icon @click="openNew">
 					<template #leading><Plus :size="13" /></template>
-					Yeni Tenant
+					Yeni İş Ortağı
 				</Button>
 			</template>
 		</PageHeader>
 
-		<Card title="Tenant Listesi" body-class="p-0">
+		<Card title="İş Ortağı Listesi" body-class="p-0">
 			<template #actions>
 				<div class="card-actions-row">
 					<div class="card-search">
 						<Search :size="13" />
-						<input v-model="searchQuery" type="text" placeholder="Tenant ara (isim, kod, vergi no, e-posta)..." />
+						<input v-model="searchQuery" type="text" placeholder="İş ortağı ara (isim, kod, vergi no, e-posta)..." />
 					</div>
 					<select v-model="filterType" class="filter-select">
 						<option value="">Tüm tipler</option>
@@ -88,18 +88,18 @@
 		</Card>
 
 		<!-- Form modal -->
-		<AppDrawer v-model="formOpen" :title="editing ? 'Tenant Düzenle' : 'Yeni Tenant'" variant="info" width="60vw">
+		<AppDrawer v-model="formOpen" :title="editing ? 'İş Ortağını Düzenle' : 'Yeni İş Ortağı'" variant="info" width="60vw">
 			<form class="form-grid" @submit.prevent="submit">
 				<div class="form-section">
 					<h4 class="form-section-title">Temel Bilgiler</h4>
 					<div class="form-row-2">
 						<div class="form-row">
-							<label class="form-label">Tenant Kodu <span class="req">*</span></label>
+							<label class="form-label">İş Ortağı Kodu <span class="req">*</span></label>
 							<input v-model="form.code" type="text" class="form-input mono" placeholder="BAYI001" />
 							<span v-if="errors.code" class="form-error">{{ errors.code }}</span>
 						</div>
 						<div class="form-row">
-							<label class="form-label">Tenant Tipi</label>
+							<label class="form-label">İş Ortağı Tipi</label>
 							<select v-model="form.tenant_type_id" class="form-input">
 								<option :value="null">Seçilmedi</option>
 								<option v-for="t in types" :key="t.id" :value="t.id">{{ t.name }}</option>
@@ -125,8 +125,8 @@
 					<h4 class="form-section-title">Yetkili Giriş Hesabı</h4>
 					<p class="form-section-hint">
 						{{ editing
-							? 'Tenant\'ın birincil yetkili hesabı. Şifreyi yalnızca değiştirmek istiyorsanız doldurun.'
-							: 'Tenant\'ın birincil yetkili hesabı.' }}
+							? 'İş ortağının birincil yetkili hesabı. Şifreyi yalnızca değiştirmek istiyorsanız doldurun.'
+							: 'İş ortağının birincil yetkili hesabı.' }}
 					</p>
 					<div class="form-row-2">
 						<div class="form-row">
@@ -154,7 +154,7 @@
 				</div>
 				<div v-else class="form-section">
 					<h4 class="form-section-title">Yetkili Giriş Hesabı</h4>
-					<p class="form-section-hint">Bu tenant için yetkili hesap bulunamadı.</p>
+					<p class="form-section-hint">Bu iş ortağı için yetkili hesap bulunamadı.</p>
 				</div>
 
 				<div v-if="prefillDocuments.length" class="form-section">
@@ -262,14 +262,14 @@
 				<div class="form-section">
 					<h4 class="form-section-title">Kargo Anlaşması</h4>
 					<p class="form-section-hint">
-						Bagisto senkronu bu alan boşken tenant'ı aktif edemez — dolu değilse tenant Bagisto'da hiç oluşmaz/güncellenmez.
+						Bagisto senkronu bu alan boşken iş ortağını aktif edemez — dolu değilse iş ortağı Bagisto'da hiç oluşmaz/güncellenmez.
 					</p>
 					<div class="form-row-2">
 						<div class="form-row">
 							<label class="form-label">Kargo Anlaşması Tipi</label>
 							<select v-model="form.shipping_agreement_type" class="form-input">
 								<option :value="null">Seçilmedi</option>
-								<option value="own">Bayi kendi kargo anlaşmasını kullanıyor</option>
+								<option value="own">İş ortağı kendi kargo anlaşmasını kullanıyor</option>
 								<option value="platform">Platform kargo anlaşması</option>
 							</select>
 							<span v-if="errors.shipping_agreement_type" class="form-error">{{ errors.shipping_agreement_type }}</span>
@@ -295,7 +295,7 @@
 				<div class="form-section">
 					<div class="form-row">
 						<label class="form-label">Notlar</label>
-						<textarea v-model="form.notes" class="form-input" rows="2" placeholder="Tenant hakkında özel notlar..." />
+						<textarea v-model="form.notes" class="form-input" rows="2" placeholder="İş ortağı hakkında özel notlar..." />
 					</div>
 					<div class="form-row form-row-inline">
 						<label class="form-check">
@@ -342,7 +342,7 @@ const props = defineProps({
 })
 
 const columns = [
-	{ key: 'tenant', label: 'Tenant', sortable: false },
+	{ key: 'tenant', label: 'İş Ortağı', sortable: false },
 	{ key: 'type', label: 'Tip' },
 	{ key: 'contact', label: 'İletişim', sortable: false },
 	{ key: 'tax_number', label: 'Vergi No' },
@@ -551,7 +551,7 @@ function submit() {
 			formOpen.value = false
 			showToast?.({
 				type: 'success',
-				title: editing.value ? 'Tenant güncellendi' : 'Tenant eklendi',
+				title: editing.value ? 'İş ortağı güncellendi' : 'İş ortağı eklendi',
 				message: form.name,
 			})
 		},
@@ -591,7 +591,7 @@ function toggle(t) {
 		onSuccess: () => {
 			showToast?.({
 				type: 'success',
-				title: t.is_active ? 'Tenant pasifleştirildi' : 'Tenant aktifleştirildi',
+				title: t.is_active ? 'İş ortağı pasifleştirildi' : 'İş ortağı aktifleştirildi',
 				message: t.name,
 			})
 		},
@@ -610,12 +610,12 @@ async function confirmDelete(t) {
 		await $swal.fire({
 			icon: 'warning',
 			title: 'Silinemez',
-			text: `${t.name} tenant'ına bağlı ${t.userCount} kullanıcı var. Önce kullanıcıları başka tenant'a taşıyın.`,
+			text: `${t.name} iş ortağına bağlı ${t.userCount} kullanıcı var. Önce kullanıcıları başka iş ortağına taşıyın.`,
 		})
 		return
 	}
 	const ok = await $swal.dangerConfirm({
-		title: 'Tenant\'ı Sil',
+		title: 'İş Ortağını Sil',
 		html: `<strong>${t.name}</strong> silinecek. Bu işlem geri alınabilir (soft delete).`,
 		confirmText: 'Sil',
 		cancelText: 'Vazgeç',
@@ -625,7 +625,7 @@ async function confirmDelete(t) {
 		preserveScroll: true,
 		preserveState: true,
 		onSuccess: () => {
-			showToast?.({ type: 'warning', title: 'Tenant silindi', message: t.name })
+			showToast?.({ type: 'warning', title: 'İş ortağı silindi', message: t.name })
 		},
 		onError: (errs) => {
 			showToast?.({ type: 'error', title: 'Silme başarısız', message: Object.values(errs)[0] || 'Sunucu hatası.' })

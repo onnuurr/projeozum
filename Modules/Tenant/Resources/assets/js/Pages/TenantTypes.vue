@@ -1,16 +1,16 @@
 <template>
-	<Head title="Tenant Tipleri" />
+	<Head title="İş Ortağı Tipleri" />
 	<div class="page-tenant-types">
 		<Breadcrumb
 			:items="[
 				{ label: 'Ana Sayfa', to: '/workflow', icon: 'home' },
 				{ label: 'İlişkiler' },
-				{ label: 'Tenant\'lar', to: '/tenants' },
+				{ label: 'İş Ortakları', to: '/tenants' },
 				{ label: 'Tipler' },
 			]"
 		/>
 
-		<PageHeader title="Tenant Tipleri">
+		<PageHeader title="İş Ortağı Tipleri">
 			<template #subtitle><strong>{{ types.length }}</strong> tip kayıtlı</template>
 			<template v-if="canManage" #actions>
 				<Button variant="primary" with-icon @click="openNew">
@@ -37,7 +37,7 @@
 			</DataTable>
 		</Card>
 
-		<AppDrawer v-model="formOpen" :title="editing ? 'Tipi Düzenle' : 'Yeni Tenant Tipi'" subtitle="Tenant tipi bilgilerini girin" variant="info" width="480px">
+		<AppDrawer v-model="formOpen" :title="editing ? 'Tipi Düzenle' : 'Yeni İş Ortağı Tipi'" subtitle="İş ortağı tipi bilgilerini girin" variant="info" width="480px">
 			<form class="form-grid" @submit.prevent="submit">
 				<div class="form-row-2">
 					<div class="form-row">
@@ -113,7 +113,7 @@ const columns = [
 	{ key: 'name', label: 'Ad' },
 	{ key: 'description', label: 'Açıklama' },
 	{ key: 'price_list_type', label: 'Fiyat Listesi' },
-	{ key: 'tenantCount', label: 'Tenant' },
+	{ key: 'tenantCount', label: 'İş Ortağı' },
 	{ key: 'sort_order', label: 'Sıra' },
 ]
 
@@ -210,7 +210,7 @@ async function confirmDelete(t) {
 		await $swal.fire({
 			icon: 'warning',
 			title: 'Silinemez',
-			text: `${t.name} tipine bağlı ${t.tenantCount} tenant var. Önce tenant'ların tipini değiştirin.`,
+			text: `${t.name} tipine bağlı ${t.tenantCount} iş ortağı var. Önce iş ortaklarının tipini değiştirin.`,
 		})
 		return
 	}

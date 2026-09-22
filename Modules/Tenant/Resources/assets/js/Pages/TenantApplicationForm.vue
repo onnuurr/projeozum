@@ -57,7 +57,7 @@ function submit() {
 
 <template>
 	<div class="flex min-h-screen flex-col items-center bg-gray-100 pt-6 sm:pt-10">
-		<Head title="Tenant Başvurusu" />
+		<Head title="İş Ortağı Başvurusu" />
 
 		<Link href="/">
 			<ApplicationLogo class="h-16 w-16 fill-current text-gray-500" />
@@ -65,9 +65,9 @@ function submit() {
 
 		<div class="mt-6 w-full max-w-2xl overflow-hidden bg-white px-6 py-6 shadow-md sm:rounded-lg">
 		<div class="mb-4">
-			<h1 class="text-lg font-semibold text-gray-900">Tenant Başvuru Formu</h1>
+			<h1 class="text-lg font-semibold text-gray-900">İş Ortağı Başvuru Formu</h1>
 			<p class="mt-1 text-sm text-gray-600">
-				Bayi/tenant olarak platforma katılmak için firma bilgilerinizi girin ve doğrulama
+				İş ortağı olarak platforma katılmak için firma bilgilerinizi girin ve doğrulama
 				belgelerinizi yükleyin. Başvurunuz incelendikten sonra sizinle iletişime geçilecektir.
 			</p>
 		</div>

@@ -1,16 +1,16 @@
 <template>
-	<Head :title="`Tenant Ayarları · ${product.name}`" />
+	<Head :title="`İş Ortağı Ayarları · ${product.name}`" />
 	<div class="page-product-tenants">
 		<Breadcrumb
 			:items="[
 				{ label: 'Ana Sayfa', to: '/workflow', icon: 'home' },
 				{ label: 'Katalog', to: '/products' },
 				{ label: product.name },
-				{ label: 'Tenant Ayarları' },
+				{ label: 'İş Ortağı Ayarları' },
 			]"
 		/>
 
-		<PageHeader :title="`${product.name} · Tenant Ayarları`">
+		<PageHeader :title="`${product.name} · İş Ortağı Ayarları`">
 			<template #subtitle>
 				<span class="mono">{{ product.sku }}</span>
 				<span v-if="product.brand_name"> · {{ product.brand_name }}</span>
@@ -21,17 +21,17 @@
 
 		<Alert variant="info" class="page-alert">
 			<strong>Sadece sistem yöneticisi tarafından düzenlenebilir.</strong>
-			Tüm aktif tenantlar listelenir. Her satırda durum kaynağı belirtilir:
+			Tüm aktif iş ortakları listelenir. Her satırda durum kaynağı belirtilir:
 			<span class="src-tag default">varsayılan</span>
 			<span class="src-tag rule">marka/kategori kuralı</span>
 			<span class="src-tag override">ürün override</span>
 		</Alert>
 
-		<Card :title="`Tenant Listesi · ${rows.length} aktif tenant`" body-class="p-0">
+		<Card :title="`İş Ortağı Listesi · ${rows.length} aktif iş ortağı`" body-class="p-0">
 			<template #actions>
 				<div class="card-search">
 					<Search :size="13" />
-					<input v-model="searchQuery" type="text" placeholder="Tenant ara..." />
+					<input v-model="searchQuery" type="text" placeholder="İş ortağı ara..." />
 				</div>
 			</template>
 
@@ -39,7 +39,7 @@
 			<table class="data-table">
 				<thead>
 					<tr>
-						<th style="width: 22%">Tenant</th>
+						<th style="width: 22%">İş Ortağı</th>
 						<th style="width: 12%">Tip</th>
 						<th style="width: 13%">Durum</th>
 						<th style="width: 12%">Tip Fiyatı</th>
@@ -50,7 +50,7 @@
 				</thead>
 				<tbody>
 					<tr v-if="filtered.length === 0">
-						<td colspan="7" class="empty-row">Aktif tenant bulunamadı</td>
+						<td colspan="7" class="empty-row">Aktif iş ortağı bulunamadı</td>
 					</tr>
 					<tr v-for="r in filtered" :key="r.tenant_id" :class="{ dirty: isDirty(r.tenant_id) }">
 						<td>
@@ -236,7 +236,7 @@ function save(r) {
 async function confirmReset(r) {
 	const ok = await $swal.dangerConfirm({
 		title: 'Override\'ı Sil',
-		html: `<strong>${r.tenant_name}</strong> için override silinecek. Tenant marka/kategori kuralına ve varsayılan fiyatlandırmaya dönecek.`,
+		html: `<strong>${r.tenant_name}</strong> için override silinecek. İş ortağı marka/kategori kuralına ve varsayılan fiyatlandırmaya dönecek.`,
 		confirmText: 'Sıfırla',
 		cancelText: 'Vazgeç',
 	})

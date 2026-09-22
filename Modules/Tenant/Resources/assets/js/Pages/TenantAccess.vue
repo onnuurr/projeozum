@@ -5,7 +5,7 @@
 			:items="[
 				{ label: 'Ana Sayfa', to: '/workflow', icon: 'home' },
 				{ label: 'İlişkiler' },
-				{ label: 'Tenant\'lar', to: '/tenants' },
+				{ label: 'İş Ortakları', to: '/tenants' },
 				{ label: tenant.name },
 				{ label: 'Erişim' },
 			]"
@@ -56,7 +56,7 @@
 				</div>
 			</template>
 
-			<DataTable :columns="overrideColumns" :data="overrides" row-key-field="id" empty-title="Override yok — bu tenant kural setine uyuyor">
+			<DataTable :columns="overrideColumns" :data="overrides" row-key-field="id" empty-title="Override yok — bu iş ortağı kural setine uyuyor">
 				<template #product_name="{ row }">
 					<div class="product-cell">
 						<strong>{{ row.product_name }}</strong>
@@ -76,7 +76,7 @@
 				</template>
 				<template #actions="{ row }">
 					<button v-if="canManage" class="table-action-btn view" @click="editOverride(row)" title="Düzenle"><Pencil :size="14" /></button>
-					<button v-if="canCustomizeCopy" class="table-action-btn view" @click="openCustomCopy(row)" title="Özel Metin (Bu Bayiye Özel)"><NotebookPen :size="14" /></button>
+					<button v-if="canCustomizeCopy" class="table-action-btn view" @click="openCustomCopy(row)" title="Özel Metin (Bu İş Ortağına Özel)"><NotebookPen :size="14" /></button>
 					<button v-if="canManage" class="table-action-btn delete" @click="confirmDeleteOverride(row)" title="Sil"><Trash2 :size="14" /></button>
 				</template>
 			</DataTable>
@@ -105,7 +105,7 @@
 					<textarea v-model="ruleForm.notes" class="form-input" rows="2" placeholder="Bu kuralın amacı..." />
 				</div>
 				<Alert variant="warning">
-					Seçilen <strong>{{ ruleForm.scope_type === 'brand' ? 'markaya' : 'kategoriye' }}</strong> ait tüm ürünler bu tenant'a kapatılacak.
+					Seçilen <strong>{{ ruleForm.scope_type === 'brand' ? 'markaya' : 'kategoriye' }}</strong> ait tüm ürünler bu iş ortağına kapatılacak.
 					İstisna eklemek için ürün override'ı kullanın.
 				</Alert>
 			</form>
@@ -138,7 +138,7 @@
 				<div class="form-row">
 					<label class="form-check">
 						<input v-model="overrideForm.is_blocked" type="checkbox" />
-						<span>Bu ürünü tenant'a kapat (override)</span>
+						<span>Bu ürünü iş ortağına kapat (override)</span>
 					</label>
 				</div>
 				<div class="form-row" v-if="!overrideForm.is_blocked">
@@ -159,15 +159,15 @@
 			</template>
 		</AppDrawer>
 
-		<!-- ─── Özel Metin (Bayiye Özel) Modal ─────────────────────────── -->
-		<AppDrawer v-model="customCopyOpen" title="Bayiye Özel Ürün Metni" variant="info" width="60vw">
+		<!-- ─── Özel Metin (İş Ortağına Özel) Modal ─────────────────────────── -->
+		<AppDrawer v-model="customCopyOpen" title="İş Ortağına Özel Ürün Metni" variant="info" width="60vw">
 			<div v-if="customCopy.product_name" class="picked-product">
 				<strong>{{ customCopy.product_name }}</strong>
 			</div>
 			<form class="form-grid" @submit.prevent="submitCustomCopy">
 				<div class="form-row">
 					<label class="form-label">Özel Ürün Adı</label>
-					<input v-model="customCopy.custom_name" type="text" maxlength="255" class="form-input" placeholder="Boş: bu bayi için varsayılan adı gösterir" />
+					<input v-model="customCopy.custom_name" type="text" maxlength="255" class="form-input" placeholder="Boş: bu iş ortağı için varsayılan adı gösterir" />
 					<span v-if="customCopy.default_public_name" class="form-help">Varsayılan: {{ customCopy.default_public_name }}</span>
 				</div>
 				<div class="form-row">

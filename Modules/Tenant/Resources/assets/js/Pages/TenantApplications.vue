@@ -1,5 +1,5 @@
 <template>
-	<Head title="Tenant Başvuruları" />
+	<Head title="İş Ortağı Başvuruları" />
 	<div class="page-tenant-applications">
 		<Breadcrumb
 			:items="[
@@ -9,7 +9,7 @@
 			]"
 		/>
 
-		<PageHeader title="Tenant Başvuruları">
+		<PageHeader title="İş Ortağı Başvuruları">
 			<template #subtitle><strong>{{ pendingCount }}</strong> bekleyen başvuru</template>
 		</PageHeader>
 
@@ -53,7 +53,7 @@
 				</template>
 				<template #status="{ row }">
 					<Badge :color="statusColor(row.status)" variant="tonal" :label="statusLabel(row.status)" />
-					<span v-if="row.status === 'approved' && row.convertedTenantId" class="dim converted-hint">Tenant'a dönüştürüldü</span>
+					<span v-if="row.status === 'approved' && row.convertedTenantId" class="dim converted-hint">İş ortağına dönüştürüldü</span>
 				</template>
 				<template #actions="{ row }">
 					<template v-if="row.status === 'pending' && canManage">
@@ -66,7 +66,7 @@
 						size="sm"
 						@click="createTenant(row)"
 					>
-						Tenant Oluştur
+						İş Ortağı Oluştur
 					</Button>
 				</template>
 			</DataTable>
