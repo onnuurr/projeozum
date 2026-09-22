@@ -78,7 +78,7 @@ class ReconciliationService
                 $candidates[] = [
                     'type'  => BankTransaction::MATCH_TENANT_INVOICE,
                     'id'    => $invoice->id,
-                    'label' => 'Tenant faturası #' . $invoice->id . ' — ' . ($invoice->tenant?->name ?? 'Bilinmiyor'),
+                    'label' => 'İş ortağı faturası #' . $invoice->id . ' — ' . ($invoice->tenant?->name ?? 'Bilinmiyor'),
                 ];
             });
 
