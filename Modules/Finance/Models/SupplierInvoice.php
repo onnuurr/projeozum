@@ -6,7 +6,6 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Modules\Atelier\Models\ProductionOrder;
 
 class SupplierInvoice extends Model
 {
@@ -32,7 +31,6 @@ class SupplierInvoice extends Model
         'status',
         'paid_at',
         'category',
-        'production_order_id',
         'file_path',
         'note',
         'created_by',
@@ -51,11 +49,6 @@ class SupplierInvoice extends Model
         'total'        => 'decimal:2',
         'paid_at'      => 'datetime',
     ];
-
-    public function productionOrder(): BelongsTo
-    {
-        return $this->belongsTo(ProductionOrder::class);
-    }
 
     public function creator(): BelongsTo
     {

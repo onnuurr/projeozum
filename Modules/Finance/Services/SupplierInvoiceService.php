@@ -13,7 +13,6 @@ class SupplierInvoiceService
     public function list(): Collection
     {
         return SupplierInvoice::query()
-            ->with('productionOrder:id,code')
             ->orderByDesc('invoice_date')
             ->orderByDesc('id')
             ->get();

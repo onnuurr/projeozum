@@ -26,7 +26,6 @@
 				<template #invoiceNo="{ value }"><span class="mono">{{ value }}</span></template>
 				<template #supplierName="{ row }">
 					{{ row.supplierName }}
-					<span v-if="row.productionOrderCode" class="dim">· {{ row.productionOrderCode }}</span>
 				</template>
 				<template #category="{ value }"><span class="dim">{{ value ?? '—' }}</span></template>
 				<template #total="{ row }"><span class="strong">{{ formatMoney(row.total) }}</span> <span class="dim">{{ row.currency }}</span></template>
@@ -98,13 +97,6 @@
 							<option value="cancelled">İptal</option>
 						</select>
 					</div>
-					<div class="form-row" style="flex: 2">
-						<label class="form-label">Üretim Emri</label>
-						<select v-model="form.production_order_id" class="form-input">
-							<option :value="null">— Bağlı değil —</option>
-							<option v-for="po in productionOrders" :key="po.value" :value="po.value">{{ po.label }}</option>
-						</select>
-					</div>
 					<div class="form-row" style="flex: 3">
 						<label class="form-label">Not</label>
 						<input v-model="form.note" type="text" class="form-input" placeholder="isteğe bağlı" />
@@ -150,7 +142,6 @@ const showToast = inject('showToast')
 
 defineProps({
 	invoices: { type: Array, default: () => [] },
-	productionOrders: { type: Array, default: () => [] },
 })
 
 const columns = [
@@ -178,7 +169,6 @@ function emptyForm() {
 		tax_amount: 0,
 		total: 0,
 		status: 'unpaid',
-		production_order_id: null,
 		note: '',
 		file: null,
 		hadFile: false,
@@ -216,7 +206,6 @@ function openEdit(inv) {
 		tax_amount: inv.taxAmount,
 		total: inv.total,
 		status: inv.status,
-		production_order_id: inv.productionOrderId,
 		note: inv.note,
 		file: null,
 		hadFile: inv.hasFile,

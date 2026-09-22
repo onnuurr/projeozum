@@ -33,7 +33,6 @@ class UpdateSupplierInvoiceRequest extends FormRequest
                 SupplierInvoice::STATUS_CANCELLED,
             ])],
             'category'             => ['nullable', 'string', 'max:100'],
-            'production_order_id'  => ['nullable', Rule::exists('production_orders', 'id')],
             'note'                 => ['nullable', 'string'],
             'file'                 => ['nullable', File::default()->max(10 * 1024)->extensions(['pdf', 'jpg', 'jpeg', 'png'])],
         ];

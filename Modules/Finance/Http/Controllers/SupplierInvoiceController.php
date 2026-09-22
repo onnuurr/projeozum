@@ -7,7 +7,6 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
-use Modules\Atelier\Models\ProductionOrder;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Modules\Finance\Http\Requests\StoreSupplierInvoiceRequest;
 use Modules\Finance\Http\Requests\UpdateSupplierInvoiceRequest;
@@ -36,22 +35,12 @@ class SupplierInvoiceController extends Controller
             'status'             => $invoice->status,
             'paidAt'             => optional($invoice->paid_at)->format('Y-m-d H:i'),
             'category'           => $invoice->category,
-            'productionOrderId'  => $invoice->production_order_id,
-            'productionOrderCode' => $invoice->productionOrder?->code,
             'note'               => $invoice->note,
             'hasFile'            => $invoice->file_path !== null,
         ]);
 
-        $productionOrders = ProductionOrder::query()
-            ->select(['id', 'code'])
-            ->orderByDesc('id')
-            ->limit(200)
-            ->get()
-            ->map(fn (ProductionOrder $order) => ['value' => $order->id, 'label' => $order->code]);
-
         return Inertia::render('Finance::SupplierInvoices', [
-            'invoices'         => $invoices->values(),
-            'productionOrders' => $productionOrders,
+            'invoices' => $invoices->values(),
         ]);
     }
 
