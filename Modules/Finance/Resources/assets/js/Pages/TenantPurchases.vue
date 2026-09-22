@@ -1,38 +1,46 @@
 <template>
-	<Head title="Bayi Alışverişleri" />
+	<Head title="Bayi Siparişleri" />
 	<div class="page-tenant-purchases">
 		<Breadcrumb
 			:items="[
 				{ label: 'Ana Sayfa', to: '/workflow', icon: 'home' },
 				{ label: 'Finans', to: '/finance' },
-				{ label: 'Bayi Alışverişleri' },
+				{ label: 'Bayi Siparişleri' },
 			]"
 		/>
 
 		<FinanceNav current="tenant-purchases" />
 
-		<PageHeader title="Bayi Alışverişleri">
+		<PageHeader title="Bayi Siparişleri">
 			<template #subtitle>
-				<strong>{{ summary.invoiceCount }}</strong> fatura ·
+				<strong>{{ summary.orderCount }}</strong> sipariş ·
 				toplam <strong>{{ formatMoney(summary.totalAmount) }}</strong> ·
-				bekleyen <strong>{{ formatMoney(summary.pendingAmount) }}</strong>
+				<strong>{{ summary.statusCounts.pending ?? 0 }}</strong> beklemede
 			</template>
 		</PageHeader>
 
-		<Card title="Tenant Fatura Listesi" body-class="p-0">
+		<Card title="Ürün Bazlı Kırılım" body-class="p-0">
+			<template #actions>
+				<span class="hint">Hangi üründen ne kadarlık sipariş geldi</span>
+			</template>
+			<EmptyState v-if="byProduct.length === 0" title="Henüz Bagisto siparişi yok." />
+			<DataTable v-else :columns="productColumns" :data="byProduct" row-key-field="productName" empty-title="Kayıt bulunamadı">
+				<template #totalAmount="{ value }"><span class="strong">{{ formatMoney(value) }}</span></template>
+			</DataTable>
+		</Card>
+
+		<Card title="Sipariş Listesi" body-class="p-0">
 			<template #actions>
 				<div class="card-search">
 					<input v-model="searchQuery" type="text" placeholder="Tenant / sipariş no ara..." />
 				</div>
 			</template>
 
-			<DataTable :columns="columns" :data="filtered" row-key-field="id" empty-title="Kayıt bulunamadı">
+			<DataTable :columns="orderColumns" :data="filtered" row-key-field="id" empty-title="Kayıt bulunamadı">
 				<template #tenant="{ row }">{{ row.tenant }} <span v-if="row.tenantCode" class="dim">({{ row.tenantCode }})</span></template>
 				<template #orderNo="{ value }"><span class="mono">{{ value ?? '—' }}</span></template>
-				<template #amount="{ row }"><span class="strong">{{ formatMoney(row.amount) }}</span> <span class="dim">{{ row.currency }}</span></template>
-				<template #status="{ value }"><Badge :color="statusColor(value)" variant="tonal" :label="value" /></template>
-				<template #dueDate="{ value }"><span class="dim">{{ value ?? '—' }}</span></template>
-				<template #paidAt="{ value }"><span class="dim">{{ value ?? '—' }}</span></template>
+				<template #amount="{ row }"><span class="strong">{{ formatMoney(row.amount) }}</span></template>
+				<template #status="{ value }"><Badge :color="statusColor(value)" variant="tonal" :label="statusLabels[value] ?? value" /></template>
 				<template #createdAt="{ value }"><span class="dim">{{ value }}</span></template>
 			</DataTable>
 		</Card>
@@ -48,31 +56,40 @@ import PageHeader from '@/Components/PageHeader.vue'
 import Card from '@/Components/Card.vue'
 import DataTable from '@/Components/DataTable.vue'
 import Badge from '@/Components/Badge.vue'
+import EmptyState from '@/Components/EmptyState.vue'
 import FinanceNav from '../Components/FinanceNav.vue'
 
 defineOptions({ layout: AppLayout })
 
 const props = defineProps({
 	summary: { type: Object, required: true },
-	invoices: { type: Array, default: () => [] },
+	orders: { type: Array, default: () => [] },
+	byProduct: { type: Array, default: () => [] },
+	statusLabels: { type: Object, default: () => ({}) },
 })
 
-const columns = [
+const productColumns = [
+	{ key: 'productName', label: 'Ürün' },
+	{ key: 'qty', label: 'Adet' },
+	{ key: 'orderCount', label: 'Sipariş Sayısı' },
+	{ key: 'totalAmount', label: 'Toplam Tutar' },
+]
+
+const orderColumns = [
 	{ key: 'tenant', label: 'Tenant' },
 	{ key: 'orderNo', label: 'Sipariş No' },
 	{ key: 'amount', label: 'Tutar' },
 	{ key: 'status', label: 'Durum' },
-	{ key: 'dueDate', label: 'Vade' },
-	{ key: 'paidAt', label: 'Ödendi' },
+	{ key: 'itemCount', label: 'Kalem' },
 	{ key: 'createdAt', label: 'Oluşturulma' },
 ]
 
 const searchQuery = ref('')
 const filtered = computed(() => {
 	const q = searchQuery.value.trim().toLowerCase()
-	if (!q) return props.invoices
-	return props.invoices.filter(inv =>
-		inv.tenant.toLowerCase().includes(q) || (inv.orderNo ?? '').toLowerCase().includes(q),
+	if (!q) return props.orders
+	return props.orders.filter(o =>
+		o.tenant.toLowerCase().includes(q) || (o.orderNo ?? '').toLowerCase().includes(q),
 	)
 })
 
@@ -81,11 +98,21 @@ function formatMoney(value) {
 }
 
 function statusColor(status) {
-	return { paid: 'success', pending: 'warning', cancelled: 'danger' }[status] ?? 'neutral'
+	return {
+		pending: 'warning',
+		confirmed: 'info',
+		preparing: 'info',
+		shipped: 'info',
+		delivered: 'success',
+		cancelled: 'danger',
+	}[status] ?? 'neutral'
 }
 </script>
 
 <style scoped>
+.page-tenant-purchases { display: flex; flex-direction: column; gap: 16px; }
+.hint { font-size: 12px; color: rgb(var(--color-muted-rgb)); white-space: nowrap; }
+
 .card-search { display: flex; align-items: center; gap: 6px; background: rgb(var(--color-bg-rgb)); border: 1px solid rgb(var(--color-border-rgb)); border-radius: 8px; padding: 5px 10px; min-width: 220px; }
 .card-search input { border: none; background: none; outline: none; font-family: inherit; font-size: 13px; color: rgb(var(--color-ink-rgb)); width: 100%; }
 

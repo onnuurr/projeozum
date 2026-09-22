@@ -43,7 +43,7 @@ const tabs = [
 	{ key: 'dashboard', label: 'Genel Bakış', href: '/finance' },
 	{ key: 'product-costs', label: 'Ürün Maliyetleri', href: '/finance/product-costs' },
 	{ key: 'sales', label: 'Satış Geçmişi', href: '/finance/sales' },
-	{ key: 'tenant-purchases', label: 'Bayi Alışverişleri', href: '/finance/tenant-purchases' },
+	{ key: 'tenant-purchases', label: 'Bayi Siparişleri', href: '/finance/tenant-purchases' },
 	{ key: 'supplier-invoices', label: 'Alınan Faturalar', href: '/finance/supplier-invoices' },
 	{ key: 'proformas', label: 'Proforma Faturalar', href: '/finance/proformas' },
 	{ key: 'outgoing-invoices', label: 'Düzenlenen Faturalar', href: '/finance/outgoing-invoices' },

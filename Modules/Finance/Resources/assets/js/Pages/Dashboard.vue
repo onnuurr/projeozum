@@ -20,9 +20,9 @@
 				</Card>
 			</Link>
 			<Link href="/finance/tenant-purchases" class="kpi-link">
-				<Card title="Bayi Alışverişleri" body-class="p-3.5">
+				<Card title="Bayi Siparişleri" body-class="p-3.5">
 					<p class="kpi-value">{{ formatMoney(tenantPurchases.totalAmount) }}</p>
-					<p class="kpi-hint">{{ tenantPurchases.invoiceCount }} fatura · {{ formatMoney(tenantPurchases.pendingAmount) }} bekliyor</p>
+					<p class="kpi-hint">{{ tenantPurchases.orderCount }} sipariş · {{ tenantPurchases.statusCounts.pending ?? 0 }} beklemede</p>
 				</Card>
 			</Link>
 			<Link href="/finance/product-costs" class="kpi-link">
