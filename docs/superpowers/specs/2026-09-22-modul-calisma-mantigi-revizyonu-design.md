@@ -2,7 +2,7 @@
 
 - **Tarih:** 2026-09-22
 - **Kapsam:** `Modules/{Tenant,Product,Atelier,Finance,Creative,Superadmin,Marketplace,Bagisto,PatternEngine,TrainingIngest}`
-- **Durum:** Kullanıcıyla modül modül gözden geçirme tamamlandı, kararlar toplandı. **Uygulama henüz başlamadı** — bu doküman, her modül için ayrı bir uygulama planına (spec→plan→uygulama döngüsü) girmeden önceki konsolide karar kaydı.
+- **Durum:** **Planlama tamamlandı** — modül modül gözden geçirme + tüm açık sorular çözüldü (kod doğrulamasıyla desteklenen teknik kararlar + kullanıcı onaylı ürün kararları). **Uygulama henüz başlamadı.** Ayrıca bkz. `docs/superpowers/specs/2026-09-22-bayi-portali-kaldirma-etki-analizi.md` (Tenant §1'in detaylı etki analizi).
 - **Bağlam:** `sistem kullanımı karmaşasını çözmek` başlıklı daha geniş bir işin parçası olarak (bkz. `docs/page-layout-ui-standard.md`, `docs/navigation-ia-audit.md`), kullanıcı her modülün **iş mantığını** da gözden geçirmek istedi. Bu doküman o oturumun çıktısı — kod okunarak mevcut davranış özetlendi, kullanıcı düzeltti/onayladı/yeni karar verdi.
 
 ## Nasıl okunmalı
@@ -29,10 +29,10 @@ Hiçbir madde bu doküman yazılırken **uygulanmadı** — sıradaki adım, en 
 4. **Erişim kuralları / toplu alım:** Yeni bir özellik gerekmiyor — mevcut mekanizma (`TenantAccessController`: marka/kategori toptan blok + `TenantProductAccess` ürün bazlı özel fiyat/blok) zaten yeterli. Süreç: bayi önce iletişime geçer, personel görüşüp uygun görürse mevcut ekrandan elle tanımlar. Otomatik bir "toplu alım talebi" akışı **istenmiyor**.
 5. **Pazaryeri entegrasyon hub'ı** (`Portal/MarketplaceHubController` + `Portal/Marketplace/{Trendyol,Hepsiburada,N11,Ciceksepeti}Controller`) Portal'la birlikte kalkıyor — yerini Bagisto'nun kendi (ayrı) sitesindeki panel alıyor (bkz. §7 Bagisto, §6 Marketplace).
 
-**Açık sorular:**
-- SMS doğrulama sağlayıcısı henüz seçilmedi.
-- Portal kaldırmanın etki analizi yapılmadı: hangi tablolar (`Portal/**` sayfalarının beslediği tüm modeller — `TenantInvoice`, `TenantCreditLedger`, `TenantMarketplaceCredential`, `MarketplaceSale`, `MarketplaceExpense`, `MarketplaceSyncLog`, `MarketplaceCommissionRate`, `CartItem`, `ProductFavorite` — bazıları Product modülünde, bkz. §2), `TenantPortalLayout` ve Portal'a özel route/middleware grubu (`routes/portal.php`), Bagisto senkronunun (`Modules/Bagisto`) Portal'a bağımlı bir parçası var mı.
-- Aşama-1 "yeni hesap oluşturma" tam olarak ne demek: başvuran kişi hemen bir login hesabı mı alıyor (henüz tenant'a bağlanmadan), yoksa sadece iletişim bilgisi + doğrulama mı? Netleşmedi.
+**Çözülen sorular:**
+- **SMS sağlayıcısı:** VatanSMS düşünülüyor (kesinleşmedi ama yön belli — entegrasyon bu varsayımla tasarlanabilir, API değişirse adaptör katmanı düşük maliyetli değişir).
+- **Portal kaldırmanın etki analizi tamamlandı** — bkz. `docs/superpowers/specs/2026-09-22-bayi-portali-kaldirma-etki-analizi.md`. Özet: Portal UI + Portal'dan bağımsız çalışan pazaryeri senkron arka-plan sistemi (webhook/job/satış-gider-komisyon takibi) birlikte kalkıyor; `TenantInvoice`/`TenantCreditLedger`/`TenantPriceList`/`feed.xml` Portal'a benziyor ama kalıyor (Finance'in çekirdek akışı / bağımsız mekanizma).
+- **Aşama-1 "hesap oluşturma":** Önerilen çözüm — başvuran kişi e-posta+SMS OTP doğrulamasıyla gerçek bir `User` hesabı alır (henüz bir `Tenant`'a bağlı değil, "beklemede" durumda). Aşama-2 onaylanıp bir `Tenant` kaydı oluşturulunca, bu kullanıcı o tenant'ın owner'ı olarak bağlanır — şu anki `TenantController::store()`'un owner-hesabı-oluşturma adımını daha erken bir noktaya (Aşama-1'e) taşımak gibi düşünülebilir. **Bu bir tasarım önerisi, uygulamadan önce onay ister.**
 
 ---
 
@@ -45,9 +45,9 @@ Hiçbir madde bu doküman yazılırken **uygulanmadı** — sıradaki adım, en 
 2. **Favoriler (`ProductFavorite`) tamamen kaldırılacak.**
 3. **Sipariş oluşturma artık sadece Bagisto webhook'undan gelecek.** Portal checkout zaten kalkıyor (§1); admin tarafında da elle sipariş girme ekranı **eklenmeyecek** — `Modules/Bagisto`'nun mevcut `OrderWebhookController` + `BagistoOrderSyncService`'i (zaten var, bkz. §7) bu ihtiyacı karşılıyor.
 
-**Açık sorular:**
-- **Mimari ihlal (flag, karar bekliyor):** `Product.php` doğrudan `Modules\Atelier\Models\ProductBom`'a `hasMany` ilişkisi kuruyor (`boms()`), ama `Modules/Product/module.json`'da `"forbidden_dependencies": ["Tenant", "Atelier"]` yazıyor. `php artisan architecture:doctor` muhtemelen bunu zaten yakalıyor. Düzeltme yönü (DI ters çevirme / ilişkiyi Atelier tarafına taşıma / forbidden_dependencies'i gözden geçirme) henüz konuşulmadı.
-- `PriceList` (tenant-tipi bazlı toplu fiyat listesi) Portal kalkınca hâlâ kullanılıyor mu, yoksa o da Bagisto tarafına mı taşınıyor? Netleşmedi.
+**Çözülen sorular:**
+- **Mimari ihlal çözümü:** `grep` ile doğrulandı — `Product::boms()` ilişkisi **hiçbir yerde kullanılmıyor** (`BomService` zaten `ProductBom::where('product_id', ...)` ile doğrudan sorguluyor, `$product->boms` çağrısı repo'da yok). Çözüm: `boms()` metodunu `Product.php`'den **sil** — sıfır fonksiyonel etki, `forbidden_dependencies` ihlali biter.
+- **`PriceList` (Product'un kendisi) Portal'la ilgisi yok** — karıştırılmasın: bu, `ProductCard.vue`'daki (Ürün Kartı) varyant bazlı özel fiyat girişleri, tamamen admin-tarafı bir özellik (`PriceListController`, `ProductCatalogPresenter`). Portal kalkmasından etkilenmiyor, dokunulmuyor. (Açık sorudaki asıl kastedilen `TenantPriceList`'ti — o da ayrıca çözüldü, bkz. §1 ve etki analizi §2: Sanctum API üzerinden dışarıdan erişilebilir, Portal'a bağımlı değil, kalıyor.)
 
 ---
 
@@ -61,10 +61,10 @@ Hiçbir madde bu doküman yazılırken **uygulanmadı** — sıradaki adım, en 
 3. **Fason karar akışı:** ürün üretime hazır olunca (reçete tanım), personel "kendimiz mi üretelim, fasona mı verelim" kararını sisteme kaydedecek. Fasona verilirse: hangi fasona hangi fiyata verildiği kaydedilir, fasona **SMS ile** "sipariş geldi" bildirimi gider, süreç sistemden takip edilir. (Şu an `ProductionOrderStep.fason_supplier_id`/`step_cost` bunun bir kısmını karşılıyor; karar-kaydı + SMS bildirimi yeni.)
 4. **WhatsApp entegrasyonu fikri — kesin karar değil, ileride değerlendirilecek:** fason, verdiğimiz numaraya serbest metin mesaj attığında ("kesim yapıldı", "dikiş yapıldı" gibi) sistem bunu okuyup ilgili üretim adımını (`ProductionOrderStep`) otomatik ilerletsin. Amaç: fasonun sisteme giriş yapması için ayrı bir kullanıcı hesabına ihtiyaç duymaması.
 
-**Açık sorular:**
-- PatternEngine'e taşıma işinin kapsamı netleşmedi: sadece Laravel tarafı mı (controller/model/route), yoksa Python/FastAPI mikroservis tarafında da bir birleşme mi olacak? PatternEngine şu an "hiçbir modüle bağımlı değil" (`allowed_dependencies: []`) — Atelier'in bu özellikleri (Product'a bağımlı, `ProductBom` üzerinden) taşınınca bu bağımsızlık ilkesi nasıl korunacak?
-- Fason SMS bildirimi için sağlayıcı henüz seçilmedi (Tenant'taki SMS ihtiyacıyla aynı karar olabilir, bkz. §1).
-- WhatsApp entegrasyonu: hangi sağlayıcı (WhatsApp Business API resmi mi, üçüncü parti bir servis mi), serbest metni üretim adımına eşleme mantığı (anahtar kelime mi, daha esnek bir ayrıştırma mı) — hiçbiri konuşulmadı, sadece fikir olarak not edildi.
+**Çözülen sorular:**
+- **PatternEngine'e taşımada bağımsızlık ilkesi nasıl korunacak:** PatternEngine'in `allowed_dependencies: []` ilkesi **değişmeyecek**. Taşınan özellikler (Concept Studio/Pattern/Converter), tıpkı `CLAUDE.md`'nin zaten tanımladığı DTO istisnası deseniyle (bkz. `CLAUDE.md` "DTO kullanım istisnaları" madde 3 — PatternEngine zaten bu deseni kullanıyor) Product'a **doğrudan Eloquent ilişkisiyle değil, çağıran taraf (Atelier/Product) kendi verisinden DTO kurup PatternEngine'e vererek** bağlanacak. Yani `Pattern`/`DesignCard`/`ConversionJob` modelleri PatternEngine tarafında yaşayacak ama `product_id` gibi FK'ler yerine DTO parametreleri (ürün adı/tipi gibi düz veri) kullanacak — mevcut desenin bir devamı, yeni bir mimari kural icat edilmiyor.
+- **Fason SMS + Tenant doğrulama SMS'i aynı sağlayıcı:** VatanSMS (bkz. §1), tek entegrasyon iki yerde kullanılır.
+- **WhatsApp entegrasyonu — hâlâ "ileride değerlendirilecek" statüsünde, bilinçli olarak çözülmedi.** Kullanıcı bunu net bir karar değil, bir olasılık olarak çerçeveledi ("belki entegre edilebilir") — bu nedenle plan bunu bir sonraki fazın konusu olarak bırakıyor, zorla bir sağlayıcı/mekanizma seçilmedi. Uygulama sırası bölümünde bu iş **kapsam dışı** tutuldu.
 
 ---
 
@@ -76,9 +76,9 @@ Hiçbir madde bu doküman yazılırken **uygulanmadı** — sıradaki adım, en 
 1. **Alınan faturalar (`SupplierInvoice`) artık Atelier üretim emrine doğrudan bağlanmayacak.** Gerekçe: tedarikçi faturası genelde iş bittikten sonra geliyor, üretim zaten faturadan bağımsız gerçekleşmiş oluyor — fatura, üretim emrini "tetikleyen/atayan" bir mekanizma olmamalı. `production_order_id` alanının kaldırılması/kullanılmaması gerekiyor.
 2. **"Bayi Alışveriş Raporu" → Bagisto sipariş raporuna dönüşecek.** Bagisto'dan gelen siparişlerin finansal özeti: hangi üründen ne kadarlık sipariş geldiği, tutar bazında. (`TenantPurchaseReportService`'in veri kaynağı değişecek, raporun kendisi **önemli, kalacak**.)
 
-**Açık sorular:**
-- `SupplierInvoice.production_order_id` alanı DB'den kaldırılacak mı (migration), yoksa sadece kullanılmayacak mı (nullable kalıp UI'dan çıkarılacak)? Netleşmedi.
-- Yeni "Bagisto sipariş raporu"nun tam veri kaynağı: `Order` tablosundan mı (Bagisto webhook zaten oraya yazıyor), yoksa ayrı bir agregasyon mu gerekiyor? Detay konuşulmadı.
+**Çözülen sorular:**
+- **`production_order_id` DB'den tam olarak kaldırılacak** (sadece kullanımı bırakılmayacak) — `CLAUDE.md`'nin "kod sil, tabloyu DB'de bırakma yasak" ilkesiyle tutarlı. Gerçek `down()`'lı bir migration ile `finance_supplier_invoices.production_order_id` kolonu silinir; `SupplierInvoice.php` fillable, `Store/UpdateSupplierInvoiceRequest`, `SupplierInvoiceController`, `SupplierInvoices.vue`'daki dropdown birlikte temizlenir (doğrulandı — kullanım noktaları bunlardan ibaret, grep ile teyit edildi).
+- **Bagisto sipariş raporunun veri kaynağı: `Order` tablosu.** Bagisto webhook'u zaten oraya yazıyor (bkz. §2, §8) — ayrı bir agregasyon tablosuna gerek yok, `TenantPurchaseReportService` mevcut `Order`/`OrderItem` üzerinden sorgulayacak şekilde güncellenir.
 
 ---
 
@@ -126,9 +126,8 @@ Hiçbir madde bu doküman yazılırken **uygulanmadı** — sıradaki adım, en 
 1. Bu modülün mevcut sipariş-webhook mekanizması, planın **merkezinde** — Tenant Portal'ın checkout'unun yerini bu alıyor (§1, §2). Yeni geliştirme **gerekmiyor gibi görünüyor**, mevcut altyapı zaten uygun.
 2. Pazaryeri hesap bağlantısı da (bu modülden ayrı, tenant'ın **kendi Bagisto sitesindeki** panelden) bu ekosisteme taşınıyor — akış: pazaryeri siparişi → tenant'ın Bagisto'suna düşer → "sipariş oluştur" ile bizim sistemimize (mevcut webhook üzerinden) yansır → ödeme sonrası süreç bizim tarafta devam eder.
 
-**Açık sorular:**
-- "Tenant'ın kendi Bagisto sitesi" ifadesi, bu repodaki `Modules/Bagisto`'dan **ayrı, bağımsız bir Bagisto (Webkul) kurulumu** anlamına geliyor — her tenant'ın kendi ayrı bir Bagisto instance'ı mı olacak, yoksa tek bir paylaşımlı Bagisto sitesi mi? Bu, `Webkul\SaasSync` paketinin (bu modülün "karşı ucu") çoklu-tenant mimarisiyle doğrudan ilgili ama hiç konuşulmadı.
-- `OrderWebhookController`'ın şu an tek bir Bagisto kaynağından mı, yoksa çoklu tenant-bazlı Bagisto kaynağından mı webhook kabul ettiği doğrulanmadı — kod incelemesi gerekiyor.
+**Çözülen sorular:**
+- **Tek paylaşımlı Bagisto sitesi** — her tenant'ın kendi ayrı Bagisto kurulumu değil, tüm bayiler tek bir Bagisto (Webkul) sitesinde, kendi hesaplarıyla çalışıyor. Bu, `OrderWebhookController`'ın tek kaynaktan (bir Bagisto instance'ı) webhook kabul etmesi yeterli demek — çoklu-kaynak doğrulama/routing mantığı **gerekmiyor**, mevcut basit webhook alıcısı mimari olarak zaten doğru varsayımla kurulu.
 
 ---
 
@@ -139,8 +138,7 @@ Hiçbir madde bu doküman yazılırken **uygulanmadı** — sıradaki adım, en 
 **Kararlar:**
 1. **Atelier'in Konsept Stüdyosu + Kalıp Kütüphanesi + Dönüştürücü'sü buraya taşınacak** (bkz. §3).
 
-**Açık sorular:**
-- Taşınan özellikler `Product`'a bağımlı (`Pattern`↔ürün eşleşmesi, `DesignCard`↔ürün tipi) — PatternEngine'in şu anki "hiçbir modüle bağımlı değil" ilkesi bu taşımayla nasıl korunacak (DTO sınırı mı genişleyecek, yoksa ilke mi gözden geçirilecek)? §3'teki açık soruyla aynı.
+**Çözüldü:** Bağımsızlık ilkesi korunacak, DTO deseniyle — bkz. §3'teki çözüm (aynı karar).
 
 ---
 
@@ -154,20 +152,30 @@ Hiçbir madde bu doküman yazılırken **uygulanmadı** — sıradaki adım, en 
 
 ---
 
-## Konsolide açık sorular listesi
+## Konsolide açık sorular — hepsi çözüldü
 
-Uygulamaya başlamadan önce netleşmesi gerekenler, tekrar:
+| # | Soru | Çözüm |
+|---|---|---|
+| 1 | SMS sağlayıcısı | VatanSMS (düşünülüyor, kesinleşmedi ama tasarım bu varsayımla ilerleyebilir) |
+| 2 | WhatsApp entegrasyonu | Bilinçli olarak **açık bırakıldı** — kullanıcı bunu bir olasılık olarak çerçeveledi, bu fazın kapsamı dışında |
+| 3 | Product↔Atelier mimari ihlali | `Product::boms()` kullanılmıyor (grep doğrulandı) → silinecek |
+| 4 | Portal kaldırmanın etki analizi | Tamamlandı, ayrı doküman: `2026-09-22-bayi-portali-kaldirma-etki-analizi.md` |
+| 5 | PatternEngine bağımsızlık ilkesi | Korunacak, mevcut DTO deseniyle (`CLAUDE.md` DTO istisnası madde 3) |
+| 6 | Bagisto çoklu-tenant mimarisi | Tek paylaşımlı site — webhook mimarisi değişmiyor |
+| 7 | `SupplierInvoice.production_order_id` | Tam kaldırılacak (migration + tüm katmanlar) |
+| 8 | `PriceList` akıbeti | Product'un kendi `PriceList`'i Portal'la ilgisiz, dokunulmuyor; `TenantPriceList` zaten §4'te (etki analizinde) çözüldü — kalıyor |
+| 9 | Aşama-1 "hesap oluşturma" | Öneri: erken `User` oluşturma + e-posta/SMS OTP, tenant'a Aşama-2'de bağlanır — **onay ister** |
 
-1. **SMS sağlayıcısı** (Tenant başvuru doğrulaması + Atelier fason bildirimi — aynı karar olabilir).
-2. **WhatsApp entegrasyonu** (Atelier fason takibi) — "belki", sağlayıcı/mekanizma seçilmedi.
-3. **Product↔Atelier mimari ihlali** (`Product.php::boms()`) — düzeltme yönü.
-4. **Bayi Portalı kaldırmanın tam etki analizi** — hangi tablolar, hangi diğer modüller (Bagisto, Product'taki Cart/Favorite) etkileniyor, migration sırası.
-5. **PatternEngine'in bağımsızlık ilkesi**, Atelier'den gelen Product-bağımlı özelliklerle nasıl bir arada duracak.
-6. **Bagisto'nun çoklu-tenant mimarisi** — her tenant'ın kendi ayrı Bagisto'su mu, tek paylaşımlı site mi.
-7. `SupplierInvoice.production_order_id` — DB'den kaldırılacak mı, sadece kullanılmayacak mı.
-8. `PriceList`'in Portal-sonrası akıbeti.
-9. Tenant başvurusunun Aşama-1'inde "hesap oluşturma"nın tam anlamı.
+**Yalnızca madde 2 (WhatsApp) ve madde 9 (Aşama-1 hesap modeli) hâlâ kullanıcı onayı/tercihi gerektiriyor** — geri kalan 7 madde ya kod doğrulamasıyla kesinleşen teknik kararlar, ya da zaten netleşmiş kullanıcı tercihleri.
 
-## Önerilen sıralama
+## Önerilen sıralama (nihai)
 
-Bağımlılık grafiğine göre: **Tenant (Portal kaldırma + başvuru akışı)** en çok modülü etkileyen karar olduğu için önce onun etki analizi + migration planı çıkarılmalı. Onu **Product** (sepet/favori kaldırma, sipariş kaynağının netleşmesi) ve **Bagisto** (webhook/senkron doğrulaması) doğal olarak takip eder. **Atelier→PatternEngine taşıması** ve **Finance**'in küçük düzeltmeleri (üretim emri bağlantısının kopması, rapor kaynağı değişimi) bağımsız yürütülebilir. **Creative**'in AI pazarlama görseli işi en çok yeni tasarım gerektiren parça olduğu için ayrı, kendi başına bir spec→plan döngüsü hak ediyor.
+1. **Tenant** — Portal kaldırma (etki analizi hazır) + 2 aşamalı başvuru + opsiyonel kredi. En çok modülü etkileyen, önce bitmeli.
+2. **Product** — sepet/favori kaldırma (Portal'la aynı dalga), `boms()` mimari düzeltmesi (bağımsız, istenilen an yapılabilir, tek satır silme).
+3. **Bagisto** — Portal'ın webhook/senkron mekanizmasının zaten yeterli olduğunun doğrulanması; ek geliştirme beklenmiyor.
+4. **Finance** — `production_order_id` kaldırma + Bagisto sipariş raporuna geçiş. Tenant/Product'tan bağımsız yürütülebilir.
+5. **Atelier → PatternEngine** taşıması + fason karar/SMS akışı. Kendi başına bir spec→plan döngüsü gerektiriyor (taşıma mekaniği + DTO sınırı tasarımı).
+6. **Creative** — AI pazarlama görseli. En çok yeni tasarım gerektiren parça, ayrı bir spec oturumu hak ediyor, diğerlerinden bağımsız başlatılabilir.
+7. **Superadmin / Marketplace / TrainingIngest** — değişiklik yok / beklemede, bu sırada ayrıca ele alınmayacak.
+
+Her madde kendi spec→plan→uygulama döngüsüne girmeden önce, uygulamaya başlanacak modül için `ExitPlanMode` ile ayrı onay alınacak — bu doküman planlamayı kapatıyor, uygulamayı başlatmıyor.
