@@ -76,7 +76,7 @@
 				<button
 					v-if="canManageAccess"
 					class="round-action tenant-btn admin-action"
-					aria-label="Tenant Ayarları"
+					aria-label="İş Ortağı Ayarları"
 					@click.stop.prevent="$emit('tenant-access', product)"
 				>
 					<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">

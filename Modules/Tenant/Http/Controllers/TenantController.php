@@ -207,7 +207,7 @@ class TenantController extends Controller
     {
         if ($tenant->users()->exists()) {
             return back()->withErrors([
-                'tenant' => 'Bu tenant\'a bağlı kullanıcılar var, önce kullanıcıları başka tenant\'a taşıyın.',
+                'tenant' => 'Bu iş ortağına bağlı kullanıcılar var, önce kullanıcıları başka iş ortağına taşıyın.',
             ]);
         }
 
@@ -260,9 +260,9 @@ class TenantController extends Controller
             // Ham onay bayrağı — DB kolonu değil, aşağıda shipping_terms_accepted_at'e çevrilir.
             'shipping_terms_accepted' => ['accepted_if:shipping_agreement_type,platform'],
         ], [
-            'code.regex'        => 'Tenant kodu yalnızca büyük harf, rakam, tire ve alt çizgi içerebilir.',
+            'code.regex'        => 'İş ortağı kodu yalnızca büyük harf, rakam, tire ve alt çizgi içerebilir.',
             'owner_email.unique'=> 'Bu e-posta adresiyle zaten bir kullanıcı hesabı var.',
-            'carrier_id.required_if' => 'Bayi kendi kargo anlaşmasını kullanıyorsa kargo firması seçilmelidir.',
+            'carrier_id.required_if' => 'İş ortağı kendi kargo anlaşmasını kullanıyorsa kargo firması seçilmelidir.',
             'shipping_terms_accepted.accepted_if' => 'Platform kargo anlaşması seçildiyse şartların kabul edildiği onaylanmalı.',
         ]);
     }

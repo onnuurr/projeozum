@@ -7,7 +7,7 @@
 			<div class="toggle-group">
 				<label class="toggle-card">
 					<div class="toggle-content">
-						<div class="toggle-label">Yeni Tenant Kaydı</div>
+						<div class="toggle-label">Yeni İş Ortağı Kaydı</div>
 						<div class="toggle-sub">Bir firma sisteme kaydolduğunda admin'lere e-posta gönder.</div>
 					</div>
 					<input type="checkbox" v-model="form.emailNewTenant" />

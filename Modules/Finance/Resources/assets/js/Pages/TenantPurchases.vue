@@ -32,7 +32,7 @@
 		<Card title="Sipariş Listesi" body-class="p-0">
 			<template #actions>
 				<div class="card-search">
-					<input v-model="searchQuery" type="text" placeholder="Tenant / sipariş no ara..." />
+					<input v-model="searchQuery" type="text" placeholder="İş ortağı / sipariş no ara..." />
 				</div>
 			</template>
 
@@ -76,7 +76,7 @@ const productColumns = [
 ]
 
 const orderColumns = [
-	{ key: 'tenant', label: 'Tenant' },
+	{ key: 'tenant', label: 'İş Ortağı' },
 	{ key: 'orderNo', label: 'Sipariş No' },
 	{ key: 'amount', label: 'Tutar' },
 	{ key: 'status', label: 'Durum' },

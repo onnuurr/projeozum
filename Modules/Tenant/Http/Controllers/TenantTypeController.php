@@ -55,7 +55,7 @@ class TenantTypeController extends Controller
     {
         if ($type->tenants()->exists()) {
             return back()->withErrors([
-                'type' => 'Bu tipe bağlı tenant kayıtları var, önce tenant tipini değiştirin.',
+                'type' => 'Bu tipe bağlı iş ortağı kayıtları var, önce iş ortağı tipini değiştirin.',
             ]);
         }
 

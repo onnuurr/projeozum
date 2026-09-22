@@ -123,7 +123,7 @@
 						<span v-if="errors.role" class="form-error">{{ errors.role }}</span>
 					</div>
 					<div class="form-row">
-						<label class="form-label">Tenant</label>
+						<label class="form-label">İş Ortağı</label>
 						<select v-model="form.tenant_id" class="form-input">
 							<option :value="null">Yok</option>
 							<option v-for="t in tenants" :key="t.id" :value="t.id">{{ t.name }}</option>
@@ -161,7 +161,7 @@ const columns = [
 	{ key: 'phone', label: 'Telefon' },
 	{ key: 'job_title', label: 'Unvan' },
 	{ key: 'role', label: 'Rol' },
-	{ key: 'tenant', label: 'Tenant', sortable: false },
+	{ key: 'tenant', label: 'İş Ortağı', sortable: false },
 	{ key: 'is_active', label: 'Durum' },
 	{ key: 'created_at', label: 'Kayıt Tarihi' },
 ]

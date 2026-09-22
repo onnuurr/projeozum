@@ -580,7 +580,7 @@
 
 					<h3 class="sa-subhead">Platform Sayaçları</h3>
 					<div class="counter-grid">
-						<StatWidget :icon="Building2" :value="liveSystem.totalTenants.toLocaleString('tr-TR')" title="Toplam Tenant" color="primary" />
+						<StatWidget :icon="Building2" :value="liveSystem.totalTenants.toLocaleString('tr-TR')" title="Toplam İş Ortağı" color="primary" />
 						<StatWidget :icon="UsersRound" :value="liveSystem.totalUsers.toLocaleString('tr-TR')" title="Toplam Kullanıcı" color="success" />
 						<StatWidget :icon="ShoppingCart" :value="liveSystem.totalOrders.toLocaleString('tr-TR')" title="Toplam Sipariş" color="primary" />
 						<StatWidget :icon="Clock" :value="liveSystem.queueJobsPending.toLocaleString('tr-TR')" title="Kuyrukta Bekleyen" color="warning" />

@@ -63,7 +63,7 @@
 						<input type="radio" value="admins" v-model="form.twoFactorRequired" />
 						<div class="radio-content">
 							<div class="radio-label">Sadece Yöneticiler</div>
-							<div class="radio-sub">Tenant yöneticileri için zorunlu</div>
+							<div class="radio-sub">İş ortağı yöneticileri için zorunlu</div>
 						</div>
 					</label>
 

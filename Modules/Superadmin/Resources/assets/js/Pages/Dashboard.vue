@@ -24,7 +24,7 @@
 
 		<!-- Kullanım sayıları -->
 		<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 mb-6">
-			<StatWidget :icon="Building2" :value="fmt(liveSystem.totalTenants)" title="Kiracı (Tenant)" color="primary" />
+			<StatWidget :icon="Building2" :value="fmt(liveSystem.totalTenants)" title="İş Ortağı" color="primary" />
 			<StatWidget :icon="UsersRound" :value="fmt(liveSystem.totalUsers)" title="Kullanıcı" color="success" />
 			<StatWidget :icon="ShoppingCart" :value="fmt(liveSystem.totalOrders)" title="Sipariş" color="info" />
 			<StatWidget :icon="Clock" :value="fmt(liveSystem.queueJobsPending)" title="Bekleyen iş" color="warning" />
