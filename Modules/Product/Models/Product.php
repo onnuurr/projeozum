@@ -165,11 +165,6 @@ class Product extends Model
             ->orderBy('sort_order');
     }
 
-    public function boms(): HasMany
-    {
-        return $this->hasMany(\Modules\Atelier\Models\ProductBom::class);
-    }
-
     public function timelineEntries(): HasMany
     {
         return $this->hasMany(ProductTimelineEntry::class)->latest();
