@@ -344,6 +344,10 @@ Materials,Boms,Operations,FasonSuppliers}.vue` + `Components/MaterialSpecsPanel.
   `provideAtelierNav(key)` ile sayfa içinden `provide('ozNav')` olarak veriliyor (layout'un provide'ını sayfa
   alt ağacında gölgeler). DB menüsü düzeltilince bu provide kaldırılabilir.
   **Bilinen eksik:** mobil alt sayfa çipleri (OzMobileNav) hâlâ DB menüsünden → mobilde Hammaddeler/Operasyonlar çiplerde yok.
+  **Güncelleme 2026-09-24 (`8da1ead`):** DB Atölye menüsü kullanıcı kararıyla 10 sekmeyle birebir yeniden kuruldu
+  (her öğe kendi yetkisiyle) → `provideAtelierNav`/`ATELIER_TABS` kaldırıldı; sekmeler ve mobil çipler artık DB
+  menüsünden, yetkiye göre süzülmüş gelir. `atelierNav.js` yalnız biçimlendirme yardımcıları/durum sözlükleri tutar.
+  Geri getirmeyin.
 - Her liste sayfası `OzPageHeader → OzModuleTabs → .stats → OzCard(OzTable)` iskeletinde; satır aksiyonları
   `OzDropdown`, formlar `OzDrawer` + `OzField`, silme/planla/tamamla/iptal `useOzConfirm`.
 - Başarı toast'ları kaldırıldı: tüm controller aksiyonları zaten `with('success')` flash gönderiyor ve kabuk
@@ -366,6 +370,7 @@ altındaki `Conversions`, `Patterns`, `RasterTracer`, `ConceptStudio`, `Assignme
 `PatternEngineJobs.vue` Atölye sekmesi değil, dokunulmadı.** Eskileri scratchpad `atelier-old/PE-*.old.vue` + git.
 - Hepsi `provideAtelierNav(key)` (Atelier'in `atelierNav.js`'i) kullanıyor → `Components/AtelierNav.vue`
   artık hiçbir yerde kullanılmadığı için **silindi** (git'te + scratchpad `AtelierNav.old.vue`).
+  *(2026-09-24: `provideAtelierNav` da kaldırıldı — §11 "Gezinme" güncellemesine bakın.)*
 - Sayısallaştırma: yükleme `OzFileDrop` (çoklu, 50 MB), durum chip'leri sunucu filtresi, iş kartları token'larla,
   inceleme `OzModal lg` (PDF + ölçü tablosu), Reddet onaylı.
 - Kalıp Kütüphanesi: 3 ayrı içe aktarma düğmesi → tek "İçe Aktar" `OzDropdown` (Link / PDF / Fotoğraf) + tek
@@ -392,6 +397,8 @@ DB "Creative Studio" menüsünde Stüdyo ve İş Ortağı Profilleri olmadığı
 veriliyor. 9 sayfada (Studio, Gallery, Mannequins, Poses, Tryon, GarmentScans, Templates, BrandKits,
 PartnerBrandKits) yalnızca `<CreativeNav>` satırı + import değişti; sayfalar henüz Oz'a taşınmadı (eski
 `PageHeader`/`Breadcrumb` duruyor). `CreativeNav.vue` silindi (git + scratchpad `atelier-old/CreativeNav.old.vue`).
+**Güncelleme 2026-09-24 (`8da1ead`):** DB "Creative Studio" menüsüne Stüdyo ve İş Ortağı Kreatif Profilleri
+eklendi, her öğe yetkili → `creativeNav.js` ve `provideCreativeNav` çağrıları kaldırıldı; sekmeler DB menüsünden.
 Mobilde alt sayfa çipleri hâlâ DB menüsünden → Stüdyo / İş Ortağı Profilleri mobil çiplerde yok.
 
 ## 13. Finans — sayfa içi FinanceNav kaldırıldı (2026-09-23)
@@ -413,6 +420,8 @@ scratchpad `atelier-old/PE-PatternProfiles.WIP-current.vue`.
 - Gezinme: `Modules/PatternEngine/Resources/assets/js/patternEngineNav.js` → `providePatternEngineNav(key)`;
   DB "Patternengine" menüsünde yalnızca İngilizce etiketli Profiles var; sekmeler yetkiye göre süzülür
   (`patternengine.manage` / `patternengine.profile.manage`).
+  **Güncelleme 2026-09-24 (`8da1ead`):** DB menüsü "Kalıp Motoru" → "Kalıp Motoru İşleri" + "Kalıp Profilleri"
+  (her biri kendi yetkisiyle; boş grup MenuTreeBuilder'da düşer) → `patternEngineNav.js` kaldırıldı.
 - Kalıp Motoru: form sol sütunda (profil `OzCombobox`, ek bedenler `OzCombobox multiple` — eski checkbox listesi),
   AI öneri görseli `OzFileDrop`, güven rozetleri `OzPill`; son işler `OzTable` (durum filtresi); yer tutucu profil
   uyarısı `OzAlert`. **DXF indirme eskiden Inertia `Link` idi (XHR → indirme yerine hata penceresi) → düz `<a download>`.**

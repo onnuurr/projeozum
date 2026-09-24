@@ -44,7 +44,7 @@
 
 ## Bilinen Sorunlar
 
-- `SuperadminController` tamamen stub — 7 metod boş. API route'ları (`api/v1/superadmins`) da bu stub'a bağlı.
+- ~~`SuperadminController` tamamen stub~~ — 2026-09-24: boş 6 metod ve `Route::resource('superadmin')` / `api/v1/superadmins` apiResource kaldırıldı; yalnız `index()` (dashboard, `GET /superadmin`) kaldı (`b183ad6`).
 - User CRUD yok — kullanıcı yönetimi sadece DB üzerinden yapılabiliyor.
 - Audit log yok — ayar değişiklikleri, rol/izin değişiklikleri loglanmıyor.
 - Backup UI eksik — "Şimdi Yedekle" butonu var ama `runBackup()` metodu yok.
