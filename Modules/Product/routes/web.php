@@ -11,7 +11,8 @@ use Modules\Product\Http\Controllers\StockController;
 use Modules\Product\Http\Controllers\WarehouseController;
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('/products', [ProductController::class, 'index'])->name('products.index');
+    Route::get('/products', [ProductController::class, 'index'])
+        ->middleware('can:product.view')->name('products.index');
 
     // Tam sayfa ürün formları (eski drawer yerine). Slug catch-all'dan önce
     // tanımlanmalı; aksi halde `/products/create` slug olarak yorumlanır.
@@ -58,7 +59,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('products.barcode.generate');
 
     Route::prefix('products/categories')->name('products.categories.')->group(function () {
-        Route::get('/', [CategoryController::class, 'index'])->name('index');
+        Route::get('/', [CategoryController::class, 'index'])
+            ->middleware('can:category.view')->name('index');
         Route::post('/', [CategoryController::class, 'store'])
             ->middleware('can:category.manage')->name('store');
         // Ürün formundaki kategori aramasından tek isimle hızlı ekleme (dar yetki).
@@ -92,6 +94,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/products/{product:id}/marketplaces/{marketplace}/listing',
         [\Modules\Product\Http\Controllers\ProductMarketplaceListingController::class, 'show'])
         ->whereNumber('product')
+        ->middleware('can:product.card.view')
         ->name('products.listings.show');
     Route::put('/products/{product:id}/marketplaces/{marketplace}/listing',
         [\Modules\Product\Http\Controllers\ProductMarketplaceListingController::class, 'upsert'])
@@ -101,7 +104,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // ─── Markalar ────────────────────────────────────────────────────────
     Route::prefix('products/brands')->name('products.brands.')->group(function () {
-        Route::get('/', [BrandController::class, 'index'])->name('index');
+        Route::get('/', [BrandController::class, 'index'])
+            ->middleware('can:brand.view')->name('index');
         Route::post('/', [BrandController::class, 'store'])
             ->middleware('can:brand.manage')->name('store');
         // Ürün formundaki marka aramasından tek isimle hızlı ekleme.
@@ -115,7 +119,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // ─── Depolar ─────────────────────────────────────────────────────────
     Route::prefix('products/warehouses')->name('products.warehouses.')->group(function () {
-        Route::get('/', [WarehouseController::class, 'index'])->name('index');
+        Route::get('/', [WarehouseController::class, 'index'])
+            ->middleware('can:warehouse.view')->name('index');
         Route::post('/', [WarehouseController::class, 'store'])
             ->middleware('can:warehouse.manage')->name('store');
         Route::put('/{warehouse:id}', [WarehouseController::class, 'update'])
@@ -137,9 +142,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // ─── Ürün Kartı (SAP MM03 benzeri) ────────────────────────────────────
     // Temel veri + stok + fiyat + pazaryeri listeleme tek sayfada. Salt-okuma
     // agregasyon — yazma aksiyonları kendi route'larında (stok/fiyat/pazaryeri)
-    // kalır, bu yüzden burada özel bir `can:` şartı yok (ürün listesi/edit gibi).
+    // kalır. Tüm fiyat listelerini + depo stoklarını gösterdiği için iç kullanıcıya
+    // özel ayrı okuma yetkisi (iş ortağı rolüne verilmez).
     Route::get('/products/{product:id}/card', [\Modules\Product\Http\Controllers\ProductCardController::class, 'show'])
-        ->whereNumber('product')->name('products.card');
+        ->whereNumber('product')->middleware('can:product.card.view')->name('products.card');
 
     // ─── Ürün Görselleri ─────────────────────────────────────────────────
     Route::prefix('products/{product:id}/images')->name('products.images.')
@@ -189,5 +195,5 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // (categories, marketplaces, vb.) sonra tanımlanmalı; aksi halde
     // bu route onları yakalayıp slug eşleşmediği için 404 üretir.
     Route::get('/products/{product:slug}', [ProductController::class, 'show'])
-        ->name('products.show');
+        ->middleware('can:product.view')->name('products.show');
 });

@@ -16,6 +16,7 @@ class TenantPermissionSeeder extends Seeder
             'tenant-type.manage'       => 'İş Ortağı Tipi Yönet',
             'tenant-access.manage'     => 'İş Ortağı Erişimi Yönet',
             'tenant.product.customize' => 'İş Ortağına Özel Ürün Metni Yaz',
+            'tenant-application.approve' => 'İş Ortağı Başvurusu Onayla / KYB Belgelerini Gör',
         ];
 
         $allCreated = [];

@@ -4,6 +4,7 @@ namespace Modules\Tenant\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Modules\Tenant\Http\Requests\StoreTenantRequest;
 use Modules\Tenant\Http\Requests\UpdateTenantRequest;
 use Modules\Tenant\Http\Resources\TenantCollection;
@@ -15,9 +16,14 @@ class TenantApiController extends Controller
 {
     public function __construct(private TenantService $service) {}
 
-    public function index(): TenantCollection
+    public function index(Request $request): TenantCollection
     {
-        $tenants = Tenant::with('type', 'users')->get();
+        // tenant.manage yetkisi superadmin dışı bir role delege edilirse kullanıcı yalnızca
+        // kendi iş ortağını görür ({tenant} uçlarındaki tenant.owns ile aynı kural).
+        $user = $request->user();
+        $tenants = Tenant::with('type', 'users')
+            ->when(! $user->isSuperadmin(), fn ($q) => $q->whereKey($user->tenant_id))
+            ->get();
 
         return new TenantCollection($tenants);
     }

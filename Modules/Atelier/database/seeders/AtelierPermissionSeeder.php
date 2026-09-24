@@ -11,17 +11,17 @@ class AtelierPermissionSeeder extends Seeder
     public function run(): void
     {
         $permissions = [
-            'atelier.view'              => 'Atelier Görüntüle',
-            'atelier.material.manage'   => 'Atelier Hammadde Yönet',
-            'atelier.bom.manage'        => 'Atelier Reçete (BOM) Yönet',
-            'atelier.operation.manage'  => 'Atelier Operasyon Yönet',
-            'atelier.fason.manage'      => 'Atelier Fasoncu Yönet',
-            'atelier.production.manage' => 'Atelier Üretim Emri Yönet',
-            'atelier.pattern.view'      => 'Atelier Kalıp Kütüphanesi Görüntüle',
-            'atelier.pattern.manage'    => 'Atelier Kalıp Yönet',
-            'atelier.conversion.manage' => 'Atelier PDF→DXF Dönüştürme Yönet',
-            'atelier.design.manage'     => 'Atelier AI Konsept Yönet',
-            'atelier.assignment.manage' => 'Atelier Atölye Atama Yönet',
+            'atelier.view'              => 'Atölye Görüntüle',
+            'atelier.material.manage'   => 'Atölye Hammadde Yönet',
+            'atelier.bom.manage'        => 'Atölye Reçete (BOM) Yönet',
+            'atelier.operation.manage'  => 'Atölye Operasyon Yönet',
+            'atelier.fason.manage'      => 'Atölye Fasoncu Yönet',
+            'atelier.production.manage' => 'Atölye Üretim Emri Yönet',
+            'atelier.pattern.view'      => 'Atölye Kalıp Kütüphanesi Görüntüle',
+            'atelier.pattern.manage'    => 'Atölye Kalıp Yönet',
+            'atelier.conversion.manage' => 'Atölye PDF→DXF Dönüştürme Yönet',
+            'atelier.design.manage'     => 'Atölye AI Konsept Yönet',
+            'atelier.assignment.manage' => 'Atölye Atama Yönet',
         ];
 
         $created = [];
@@ -40,6 +40,12 @@ class AtelierPermissionSeeder extends Seeder
         $superadmin = Role::where('name', 'superadmin')->where('guard_name', 'web')->first();
         if ($superadmin) {
             $superadmin->givePermissionTo($created);
+        }
+
+        // Yönetici rolü (Roller ekranından oluşturulmuş iç rol) Atölye'yi salt okur.
+        $yonetici = Role::where('name', 'yonetici')->where('guard_name', 'web')->first();
+        if ($yonetici) {
+            $yonetici->givePermissionTo(['atelier.view', 'atelier.pattern.view']);
         }
     }
 }

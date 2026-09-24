@@ -33,6 +33,7 @@ class MenuSeeder extends Seeder
                     ['label' => $child['label'], 'parent_id' => $rootMenu->id],
                     [
                         'url'        => $child['url'] ?? null,
+                        'permission' => $child['permission'] ?? null,
                         'sort_order' => $childOrder,
                         'is_active'  => true,
                     ],
@@ -43,7 +44,7 @@ class MenuSeeder extends Seeder
         // Superadmin'e özgü nav girişleri
         $this->seedSuperadminEntries();
 
-        // Finance modülü (sadece iç kullanım — finance.manage izni gerekir).
+        // Finance modülü (sadece iç kullanım — finance.view izni gerekir).
         $this->seedFinanceEntries();
     }
 
@@ -130,7 +131,7 @@ class MenuSeeder extends Seeder
 
     /**
      * Finans modülüne özgü menü ağacı (kök + alt sayfalar). Tenant'lara kapalı;
-     * her satır `finance.manage` iznine bağlı. route_name ile eşleşen kayıt
+     * her satır `finance.view` iznine bağlı. route_name ile eşleşen kayıt
      * varsa yeniden oluşturmaz (idempotent).
      */
     private function seedFinanceEntries(): void
@@ -142,7 +143,7 @@ class MenuSeeder extends Seeder
                 'label'      => 'Finans',
                 'icon'       => 'reports',
                 'url'        => null,
-                'permission' => 'finance.manage',
+                'permission' => 'finance.view',
                 'sort_order' => 6,
                 'is_active'  => true,
             ],
@@ -164,7 +165,7 @@ class MenuSeeder extends Seeder
                 ['route_name' => $child['route_name'], 'parent_id' => $root->id],
                 [
                     'label'      => $child['label'],
-                    'permission' => 'finance.manage',
+                    'permission' => 'finance.view',
                     'sort_order' => $order,
                     'is_active'  => true,
                 ],
@@ -184,9 +185,9 @@ class MenuSeeder extends Seeder
                 ['label' => 'Stok Analizi'],
             ]],
             ['label' => 'İlişkiler', 'icon' => 'relations', 'url' => '/tenants', 'children' => [
-                ['label' => 'İş Ortakları', 'url' => '/tenants'],
-                ['label' => 'Başvurular', 'url' => '/tenants/applications'],
-                ['label' => 'İş Ortağı Tipleri', 'url' => '/tenants/types'],
+                ['label' => 'İş Ortakları', 'url' => '/tenants', 'permission' => 'tenant.view'],
+                ['label' => 'Başvurular', 'url' => '/tenants/applications', 'permission' => 'tenant.view'],
+                ['label' => 'İş Ortağı Tipleri', 'url' => '/tenants/types', 'permission' => 'tenant-type.manage'],
                 ['label' => 'Müşteriler'],
                 ['label' => 'Tedarikçiler', 'url' => '/suppliers'],
                 ['label' => 'Kullanıcılar', 'url' => '/users'],
@@ -194,8 +195,8 @@ class MenuSeeder extends Seeder
             ]],
             ['label' => 'Katalog', 'icon' => 'package', 'url' => '/products', 'children' => [
                 ['label' => 'Tüm Ürünler', 'url' => '/products'],
-                ['label' => 'Kategoriler', 'url' => '/products/categories'],
-                ['label' => 'Markalar', 'url' => '/products/brands'],
+                ['label' => 'Kategoriler', 'url' => '/products/categories', 'permission' => 'category.view'],
+                ['label' => 'Markalar', 'url' => '/products/brands', 'permission' => 'brand.view'],
                 ['label' => 'Koleksiyonlar'],
             ]],
             ['label' => 'Siparişler', 'icon' => 'orders', 'url' => '/orders', 'permission' => 'order.view', 'children' => [
@@ -207,7 +208,7 @@ class MenuSeeder extends Seeder
             ['label' => 'Stok', 'icon' => 'layers', 'url' => '/products/stocks', 'children' => [
                 ['label' => 'Stok Durumu', 'url' => '/products/stocks'],
                 ['label' => 'Stok Hareketleri', 'url' => '/products/stocks/history'],
-                ['label' => 'Depolar', 'url' => '/products/warehouses'],
+                ['label' => 'Depolar', 'url' => '/products/warehouses', 'permission' => 'warehouse.view'],
                 ['label' => 'Sayım'],
             ]],
             ['label' => 'Takvim', 'icon' => 'calendar', 'children' => [

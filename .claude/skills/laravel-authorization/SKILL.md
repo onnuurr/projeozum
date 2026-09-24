@@ -42,40 +42,66 @@ description: Use BEFORE writing or editing any controller action, route, Form Re
 
 | Module | Permission | Açıklama |
 |---|---|---|
-| Tenant | `tenant.view` | Tenant'ları görüntüle |
-| Tenant | `tenant.manage` | Tenant CRUD |
-| Tenant | `tenant-type.manage` | Tenant tipi yönet |
-| Tenant | `tenant-access.manage` | Tenant erişim kuralları |
-| Tenant | `marketplace.manage` | Pazaryeri bağlantı (tenant role'üne de verilir, controller scope'lu) |
-| Product | `product.view` | Ürünleri görüntüle |
+| Tenant | `tenant.view` | İş ortağı listesi + başvuru kuyruğunu görüntüle |
+| Tenant | `tenant.manage` | İş ortağı CRUD (web + `/api/v1/tenants*`, API'de `tenant.owns` scope'lu) |
+| Tenant | `tenant-type.manage` | İş ortağı tipi yönet |
+| Tenant | `tenant-access.manage` | İş ortağı ürün erişim kuralları |
+| Tenant | `tenant.product.customize` | İş ortağına özel ürün metni (erişim ekranında) |
+| Tenant | `tenant-application.approve` | Başvuru onay/red + KYB belgesi indirme (2026-09-24) |
+| Product | `product.view` | Katalog okuma: ürün listesi/detay (tenant rolünde de var) |
+| Product | `warehouse.view` | Depolar sayfası (tenant'a verilmez) |
+| Product | `brand.view` | Markalar sayfası (tenant'a verilmez) |
+| Product | `category.view` | Kategoriler sayfası (pazaryeri eşleme + özellik tanımlarını da gösterir; tenant'a verilmez) |
+| Product | `product.card.view` | Ürün Kartı + pazaryeri listeleme GET (tüm fiyat listeleri + depo stokları; iç kullanıcı, tenant'a verilmez) (2026-09-24) |
+| Product | `product.add` | Ürün ekle/düzenle, görsel, barkod, listeleme kaydet (isim kurala uymuyor, bilerek korunuyor) |
+| Product | `product.delete` | Ürün sil / toplu sil |
+| Product | `product.ai.generate` | AI açıklama üret |
+| Product | `category.manage` | Kategori CRUD + pazaryeri eşleme + özellik tanımları |
+| Product | `category.create` | Ürün formundan hızlı kategori ekleme (dar yetki) |
 | Product | `brand.manage` | Marka |
 | Product | `warehouse.manage` | Depo |
-| Product | `stock.manage` | Stok |
+| Product | `stock.manage` | Stok sayfaları + hareket |
 | Product | `price-list.manage` | Fiyat listesi |
-| Creative | `creative.manage` | Stüdyo, şablon, onay |
+| Product | `order.view` / `order.manage` | Sipariş listesi-detay / durum geçişi |
+| Product | `carrier.manage` | Kargo firmaları |
+| Creative | `creative.view` | Creative okuma (stüdyo, galeri, manken, poz, try-on, şablon, marka kiti, iş ortağı profili) + dışa aktarma |
+| Creative | `creative.generate` | Görsel üret / yeniden üret / caption (throttle'lı) |
+| Creative | `creative.approve` | Asset/manken/try-on onay-ret (+ ret sohbetine erişim) |
+| Creative | `creative.asset.manage` | Manken/poz/try-on yönetimi + Parça Tespiti etiketleme |
+| Creative | `creative.template.manage` / `creative.brandkit.manage` / `creative.partnerbrandkit.manage` | Şablon / marka kiti / iş ortağı kreatif profili yazma |
+| Creative | `creative.rejection-reasons.manage` / `creative.review-reports.view` | Ret maddeleri / ret analiz raporları (Superadmin menüsünde) |
+| Atelier | `atelier.view` | Atölye okuma (panel, hammadde, reçete, operasyon, fasoncu, iş emri, atama, konsept, sayısallaştırma) |
+| Atelier | `atelier.{material,bom,operation,fason,production,assignment,conversion,design}.manage` | Alt-özellik bazlı yazma (hibrit granüler) |
+| Atelier | `atelier.pattern.view` / `atelier.pattern.manage` | Kalıp Kütüphanesi okuma / yazma + tracer |
+| PatternEngine | `patternengine.manage` | Kalıp Motoru işleri (üret/indir/sayısallaştır) |
+| PatternEngine | `patternengine.profile.manage` | Ölçü profilleri (üretimden ayrı, modelist için) |
+| Finance | `finance.view` | Tüm Finance GET'leri: raporlar, fatura/proforma/banka listeleri, dosya indirme (2026-09-24) |
+| Finance | `finance.manage` | Finance yazma: fatura/proforma/banka CRUD, ödendi, dönüştür, ekstre içe aktar, mutabakat |
+| Finance | `finance.einvoice.send` | e-Faturayı GİB'e gönder — geri alınamaz, manage'den ayrı |
+| Superadmin | `settings.manage` | Sistem ayarları, sistem bilgisi, başarısız işler; Superadmin menü kökü + Dashboard (route ayrıca `role:superadmin`) |
+| Superadmin | `menu.manage` | Menü Ayarları |
+| Superadmin | `logs.view` | Log görüntüleyici (+ ayrı kapı şifresi `log.access`) |
+| Superadmin | `backups.view` / `backups.manage` | Yedek listesi / yedek tetikle |
+| Superadmin | `architecture-doctor.view` / `architecture-doctor.manage` | Rapor + tarama / otomatik düzeltme |
+| Superadmin | `users.view` / `users.manage` | Kullanıcı yönetimi — `role:superadmin` çift kilit, delege edilmez |
+| Superadmin | `rbac.manage` | Rol & izin yönetimi — `role:superadmin` çift kilit, delege edilmez |
 
 Seeder dosyaları:
 - `Modules/Tenant/database/seeders/TenantPermissionSeeder.php`
 - `Modules/Product/database/seeders/ProductPermissionSeeder.php`
 - `Modules/Creative/database/seeders/CreativePermissionSeeder.php`
+- `Modules/Atelier/database/seeders/AtelierPermissionSeeder.php`
+- `Modules/PatternEngine/database/seeders/PatternEnginePermissionSeeder.php`
 
 > **Not (güncel tutma):** Bu liste değişiyor; başlamadan önce `php artisan db:seed
 > --class=...PermissionSeeder` çıktısına ya da seed dosyalarına bir kez bak ve
 > hâlâ güncel mi doğrula. Yeni eklenmiş bir permission burada listelenmemiş olabilir.
 
-## Bilinen tutarsızlık (ÖNCE OKU)
+## Bilinen isim istisnaları
 
-`Modules/Product/routes/web.php` şu yetkilere middleware veriyor:
-- `can:product.add` (satır 24, 27, 84)
-- `can:product.delete` (satır 31)
-
-**Bunlar seed'li değil.** Yani bu route'lar **herhangi bir kullanıcıya** açık
-(spatie default'unda `can:` middleware var-olmayan permission için fail eder; ama
-test/prod'da seed'li değilse pratik etkisi kontrol edilmemiş).
-
-Yeni route eklerken **seed'siz bir yetki adı uydurma**. Önce bu seedlere ekle.
-İstersen ayrıca bu eski tutarsızlığı temizleyen bir görev planı çıkar (skill'in
-işi değil, ayrı PR).
+`product.add` (anlamı: ekle/düzenle) ve `tenant.product.customize` aşağıdaki isim desenine
+uymuyor. Kullanıcı kararıyla (2026-09-24) **yeniden adlandırılmıyor** — ikisi de seed'li ve
+tutarlı kullanılıyor. Yeni yetkilerde bu desenleri kopyalama.
 
 ## İsim deseni
 

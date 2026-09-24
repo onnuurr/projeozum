@@ -25,7 +25,8 @@ class TenantApplicationTest extends TestCase
         $role = Role::firstOrCreate(['name' => 'superadmin', 'guard_name' => 'web']);
         Permission::firstOrCreate(['name' => 'tenant.manage', 'guard_name' => 'web']);
         Permission::firstOrCreate(['name' => 'tenant.view', 'guard_name' => 'web']);
-        $role->givePermissionTo(['tenant.manage', 'tenant.view']);
+        Permission::firstOrCreate(['name' => 'tenant-application.approve', 'guard_name' => 'web']);
+        $role->givePermissionTo(['tenant.manage', 'tenant.view', 'tenant-application.approve']);
         $this->staff = User::factory()->create();
         $this->staff->assignRole($role);
 
@@ -110,6 +111,31 @@ class TenantApplicationTest extends TestCase
         $this->actingAs($user)
             ->post("/tenants/applications/{$application->id}/approve")
             ->assertForbidden();
+    }
+
+    public function test_tenant_manage_alone_cannot_approve_reject_or_download_documents(): void
+    {
+        $this->post('/tenant-basvuru', $this->payload());
+        $application = TenantApplication::firstOrFail();
+        $document = $application->documents->first();
+
+        $role = Role::firstOrCreate(['name' => 'yonetici', 'guard_name' => 'web']);
+        $role->givePermissionTo(['tenant.view', 'tenant.manage']);
+        $manager = User::factory()->create();
+        $manager->assignRole($role);
+
+        $this->actingAs($manager)->get('/tenants/applications')->assertOk();
+        $this->actingAs($manager)
+            ->post("/tenants/applications/{$application->id}/approve")
+            ->assertForbidden();
+        $this->actingAs($manager)
+            ->post("/tenants/applications/{$application->id}/reject", ['rejection_reason' => 'x'])
+            ->assertForbidden();
+        $this->actingAs($manager)
+            ->get("/tenants/applications/{$application->id}/documents/{$document->id}/download")
+            ->assertForbidden();
+
+        $this->assertSame(TenantApplication::STATUS_PENDING, $application->fresh()->status);
     }
 
     public function test_staff_can_approve_and_reject(): void

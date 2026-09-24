@@ -97,9 +97,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     // Dashboard (meta-yönetim) — yalnızca superadmin.
-    Route::middleware('role:superadmin')->group(function () {
-        Route::resource('superadmin', SuperadminController::class)->names('superadmin');
-    });
+    // (Eskiden Route::resource idi; create/store/show/edit/update/destroy boş stub'lardı ve
+    // superadmin/{superadmin} joker route'u literal yolları gölgeliyordu — 2026-09-24 kaldırıldı.)
+    Route::get('superadmin', [SuperadminController::class, 'index'])
+        ->middleware('role:superadmin')->name('superadmin.index');
 
     // Roller & İzinler (hassas meta-RBAC) — rbac.manage izni + role:superadmin çift kilit.
     Route::middleware(['can:rbac.manage', 'role:superadmin'])->group(function () {

@@ -29,24 +29,10 @@ class RouteAuthorizationGateTest extends TestCase
         'logout' => 'Breeze auth akışı',
         'dashboard' => 'girişli her kullanıcı için genel karşılama sayfası',
         'component-showcase' => 'geliştirici için statik UI bileşen galerisi, veri göstermez',
+        'oz-kit' => 'geliştirici için statik Oz bileşen kiti galerisi, veri göstermez',
         'notifications.read' => 'kullanıcı kendi bildirimini okur',
         'notifications.read-all' => 'kullanıcı kendi bildirimlerini okur',
         'POST confirm-password' => 'Breeze auth akışı (isimsiz route)',
-
-        // Sepet — kullanıcı yalnızca kendi sepetini değiştirir.
-        'cart.add' => 'kullanıcı kendi sepetine ekler',
-        'cart.update' => 'kullanıcı kendi sepetini günceller',
-        'cart.remove' => 'kullanıcı kendi sepetinden çıkarır',
-        'cart.clear' => 'kullanıcı kendi sepetini temizler',
-
-        // Genel katalog görüntüleme — bilinçli "genel erişim" (bkz. laravel-authorization skill).
-        'products.index' => 'genel katalog görüntüleme, yetki gerekmiyor',
-        'products.show' => 'genel katalog görüntüleme, yetki gerekmiyor',
-        'products.brands.index' => 'genel katalog görüntüleme, yetki gerekmiyor',
-        'products.categories.index' => 'genel katalog görüntüleme, yetki gerekmiyor',
-        'products.warehouses.index' => 'genel katalog görüntüleme, yetki gerekmiyor',
-        'products.favorite.toggle' => 'kullanıcı kendi favorisini değiştirir',
-        'products.listings.show' => 'genel katalog görüntüleme, yetki gerekmiyor',
 
         // Controller içinde scope kontrolü yapılıyor (atanan kişi de işlem yapabilir).
         'atelier.assignments.start' => 'yetki controller içinde kontrol ediliyor (bkz. AssignmentController::start)',

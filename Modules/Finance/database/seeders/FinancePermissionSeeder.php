@@ -11,7 +11,10 @@ class FinancePermissionSeeder extends Seeder
     public function run(): void
     {
         $permissions = [
-            'finance.manage' => 'Finans Modülünü Yönet',
+            'finance.view'           => 'Finans Raporlarını ve Kayıtlarını Görüntüle',
+            'finance.manage'         => 'Finans Kayıtlarını Yönet (Fatura, Proforma, Banka, Mutabakat)',
+            // Ayrı: e-Fatura GİB'e gider, geri alınamaz ve yasal sonuçludur.
+            'finance.einvoice.send'  => 'e-Fatura Gönder (GİB)',
         ];
 
         $created = [];

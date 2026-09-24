@@ -79,11 +79,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/', [TenantApplicationController::class, 'index'])
             ->middleware('can:tenant.view')->name('index');
         Route::post('/{application}/approve', [TenantApplicationController::class, 'approve'])
-            ->whereNumber('application')->middleware('can:tenant.manage')->name('approve');
+            ->whereNumber('application')->middleware('can:tenant-application.approve')->name('approve');
         Route::post('/{application}/reject', [TenantApplicationController::class, 'reject'])
-            ->whereNumber('application')->middleware('can:tenant.manage')->name('reject');
+            ->whereNumber('application')->middleware('can:tenant-application.approve')->name('reject');
         Route::get('/{application}/documents/{document}/download', [TenantApplicationController::class, 'downloadDocument'])
             ->whereNumber('application')->whereNumber('document')
-            ->middleware('can:tenant.view')->name('documents.download');
+            // KYB belgeleri hassas (vergi levhası, imza sirküleri) → salt görüntüleme yetmez.
+            ->middleware('can:tenant-application.approve')->name('documents.download');
     });
 });

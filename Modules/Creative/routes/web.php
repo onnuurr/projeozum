@@ -42,9 +42,9 @@ Route::middleware(['auth', 'verified'])
     Route::get('/assets/{asset}/review-chat', [ReviewChatController::class, 'showAsset'])
         ->middleware('can:creative.view')->whereNumber('asset')->name('assets.review-chat.show');
     Route::post('/assets/{asset}/review-chat', [ReviewChatController::class, 'sendAsset'])
-        ->middleware('can:creative.view')->whereNumber('asset')->name('assets.review-chat');
+        ->middleware(['can:creative.view', 'throttle:15,1'])->whereNumber('asset')->name('assets.review-chat');
     Route::post('/assets/{asset}/review-chat/apply', [ReviewChatController::class, 'applyAsset'])
-        ->middleware('can:creative.view')->whereNumber('asset')->name('assets.review-chat.apply');
+        ->middleware(['can:creative.view', 'throttle:15,1'])->whereNumber('asset')->name('assets.review-chat.apply');
 
     // ─── Şablonlar ───────────────────────────────────────────────────────
     Route::get('/templates', [CreativeTemplateController::class, 'index'])
@@ -126,18 +126,19 @@ Route::middleware(['auth', 'verified'])
         ->middleware('can:creative.asset.manage')->whereNumber('scan')->name('garment-scans.annotations.destroy');
 
     // ─── Onay sohbet asistanı (reddedilen manken/tryon için) ──────────────
+    // POST uçları ücretli AI çağrısı (converse) / yeniden üretim (apply) tetikler → throttle.
     Route::get('/mannequins/{mannequin}/review-chat', [ReviewChatController::class, 'showMannequin'])
         ->middleware('can:creative.view')->whereNumber('mannequin')->name('mannequins.review-chat.show');
     Route::get('/tryon/{result}/review-chat', [ReviewChatController::class, 'showTryon'])
         ->middleware('can:creative.view')->whereNumber('result')->name('tryon.review-chat.show');
     Route::post('/mannequins/{mannequin}/review-chat', [ReviewChatController::class, 'sendMannequin'])
-        ->middleware('can:creative.view')->whereNumber('mannequin')->name('mannequins.review-chat');
+        ->middleware(['can:creative.view', 'throttle:15,1'])->whereNumber('mannequin')->name('mannequins.review-chat');
     Route::post('/mannequins/{mannequin}/review-chat/apply', [ReviewChatController::class, 'applyMannequin'])
-        ->middleware('can:creative.view')->whereNumber('mannequin')->name('mannequins.review-chat.apply');
+        ->middleware(['can:creative.view', 'throttle:15,1'])->whereNumber('mannequin')->name('mannequins.review-chat.apply');
     Route::post('/tryon/{result}/review-chat', [ReviewChatController::class, 'sendTryon'])
-        ->middleware('can:creative.view')->whereNumber('result')->name('tryon.review-chat');
+        ->middleware(['can:creative.view', 'throttle:15,1'])->whereNumber('result')->name('tryon.review-chat');
     Route::post('/tryon/{result}/review-chat/apply', [ReviewChatController::class, 'applyTryon'])
-        ->middleware('can:creative.view')->whereNumber('result')->name('tryon.review-chat.apply');
+        ->middleware(['can:creative.view', 'throttle:15,1'])->whereNumber('result')->name('tryon.review-chat.apply');
 
     // ─── Ret Seçim Maddeleri (superadmin yönetir) ────────────────────────
     // Reddetme diyaloğundaki "düzeltilmesi gereken alan" maddeleri. Yalnız

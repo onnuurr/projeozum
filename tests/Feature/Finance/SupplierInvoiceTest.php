@@ -21,9 +21,10 @@ class SupplierInvoiceTest extends TestCase
         parent::setUp();
         Storage::fake('local');
         config(['inertia.testing.ensure_pages_exist' => false]);
+        Permission::firstOrCreate(['name' => 'finance.view', 'guard_name' => 'web']);
         Permission::firstOrCreate(['name' => 'finance.manage', 'guard_name' => 'web']);
         $this->admin = User::factory()->create();
-        $this->admin->givePermissionTo('finance.manage');
+        $this->admin->givePermissionTo(['finance.view', 'finance.manage']);
     }
 
     public function test_supplier_invoice_can_be_created_with_file(): void

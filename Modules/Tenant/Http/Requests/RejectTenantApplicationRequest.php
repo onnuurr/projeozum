@@ -8,7 +8,7 @@ class RejectTenantApplicationRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->hasPermissionTo('tenant.manage') ?? false;
+        return $this->user()?->hasPermissionTo('tenant-application.approve') ?? false;
     }
 
     public function rules(): array

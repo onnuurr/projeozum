@@ -9,7 +9,7 @@ use Spatie\Permission\Models\Role;
 /**
  * Uygulama genelinde RBAC'in tek doğruluk kaynağı (idempotent).
  *
- *   1. Rolleri oluşturur: superadmin, tenant (guard: web).
+ *   1. Rolleri oluşturur (superadmin, tenant, tenant-user; guard: web) + Türkçe display_name.
  *   2. Silinmiş modüllerden kalan orphan izinleri budar.
  *   3. Her modülün izin seeder'ını çağırır (izinler + role atamaları orada yapılır).
  *
@@ -31,11 +31,26 @@ class RolePermissionSeeder extends Seeder
         'atelier.manage',
     ];
 
+    /** Sistem rolleri → Türkçe görünen ad. */
+    private const ROLES = [
+        'superadmin'  => 'Süper Admin',
+        'tenant'      => 'İş Ortağı',
+        'tenant-user' => 'İş Ortağı Kullanıcısı',
+    ];
+
     public function run(): void
     {
         // 1) Roller — izin seeder'ları bunlara atama yaptığı için ÖNCE oluşturulur.
-        foreach (['superadmin', 'tenant', 'tenant-user'] as $role) {
-            Role::firstOrCreate(['name' => $role, 'guard_name' => 'web']);
+        //    display_name yalnızca boşsa doldurulur — Roller ekranında (SettingsRoles) elle
+        //    değiştirilmiş Türkçe adın üzerine yazılmaz.
+        foreach (self::ROLES as $name => $displayName) {
+            $role = Role::firstOrCreate(
+                ['name' => $name, 'guard_name' => 'web'],
+                ['display_name' => $displayName],
+            );
+            if (blank($role->display_name)) {
+                $role->update(['display_name' => $displayName]);
+            }
         }
 
         // 2) Orphan izin temizliği.
@@ -49,6 +64,7 @@ class RolePermissionSeeder extends Seeder
             \Modules\Tenant\database\seeders\TenantPermissionSeeder::class,
             \Modules\Creative\database\seeders\CreativePermissionSeeder::class,
             \Modules\Atelier\database\seeders\AtelierPermissionSeeder::class,
+            \Modules\PatternEngine\database\seeders\PatternEnginePermissionSeeder::class,
             \Modules\Superadmin\database\seeders\SuperadminPermissionSeeder::class,
             \Modules\Finance\database\seeders\FinancePermissionSeeder::class,
         ]);

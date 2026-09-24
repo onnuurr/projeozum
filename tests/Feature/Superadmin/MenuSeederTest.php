@@ -32,10 +32,10 @@ class MenuSeederTest extends TestCase
         $atelier = Menu::where('label', 'Atölye')->whereNull('parent_id')->first();
         $this->assertSame('atelier.view', $atelier->permission);
 
-        // Finans kökü finance.manage iznine bağlı ve alt sayfalara sahip
+        // Finans kökü finance.view (okuma) iznine bağlı ve alt sayfalara sahip
         $finance = Menu::where('label', 'Finans')->whereNull('parent_id')->first();
         $this->assertNotNull($finance);
-        $this->assertSame('finance.manage', $finance->permission);
+        $this->assertSame('finance.view', $finance->permission);
         $this->assertGreaterThan(0, $finance->children()->count());
     }
 

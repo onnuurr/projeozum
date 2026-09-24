@@ -19,9 +19,10 @@ class ProformaConversionTest extends TestCase
     {
         parent::setUp();
         config(['inertia.testing.ensure_pages_exist' => false]);
+        Permission::firstOrCreate(['name' => 'finance.view', 'guard_name' => 'web']);
         Permission::firstOrCreate(['name' => 'finance.manage', 'guard_name' => 'web']);
         $this->admin = User::factory()->create();
-        $this->admin->givePermissionTo('finance.manage');
+        $this->admin->givePermissionTo(['finance.view', 'finance.manage']);
     }
 
     public function test_standalone_proforma_can_be_created_with_items(): void
@@ -102,6 +103,14 @@ class ProformaConversionTest extends TestCase
             'total'       => 600,
             'created_by'  => $this->admin->id,
         ]);
+
+        // e-Fatura gönderme finance.manage'den ayrı yetki.
+        $this->actingAs($this->admin)
+            ->post("/finance/outgoing-invoices/{$invoice->id}/send")
+            ->assertForbidden();
+
+        Permission::firstOrCreate(['name' => 'finance.einvoice.send', 'guard_name' => 'web']);
+        $this->admin->givePermissionTo('finance.einvoice.send');
 
         $this->actingAs($this->admin)
             ->post("/finance/outgoing-invoices/{$invoice->id}/send")

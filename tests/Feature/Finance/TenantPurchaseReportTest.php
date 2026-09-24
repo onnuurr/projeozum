@@ -90,9 +90,10 @@ class TenantPurchaseReportTest extends TestCase
     public function test_report_page_renders(): void
     {
         config(['inertia.testing.ensure_pages_exist' => false]);
+        Permission::firstOrCreate(['name' => 'finance.view', 'guard_name' => 'web']);
         Permission::firstOrCreate(['name' => 'finance.manage', 'guard_name' => 'web']);
         $user = User::factory()->create();
-        $user->givePermissionTo('finance.manage');
+        $user->givePermissionTo(['finance.view', 'finance.manage']);
 
         $this->actingAs($user)
             ->get('/finance/tenant-purchases')

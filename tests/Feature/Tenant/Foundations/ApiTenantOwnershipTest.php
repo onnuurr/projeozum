@@ -26,6 +26,20 @@ class ApiTenantOwnershipTest extends TestCase
             ->givePermissionTo('tenant.manage');
     }
 
+    public function test_tenant_user_index_lists_only_own_tenant(): void
+    {
+        $tenantA = Tenant::factory()->create();
+        Tenant::factory()->count(2)->create();
+
+        $userOfA = User::factory()->create(['tenant_id' => $tenantA->id]);
+        $userOfA->assignRole('tenant');
+
+        $ids = collect($this->actingAs($userOfA)->getJson('/api/v1/tenants')->assertOk()->json('data'))
+            ->pluck('id')->all();
+
+        $this->assertSame([$tenantA->id], $ids);
+    }
+
     public function test_tenant_user_cannot_access_other_tenant_endpoints(): void
     {
         $tenantA = Tenant::factory()->create();
