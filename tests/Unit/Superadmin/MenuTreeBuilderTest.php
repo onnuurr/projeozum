@@ -64,4 +64,29 @@ class MenuTreeBuilderTest extends TestCase
 
         $this->assertCount(0, MenuTreeBuilder::forUser(null));
     }
+
+    public function test_group_without_any_visible_child_is_dropped(): void
+    {
+        Permission::firstOrCreate(['name' => 'stock.manage', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'warehouse.view', 'guard_name' => 'web']);
+        $root = Menu::create(['label' => 'Stok', 'sort_order' => 0]);
+        Menu::create(['parent_id' => $root->id, 'label' => 'Stok Durumu', 'url' => '/products/stocks', 'permission' => 'stock.manage', 'sort_order' => 0]);
+        Menu::create(['parent_id' => $root->id, 'label' => 'Depolar', 'url' => '/products/warehouses', 'permission' => 'warehouse.view', 'sort_order' => 1]);
+
+        $nobody = User::factory()->create();
+        $this->assertSame([], MenuTreeBuilder::forUser($nobody));
+
+        $viewer = User::factory()->create();
+        $viewer->givePermissionTo('warehouse.view');
+        $tree = MenuTreeBuilder::forUser($viewer);
+        $this->assertCount(1, $tree);
+        $this->assertSame(['Depolar'], array_column($tree[0]['children'], 'label'));
+    }
+
+    public function test_leaf_menu_without_children_is_kept(): void
+    {
+        Menu::create(['label' => 'Pano', 'url' => '/dashboard', 'sort_order' => 0]);
+
+        $this->assertCount(1, MenuTreeBuilder::forUser(User::factory()->create()));
+    }
 }

@@ -223,7 +223,7 @@ class CreativeStudioController extends Controller
      * Onaylanmış (approved + done) görselleri ZIP olarak indirir; caption varsa
      * her görselin yanına .txt olarak ekler. Harici servis kullanmaz.
      */
-    public function export()
+    public function export(): \Symfony\Component\HttpFoundation\Response
     {
         $assets = CreativeAsset::query()
             ->with('product:id,name,slug')

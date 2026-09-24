@@ -22,13 +22,37 @@ class RouteCatalog
             ->pluck('route_name')
             ->all();
 
+        return self::menuable($inMenu);
+    }
+
+    /**
+     * Türkçe karşılığı (LABELS) tanımlanmamış menülenebilir route adları.
+     * Test, yeni route eklenince listeye eklenmesini zorlar.
+     *
+     * @return array<int, string>
+     */
+    public static function unlabeledRouteNames(): array
+    {
+        return collect(self::menuable([]))
+            ->pluck('name')
+            ->reject(fn (string $name) => isset(self::LABELS[$name]))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<int, string>  $inMenu
+     * @return array<int, array<string, mixed>>
+     */
+    private static function menuable(array $inMenu): array
+    {
         return collect(Route::getRoutes()->getRoutes())
             ->filter(fn (RoutingRoute $route) => self::isMenuable($route, $inMenu))
             ->map(fn (RoutingRoute $route) => [
                 'name'   => $route->getName(),
                 'uri'    => '/'.ltrim($route->uri(), '/'),
-                'module' => self::moduleOf($route),
-                'label'  => self::labelOf($route->getName()),
+                'module' => self::MODULE_LABELS[$module = self::moduleOf($route)] ?? $module,
+                'label'  => self::LABELS[$route->getName()] ?? self::labelOf($route->getName()),
             ])
             ->unique('name')
             ->sortBy([['module', 'asc'], ['label', 'asc']])
@@ -67,7 +91,39 @@ class RouteCatalog
             return false;
         }
 
-        return true;
+        return self::rendersPage($route);
+    }
+
+    /**
+     * JSON/indirme/stream dönen uçlar (ör. materials-lookup, tryon/results, feed.xml) gezilebilir
+     * bir sayfa değildir; menüye eklenirse kullanıcı ham veri görür. Controller'ın dönüş tipine
+     * bakılır: tip yoksa sayfa sayılır, varsa Inertia\Response içermelidir.
+     */
+    private static function rendersPage(RoutingRoute $route): bool
+    {
+        $uses = $route->getAction('uses');
+
+        try {
+            $reflection = match (true) {
+                $uses instanceof \Closure => new \ReflectionFunction($uses),
+                is_string($uses) && Str::contains($uses, '@') => new \ReflectionMethod(...explode('@', $uses, 2)),
+                is_string($uses) && method_exists($uses, '__invoke') => new \ReflectionMethod($uses, '__invoke'),
+                default => null,
+            };
+        } catch (\ReflectionException) {
+            return true;
+        }
+
+        $type = $reflection?->getReturnType();
+        if ($type === null) {
+            return true;
+        }
+
+        $names = $type instanceof \ReflectionUnionType
+            ? array_map(fn ($t) => $t->getName(), $type->getTypes())
+            : [$type instanceof \ReflectionNamedType ? $type->getName() : (string) $type];
+
+        return in_array(\Inertia\Response::class, $names, true);
     }
 
     private static function moduleOf(RoutingRoute $route): string
@@ -80,6 +136,103 @@ class RouteCatalog
 
         return 'Genel';
     }
+
+    /** Modül grup başlıkları (katalogda). */
+    private const MODULE_LABELS = [
+        'Atelier'       => 'Atölye',
+        'Creative'      => 'Creative Studio',
+        'Finance'       => 'Finans',
+        'Genel'         => 'Genel',
+        'PatternEngine' => 'Kalıp Motoru',
+        'Product'       => 'Ürünler',
+        'Superadmin'    => 'Süper Admin',
+        'Tenant'        => 'İş Ortakları',
+    ];
+
+    /**
+     * Route adı → katalogda görünen Türkçe sayfa adı. Yeni menülenebilir (GET, parametresiz,
+     * adlandırılmış) route eklendiğinde buraya da eklenir — RouteCatalogLabelsTest zorlar.
+     */
+    private const LABELS = [
+        // Atölye
+        'atelier.dashboard'                      => 'Atölye Paneli',
+        'atelier.materials.index'                => 'Hammaddeler',
+        'atelier.operations.index'               => 'Operasyonlar',
+        'atelier.boms.index'                     => 'Reçeteler',
+        'atelier.fason-suppliers.index'          => 'Fasoncular',
+        'atelier.production-orders.index'        => 'İş Emirleri',
+
+        // Kalıp Motoru (Atölye menüsündeki kalıp sayfaları)
+        'atelier.assignments.index'   => 'Atölye İşleri',
+        'atelier.concepts.index'      => 'Konsept Stüdyosu',
+        'atelier.conversions.index'   => 'Sayısallaştırma',
+        'atelier.patterns.index'      => 'Kalıp Kütüphanesi',
+        'patternengine.index'         => 'Kalıp Motoru İşleri',
+        'patternengine.profiles.index' => 'Kalıp Profilleri',
+
+        // Creative Studio
+        'creative.studio'                  => 'Stüdyo',
+        'creative.gallery'                 => 'Galeri',
+        'creative.templates.index'         => 'Şablonlar',
+        'creative.brandkits.index'         => 'Marka Kitleri',
+        'creative.partner-brandkits.index' => 'İş Ortağı Kreatif Profilleri',
+        'creative.mannequins.index'        => 'Mankenler',
+        'creative.poses.index'             => 'Pozlar',
+        'creative.garment-scans.index'     => 'Kıyafet Taramaları',
+        'creative.tryon.index'             => 'Sanal Deneme',
+        'creative.rejection-reasons.index' => 'Ret Seçim Maddeleri',
+        'creative.review-reports.index'    => 'Ret Analiz Raporları',
+
+        // Finans
+        'finance.dashboard'                => 'Finans Paneli',
+        'finance.sales'                    => 'Satışlar',
+        'finance.tenant-purchases'         => 'Bayi Siparişleri',
+        'finance.product-costs'            => 'Ürün Maliyetleri',
+        'finance.bank-accounts.index'      => 'Banka Hesapları',
+        'finance.bank-statements.index'    => 'Banka Ekstreleri',
+        'finance.outgoing-invoices.index'  => 'Giden Faturalar',
+        'finance.supplier-invoices.index'  => 'Tedarikçi Faturaları',
+        'finance.proformas.index'          => 'Proforma Faturalar',
+
+        // Genel
+        'dashboard'           => 'Ana Panel',
+        'profile.edit'        => 'Profilim',
+        'login'               => 'Giriş',
+        'register'            => 'Kayıt Ol',
+        'password.request'    => 'Şifremi Unuttum',
+        'password.confirm'    => 'Şifre Doğrulama',
+        'verification.notice' => 'E-posta Doğrulama',
+        'oz-kit'              => 'Oz Bileşen Kiti',
+        'component-showcase'  => 'Bileşen Vitrini',
+
+        // Ürünler
+        'products.index'            => 'Tüm Ürünler',
+        'products.create'           => 'Yeni Ürün',
+        'products.categories.index' => 'Kategoriler',
+        'products.brands.index'     => 'Markalar',
+        'products.stocks.index'     => 'Stoklar',
+        'products.stocks.history'   => 'Stok Hareketleri',
+        'products.warehouses.index' => 'Depolar',
+        'carriers.index'            => 'Kargo Firmaları',
+        'orders.index'              => 'Siparişler',
+
+        // Süper Admin
+        'superadmin.index'                     => 'Süper Admin Paneli',
+        'superadmin.settings'                  => 'Sistem Ayarları',
+        'superadmin.menus'                     => 'Menü Ayarları',
+        'superadmin.users.index'               => 'Kullanıcılar',
+        'superadmin.logs'                      => 'Log Görüntüleyici',
+        'superadmin.logs.unlock'               => 'Log Erişim Kilidi',
+        'superadmin.backups.index'             => 'Yedeklemeler',
+        'superadmin.failed-jobs.index'         => 'Başarısız Kuyruk İşleri',
+        'superadmin.architecture-doctor.index' => 'Mimari Doktor',
+
+        // İş Ortakları
+        'tenants.index'                  => 'İş Ortağı Listesi',
+        'tenants.types.index'            => 'İş Ortağı Tipleri',
+        'tenant-applications.index'      => 'İş Ortağı Başvuruları',
+        'tenant-applications.create'     => 'Başvuru Formu (herkese açık)',
+    ];
 
     private const ACTION_SUFFIXES = ['index', 'show', 'list', 'create', 'edit', 'store', 'update', 'destroy'];
 

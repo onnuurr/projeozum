@@ -36,7 +36,15 @@ class MenuTreeBuilder
                 'to'         => $m->resolveTo(),
                 'permission' => $m->permission,
                 'children'   => self::build($all, $m->id, $user),
+                // Aktif alt öğesi olan bir grup, hiçbiri görünür değilse boş kalmasın diye düşer.
+                'hasChildren' => $all->contains('parent_id', $m->id),
             ])
+            ->reject(fn (array $node) => $node['hasChildren'] && $node['children'] === [])
+            ->map(function (array $node) {
+                unset($node['hasChildren']);
+
+                return $node;
+            })
             ->values()
             ->all();
     }
