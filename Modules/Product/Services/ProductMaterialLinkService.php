@@ -2,6 +2,7 @@
 
 namespace Modules\Product\Services;
 
+use App\Contracts\ProductBomMaterialSource;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Modules\Atelier\Models\Material;
@@ -13,12 +14,17 @@ use Modules\Product\Models\ProductDescriptionMaterial;
  *
  * İki kaynak var:
  *  - product_description_materials pivot (admin doğrudan seçmişse)
- *  - product_boms → bom_lines (üretim reçetesi varsa)
+ *  - üretim reçetesi (Atelier) — App\Contracts\ProductBomMaterialSource üzerinden
  *
  * resolve() önce pivot'a bakar; yoksa reçetenin ilk aktif kaydından çeker.
  */
 class ProductMaterialLinkService
 {
+    /**
+     * Atelier yüklü değilse binding yoktur → container default null verir, reçete adımı atlanır.
+     */
+    public function __construct(private ?ProductBomMaterialSource $bomMaterials = null) {}
+
     /**
      * @param  array<int, array{material_id: int, role: string, sort_order?: int, notes?: string|null}>  $rows
      */
@@ -79,18 +85,13 @@ class ProductMaterialLinkService
             return $pivotRows->filter(fn ($row) => $row['material'] !== null)->values();
         }
 
-        $bom = $product->boms()->where('is_active', true)->with('lines.material')->first()
-            ?? $product->boms()->with('lines.material')->first();
-
-        if (! $bom) {
+        if (! $this->bomMaterials) {
             return collect();
         }
 
-        return collect($bom->lines)
-            ->filter(fn ($line) => $line->material !== null)
-            ->values()
-            ->map(fn ($line, $idx) => [
-                'material'   => $line->material,
+        return $this->bomMaterials->materialsFor($product->id)
+            ->map(fn ($material, $idx) => [
+                'material'   => $material,
                 'role'       => ProductDescriptionMaterial::ROLE_PRIMARY_FABRIC,
                 'sort_order' => $idx,
                 'notes'      => null,

@@ -2,8 +2,10 @@
 
 namespace Modules\Atelier\Providers;
 
+use App\Contracts\ProductBomMaterialSource as ProductBomMaterialSourceContract;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 use Illuminate\Console\Scheduling\Schedule;
+use Modules\Atelier\Services\ProductBomMaterialSource;
 
 class AtelierServiceProvider extends ModuleServiceProvider
 {
@@ -33,6 +35,15 @@ class AtelierServiceProvider extends ModuleServiceProvider
         EventServiceProvider::class,
         RouteServiceProvider::class,
     ];
+
+    public function register(): void
+    {
+        parent::register();
+
+        // Product'ın reçete materyallerine Atelier'e bağımlı olmadan erişmesi için
+        // (bkz. App\Contracts\ProductBomMaterialSource).
+        $this->app->bind(ProductBomMaterialSourceContract::class, ProductBomMaterialSource::class);
+    }
 
     /**
      * Define module schedules.
