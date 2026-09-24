@@ -8,6 +8,7 @@ use Modules\Bagisto\Jobs\PushProductToBagisto;
 use Modules\Bagisto\Mappers\ProductPayloadMapper;
 use Modules\Bagisto\Services\BagistoSyncClient;
 use Modules\Product\Models\Product;
+use Modules\Product\Models\ProductImage;
 use Modules\Product\Models\ProductVariant;
 use Tests\TestCase;
 
@@ -41,6 +42,22 @@ class PushProductToBagistoJobTest extends TestCase
                 && $request['sku'] === 'PRD-1'
                 && $request['variants'][0]['sku'] === 'VAR-1';
         });
+    }
+
+    public function test_upsert_payload_lists_cover_image_first(): void
+    {
+        Http::fake(['*' => Http::response(['message' => 'ok'])]);
+
+        $product = Product::factory()->create();
+        ProductVariant::factory()->create(['product_id' => $product->id]);
+        // Kapak sort_order'da sonda — images() ilişkisinin sabit sıralaması kapağı ezmemeli.
+        ProductImage::create(['product_id' => $product->id, 'path' => 'products/x/a.png', 'sort_order' => 1, 'is_cover' => false]);
+        ProductImage::create(['product_id' => $product->id, 'path' => 'products/x/cover.png', 'sort_order' => 2, 'is_cover' => true]);
+
+        (new PushProductToBagisto($product->id, 'updated'))
+            ->handle(app(ProductPayloadMapper::class), app(BagistoSyncClient::class));
+
+        Http::assertSent(fn ($request) => str_ends_with($request['images'][0], 'products/x/cover.png'));
     }
 
     public function test_handle_posts_minimal_payload_for_deleted_product(): void

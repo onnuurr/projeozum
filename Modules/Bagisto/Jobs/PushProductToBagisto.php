@@ -53,8 +53,12 @@ class PushProductToBagisto implements ShouldQueue, ShouldBeUniqueUntilProcessing
 
     public function handle(ProductPayloadMapper $mapper, BagistoSyncClient $client): void
     {
+        // Kapak başta: Product::images() ilişkisi sort_order'la sabit sıralıdır ve
+        // orderByDesc('is_cover')'ı ezer — reorder() şart (bkz. ProductController/Presenter).
+        $coverFirst = fn ($q) => $q->reorder()->orderByDesc('is_cover')->orderBy('sort_order')->orderBy('id');
+
         $product = Product::withTrashed()
-            ->with(['variants.images', 'images', 'category'])
+            ->with(['variants.images' => $coverFirst, 'images' => $coverFirst, 'category'])
             ->find($this->productId);
 
         if (! $product) {

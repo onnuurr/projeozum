@@ -18,6 +18,7 @@ use Modules\Product\Events\ProductVariantsSynced;
 use Modules\Product\Exceptions\BarcodeGenerationException;
 use Modules\Product\Exceptions\InvalidProductTransitionException;
 use Modules\Product\Models\Product;
+use Modules\Product\Models\ProductImage;
 use Modules\Product\Models\ProductStatusHistory;
 use Modules\Superadmin\Models\Setting;
 
@@ -281,17 +282,21 @@ class ProductService
         $hasCover = $product->images()->where('is_cover', true)->exists();
         $sort     = (int) $product->images()->max('sort_order');
 
-        foreach ($images as $file) {
-            $path = $file->store('products/' . $product->id, Media::disk());
+        // Çağıran create()/update() hemen ardından ProductCreated/ProductUpdated fırlatır —
+        // görsel başına ayrı ProductImagesChanged duyurusu gereksiz (ve sırayı bozar).
+        ProductImage::withoutChangeAnnouncements(function () use ($product, $images, &$hasCover, &$sort) {
+            foreach ($images as $file) {
+                $path = $file->store('products/' . $product->id, Media::disk());
 
-            $product->images()->create([
-                'path'       => $path,
-                'sort_order' => ++$sort,
-                'is_cover'   => ! $hasCover,
-            ]);
+                $product->images()->create([
+                    'path'       => $path,
+                    'sort_order' => ++$sort,
+                    'is_cover'   => ! $hasCover,
+                ]);
 
-            $hasCover = true;
-        }
+                $hasCover = true;
+            }
+        });
     }
 
     /**

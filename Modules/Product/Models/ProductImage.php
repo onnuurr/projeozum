@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Prunable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Modules\Product\Events\ProductImagesChanged;
 
 class ProductImage extends Model
 {
@@ -19,6 +20,9 @@ class ProductImage extends Model
     public const PRUNE_AFTER_DAYS = 30;
 
     protected $table = 'product_images';
+
+    /** false iken değişiklikler ProductImagesChanged ile duyurulmaz (bkz. withoutChangeAnnouncements). */
+    private static bool $announceChanges = true;
 
     protected $fillable = [
         'product_id',
@@ -44,6 +48,51 @@ class ProductImage extends Model
     protected function url(): Attribute
     {
         return Attribute::get(fn () => Media::url($this->path));
+    }
+
+    /**
+     * Görsel kümesindeki her değişikliği ProductImagesChanged ile duyurur (Bagisto mağaza
+     * görselleri bununla güncel kalır). Toplu `query()->update()` model olayı üretmez; mevcut
+     * yazma yolları bunu hep ardından tekil bir model create/update ile tamamlıyor.
+     * Prune (forceDelete) duyurulmaz: görsel zaten soft-delete anında duyurulmuştu.
+     */
+    protected static function booted(): void
+    {
+        $announce = function (self $image): void {
+            if (self::$announceChanges && $image->product_id) {
+                ProductImagesChanged::dispatch((int) $image->product_id);
+            }
+        };
+
+        static::created($announce);
+        static::updated($announce);
+        static::restored($announce);
+        static::deleted(function (self $image) use ($announce): void {
+            if (! $image->isForceDeleting()) {
+                $announce($image);
+            }
+        });
+    }
+
+    /**
+     * Callback süresince görsel değişikliklerini duyurmaz — kendi olayını zaten fırlatan
+     * akışlar (ProductService create/update → ProductCreated/Updated) için; aksi halde
+     * Bagisto'ya 'updated' push'u 'created'dan ÖNCE kuyruğa girebilirdi.
+     *
+     * @template T
+     * @param  callable(): T  $callback
+     * @return T
+     */
+    public static function withoutChangeAnnouncements(callable $callback): mixed
+    {
+        $previous = self::$announceChanges;
+        self::$announceChanges = false;
+
+        try {
+            return $callback();
+        } finally {
+            self::$announceChanges = $previous;
+        }
     }
 
     public function product(): BelongsTo
