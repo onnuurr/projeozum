@@ -4,6 +4,7 @@ namespace Modules\Product\Services;
 
 use App\Models\User;
 use App\Support\Media;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Modules\Product\Events\MaterialChanged;
@@ -17,9 +18,13 @@ use Modules\Product\Events\ProductUpdated;
 use Modules\Product\Events\ProductVariantsSynced;
 use Modules\Product\Exceptions\BarcodeGenerationException;
 use Modules\Product\Exceptions\InvalidProductTransitionException;
+use Modules\Product\Exceptions\VariantInUseException;
 use Modules\Product\Models\Product;
 use Modules\Product\Models\ProductImage;
 use Modules\Product\Models\ProductStatusHistory;
+use Modules\Product\Models\ProductVariant;
+use Modules\Product\Models\Stock;
+use Modules\Product\Models\StockMovement;
 use Modules\Superadmin\Models\Setting;
 
 /**
@@ -245,27 +250,88 @@ class ProductService
     }
 
     /**
-     * Varyantları tam senkronlar (sil-ve-yeniden-oluştur). Fiyat/eski fiyat ürün
-     * seviyesinde en düşük varyanttan türetilir (bkz. attributesFrom).
+     * Varyantları SKU'ya göre senkronlar: mevcut SKU yerinde güncellenir (kimlik ve ona bağlı
+     * depo stokları, stok hareketleri, fiyat listeleri korunur), yeni SKU eklenir, formdan
+     * çıkarılan SKU silinir. Fiyat/eski fiyat ürün seviyesinde en düşük varyanttan türetilir
+     * (bkz. attributesFrom).
+     *
+     * (Eskiden sil-ve-yeniden-oluştur idi: her düzenleme stocks/stock_movements/price_lists'i
+     * CASCADE ile siliyor, üretim emrindeki varyant için RESTRICT'e çarpıp kaydı düşürüyordu.)
+     *
+     * Mevcut varyantın `stock` alanı formdan GÜNCELLENMEZ — stok yalnız StockService hareketiyle
+     * değişir (depo dağılımıyla tutarlı kalsın diye); form değeri yalnız yeni varyantın başlangıcı.
      *
      * @param  array<int, array<string, mixed>>  $variants
+     *
+     * @throws VariantInUseException  çıkarılan varyantın stoku/geçmişi var ya da başka kayıtta kullanılıyor.
      */
     private function syncVariants(Product $product, array $variants): void
     {
-        $product->variants()->delete();
+        $existing = $product->variants()->get()->keyBy('sku');
+        $keep     = [];
 
         foreach ($variants as $idx => $v) {
-            $product->variants()->create([
+            $attributes = [
                 'size'       => $v['size'] ?? null,
                 'color_name' => $v['color_name'] ?? null,
                 'color_hex'  => $v['color_hex'] ?? null,
-                'sku'        => $v['sku'],
                 'price'      => $v['price'],
                 'old_price'  => $v['old_price'] ?? null,
-                'stock'      => $v['stock'] ?? 0,
                 'sort_order' => $idx,
-            ]);
+            ];
+
+            if ($variant = $existing->get($v['sku'])) {
+                $variant->update($attributes);
+            } else {
+                $product->variants()->create($attributes + ['sku' => $v['sku'], 'stock' => $v['stock'] ?? 0]);
+            }
+
+            $keep[] = $v['sku'];
         }
+
+        // Eloquent\Collection::except() modelin birincil anahtarına göre çalışır, keyBy
+        // anahtarına değil — çıkarılanları SKU ile açıkça süz.
+        foreach ($existing->reject(fn (ProductVariant $v) => in_array($v->sku, $keep, true)) as $variant) {
+            $this->deleteRemovedVariant($variant);
+        }
+    }
+
+    /**
+     * Formdan çıkarılan varyantı siler. Stoku veya hareket geçmişi olan varyant silinmez (CASCADE
+     * bunları sessizce yok ederdi). Başka modüllerin referansları (ör. Atölye üretim emri, RESTRICT)
+     * savepoint içinde denenerek yakalanır — Product o tabloları bilmek zorunda kalmaz.
+     */
+    private function deleteRemovedVariant(ProductVariant $variant): void
+    {
+        $hasStock = Stock::query()
+            ->where('product_variant_id', $variant->id)
+            ->where(fn ($q) => $q->where('quantity', '!=', 0)->orWhere('reserved_quantity', '!=', 0))
+            ->exists();
+
+        if ($hasStock || (int) $variant->stock !== 0) {
+            throw new VariantInUseException($variant->sku, 'depoda stoku var — önce stok hareketiyle sıfırlayın');
+        }
+
+        if (StockMovement::query()->where('product_variant_id', $variant->id)->exists()) {
+            throw new VariantInUseException($variant->sku, 'stok hareket geçmişi var');
+        }
+
+        try {
+            DB::transaction(fn () => $variant->delete());
+        } catch (QueryException $e) {
+            if ($this->isForeignKeyViolation($e)) {
+                throw new VariantInUseException($variant->sku, 'başka bir kayıtta (ör. üretim emri) kullanılıyor');
+            }
+
+            throw $e;
+        }
+    }
+
+    private function isForeignKeyViolation(QueryException $e): bool
+    {
+        // Postgres: 23503; SQLite (testler): 23000 + "FOREIGN KEY constraint failed".
+        return $e->getCode() === '23503'
+            || ($e->getCode() === '23000' && str_contains($e->getMessage(), 'FOREIGN KEY'));
     }
 
     /**

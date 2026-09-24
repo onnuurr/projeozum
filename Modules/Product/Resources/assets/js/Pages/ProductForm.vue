@@ -395,6 +395,7 @@ function regenerateVariants() {
 				color_name: color.name,
 				color_hex: color.hex,
 				sku: existing?.sku || variantSku(form.sku, size, color.name),
+				persisted: existing?.persisted ?? false,
 				price: existing?.price ?? Number(bulkPrice.value) ?? 0,
 				old_price: existing?.old_price ?? null,
 				stock: existing?.stock ?? Number(bulkStock.value) ?? 0,
@@ -601,6 +602,8 @@ function loadFromProduct(p) {
 		price: Number(v.price) || 0,
 		old_price: v.old_price !== null ? Number(v.old_price) : null,
 		stock: Number(v.stock) || 0,
+		// Kayıtlı varyant: SKU kilitli (Bagisto SKU ile eşleştirir), stok yalnız stok hareketiyle değişir.
+		persisted: true,
 	}))
 
 	existingImages.value = Array.isArray(p.images) ? p.images.map((x) => ({ ...x })) : []
@@ -647,11 +650,11 @@ onMounted(() => {
 						label="Ana SKU"
 						required
 						:error="errors.sku"
-						hint="Boş bırakıp ⟳ ile otomatik üretebilirsiniz (marka + ürün adı gerekli)."
+						:hint="isEdit ? 'SKU oluşturulduktan sonra değiştirilemez (Bagisto eşleşmesi).' : 'Boş bırakıp ⟳ ile otomatik üretebilirsiniz (marka + ürün adı gerekli).'"
 					>
 						<div class="inline-row">
-							<OzInput v-model="form.sku" placeholder="TEK-XXX-001" class="grow" @input="skuTouched = true" />
-							<OzButton icon="refresh" :disabled="!form.name || !form.brand_id" aria-label="Otomatik SKU üret" @click="generateBaseSku" />
+							<OzInput v-model="form.sku" placeholder="TEK-XXX-001" class="grow" :readonly="isEdit" @input="skuTouched = true" />
+							<OzButton v-if="!isEdit" icon="refresh" :disabled="!form.name || !form.brand_id" aria-label="Otomatik SKU üret" @click="generateBaseSku" />
 						</div>
 					</OzField>
 				</div>
@@ -814,10 +817,10 @@ onMounted(() => {
 							<span class="variant-color-name">{{ v.color_name || '—' }}</span>
 						</span>
 						<span class="variant-size">{{ v.size || '—' }}</span>
-						<OzInput v-model="v.sku" placeholder="SKU" class="mono" />
+						<OzInput v-model="v.sku" placeholder="SKU" class="mono" :readonly="v.persisted" />
 						<OzInput v-model="v.price" type="number" min="0" step="0.01" placeholder="Fiyat" />
 						<OzInput v-model="v.old_price" type="number" min="0" step="0.01" placeholder="—" />
-						<OzInput v-model="v.stock" type="number" min="0" placeholder="Stok" />
+						<OzInput v-model="v.stock" type="number" min="0" placeholder="Stok" :readonly="v.persisted" :title="v.persisted ? 'Kayıtlı varyantın stoku yalnız stok hareketiyle değişir' : undefined" />
 						<button type="button" class="variant-remove" aria-label="Satırı sil" @click="removeVariant(idx)">
 							<X :size="12" />
 						</button>

@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Product\Exceptions\InvalidProductTransitionException;
+use Modules\Product\Exceptions\VariantInUseException;
 use Modules\Product\Http\Requests\BulkDestroyProductRequest;
 use Modules\Product\Http\Requests\StoreProductRequest;
 use Modules\Product\Http\Requests\UpdateProductRequest;
@@ -123,7 +124,12 @@ class ProductController extends Controller
 
     public function update(UpdateProductRequest $request, Product $product): RedirectResponse
     {
-        $this->products->update($product, $request->validated(), $request->file('images') ?? []);
+        try {
+            $this->products->update($product, $request->validated(), $request->file('images') ?? []);
+        } catch (VariantInUseException $e) {
+            // Transaction geri alındı; formdaki varyant listesine hata olarak döner.
+            return back()->withErrors(['variants' => $e->getMessage()]);
+        }
 
         return redirect()->route('products.index');
     }
