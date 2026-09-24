@@ -6,7 +6,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
-use Modules\Atelier\Models\Pattern;
+use Modules\PatternEngine\Models\Pattern;
 use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
@@ -97,7 +97,7 @@ class PatternControllerTest extends TestCase
             ->get('/atelier/patterns?product_type=tulum')
             ->assertOk()
             ->assertInertia(fn ($page) => $page
-                ->component('Atelier::Patterns')
+                ->component('PatternEngine::Patterns')
                 ->has('patterns', 1)
                 ->where('patterns.0.name', 'Mavi Tulum'));
     }

@@ -6,11 +6,11 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
-use Modules\Atelier\Jobs\GenerateConceptJob;
-use Modules\Atelier\Models\DesignCard;
-use Modules\Atelier\Models\Pattern;
-use Modules\Atelier\Services\Concept\Contracts\ConceptImageGeneratorContract;
-use Modules\Atelier\Services\Concept\Drivers\MockConceptGenerator;
+use Modules\PatternEngine\Jobs\GenerateConceptJob;
+use Modules\PatternEngine\Models\DesignCard;
+use Modules\PatternEngine\Models\Pattern;
+use Modules\PatternEngine\Services\Concept\Contracts\ConceptImageGeneratorContract;
+use Modules\PatternEngine\Services\Concept\Drivers\MockConceptGenerator;
 use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
@@ -65,7 +65,7 @@ class ConceptStudioControllerTest extends TestCase
             ->assertRedirect();
 
         $card = DesignCard::first();
-        (new GenerateConceptJob($card->id))->handle(app(\Modules\Atelier\Services\Concept\ConceptStudioService::class));
+        (new GenerateConceptJob($card->id))->handle(app(\Modules\PatternEngine\Services\Concept\ConceptStudioService::class));
 
         $card->refresh();
         $this->assertSame(DesignCard::GENERATION_DONE, $card->generation_status);

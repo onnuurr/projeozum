@@ -3,7 +3,7 @@
 namespace Tests\Feature\Atelier;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Modules\Atelier\Models\Pattern;
+use Modules\PatternEngine\Models\Pattern;
 use Tests\TestCase;
 
 class PatternExtractionColumnsTest extends TestCase

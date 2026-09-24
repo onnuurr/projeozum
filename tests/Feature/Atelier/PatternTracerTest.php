@@ -5,9 +5,9 @@ namespace Tests\Feature\Atelier;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
-use Modules\Atelier\Models\Pattern;
-use Modules\Atelier\Services\Conversion\Contracts\PdfDxfConverterContract;
-use Modules\Atelier\Services\Conversion\Drivers\MockPdfDxfConverter;
+use Modules\PatternEngine\Models\Pattern;
+use Modules\PatternEngine\Services\Conversion\Contracts\PdfDxfConverterContract;
+use Modules\PatternEngine\Services\Conversion\Drivers\MockPdfDxfConverter;
 use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 

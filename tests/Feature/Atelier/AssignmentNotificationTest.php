@@ -5,10 +5,10 @@ namespace Tests\Feature\Atelier;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
-use Modules\Atelier\Models\Assignment;
-use Modules\Atelier\Models\Pattern;
-use Modules\Atelier\Notifications\AssignmentNotification;
-use Modules\Atelier\Services\AssignmentService;
+use Modules\PatternEngine\Models\Assignment;
+use Modules\PatternEngine\Models\Pattern;
+use Modules\PatternEngine\Notifications\AssignmentNotification;
+use Modules\PatternEngine\Services\AssignmentService;
 use Tests\TestCase;
 
 class AssignmentNotificationTest extends TestCase

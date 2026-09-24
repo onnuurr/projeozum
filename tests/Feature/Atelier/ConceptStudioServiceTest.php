@@ -5,12 +5,12 @@ namespace Tests\Feature\Atelier;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
-use Modules\Atelier\Models\DesignCard;
-use Modules\Atelier\Models\Pattern;
-use Modules\Atelier\Services\Concept\ConceptRequest;
-use Modules\Atelier\Services\Concept\ConceptStudioService;
-use Modules\Atelier\Services\Concept\Contracts\ConceptImageGeneratorContract;
-use Modules\Atelier\Services\Concept\Drivers\MockConceptGenerator;
+use Modules\PatternEngine\Models\DesignCard;
+use Modules\PatternEngine\Models\Pattern;
+use Modules\PatternEngine\Services\Concept\ConceptRequest;
+use Modules\PatternEngine\Services\Concept\ConceptStudioService;
+use Modules\PatternEngine\Services\Concept\Contracts\ConceptImageGeneratorContract;
+use Modules\PatternEngine\Services\Concept\Drivers\MockConceptGenerator;
 use Tests\TestCase;
 
 class ConceptStudioServiceTest extends TestCase

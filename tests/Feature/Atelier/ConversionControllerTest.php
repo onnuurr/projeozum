@@ -7,11 +7,11 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
-use Modules\Atelier\Jobs\ProcessConversionJob;
-use Modules\Atelier\Models\ConversionJob;
-use Modules\Atelier\Models\Pattern;
-use Modules\Atelier\Services\Conversion\Contracts\PdfDxfConverterContract;
-use Modules\Atelier\Services\Conversion\Drivers\MockPdfDxfConverter;
+use Modules\PatternEngine\Jobs\ProcessConversionJob;
+use Modules\PatternEngine\Models\ConversionJob;
+use Modules\PatternEngine\Models\Pattern;
+use Modules\PatternEngine\Services\Conversion\Contracts\PdfDxfConverterContract;
+use Modules\PatternEngine\Services\Conversion\Drivers\MockPdfDxfConverter;
 use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 

@@ -51,7 +51,9 @@ class ProductFormRequestAuthTest extends TestCase
         $variant   = ProductVariant::factory()->create(['stock' => 0]);
         $warehouse = Warehouse::factory()->create();
 
+        // movement() back() döner (Stoklar listesi ve Ürün Kartı aynı ucu kullanır).
         $this->actingAs($this->user(['stock.manage']))
+            ->from(route('products.stocks.index'))
             ->post(route('products.stocks.movement'), [
                 'product_variant_id' => $variant->id,
                 'warehouse_id'       => $warehouse->id,

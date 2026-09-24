@@ -7,9 +7,9 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
-use Modules\Atelier\Models\Assignment;
-use Modules\Atelier\Models\Pattern;
-use Modules\Atelier\Services\AssignmentService;
+use Modules\PatternEngine\Models\Assignment;
+use Modules\PatternEngine\Models\Pattern;
+use Modules\PatternEngine\Services\AssignmentService;
 use Tests\TestCase;
 
 class AssignmentWorkflowTest extends TestCase

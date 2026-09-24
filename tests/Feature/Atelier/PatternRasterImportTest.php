@@ -7,9 +7,9 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
-use Modules\Atelier\Jobs\ExtractPatternFromPdfJob;
-use Modules\Atelier\Models\Pattern;
-use Modules\Atelier\Services\Conversion\Contracts\PdfDxfConverterContract;
+use Modules\PatternEngine\Jobs\ExtractPatternFromPdfJob;
+use Modules\PatternEngine\Models\Pattern;
+use Modules\PatternEngine\Services\Conversion\Contracts\PdfDxfConverterContract;
 use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 

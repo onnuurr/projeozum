@@ -8,8 +8,8 @@ use Tests\TestCase;
 
 /**
  * Faz 3 / D5: B2C yüzeyi kademeli söküldü. Ana domain /checkout ve /checkout/addresses/*
- * kaldırıldı; B2C controller/model sınıfları silindi. `/cart/*` KORUNUR — portal sepet
- * altyapısı subdomain üzerinden bu route'ları kullanır (regresyon koruması).
+ * kaldırıldı; B2C controller/model sınıfları silindi. 2026-09-22'de Bayi Portalı ile
+ * birlikte sepet de tamamen kaldırıldı (34f2221) — `/cart/*` artık yok.
  */
 class B2cRemovalTest extends TestCase
 {
@@ -22,12 +22,11 @@ class B2cRemovalTest extends TestCase
         $this->get('/checkout/addresses')->assertNotFound();
     }
 
-    public function test_cart_routes_still_registered(): void
+    public function test_cart_routes_removed(): void
     {
-        $this->assertTrue(Route::has('cart.add'), 'cart.add route korunmalı (portal bağımlı).');
-        $this->assertTrue(Route::has('cart.update'));
-        $this->assertTrue(Route::has('cart.remove'));
-        $this->assertTrue(Route::has('cart.clear'));
+        foreach (['cart.add', 'cart.update', 'cart.remove', 'cart.clear'] as $name) {
+            $this->assertFalse(Route::has($name), "{$name} route'u kaldırılmış olmalı.");
+        }
     }
 
     public function test_b2c_classes_removed(): void

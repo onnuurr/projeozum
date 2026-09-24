@@ -5,11 +5,11 @@ namespace Tests\Feature\Atelier;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
-use Modules\Atelier\Models\ConversionJob;
-use Modules\Atelier\Models\Pattern;
-use Modules\Atelier\Services\Conversion\ConversionPipelineService;
-use Modules\Atelier\Services\Conversion\Contracts\PdfDxfConverterContract;
-use Modules\Atelier\Services\Conversion\Drivers\MockPdfDxfConverter;
+use Modules\PatternEngine\Models\ConversionJob;
+use Modules\PatternEngine\Models\Pattern;
+use Modules\PatternEngine\Services\Conversion\ConversionPipelineService;
+use Modules\PatternEngine\Services\Conversion\Contracts\PdfDxfConverterContract;
+use Modules\PatternEngine\Services\Conversion\Drivers\MockPdfDxfConverter;
 use Tests\TestCase;
 
 class ConversionPipelineTest extends TestCase
@@ -54,9 +54,9 @@ class ConversionPipelineTest extends TestCase
     {
         // Kırmızı (DXF üretilemedi) ama istisna yok → needs_review; operatör reddeder.
         $this->app->bind(PdfDxfConverterContract::class, fn () => new class implements PdfDxfConverterContract {
-            public function convert(string $pdfAbsolutePath): \Modules\Atelier\Services\Conversion\ConversionResult
+            public function convert(string $pdfAbsolutePath): \Modules\PatternEngine\Services\Conversion\ConversionResult
             {
-                return new \Modules\Atelier\Services\Conversion\ConversionResult(
+                return new \Modules\PatternEngine\Services\Conversion\ConversionResult(
                     classification: ConversionJob::CLASS_RED,
                     confidence: 30.0,
                     dxf: null,
@@ -65,9 +65,9 @@ class ConversionPipelineTest extends TestCase
                 );
             }
 
-            public function convertPhoto(string $photoAbsolutePath, float $markerMm = 40.0): \Modules\Atelier\Services\Conversion\ConversionResult
+            public function convertPhoto(string $photoAbsolutePath, float $markerMm = 40.0): \Modules\PatternEngine\Services\Conversion\ConversionResult
             {
-                return new \Modules\Atelier\Services\Conversion\ConversionResult(ConversionJob::CLASS_RED, 0.0);
+                return new \Modules\PatternEngine\Services\Conversion\ConversionResult(ConversionJob::CLASS_RED, 0.0);
             }
 
             public function probe(string $pdfAbsolutePath): ?array
@@ -98,12 +98,12 @@ class ConversionPipelineTest extends TestCase
     public function test_process_exception_marks_failed(): void
     {
         $this->app->bind(PdfDxfConverterContract::class, fn () => new class implements PdfDxfConverterContract {
-            public function convert(string $pdfAbsolutePath): \Modules\Atelier\Services\Conversion\ConversionResult
+            public function convert(string $pdfAbsolutePath): \Modules\PatternEngine\Services\Conversion\ConversionResult
             {
                 throw new \RuntimeException('servis çöktü');
             }
 
-            public function convertPhoto(string $photoAbsolutePath, float $markerMm = 40.0): \Modules\Atelier\Services\Conversion\ConversionResult
+            public function convertPhoto(string $photoAbsolutePath, float $markerMm = 40.0): \Modules\PatternEngine\Services\Conversion\ConversionResult
             {
                 throw new \RuntimeException('servis çöktü');
             }

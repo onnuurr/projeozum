@@ -3,9 +3,9 @@
 namespace Tests\Feature\Atelier;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Modules\Atelier\Models\ConversionJob;
-use Modules\Atelier\Models\DesignCard;
-use Modules\Atelier\Models\Pattern;
+use Modules\PatternEngine\Models\ConversionJob;
+use Modules\PatternEngine\Models\DesignCard;
+use Modules\PatternEngine\Models\Pattern;
 use Tests\TestCase;
 
 class PatternLibraryTest extends TestCase

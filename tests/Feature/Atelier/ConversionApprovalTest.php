@@ -3,8 +3,8 @@
 namespace Tests\Feature\Atelier;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Modules\Atelier\Models\ConversionJob;
-use Modules\Atelier\Services\Conversion\ConversionPipelineService;
+use Modules\PatternEngine\Models\ConversionJob;
+use Modules\PatternEngine\Services\Conversion\ConversionPipelineService;
 use Tests\TestCase;
 
 class ConversionApprovalTest extends TestCase

@@ -6,8 +6,8 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
-use Modules\Atelier\Models\Assignment;
-use Modules\Atelier\Models\Pattern;
+use Modules\PatternEngine\Models\Assignment;
+use Modules\PatternEngine\Models\Pattern;
 use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
