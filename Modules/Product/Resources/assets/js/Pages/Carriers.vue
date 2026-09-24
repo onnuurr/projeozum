@@ -1,95 +1,8 @@
-<template>
-	<Head title="Kargo Firmaları" />
-	<div class="page-carriers">
-		<Breadcrumb
-			:items="[
-				{ label: 'Ana Sayfa', to: '/workflow', icon: 'home' },
-				{ label: 'Ürünler', to: '/products' },
-				{ label: 'Kargo Firmaları' },
-			]"
-		/>
-
-		<PageHeader title="Kargo Firmaları">
-			<template #subtitle><strong>{{ carriers.length }}</strong> firma kayıtlı</template>
-			<template #actions>
-				<Button v-if="canManage" variant="primary" with-icon @click="openNew">
-					<template #leading><Plus :size="13" /></template>
-					Yeni Firma
-				</Button>
-			</template>
-		</PageHeader>
-
-		<Card title="Firma Listesi" body-class="p-2.5">
-			<DataTable :columns="columns" :data="carriers" empty-title="Kayıt bulunamadı">
-				<template #code="{ value }"><span class="mono">{{ value }}</span></template>
-				<template #name="{ value }"><strong>{{ value }}</strong></template>
-				<template #tracking_url_template="{ value }"><span class="dim">{{ value || '—' }}</span></template>
-				<template #is_active="{ value }">
-					<Badge :color="value ? 'success' : 'neutral'" variant="tonal" :label="value ? 'Aktif' : 'Pasif'" />
-				</template>
-				<template #orderCount="{ value }">{{ value }}</template>
-				<template #sort_order="{ value }">{{ value }}</template>
-				<template v-if="canManage" #actions="{ row }">
-					<button class="table-action-btn" @click="edit(row)" title="Düzenle"><Pencil :size="14" /></button>
-					<button class="table-action-btn" @click="confirmDelete(row)" title="Sil"><Trash2 :size="14" /></button>
-				</template>
-			</DataTable>
-		</Card>
-
-		<AppDrawer v-model="formOpen" :title="editing ? 'Firmayı Düzenle' : 'Yeni Kargo Firması'" subtitle="Kargo firması bilgilerini girin" variant="info" width="480px">
-			<form class="form-grid" @submit.prevent="submit">
-				<div class="form-row-2">
-					<div class="form-row">
-						<label class="form-label">Kod <span class="req">*</span></label>
-						<input v-model="form.code" type="text" class="form-input mono" placeholder="ARAS" />
-						<span v-if="errors.code" class="form-error">{{ errors.code }}</span>
-					</div>
-					<div class="form-row">
-						<label class="form-label">Ad <span class="req">*</span></label>
-						<input v-model="form.name" type="text" class="form-input" placeholder="Aras Kargo" />
-						<span v-if="errors.name" class="form-error">{{ errors.name }}</span>
-					</div>
-				</div>
-				<div class="form-row">
-					<label class="form-label">Takip URL Şablonu</label>
-					<input v-model="form.tracking_url_template" type="text" class="form-input" placeholder="https://kargotakip.example/{code}" />
-					<span v-if="errors.tracking_url_template" class="form-error">{{ errors.tracking_url_template }}</span>
-				</div>
-				<div class="form-row-2">
-					<div class="form-row">
-						<label class="form-label">Sıra</label>
-						<input v-model.number="form.sort_order" type="number" min="0" class="form-input" placeholder="0" />
-					</div>
-					<div class="form-row form-row-inline">
-						<label class="form-check">
-							<input v-model="form.is_active" type="checkbox" />
-							<span>Aktif</span>
-						</label>
-					</div>
-				</div>
-			</form>
-			<template #footer="{ close }">
-				<Button variant="ghost" :disabled="busy" @click="close">İptal</Button>
-				<Button variant="primary" :loading="busy" @click="submit">
-					{{ editing ? 'Kaydet' : 'Ekle' }}
-				</Button>
-			</template>
-		</AppDrawer>
-	</div>
-</template>
-
 <script setup>
 import { ref, computed, inject, reactive, watch } from 'vue'
 import { Head, router, usePage } from '@inertiajs/vue3'
-import { Plus, Pencil, Trash2 } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import Breadcrumb from '@/Components/Breadcrumb.vue'
-import AppDrawer from '@/Components/AppDrawer.vue'
-import PageHeader from '@/Components/PageHeader.vue'
-import Button from '@/Components/Button.vue'
-import Card from '@/Components/Card.vue'
-import DataTable from '@/Components/DataTable.vue'
-import Badge from '@/Components/Badge.vue'
+import { OzPageHeader, OzModuleTabs, OzStatTile, OzCard, OzButton, OzTable, OzPill, OzDropdown, OzDrawer, OzField, OzInput, OzSwitch, useOzConfirm } from '@/Components/Oz'
 
 defineOptions({ layout: AppLayout })
 
@@ -98,19 +11,37 @@ const props = defineProps({
 })
 
 const showToast = inject('showToast')
-const $swal = inject('$swal')
+const confirm = useOzConfirm()
 const page = usePage()
 
 const canManage = computed(() => (page.props.auth?.permissions ?? []).includes('carrier.manage'))
 
+const activeCount = computed(() => props.carriers.filter((c) => c.is_active).length)
+const stats = computed(() => [
+	{ key: 'total', label: 'Toplam Firma', value: props.carriers.length, icon: 'truck', tone: 'accent' },
+	{ key: 'active', label: 'Aktif', value: activeCount.value, icon: 'success', tone: 'success' },
+	{ key: 'passive', label: 'Pasif', value: props.carriers.length - activeCount.value, icon: 'eye-off', tone: props.carriers.length - activeCount.value ? 'warning' : 'success' },
+	{ key: 'inUse', label: 'Sipariş Bağlı', value: props.carriers.filter((c) => c.orderCount > 0).length, icon: 'package', tone: 'info' },
+])
+
 const columns = [
-	{ key: 'code', label: 'Kod' },
-	{ key: 'name', label: 'Ad' },
+	{ key: 'code', label: 'Kod', sortable: true },
+	{ key: 'name', label: 'Ad', sortable: true, class: 'oz-cell-strong' },
 	{ key: 'tracking_url_template', label: 'Takip URL Şablonu', sortable: false },
-	{ key: 'is_active', label: 'Durum' },
-	{ key: 'orderCount', label: 'Sipariş' },
-	{ key: 'sort_order', label: 'Sıra' },
+	{ key: 'is_active', label: 'Durum', sortable: true },
+	{ key: 'orderCount', label: 'Sipariş', align: 'right', sortable: true },
+	{ key: 'sort_order', label: 'Sıra', align: 'right', sortable: true },
+	{ key: 'actions', label: '', align: 'right', width: '48px', searchable: false },
 ]
+
+const rowActions = () => [
+	{ key: 'edit', label: 'Düzenle', icon: 'edit' },
+	{ key: 'remove', label: 'Sil', icon: 'trash', danger: true },
+]
+function onAction(key, c) {
+	if (key === 'edit') edit(c)
+	else if (key === 'remove') confirmDelete(c)
+}
 
 const formOpen = ref(false)
 const editing = ref(null)
@@ -191,17 +122,10 @@ function submit() {
 
 async function confirmDelete(c) {
 	if (c.orderCount > 0) {
-		await $swal.fire({
-			icon: 'warning',
-			title: 'Silinemez',
-			text: `${c.name} firmasına bağlı ${c.orderCount} sipariş var. Silmek yerine pasife alın.`,
-		})
+		await confirm.warning('Silinemez', `${c.name} firmasına bağlı ${c.orderCount} sipariş var. Silmek yerine pasife alın.`, { cancelText: 'Kapat', confirmText: 'Tamam' })
 		return
 	}
-	const ok = await $swal.dangerConfirm({
-		title: 'Firmayı Sil',
-		text: `${c.name} kargo firmasını silmek istediğinize emin misiniz?`,
-	})
+	const ok = await confirm.danger('Firmayı Sil', `${c.name} kargo firmasını silmek istediğinize emin misiniz?`)
 	if (!ok) return
 	router.delete(`/products/carriers/${c.id}`, {
 		preserveScroll: true,
@@ -211,23 +135,73 @@ async function confirmDelete(c) {
 }
 </script>
 
-<style scoped>
-.mono { font-family: ui-monospace, monospace; font-size: 12px; }
-.dim { color: rgb(var(--color-muted-rgb)); }
-.table-action-btn { border: none; background: rgb(var(--color-border-rgb) / .4); border-radius: 6px; padding: 5px 9px; cursor: pointer; color: rgb(var(--color-muted-rgb)); display: inline-flex; align-items: center; transition: background-color .15s; }
-.table-action-btn:hover { background: rgb(var(--color-border-rgb) / .7); }
-.req { color: rgb(var(--color-danger-rgb)); }
-.form-grid { display: flex; flex-direction: column; gap: 12px; }
-.form-row { display: flex; flex-direction: column; gap: 4px; }
-.form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.form-row-inline { justify-content: center; }
-.form-label { font-size: 12px; font-weight: 600; color: rgb(var(--color-ink-rgb)); }
-.form-input { border: 1px solid rgb(var(--color-border-rgb)); border-radius: 8px; padding: 8px 10px; font-size: 13px; }
-.form-input:focus { outline: none; border-color: rgb(var(--color-primary-rgb)); }
-.form-error { font-size: 11px; color: rgb(var(--color-danger-rgb)); }
-.form-check { display: flex; align-items: center; gap: 6px; font-size: 13px; color: rgb(var(--color-ink-rgb)); }
+<template>
+	<Head title="Kargo Firmaları" />
 
+	<OzPageHeader title="Kargo Firmaları">
+		<template #subtitle><b>{{ carriers.length }}</b> firma kayıtlı</template>
+		<template #actions>
+			<OzButton v-if="canManage" variant="primary" icon="plus" @click="openNew">Yeni Firma</OzButton>
+		</template>
+	</OzPageHeader>
+	<OzModuleTabs />
+
+	<div class="stats">
+		<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" />
+	</div>
+
+	<OzCard title="Firma Listesi">
+		<OzTable :columns="columns" :rows="carriers" row-key="id" empty-title="Kayıt bulunamadı" searchable search-placeholder="Firma ara…">
+			<template #cell-code="{ value }"><span class="mono">{{ value }}</span></template>
+			<template #cell-tracking_url_template="{ value }"><span class="dim">{{ value || '—' }}</span></template>
+			<template #cell-is_active="{ value }">
+				<OzPill :tone="value ? 'success' : 'neutral'">{{ value ? 'Aktif' : 'Pasif' }}</OzPill>
+			</template>
+			<template v-if="canManage" #cell-actions="{ row }">
+				<OzDropdown :items="rowActions()" :label="`${row.name} işlemleri`" @select="(k) => onAction(k, row)" />
+			</template>
+		</OzTable>
+	</OzCard>
+
+	<OzDrawer v-model:open="formOpen" :title="editing ? 'Firmayı Düzenle' : 'Yeni Kargo Firması'" subtitle="Kargo firması bilgilerini girin" :icon="editing ? 'edit' : 'plus'" size="md" :persistent="busy">
+		<form class="form" @submit.prevent="submit">
+			<div class="row-2">
+				<OzField label="Kod" required :error="errors.code">
+					<OzInput v-model="form.code" class="mono" placeholder="ARAS" />
+				</OzField>
+				<OzField label="Ad" required :error="errors.name">
+					<OzInput v-model="form.name" placeholder="Aras Kargo" />
+				</OzField>
+			</div>
+			<OzField label="Takip URL Şablonu" :error="errors.tracking_url_template">
+				<OzInput v-model="form.tracking_url_template" placeholder="https://kargotakip.example/{code}" />
+			</OzField>
+			<div class="row-2">
+				<OzField label="Sıra" :error="errors.sort_order">
+					<OzInput v-model.number="form.sort_order" type="number" min="0" placeholder="0" />
+				</OzField>
+				<OzField label="Durum">
+					<OzSwitch v-model="form.is_active" label="Aktif" />
+				</OzField>
+			</div>
+			<button type="submit" hidden />
+		</form>
+		<template #footer>
+			<OzButton :disabled="busy" @click="formOpen = false">İptal</OzButton>
+			<OzButton variant="primary" :icon="editing ? 'check' : 'plus'" :loading="busy" @click="submit">{{ editing ? 'Kaydet' : 'Ekle' }}</OzButton>
+		</template>
+	</OzDrawer>
+</template>
+
+<style scoped>
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.mono { font-family: ui-monospace, monospace; font-size: 12px; }
+.dim { color: var(--oz-muted); }
+.form { display: flex; flex-direction: column; gap: 14px; }
+.row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media (max-width: 560px) {
-	.form-row-2 { grid-template-columns: 1fr; }
+	.row-2 { grid-template-columns: 1fr; }
 }
 </style>

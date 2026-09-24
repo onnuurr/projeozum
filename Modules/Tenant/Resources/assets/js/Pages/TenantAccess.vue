@@ -1,213 +1,16 @@
-<template>
-	<Head :title="`Erişim · ${tenant.name}`" />
-	<div class="page-tenant-access">
-		<Breadcrumb
-			:items="[
-				{ label: 'Ana Sayfa', to: '/workflow', icon: 'home' },
-				{ label: 'İlişkiler' },
-				{ label: 'İş Ortakları', to: '/tenants' },
-				{ label: tenant.name },
-				{ label: 'Erişim' },
-			]"
-		/>
-
-		<PageHeader :title="`${tenant.name} · Erişim Yönetimi`">
-			<template #subtitle>
-				<span class="mono">{{ tenant.code }}</span>
-				<span v-if="tenant.type"> · {{ tenant.type.name }}</span>
-				<span class="info-hint">· Varsayılan tüm ürünler açık (blacklist mode)</span>
-			</template>
-		</PageHeader>
-
-		<!-- ─── Kurallar ──────────────────────────────────────────────── -->
-		<Card title="Blok Kuralları" body-class="p-0">
-			<template #actions>
-				<div class="card-actions-row">
-					<span class="card-sub">{{ rules.length }} kural · marka veya kategori bazlı erişim engeli</span>
-					<Button v-if="canManage" variant="primary" size="sm" with-icon @click="openRuleModal">
-						<template #leading><Plus :size="11" /></template>
-						Yeni Kural
-					</Button>
-				</div>
-			</template>
-
-			<DataTable :columns="ruleColumns" :data="rules" row-key-field="id" empty-title="Kural yok — tüm marka ve kategoriler açık">
-				<template #scope_type="{ value }">
-					<Badge :color="value === 'brand' ? 'warning' : 'info'" variant="tonal" :label="value === 'brand' ? 'Marka' : 'Kategori'" />
-				</template>
-				<template #scope_label="{ value }"><strong>{{ value }}</strong></template>
-				<template #status="{}"><Badge color="danger" variant="tonal" :icon="Ban" label="Bloklu" /></template>
-				<template #notes="{ value }"><span class="dim">{{ value || '—' }}</span></template>
-				<template #actions="{ row }">
-					<button v-if="canManage" class="table-action-btn delete" @click="confirmDeleteRule(row)" title="Kuralı Sil"><Trash2 :size="14" /></button>
-				</template>
-			</DataTable>
-		</Card>
-
-		<!-- ─── Ürün Override'ları ────────────────────────────────────── -->
-		<Card title="Ürün Override'ları" body-class="p-0" style="margin-top: 20px">
-			<template #actions>
-				<div class="card-actions-row">
-					<span class="card-sub">{{ overrides.length }} ürün · kural üzerine özel davranış</span>
-					<Button v-if="canManage" variant="primary" size="sm" with-icon @click="openOverrideModal">
-						<template #leading><Plus :size="11" /></template>
-						Yeni Override
-					</Button>
-				</div>
-			</template>
-
-			<DataTable :columns="overrideColumns" :data="overrides" row-key-field="id" empty-title="Override yok — bu iş ortağı kural setine uyuyor">
-				<template #product_name="{ row }">
-					<div class="product-cell">
-						<strong>{{ row.product_name }}</strong>
-						<span class="dim mono">{{ row.product_sku }}</span>
-					</div>
-				</template>
-				<template #brand_name="{ value }"><span class="dim">{{ value || '—' }}</span></template>
-				<template #category_name="{ value }"><span class="dim">{{ value || '—' }}</span></template>
-				<template #base_price="{ value }"><span class="mono">₺{{ formatPrice(value) }}</span></template>
-				<template #custom_price="{ value }">
-					<span v-if="value !== null" class="mono price-custom">₺{{ formatPrice(value) }}</span>
-					<span v-else class="dim">—</span>
-				</template>
-				<template #is_blocked="{ value }">
-					<Badge v-if="value" color="danger" variant="tonal" :icon="Ban" label="Gizli" />
-					<Badge v-else color="success" variant="tonal" :icon="Check" label="Açık" />
-				</template>
-				<template #actions="{ row }">
-					<button v-if="canManage" class="table-action-btn view" @click="editOverride(row)" title="Düzenle"><Pencil :size="14" /></button>
-					<button v-if="canCustomizeCopy" class="table-action-btn view" @click="openCustomCopy(row)" title="Özel Metin (Bu İş Ortağına Özel)"><NotebookPen :size="14" /></button>
-					<button v-if="canManage" class="table-action-btn delete" @click="confirmDeleteOverride(row)" title="Sil"><Trash2 :size="14" /></button>
-				</template>
-			</DataTable>
-		</Card>
-
-		<!-- ─── Kural Modal ───────────────────────────────────────────── -->
-		<AppDrawer v-model="ruleModalOpen" title="Yeni Blok Kuralı" subtitle="Marka veya kategori bazlı bir blok kuralı ekleyin" variant="warning" width="480px">
-			<form class="form-grid" @submit.prevent="submitRule">
-				<div class="form-row">
-					<label class="form-label">Kapsam Tipi <span class="req">*</span></label>
-					<select v-model="ruleForm.scope_type" class="form-input">
-						<option value="brand">Marka</option>
-						<option value="category">Kategori</option>
-					</select>
-				</div>
-				<div class="form-row">
-					<label class="form-label">{{ ruleForm.scope_type === 'brand' ? 'Marka' : 'Kategori' }} <span class="req">*</span></label>
-					<select v-model.number="ruleForm.scope_id" class="form-input">
-						<option :value="null">Seçilmedi</option>
-						<option v-for="opt in scopeOptions" :key="opt.id" :value="opt.id">{{ opt.name }}</option>
-					</select>
-					<span v-if="ruleErrors.scope_id" class="form-error">{{ ruleErrors.scope_id }}</span>
-				</div>
-				<div class="form-row">
-					<label class="form-label">Not</label>
-					<textarea v-model="ruleForm.notes" class="form-input" rows="2" placeholder="Bu kuralın amacı..." />
-				</div>
-				<Alert variant="warning">
-					Seçilen <strong>{{ ruleForm.scope_type === 'brand' ? 'markaya' : 'kategoriye' }}</strong> ait tüm ürünler bu iş ortağına kapatılacak.
-					İstisna eklemek için ürün override'ı kullanın.
-				</Alert>
-			</form>
-			<template #footer="{ close }">
-				<Button variant="ghost" :disabled="ruleBusy" @click="close">İptal</Button>
-				<Button variant="primary" :loading="ruleBusy" @click="submitRule">Ekle</Button>
-			</template>
-		</AppDrawer>
-
-		<!-- ─── Override Modal ────────────────────────────────────────── -->
-		<AppDrawer v-model="overrideModalOpen" :title="overrideEditing ? 'Override Düzenle' : 'Yeni Ürün Override'" subtitle="Ürün bazlı fiyat/erişim override tanımlayın" variant="info" width="480px">
-			<form class="form-grid" @submit.prevent="submitOverride">
-				<div class="form-row" v-if="!overrideEditing">
-					<label class="form-label">Ürün Ara <span class="req">*</span></label>
-					<div class="search-wrap">
-						<input v-model="overrideSearchQuery" type="text" class="form-input" placeholder="Ürün adı veya SKU ile arayın (min 2 karakter)..." @input="searchProducts" />
-						<div v-if="searchResults.length > 0" class="search-results">
-							<div v-for="p in searchResults" :key="p.id" class="search-result" @click="pickProduct(p)">
-								<strong>{{ p.name }}</strong>
-								<span class="dim mono">{{ p.sku }}</span>
-								<span class="dim">{{ p.brand_name }} · {{ p.category_name }} · ₺{{ formatPrice(p.price) }}</span>
-							</div>
-						</div>
-					</div>
-					<span v-if="overrideErrors.product_id" class="form-error">{{ overrideErrors.product_id }}</span>
-				</div>
-				<div v-if="overrideForm.product_id" class="picked-product">
-					<strong>{{ overrideForm.product_label }}</strong>
-				</div>
-				<div class="form-row">
-					<label class="form-check">
-						<input v-model="overrideForm.is_blocked" type="checkbox" />
-						<span>Bu ürünü iş ortağına kapat (override)</span>
-					</label>
-				</div>
-				<div class="form-row" v-if="!overrideForm.is_blocked">
-					<label class="form-label">Özel Fiyat (₺)</label>
-					<input v-model.number="overrideForm.custom_price" type="number" min="0" step="0.01" class="form-input" placeholder="Boş bırakılırsa varsayılan fiyat" />
-					<span v-if="overrideErrors.custom_price" class="form-error">{{ overrideErrors.custom_price }}</span>
-				</div>
-				<div class="form-row">
-					<label class="form-label">Not</label>
-					<textarea v-model="overrideForm.notes" class="form-input" rows="2" placeholder="Override sebebi..." />
-				</div>
-			</form>
-			<template #footer="{ close }">
-				<Button variant="ghost" :disabled="overrideBusy" @click="close">İptal</Button>
-				<Button variant="primary" :loading="overrideBusy" @click="submitOverride">
-					{{ overrideEditing ? 'Kaydet' : 'Ekle' }}
-				</Button>
-			</template>
-		</AppDrawer>
-
-		<!-- ─── Özel Metin (İş Ortağına Özel) Modal ─────────────────────────── -->
-		<AppDrawer v-model="customCopyOpen" title="İş Ortağına Özel Ürün Metni" variant="info" width="60vw">
-			<div v-if="customCopy.product_name" class="picked-product">
-				<strong>{{ customCopy.product_name }}</strong>
-			</div>
-			<form class="form-grid" @submit.prevent="submitCustomCopy">
-				<div class="form-row">
-					<label class="form-label">Özel Ürün Adı</label>
-					<input v-model="customCopy.custom_name" type="text" maxlength="255" class="form-input" placeholder="Boş: bu iş ortağı için varsayılan adı gösterir" />
-					<span v-if="customCopy.default_public_name" class="form-help">Varsayılan: {{ customCopy.default_public_name }}</span>
-				</div>
-				<div class="form-row">
-					<label class="form-label">Özel Açıklama (Markdown)</label>
-					<textarea v-model="customCopy.custom_description" rows="8" class="form-input" placeholder="Boş: default tenant_description'ı gösterir" />
-					<Button
-						v-if="customCopy.default_tenant_description"
-						type="button"
-						variant="ghost"
-						size="xs"
-						with-icon
-						@click="customCopy.custom_description = customCopy.default_tenant_description"
-					>
-						<template #leading><ArrowDown :size="11" /></template>
-						Varsayılandan kopyala
-					</Button>
-				</div>
-			</form>
-			<template #footer="{ close }">
-				<Button variant="ghost" :disabled="customCopy.busy" @click="close">İptal</Button>
-				<Button variant="primary" :loading="customCopy.busy" @click="submitCustomCopy">Kaydet</Button>
-			</template>
-		</AppDrawer>
-	</div>
-</template>
-
 <script setup>
-import { ref, computed, inject, reactive, watch } from 'vue'
-import { Head, router, usePage } from '@inertiajs/vue3'
-import { Plus, Ban, Check, Pencil, NotebookPen, Trash2, ArrowDown } from 'lucide-vue-next'
+import { ref, computed, inject, onBeforeUnmount } from 'vue'
+import { Head, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import Breadcrumb from '@/Components/Breadcrumb.vue'
-import PageHeader from '@/Components/PageHeader.vue'
-import Card from '@/Components/Card.vue'
-import DataTable from '@/Components/DataTable.vue'
-import Badge from '@/Components/Badge.vue'
-import Alert from '@/Components/Alert.vue'
-import Button from '@/Components/Button.vue'
-import AppDrawer from '@/Components/AppDrawer.vue'
+import {
+	OzPageHeader, OzModuleTabs, OzStatTile, OzCard, OzTable, OzPill, OzButton, OzDropdown, OzEmptyState, OzIcon, OzSpinner,
+	OzDrawer, OzField, OzInput, OzCombobox, OzTextarea, OzSwitch, OzAlert, OzRadioGroup, useOzConfirm,
+} from '@/Components/Oz'
+import { useCan } from '@/composables/useCan'
 
+// Bir iş ortağının ürün erişimi (Oz kit). Varsayılan: tüm ürünler açık (blacklist).
+//   Blok kuralları marka/kategori kapatır; ürün override'ları kuralın ve fiyatın üzerine yazar.
+//   Tüm değişiklikler Inertia istekleri (TenantAccessController); ürün araması JSON (/tenants/access/products/search).
 defineOptions({ layout: AppLayout })
 
 const props = defineProps({
@@ -219,308 +22,530 @@ const props = defineProps({
 	canCustomizeCopy: { type: Boolean, default: false },
 })
 
+const { can } = useCan()
+const canManage = computed(() => can('tenant-access.manage'))
+const showToast = inject('showToast', null)
+const confirm = useOzConfirm()
+
+const fmtPrice = (v) => `₺${Number(v ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+const firstError = (errs) => Object.values(errs)[0] || 'Sunucu hatası.'
+
+/* ── özet ── */
+const blockedCount = computed(() => props.overrides.filter((o) => o.is_blocked).length)
+const pricedCount = computed(() => props.overrides.filter((o) => !o.is_blocked && o.custom_price !== null).length)
+const stats = computed(() => [
+	{ key: 'rules', label: 'Blok kuralı', value: props.rules.length, icon: 'shield', tone: props.rules.length ? 'warning' : 'success' },
+	{ key: 'overrides', label: 'Ürün override', value: props.overrides.length, icon: 'layers', tone: 'accent' },
+	{ key: 'blocked', label: 'Gizlenen ürün', value: blockedCount.value, icon: 'eye-off', tone: blockedCount.value ? 'danger' : 'success' },
+	{ key: 'priced', label: 'Özel fiyatlı', value: pricedCount.value, icon: 'tag', tone: 'info' },
+])
+
+/* ── kurallar ── */
 const ruleColumns = [
-	{ key: 'scope_type', label: 'Kapsam Tipi' },
-	{ key: 'scope_label', label: 'Kapsam' },
-	{ key: 'status', label: 'Durum', sortable: false },
+	{ key: 'scope_label', label: 'Kapsam', sortable: true },
+	{
+		key: 'scope_type', label: 'Tip', sortable: true, searchable: false,
+		filter: { type: 'select', options: [{ value: 'brand', label: 'Marka' }, { value: 'category', label: 'Kategori' }] },
+	},
 	{ key: 'notes', label: 'Not' },
+	{ key: 'actions', label: '', align: 'right', width: '48px', searchable: false },
 ]
 
-const overrideColumns = [
-	{ key: 'product_name', label: 'Ürün' },
-	{ key: 'brand_name', label: 'Marka' },
-	{ key: 'category_name', label: 'Kategori' },
-	{ key: 'base_price', label: 'Baz Fiyat' },
-	{ key: 'custom_price', label: 'Özel Fiyat' },
-	{ key: 'is_blocked', label: 'Durum' },
+const ruleOpen = ref(false)
+const ruleBusy = ref(false)
+const ruleErrors = ref({})
+const ruleForm = ref({ scope_type: 'brand', scope_id: '', notes: '' })
+const scopeTypeOptions = [
+	{ value: 'brand', label: 'Marka', description: 'Markanın tüm ürünleri kapanır' },
+	{ value: 'category', label: 'Kategori', description: 'Kategorinin tüm ürünleri kapanır' },
 ]
-
-const showToast = inject('showToast')
-const $swal = inject('$swal')
-const page = usePage()
-
-const canManage = computed(() => (page.props.auth?.permissions ?? []).includes('tenant-access.manage'))
-const canCustomizeCopy = computed(() => props.canCustomizeCopy)
-
-/* ── Bayiye Özel Metin modalı (M3) ── */
-const customCopyOpen = ref(false)
-const customCopy = reactive({
-	access_id: null,
-	product_name: '',
-	custom_name: '',
-	custom_description: '',
-	default_public_name: '',
-	default_tenant_description: '',
-	busy: false,
+// Zaten kural olan kapsamlar seçilemez
+const scopeOptions = computed(() => {
+	const type = ruleForm.value.scope_type
+	const taken = new Set(props.rules.filter((r) => r.scope_type === type).map((r) => r.scope_id))
+	return (type === 'brand' ? props.brands : props.categories)
+		.map((o) => ({ value: o.id, label: o.name, disabled: taken.has(o.id), description: taken.has(o.id) ? 'Zaten kural var' : '' }))
 })
+const scopeWord = computed(() => (ruleForm.value.scope_type === 'brand' ? 'marka' : 'kategori'))
+
+function openRule() {
+	ruleForm.value = { scope_type: 'brand', scope_id: '', notes: '' }
+	ruleErrors.value = {}
+	ruleOpen.value = true
+}
+function onScopeTypeChange() {
+	ruleForm.value.scope_id = ''
+	ruleErrors.value = {}
+}
+
+function submitRule() {
+	if (ruleBusy.value) return
+	if (!ruleForm.value.scope_id) {
+		ruleErrors.value = { scope_id: `Bir ${scopeWord.value} seçin.` }
+		return
+	}
+	ruleBusy.value = true
+	ruleErrors.value = {}
+	router.post(`/tenants/${props.tenant.id}/access/rules`, { ...ruleForm.value, is_blocked: true }, {
+		preserveScroll: true,
+		preserveState: true,
+		onSuccess: () => {
+			ruleOpen.value = false
+			showToast?.({ type: 'success', title: 'Kural eklendi', message: 'Erişim güncellendi.' })
+		},
+		onError: (errs) => {
+			ruleErrors.value = errs
+			if (!errs.scope_id && !errs.notes) showToast?.({ type: 'error', title: 'Kaydedilemedi', message: firstError(errs) })
+		},
+		onFinish: () => { ruleBusy.value = false },
+	})
+}
+
+async function removeRule(r) {
+	const ok = await confirm.danger('Kural silinsin mi?', `“${r.scope_label}” kuralı silinecek; bu kapsamdaki ürünler iş ortağına yeniden açılır.`)
+	if (!ok) return
+	router.delete(`/tenants/${props.tenant.id}/access/rules/${r.id}`, {
+		preserveScroll: true,
+		preserveState: true,
+		onSuccess: () => showToast?.({ type: 'warning', title: 'Kural silindi', message: r.scope_label }),
+		onError: (errs) => showToast?.({ type: 'error', title: 'Silinemedi', message: firstError(errs) }),
+	})
+}
+
+/* ── ürün override'ları ── */
+const overrideColumns = [
+	{ key: 'product_name', label: 'Ürün', sortable: true, searchValue: (r) => `${r.product_name ?? ''} ${r.product_sku ?? ''}` },
+	{ key: 'brand_name', label: 'Marka', sortable: true, filter: { type: 'select', multiple: true } },
+	{ key: 'category_name', label: 'Kategori', sortable: true, filter: { type: 'select', multiple: true } },
+	{ key: 'base_price', label: 'Baz fiyat', sortable: true, align: 'right', searchable: false },
+	{ key: 'custom_price', label: 'Özel fiyat', sortable: true, align: 'right', searchable: false },
+	{
+		key: 'is_blocked', label: 'Durum', sortable: true, searchable: false, filterValue: (r) => (r.is_blocked ? 'blocked' : 'open'),
+		filter: { type: 'select', options: [{ value: 'open', label: 'Açık' }, { value: 'blocked', label: 'Gizli' }] },
+	},
+	{ key: 'actions', label: '', align: 'right', width: '48px', searchable: false },
+]
+
+const overrideActions = () => [
+	...(canManage.value ? [{ key: 'edit', label: 'Düzenle', icon: 'edit' }] : []),
+	...(props.canCustomizeCopy ? [{ key: 'copy', label: 'Özel metin', icon: 'pen' }] : []),
+	...(canManage.value ? [{ divider: true }, { key: 'remove', label: 'Sil', icon: 'trash', danger: true }] : []),
+]
+function onOverrideAction(key, o) {
+	if (key === 'edit') editOverride(o)
+	else if (key === 'copy') openCustomCopy(o)
+	else if (key === 'remove') removeOverride(o)
+}
+
+const ovOpen = ref(false)
+const ovBusy = ref(false)
+const ovErrors = ref({})
+const ovEditing = ref(null)
+const blankOverride = () => ({ product_id: null, product: null, is_blocked: false, custom_price: '', notes: '' })
+const ovForm = ref(blankOverride())
+
+function openOverride() {
+	ovEditing.value = null
+	ovErrors.value = {}
+	ovForm.value = blankOverride()
+	resetSearch()
+	ovOpen.value = true
+}
+function editOverride(o) {
+	if (!canManage.value) return
+	ovEditing.value = o
+	ovErrors.value = {}
+	ovForm.value = {
+		product_id: o.product_id,
+		product: { name: o.product_name, sku: o.product_sku, brand_name: o.brand_name, category_name: o.category_name, price: o.base_price },
+		is_blocked: !!o.is_blocked,
+		custom_price: o.custom_price ?? '',
+		notes: o.notes ?? '',
+	}
+	ovOpen.value = true
+}
+
+// Ürün araması (en az 2 karakter, 250 ms gecikme)
+const query = ref('')
+const results = ref([])
+const searching = ref(false)
+const searched = ref(false)
+let timer = null
+let controller = null
+const existingIds = computed(() => new Set(props.overrides.map((o) => o.product_id)))
+
+function resetSearch() {
+	clearTimeout(timer)
+	controller?.abort()
+	query.value = ''
+	results.value = []
+	searched.value = false
+	searching.value = false
+}
+function onSearch(v) {
+	clearTimeout(timer)
+	const q = String(v ?? '').trim()
+	if (q.length < 2) {
+		controller?.abort()
+		results.value = []
+		searched.value = false
+		searching.value = false
+		return
+	}
+	searching.value = true
+	timer = setTimeout(async () => {
+		controller?.abort()
+		controller = new AbortController()
+		try {
+			const res = await fetch(`/tenants/access/products/search?q=${encodeURIComponent(q)}`, {
+				headers: { Accept: 'application/json' },
+				signal: controller.signal,
+			})
+			const data = await res.json()
+			results.value = data.products ?? []
+			searched.value = true
+			searching.value = false
+		} catch (e) {
+			if (e.name === 'AbortError') return
+			results.value = []
+			searched.value = true
+			searching.value = false
+		}
+	}, 250)
+}
+onBeforeUnmount(() => { clearTimeout(timer); controller?.abort() })
+
+function pickProduct(p) {
+	ovForm.value.product_id = p.id
+	ovForm.value.product = p
+	ovErrors.value = {}
+	resetSearch()
+}
+function clearProduct() {
+	ovForm.value.product_id = null
+	ovForm.value.product = null
+}
+
+function submitOverride() {
+	if (ovBusy.value) return
+	if (!ovEditing.value && !ovForm.value.product_id) {
+		ovErrors.value = { product_id: 'Bir ürün seçin.' }
+		return
+	}
+	ovBusy.value = true
+	ovErrors.value = {}
+	const f = ovForm.value
+	const payload = {
+		is_blocked: f.is_blocked,
+		custom_price: f.is_blocked || f.custom_price === '' || f.custom_price == null ? null : Number(f.custom_price),
+		notes: f.notes,
+	}
+	const label = f.product?.name ?? ''
+	const opts = {
+		preserveScroll: true,
+		preserveState: true,
+		onSuccess: () => {
+			ovOpen.value = false
+			showToast?.({ type: 'success', title: ovEditing.value ? 'Override güncellendi' : 'Override eklendi', message: label })
+		},
+		onError: (errs) => {
+			ovErrors.value = errs
+			if (!errs.product_id && !errs.custom_price && !errs.notes) showToast?.({ type: 'error', title: 'Kaydedilemedi', message: firstError(errs) })
+		},
+		onFinish: () => { ovBusy.value = false },
+	}
+	if (ovEditing.value) router.put(`/tenants/${props.tenant.id}/access/overrides/${ovEditing.value.id}`, payload, opts)
+	else router.post(`/tenants/${props.tenant.id}/access/overrides`, { product_id: f.product_id, ...payload }, opts)
+}
+
+async function removeOverride(o) {
+	const ok = await confirm.danger('Override silinsin mi?', `“${o.product_name}” için override silinecek; ürün varsayılan kurallara döner.`)
+	if (!ok) return
+	router.delete(`/tenants/${props.tenant.id}/access/overrides/${o.id}`, {
+		preserveScroll: true,
+		preserveState: true,
+		onSuccess: () => showToast?.({ type: 'warning', title: 'Override silindi', message: o.product_name }),
+		onError: (errs) => showToast?.({ type: 'error', title: 'Silinemedi', message: firstError(errs) }),
+	})
+}
+
+/* ── iş ortağına özel ürün metni ── */
+const copyOpen = ref(false)
+const copyBusy = ref(false)
+const copyErrors = ref({})
+const copy = ref({})
+
 function openCustomCopy(o) {
-	Object.assign(customCopy, {
+	copyErrors.value = {}
+	copy.value = {
 		access_id: o.id,
 		product_name: o.product_name,
 		custom_name: o.custom_name || '',
 		custom_description: o.custom_description || '',
 		default_public_name: o.default_public_name || '',
 		default_tenant_description: o.default_tenant_description || '',
-		busy: false,
-	})
-	customCopyOpen.value = true
+	}
+	copyOpen.value = true
 }
 function submitCustomCopy() {
-	if (!customCopy.access_id || customCopy.busy) return
-	customCopy.busy = true
+	if (!copy.value.access_id || copyBusy.value) return
+	copyBusy.value = true
+	copyErrors.value = {}
 	router.put(
-		`/tenants/${props.tenant.id}/access/overrides/${customCopy.access_id}/custom-copy`,
-		{ custom_name: customCopy.custom_name || null, custom_description: customCopy.custom_description || null },
+		`/tenants/${props.tenant.id}/access/overrides/${copy.value.access_id}/custom-copy`,
+		{ custom_name: copy.value.custom_name || null, custom_description: copy.value.custom_description || null },
 		{
 			preserveScroll: true,
+			preserveState: true,
 			onSuccess: () => {
-				customCopyOpen.value = false
-				showToast?.({ type: 'success', title: 'Özel metin kaydedildi', message: customCopy.product_name })
+				copyOpen.value = false
+				showToast?.({ type: 'success', title: 'Özel metin kaydedildi', message: copy.value.product_name })
 			},
 			onError: (errs) => {
-				const first = Object.values(errs)[0]
-				showToast?.({ type: 'error', title: 'Kayıt başarısız', message: first || 'Doğrulama hatası' })
+				copyErrors.value = errs
+				if (!errs.custom_name && !errs.custom_description) showToast?.({ type: 'error', title: 'Kaydedilemedi', message: firstError(errs) })
 			},
-			onFinish: () => { customCopy.busy = false },
+			onFinish: () => { copyBusy.value = false },
 		},
 	)
 }
-
-function formatPrice(v) {
-	return Number(v ?? 0).toFixed(2).replace('.', ',')
-}
-
-const scopeOptions = computed(() => ruleForm.scope_type === 'brand' ? props.brands : props.categories)
-
-/* ── Rule modal ── */
-const ruleModalOpen = ref(false)
-const ruleBusy = ref(false)
-const ruleErrors = ref({})
-const ruleForm = reactive({
-	scope_type: 'brand',
-	scope_id: null,
-	notes: '',
-})
-
-watch(ruleModalOpen, (open) => {
-	if (!open) setTimeout(() => {
-		ruleForm.scope_type = 'brand'
-		ruleForm.scope_id = null
-		ruleForm.notes = ''
-		ruleErrors.value = {}
-	}, 250)
-})
-
-function openRuleModal() {
-	ruleForm.scope_type = 'brand'
-	ruleForm.scope_id = null
-	ruleForm.notes = ''
-	ruleErrors.value = {}
-	ruleModalOpen.value = true
-}
-
-function submitRule() {
-	if (ruleBusy.value) return
-	if (!ruleForm.scope_id) {
-		ruleErrors.value = { scope_id: 'Bir ' + (ruleForm.scope_type === 'brand' ? 'marka' : 'kategori') + ' seçin.' }
-		return
-	}
-	ruleBusy.value = true
-	router.post(`/tenants/${props.tenant.id}/access/rules`, {
-		scope_type: ruleForm.scope_type,
-		scope_id: ruleForm.scope_id,
-		is_blocked: true,
-		notes: ruleForm.notes,
-	}, {
-		preserveScroll: true,
-		preserveState: true,
-		onSuccess: () => {
-			ruleModalOpen.value = false
-			showToast?.({ type: 'success', title: 'Kural eklendi', message: 'Erişim güncellendi.' })
-		},
-		onError: (errs) => {
-			ruleErrors.value = errs
-			showToast?.({ type: 'error', title: 'Kayıt başarısız', message: Object.values(errs)[0] || 'Hata.' })
-		},
-		onFinish: () => { ruleBusy.value = false },
-	})
-}
-
-async function confirmDeleteRule(r) {
-	const ok = await $swal.dangerConfirm({
-		title: 'Kuralı Sil',
-		html: `<strong>${r.scope_label}</strong> kuralı silinecek.`,
-		confirmText: 'Sil',
-		cancelText: 'Vazgeç',
-	})
-	if (!ok) return
-	router.delete(`/tenants/${props.tenant.id}/access/rules/${r.id}`, {
-		preserveScroll: true,
-		preserveState: true,
-		onSuccess: () => showToast?.({ type: 'warning', title: 'Kural silindi', message: r.scope_label }),
-		onError: (errs) => showToast?.({ type: 'error', title: 'Silme başarısız', message: Object.values(errs)[0] || 'Hata.' }),
-	})
-}
-
-/* ── Override modal ── */
-const overrideModalOpen = ref(false)
-const overrideBusy = ref(false)
-const overrideErrors = ref({})
-const overrideEditing = ref(null)
-const overrideSearchQuery = ref('')
-const searchResults = ref([])
-let searchTimer = null
-
-const emptyOverride = () => ({
-	product_id: null,
-	product_label: '',
-	is_blocked: false,
-	custom_price: null,
-	notes: '',
-})
-
-const overrideForm = reactive(emptyOverride())
-
-watch(overrideModalOpen, (open) => {
-	if (!open) setTimeout(() => {
-		Object.assign(overrideForm, emptyOverride())
-		overrideEditing.value = null
-		overrideErrors.value = {}
-		overrideSearchQuery.value = ''
-		searchResults.value = []
-	}, 250)
-})
-
-function openOverrideModal() {
-	Object.assign(overrideForm, emptyOverride())
-	overrideEditing.value = null
-	overrideErrors.value = {}
-	overrideSearchQuery.value = ''
-	searchResults.value = []
-	overrideModalOpen.value = true
-}
-
-function editOverride(o) {
-	overrideEditing.value = o
-	overrideErrors.value = {}
-	Object.assign(overrideForm, {
-		product_id: o.product_id,
-		product_label: o.product_name,
-		is_blocked: o.is_blocked,
-		custom_price: o.custom_price,
-		notes: o.notes ?? '',
-	})
-	overrideModalOpen.value = true
-}
-
-function searchProducts() {
-	clearTimeout(searchTimer)
-	const q = overrideSearchQuery.value.trim()
-	if (q.length < 2) {
-		searchResults.value = []
-		return
-	}
-	searchTimer = setTimeout(async () => {
-		try {
-			const res = await fetch(`/tenants/access/products/search?q=${encodeURIComponent(q)}`, {
-				headers: { 'Accept': 'application/json' },
-			})
-			const data = await res.json()
-			searchResults.value = data.products ?? []
-		} catch (e) {
-			searchResults.value = []
-		}
-	}, 250)
-}
-
-function pickProduct(p) {
-	overrideForm.product_id = p.id
-	overrideForm.product_label = `${p.name} (${p.sku})`
-	overrideSearchQuery.value = ''
-	searchResults.value = []
-}
-
-function submitOverride() {
-	if (overrideBusy.value) return
-	if (!overrideEditing.value && !overrideForm.product_id) {
-		overrideErrors.value = { product_id: 'Bir ürün seçin.' }
-		return
-	}
-	overrideBusy.value = true
-	const payload = {
-		is_blocked: overrideForm.is_blocked,
-		custom_price: overrideForm.is_blocked ? null : (overrideForm.custom_price ?? null),
-		notes: overrideForm.notes,
-	}
-	const opts = {
-		preserveScroll: true,
-		preserveState: true,
-		onSuccess: () => {
-			overrideModalOpen.value = false
-			showToast?.({ type: 'success', title: overrideEditing.value ? 'Override güncellendi' : 'Override eklendi', message: overrideForm.product_label })
-		},
-		onError: (errs) => {
-			overrideErrors.value = errs
-			showToast?.({ type: 'error', title: 'Kayıt başarısız', message: Object.values(errs)[0] || 'Hata.' })
-		},
-		onFinish: () => { overrideBusy.value = false },
-	}
-	if (overrideEditing.value) {
-		router.put(`/tenants/${props.tenant.id}/access/overrides/${overrideEditing.value.id}`, payload, opts)
-	} else {
-		router.post(`/tenants/${props.tenant.id}/access/overrides`, { product_id: overrideForm.product_id, ...payload }, opts)
-	}
-}
-
-async function confirmDeleteOverride(o) {
-	const ok = await $swal.dangerConfirm({
-		title: 'Override\'ı Sil',
-		html: `<strong>${o.product_name}</strong> override\'ı silinecek. Ürün varsayılan kurallara dönecek.`,
-		confirmText: 'Sil',
-		cancelText: 'Vazgeç',
-	})
-	if (!ok) return
-	router.delete(`/tenants/${props.tenant.id}/access/overrides/${o.id}`, {
-		preserveScroll: true,
-		preserveState: true,
-		onSuccess: () => showToast?.({ type: 'warning', title: 'Override silindi', message: o.product_name }),
-		onError: (errs) => showToast?.({ type: 'error', title: 'Silme başarısız', message: Object.values(errs)[0] || 'Hata.' }),
-	})
-}
 </script>
 
+<template>
+	<Head :title="`Erişim · ${tenant.name}`" />
+
+	<OzPageHeader :title="`${tenant.name} · Erişim`">
+		<template #subtitle>
+			<span class="mono">{{ tenant.code }}</span>
+			<template v-if="tenant.type"> · {{ tenant.type.name }}</template>
+			· varsayılan olarak tüm ürünler açık
+		</template>
+		<template #actions>
+			<OzButton icon="chevron-left" @click="router.visit('/tenants')">İş ortakları</OzButton>
+		</template>
+	</OzPageHeader>
+	<OzModuleTabs />
+
+	<div class="stats">
+		<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" />
+	</div>
+
+	<div class="cols">
+		<OzCard title="Blok kuralları" subtitle="marka / kategori" class="block">
+			<template #actions>
+				<OzButton v-if="canManage" size="sm" variant="primary" icon="plus" @click="openRule">Yeni kural</OzButton>
+				<span v-else class="meta">{{ rules.length }} kural</span>
+			</template>
+			<OzTable :columns="ruleColumns" :rows="rules" :default-sort="{ key: 'scope_label', dir: 'asc' }" min-width="420px">
+				<template #cell-scope_label="{ row }">
+					<span class="scope"><OzIcon name="eye-off" :size="13" class="blocked-ico" /><b>{{ row.scope_label }}</b></span>
+				</template>
+				<template #cell-scope_type="{ value }">
+					<OzPill :tone="value === 'brand' ? 'warning' : 'info'">{{ value === 'brand' ? 'Marka' : 'Kategori' }}</OzPill>
+				</template>
+				<template #cell-notes="{ value }"><span class="note" :class="{ dim: !value }">{{ value || '—' }}</span></template>
+				<template #cell-actions="{ row }">
+					<OzDropdown v-if="canManage" :items="[{ key: 'remove', label: 'Kuralı sil', icon: 'trash', danger: true }]" :label="`${row.scope_label} işlemleri`" @select="removeRule(row)" />
+				</template>
+				<template #empty>
+					<OzEmptyState icon="shield" title="Kural yok" description="Tüm marka ve kategoriler bu iş ortağına açık." compact>
+						<template v-if="canManage" #actions><OzButton size="sm" icon="plus" @click="openRule">Kural ekle</OzButton></template>
+					</OzEmptyState>
+				</template>
+			</OzTable>
+		</OzCard>
+
+		<OzCard title="Ürün override'ları" subtitle="kuralın ve fiyatın üzerine yazar" class="block">
+			<template #actions>
+				<OzButton v-if="canManage" size="sm" variant="primary" icon="plus" @click="openOverride">Yeni override</OzButton>
+				<span v-else class="meta">{{ overrides.length }} ürün</span>
+			</template>
+			<OzTable
+				:columns="overrideColumns"
+				:rows="overrides"
+				:page-size="15"
+				:default-sort="{ key: 'product_name', dir: 'asc' }"
+				:searchable="overrides.length > 5"
+				search-placeholder="Ürün adı veya SKU ara…"
+				min-width="760px"
+				class="ov"
+				:class="{ clickable: canManage }"
+				@row-click="editOverride"
+			>
+				<template #cell-product_name="{ row }">
+					<div class="who-text">
+						<b>{{ row.product_name }}</b>
+						<span class="mono">{{ row.product_sku }}<template v-if="row.custom_name"> · <em>özel ad: {{ row.custom_name }}</em></template></span>
+					</div>
+				</template>
+				<template #cell-brand_name="{ value }"><span :class="{ dim: !value }">{{ value || '—' }}</span></template>
+				<template #cell-category_name="{ value }"><span :class="{ dim: !value }">{{ value || '—' }}</span></template>
+				<template #cell-base_price="{ value }"><span class="num">{{ fmtPrice(value) }}</span></template>
+				<template #cell-custom_price="{ row }">
+					<span v-if="!row.is_blocked && row.custom_price !== null" class="num accent">{{ fmtPrice(row.custom_price) }}</span>
+					<span v-else class="dim">—</span>
+				</template>
+				<template #cell-is_blocked="{ value }">
+					<OzPill :tone="value ? 'danger' : 'success'">{{ value ? 'Gizli' : 'Açık' }}</OzPill>
+				</template>
+				<template #cell-actions="{ row }">
+					<div v-if="canManage || canCustomizeCopy" @click.stop>
+						<OzDropdown :items="overrideActions()" :label="`${row.product_name} işlemleri`" @select="(k) => onOverrideAction(k, row)" />
+					</div>
+				</template>
+				<template #empty="{ filtered, clear }">
+					<OzEmptyState v-if="filtered" icon="filter" title="Eşleşen ürün yok" compact>
+						<template #actions><OzButton size="sm" icon="x" @click="clear">Filtreleri temizle</OzButton></template>
+					</OzEmptyState>
+					<OzEmptyState v-else icon="layers" title="Override yok" description="Bu iş ortağı yalnızca kural setine uyuyor." compact>
+						<template v-if="canManage" #actions><OzButton size="sm" icon="plus" @click="openOverride">Override ekle</OzButton></template>
+					</OzEmptyState>
+				</template>
+			</OzTable>
+		</OzCard>
+	</div>
+
+	<!-- Kural -->
+	<OzDrawer v-model:open="ruleOpen" title="Yeni blok kuralı" subtitle="Marka ya da kategori bazında erişimi kapatır" icon="shield" tone="warning" size="sm" :persistent="ruleBusy">
+		<form class="form" @submit.prevent="submitRule">
+			<OzField label="Kapsam tipi" required>
+				<OzRadioGroup v-model="ruleForm.scope_type" :options="scopeTypeOptions" variant="cards" aria-label="Kapsam tipi" @update:model-value="onScopeTypeChange" />
+			</OzField>
+			<OzField :label="ruleForm.scope_type === 'brand' ? 'Marka' : 'Kategori'" required :error="ruleErrors.scope_id">
+				<OzCombobox
+					:key="ruleForm.scope_type"
+					v-model="ruleForm.scope_id"
+					:options="scopeOptions"
+					:placeholder="`${ruleForm.scope_type === 'brand' ? 'Marka' : 'Kategori'} seçin`"
+					:search-placeholder="`${ruleForm.scope_type === 'brand' ? 'Marka' : 'Kategori'} ara…`"
+				/>
+			</OzField>
+			<OzField label="Not" :error="ruleErrors.notes">
+				<OzTextarea v-model="ruleForm.notes" :rows="2" :maxlength="500" placeholder="Bu kuralın amacı…" />
+			</OzField>
+			<OzAlert tone="warning">
+				Seçilen {{ ruleForm.scope_type === 'brand' ? 'markaya' : 'kategoriye' }} ait tüm ürünler bu iş ortağına kapatılır. İstisna için ürün override'ı kullanın.
+			</OzAlert>
+			<button type="submit" hidden />
+		</form>
+		<template #footer>
+			<OzButton :disabled="ruleBusy" @click="ruleOpen = false">Vazgeç</OzButton>
+			<OzButton variant="primary" icon="plus" :loading="ruleBusy" @click="submitRule">Ekle</OzButton>
+		</template>
+	</OzDrawer>
+
+	<!-- Override -->
+	<OzDrawer
+		v-model:open="ovOpen"
+		:title="ovEditing ? 'Override düzenle' : 'Yeni ürün override'"
+		subtitle="Ürün bazında görünürlük ve fiyat"
+		:icon="ovEditing ? 'edit' : 'layers'"
+		size="md"
+		:persistent="ovBusy"
+		initial-focus="auto"
+	>
+		<form class="form" @submit.prevent="submitOverride">
+			<div v-if="ovForm.product" class="picked">
+				<OzIcon name="package" :size="18" />
+				<div class="picked-text">
+					<b>{{ ovForm.product.name }}</b>
+					<span><span class="mono">{{ ovForm.product.sku }}</span> · {{ [ovForm.product.brand_name, ovForm.product.category_name].filter(Boolean).join(' · ') }} · {{ fmtPrice(ovForm.product.price) }}</span>
+				</div>
+				<OzButton v-if="!ovEditing" size="sm" icon="x" aria-label="Ürünü değiştir" @click="clearProduct" />
+			</div>
+			<OzField v-else label="Ürün" required :error="ovErrors.product_id" hint="Ürün adı veya SKU; en az 2 karakter">
+				<OzInput v-model="query" icon="search" placeholder="Ürün ara…" autocomplete="off" @update:model-value="onSearch" />
+			</OzField>
+			<div v-if="!ovForm.product && (searching || searched)" class="results">
+				<div v-if="searching" class="results-state"><OzSpinner :size="16" /> Aranıyor…</div>
+				<div v-else-if="!results.length" class="results-state">Sonuç bulunamadı</div>
+				<button
+					v-for="p in (searching ? [] : results)"
+					:key="p.id"
+					type="button"
+					class="result"
+					@click="pickProduct(p)"
+				>
+					<span class="result-text">
+						<b>{{ p.name }}</b>
+						<span><span class="mono">{{ p.sku }}</span> · {{ [p.brand_name, p.category_name].filter(Boolean).join(' · ') }}</span>
+					</span>
+					<OzPill v-if="existingIds.has(p.id)" tone="neutral">Override var</OzPill>
+					<span class="num">{{ fmtPrice(p.price) }}</span>
+				</button>
+			</div>
+
+			<OzSwitch v-model="ovForm.is_blocked" label="Bu ürünü iş ortağına kapat" description="Açıksa ürün kural gereği kapalı olsa bile görünür" />
+			<OzField v-if="!ovForm.is_blocked" label="Özel fiyat" :error="ovErrors.custom_price" hint="Boş bırakılırsa varsayılan fiyat uygulanır">
+				<OzInput v-model="ovForm.custom_price" type="number" min="0" step="0.01" suffix="₺" :placeholder="ovForm.product ? String(ovForm.product.price ?? '') : ''" />
+			</OzField>
+			<OzField label="Not" :error="ovErrors.notes">
+				<OzTextarea v-model="ovForm.notes" :rows="2" :maxlength="500" placeholder="Override sebebi…" />
+			</OzField>
+			<button type="submit" hidden />
+		</form>
+		<template #footer>
+			<OzButton :disabled="ovBusy" @click="ovOpen = false">Vazgeç</OzButton>
+			<OzButton variant="primary" :icon="ovEditing ? 'check' : 'plus'" :loading="ovBusy" @click="submitOverride">{{ ovEditing ? 'Kaydet' : 'Ekle' }}</OzButton>
+		</template>
+	</OzDrawer>
+
+	<!-- Özel metin -->
+	<OzDrawer v-model:open="copyOpen" title="İş ortağına özel ürün metni" :subtitle="copy.product_name ?? ''" icon="pen" size="lg" :persistent="copyBusy" initial-focus="auto">
+		<form class="form" @submit.prevent="submitCustomCopy">
+			<OzField label="Özel ürün adı" :error="copyErrors.custom_name" :hint="copy.default_public_name ? `Varsayılan: ${copy.default_public_name}` : 'Boş: varsayılan ad gösterilir'">
+				<OzInput v-model="copy.custom_name" maxlength="255" :placeholder="copy.default_public_name || 'Varsayılan ad'" />
+			</OzField>
+			<OzField label="Özel açıklama (Markdown)" :error="copyErrors.custom_description" hint="Boş: varsayılan iş ortağı açıklaması gösterilir">
+				<OzTextarea v-model="copy.custom_description" :rows="12" :maxlength="10000" class="md" placeholder="Ürün açıklaması…" />
+			</OzField>
+			<div v-if="copy.default_tenant_description">
+				<OzButton size="sm" icon="copy" @click="copy.custom_description = copy.default_tenant_description">Varsayılandan kopyala</OzButton>
+			</div>
+			<button type="submit" hidden />
+		</form>
+		<template #footer>
+			<OzButton :disabled="copyBusy" @click="copyOpen = false">Vazgeç</OzButton>
+			<OzButton variant="primary" icon="check" :loading="copyBusy" @click="submitCustomCopy">Kaydet</OzButton>
+		</template>
+	</OzDrawer>
+</template>
+
 <style scoped>
-.info-hint { color: rgb(var(--color-muted-rgb)); font-size: 12px; }
+.block { margin-bottom: 14px; }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+.cols { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 14px; align-items: start; }
+.cols > .block { margin-bottom: 0; }
+.meta { font-size: 12px; color: var(--oz-muted); }
+.mono { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; }
+.dim { color: var(--oz-muted-2); }
+.num { font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--oz-ink-soft); }
+.num.accent { color: var(--oz-accent); font-weight: 700; }
+.scope { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+.scope b { font-size: 13px; color: var(--oz-ink-soft); }
+.blocked-ico { color: var(--oz-danger); }
+.note { display: block; max-width: 260px; font-size: 12.5px; color: var(--oz-muted); }
+.ov.clickable :deep(tbody tr) { cursor: pointer; }
+.who-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.who-text b { font-size: 13px; color: var(--oz-ink-soft); }
+.who-text span { font-size: 11px; color: var(--oz-muted); }
+.who-text em { font-style: normal; font-family: inherit; color: var(--oz-accent); }
 
-.card-actions-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.card-sub { font-size: 12px; color: rgb(var(--color-muted-rgb)); }
+.form { display: flex; flex-direction: column; gap: 14px; }
+.picked { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--oz-accent); border-radius: 12px; background: var(--oz-accent-soft); color: var(--oz-accent); }
+.picked-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.picked-text b { font-size: 13.5px; color: var(--oz-ink); }
+.picked-text > span { font-size: 12px; color: var(--oz-muted); }
+.results { display: flex; flex-direction: column; margin-top: -8px; max-height: 300px; overflow-y: auto; border: 1px solid var(--oz-border); border-radius: 12px; }
+.results-state { display: flex; align-items: center; gap: 8px; padding: 14px; font-size: 13px; color: var(--oz-muted); }
+.result { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 14px; border: 0; border-bottom: 1px solid var(--oz-border-soft); background: none; text-align: left; cursor: pointer; }
+.result:last-child { border-bottom: 0; }
+.result:hover, .result:focus-visible { background: var(--oz-accent-soft); outline: none; }
+.result-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.result-text b { font-size: 13px; color: var(--oz-ink-soft); font-weight: 600; }
+.result-text > span { font-size: 11.5px; color: var(--oz-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.md :deep(textarea) { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-size: 12.5px; }
 
-.dim { color: rgb(var(--color-muted-rgb)); font-size: 12px; }
-.mono { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; }
-
-.product-cell { display: flex; flex-direction: column; gap: 2px; }
-.price-custom { color: rgb(var(--color-primary-rgb)); font-weight: 700; }
-
-.table-action-btn { display: inline-flex; align-items: center; justify-content: center; background: rgb(var(--color-bg-rgb)); border: none; cursor: pointer; padding: 6px; border-radius: 6px; color: rgb(var(--color-muted-rgb)); transition: all .15s; }
-.table-action-btn.view:hover { background: rgb(var(--color-primary-soft-rgb)); color: rgb(var(--color-primary-rgb)); }
-.table-action-btn.delete:hover { background: rgb(var(--color-danger-rgb) / .12); color: rgb(var(--color-danger-rgb)); }
-
-.form-grid { display: flex; flex-direction: column; gap: 14px; }
-.form-row { display: flex; flex-direction: column; gap: 6px; }
-.form-label { font-size: 12px; font-weight: 600; color: rgb(var(--color-ink-rgb)); }
-.form-label .req { color: rgb(var(--color-danger-rgb)); }
-.form-input { padding: 9px 12px; border: 1px solid rgb(var(--color-border-rgb)); border-radius: 8px; font-family: inherit; font-size: 13px; color: rgb(var(--color-ink-rgb)); background: rgb(var(--color-surface-rgb)); outline: none; transition: border-color .15s; }
-.form-input:focus { border-color: rgb(var(--color-primary-rgb)); }
-.form-error { font-size: 11.5px; color: rgb(var(--color-danger-rgb)); }
-.form-check { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: rgb(var(--color-ink-rgb)); }
-
-.search-wrap { position: relative; }
-.search-results { position: absolute; top: 100%; left: 0; right: 0; max-height: 280px; overflow-y: auto; background: rgb(var(--color-surface-rgb)); border: 1px solid rgb(var(--color-border-rgb)); border-radius: 8px; margin-top: 4px; z-index: 100; box-shadow: 0 4px 16px rgba(0,0,0,.08); }
-.search-result { padding: 10px 12px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; border-bottom: 1px solid rgb(var(--color-border-rgb)); }
-.search-result:hover { background: rgb(var(--color-bg-rgb)); }
-.search-result:last-child { border-bottom: none; }
-.search-result strong { font-size: 13px; color: rgb(var(--color-ink-rgb)); }
-.search-result .dim { font-size: 11px; }
-
-.picked-product { padding: 10px 12px; background: rgb(var(--color-info-rgb) / .08); border: 1px solid rgb(var(--color-info-rgb) / .25); border-radius: 8px; font-size: 13px; color: rgb(var(--color-info-rgb)); }
+@media (max-width: 1280px) { .cols { grid-template-columns: minmax(0, 1fr); } .cols > .block { margin-bottom: 0; } }
+@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 </style>

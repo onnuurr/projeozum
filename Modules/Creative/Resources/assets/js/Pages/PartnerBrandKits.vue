@@ -9,8 +9,6 @@
 			]"
 		/>
 
-		<CreativeNav current="partner-brandkits" />
-
 		<PageHeader
 			title="İş Ortağı Kreatif Profilleri"
 			subtitle="'İş ortağı paylaşımı' kanalında BrandKit'e ek olarak Rules Engine'e beslenir — logo/iletişim/CTA burada tanımlanır, AI bunları hiç çizmez."
@@ -151,7 +149,6 @@ import PageHeader from '@/Components/PageHeader.vue'
 import Card from '@/Components/Card.vue'
 import Button from '@/Components/Button.vue'
 import EmptyState from '@/Components/EmptyState.vue'
-import CreativeNav from '../Components/CreativeNav.vue'
 import { useCan } from '@/composables/useCan'
 
 defineOptions({ layout: AppLayout })

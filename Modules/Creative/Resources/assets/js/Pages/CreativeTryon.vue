@@ -9,8 +9,6 @@
 			]"
 		/>
 
-		<CreativeNav current="tryon" />
-
 		<PageHeader title="Ürün Giydirme" subtitle="Ürünü bir mankenin pozlarına giydir, ürün görseli olarak ekle">
 			<template #actions>
 				<Badge
@@ -496,7 +494,6 @@ import Alert from '@/Components/Alert.vue'
 import EmptyState from '@/Components/EmptyState.vue'
 import FormField from '@/Components/Form/FormField.vue'
 import FormInput from '@/Components/Form/FormInput.vue'
-import CreativeNav from '../Components/CreativeNav.vue'
 import { openRejectDialog } from '../support/rejectDialog'
 import { extOf } from '../support/mediaExt'
 import { useCan } from '@/composables/useCan'

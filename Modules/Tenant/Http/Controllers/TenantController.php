@@ -5,19 +5,21 @@ namespace Modules\Tenant\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Product\Models\Carrier;
+use Modules\Tenant\Http\Requests\SaveTenantRequest;
 use Modules\Tenant\Models\Tenant;
-use Modules\Tenant\Models\TenantApplication;
 use Modules\Tenant\Models\TenantType;
-use Modules\Tenant\Rules\ValidTaxNumber;
+use Modules\Tenant\Services\TenantApplicationService;
 use Modules\Tenant\Services\TenantService;
 
 class TenantController extends Controller
 {
-    public function __construct(private TenantService $service) {}
+    public function __construct(
+        private TenantService $service,
+        private TenantApplicationService $applications,
+    ) {}
 
     public function index(Request $request): Response
     {
@@ -47,47 +49,47 @@ class TenantController extends Controller
             ->orderBy('name')
             ->get()
             ->map(fn (Tenant $t) => [
-                'id'                => $t->id,
-                'code'              => $t->code,
-                'name'              => $t->name,
-                'legal_name'        => $t->legal_name,
-                'type'              => $t->type ? [
-                    'id'   => $t->type->id,
+                'id' => $t->id,
+                'code' => $t->code,
+                'name' => $t->name,
+                'legal_name' => $t->legal_name,
+                'type' => $t->type ? [
+                    'id' => $t->type->id,
                     'code' => $t->type->code,
                     'name' => $t->type->name,
                 ] : null,
-                'owner'             => $t->owner ? [
-                    'id'    => $t->owner->id,
-                    'name'  => $t->owner->name,
+                'owner' => $t->owner ? [
+                    'id' => $t->owner->id,
+                    'name' => $t->owner->name,
                     'email' => $t->owner->email,
                 ] : null,
-                'tax_number'        => $t->tax_number,
-                'tax_office'        => $t->tax_office,
-                'email'             => $t->email,
-                'phone'             => $t->phone,
-                'contact_person'    => $t->contact_person,
-                'contact_phone'     => $t->contact_phone,
-                'address'           => $t->address,
-                'city'              => $t->city,
-                'district'          => $t->district,
-                'country'           => $t->country,
-                'postal_code'       => $t->postal_code,
-                'credit_limit'      => (float) $t->credit_limit,
-                'current_balance'   => (float) $t->current_balance,
-                'available_credit'  => $t->available_credit,
-                'shipping_agreement_type'    => $t->shipping_agreement_type,
+                'tax_number' => $t->tax_number,
+                'tax_office' => $t->tax_office,
+                'email' => $t->email,
+                'phone' => $t->phone,
+                'contact_person' => $t->contact_person,
+                'contact_phone' => $t->contact_phone,
+                'address' => $t->address,
+                'city' => $t->city,
+                'district' => $t->district,
+                'country' => $t->country,
+                'postal_code' => $t->postal_code,
+                'credit_limit' => (float) $t->credit_limit,
+                'current_balance' => (float) $t->current_balance,
+                'available_credit' => $t->available_credit,
+                'shipping_agreement_type' => $t->shipping_agreement_type,
                 'shipping_terms_accepted_at' => optional($t->shipping_terms_accepted_at)->format('Y-m-d H:i'),
-                'carrier'                    => $t->carrier ? [
-                    'id'   => $t->carrier->id,
+                'carrier' => $t->carrier ? [
+                    'id' => $t->carrier->id,
                     'code' => $t->carrier->code,
                     'name' => $t->carrier->name,
                 ] : null,
                 'payment_term_days' => $t->payment_term_days,
-                'discount_rate'     => (float) $t->discount_rate,
-                'is_active'         => $t->is_active,
-                'notes'             => $t->notes,
-                'userCount'         => $t->users_count,
-                'updatedAt'         => optional($t->updated_at)->format('Y-m-d'),
+                'discount_rate' => (float) $t->discount_rate,
+                'is_active' => $t->is_active,
+                'notes' => $t->notes,
+                'userCount' => $t->users_count,
+                'updatedAt' => optional($t->updated_at)->format('Y-m-d'),
             ]);
 
         $types = TenantType::query()
@@ -103,91 +105,33 @@ class TenantController extends Controller
             ->get(['id', 'code', 'name']);
 
         return Inertia::render('Tenant::Tenants', [
-            'tenants'  => $tenants,
-            'types'    => $types,
+            'tenants' => $tenants,
+            'types' => $types,
             'carriers' => $carriers,
             'filters' => [
-                'q'       => $search ?? '',
+                'q' => $search ?? '',
                 'type_id' => $typeId ?? '',
-                'active'  => $active ?? '',
+                'active' => $active ?? '',
             ],
-            'prefillApplication' => $this->loadPrefillApplication($request),
+            'prefillApplication' => $this->applications->prefillFor($request->query('from_application')),
         ]);
     }
 
-    /**
-     * `/tenants/applications` inceleme kuyruğunda onaylanan bir başvurudan "Tenant
-     * Oluştur" ile buraya gelindiğinde (?from_application=ID), başvuru verilerini +
-     * yüklenen belgeleri "Yeni Tenant" formunu önceden doldurmak için hazırlar.
-     * Zaten bir tenant'a dönüştürülmüş başvurular tekrar kullanılamaz.
-     */
-    private function loadPrefillApplication(Request $request): ?array
+    public function store(SaveTenantRequest $request): RedirectResponse
     {
-        $id = $request->query('from_application');
-        if (! $id) {
-            return null;
-        }
+        $tenant = $this->service->create($request->tenantData());
 
-        $application = TenantApplication::query()
-            ->where('status', TenantApplication::STATUS_APPROVED)
-            ->whereNull('converted_tenant_id')
-            ->with('documents')
-            ->find($id);
-
-        if (! $application) {
-            return null;
-        }
-
-        return [
-            'id'             => $application->id,
-            'name'           => $application->name,
-            'legal_name'     => $application->legal_name,
-            'tax_number'     => $application->tax_number,
-            'tax_office'     => $application->tax_office,
-            'email'          => $application->contact_email,
-            'phone'          => $application->contact_phone,
-            'contact_person' => $application->contact_person,
-            'contact_phone'  => $application->contact_phone,
-            'address'        => $application->address,
-            'city'           => $application->city,
-            'district'       => $application->district,
-            'country'        => $application->country,
-            'postal_code'    => $application->postal_code,
-            'documents'      => $application->documents->map(fn ($d) => [
-                'id'   => $d->id,
-                'type' => $d->type,
-                'name' => $d->original_filename,
-                'url'  => route('tenant-applications.documents.download', [$application->id, $d->id]),
-            ])->values(),
-        ];
-    }
-
-    public function store(Request $request): RedirectResponse
-    {
-        $data = $this->applyShippingAgreementTimestamp($this->validateTenant($request), null);
-
-        $applicationId = $data['tenant_application_id'] ?? null;
-        unset($data['tenant_application_id']);
-
-        $tenant = $this->service->create($data);
-
-        if ($applicationId) {
-            TenantApplication::query()
-                ->where('id', $applicationId)
-                ->where('status', TenantApplication::STATUS_APPROVED)
-                ->whereNull('converted_tenant_id')
-                ->update(['converted_tenant_id' => $tenant->id]);
+        if ($applicationId = $request->applicationId()) {
+            $this->applications->markConverted($applicationId, $tenant);
         }
 
         // Flash basılmıyor — Tenants.vue onSuccess'te kendi toast'unu gösteriyor.
         return redirect()->route('tenants.index');
     }
 
-    public function update(Request $request, Tenant $tenant): RedirectResponse
+    public function update(SaveTenantRequest $request, Tenant $tenant): RedirectResponse
     {
-        $data = $this->applyShippingAgreementTimestamp($this->validateTenant($request, $tenant), $tenant);
-
-        $this->service->update($tenant, $data);
+        $this->service->update($tenant, $request->tenantData());
 
         return redirect()->route('tenants.index');
     }
@@ -214,80 +158,5 @@ class TenantController extends Controller
         $tenant->delete();
 
         return redirect()->route('tenants.index');
-    }
-
-    private function validateTenant(Request $request, ?Tenant $tenant = null): array
-    {
-        // Owner hesabı oluştururken zorunlu; düzenlemede 'sometimes' — alanlar dolu
-        // gelirse (bkz. Tenants.vue) mevcut owner kullanıcısı güncellenir
-        // (bkz. TenantService::update, TenantUserService::updateOwner).
-        $isCreate = $tenant === null;
-        $ownerId  = $tenant?->owner?->id;
-
-        return $request->validate([
-            'code' => [
-                'required',
-                'string',
-                'max:32',
-                'regex:/^[A-Z0-9_-]+$/',
-                Rule::unique('tenants', 'code')->ignore($tenant?->id),
-            ],
-            'name'              => ['required', 'string', 'max:191'],
-            'owner_name'        => [$isCreate ? 'required' : 'sometimes', 'string', 'max:191'],
-            'owner_email'       => [$isCreate ? 'required' : 'sometimes', 'email', 'max:191', Rule::unique('users', 'email')->ignore($ownerId)],
-            'owner_password'    => [$isCreate ? 'required' : 'sometimes', 'string', 'min:8', 'confirmed'],
-            'legal_name'        => ['nullable', 'string', 'max:255'],
-            'tenant_type_id'    => ['nullable', 'integer', 'exists:tenant_types,id'],
-            'tax_number'        => ['nullable', 'string', 'max:32', new ValidTaxNumber()],
-            'tax_office'        => ['nullable', 'string', 'max:191'],
-            'tenant_application_id' => ['nullable', 'integer', 'exists:tenant_applications,id'],
-            'email'             => ['nullable', 'email', 'max:191'],
-            'phone'             => ['nullable', 'string', 'max:32'],
-            'contact_person'    => ['nullable', 'string', 'max:191'],
-            'contact_phone'     => ['nullable', 'string', 'max:32'],
-            'address'           => ['nullable', 'string', 'max:1000'],
-            'city'              => ['nullable', 'string', 'max:100'],
-            'district'          => ['nullable', 'string', 'max:100'],
-            'country'           => ['nullable', 'string', 'max:100'],
-            'postal_code'       => ['nullable', 'string', 'max:16'],
-            'credit_limit'      => ['nullable', 'numeric', 'min:0'],
-            'payment_term_days' => ['nullable', 'integer', 'min:0', 'max:365'],
-            'discount_rate'     => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'is_active'         => ['nullable', 'boolean'],
-            'notes'             => ['nullable', 'string', 'max:2000'],
-            'shipping_agreement_type' => ['nullable', 'in:own,platform'],
-            'carrier_id' => ['required_if:shipping_agreement_type,own', 'nullable', 'integer', 'exists:carriers,id'],
-            // Ham onay bayrağı — DB kolonu değil, aşağıda shipping_terms_accepted_at'e çevrilir.
-            'shipping_terms_accepted' => ['accepted_if:shipping_agreement_type,platform'],
-        ], [
-            'code.regex'        => 'İş ortağı kodu yalnızca büyük harf, rakam, tire ve alt çizgi içerebilir.',
-            'owner_email.unique'=> 'Bu e-posta adresiyle zaten bir kullanıcı hesabı var.',
-            'carrier_id.required_if' => 'İş ortağı kendi kargo anlaşmasını kullanıyorsa kargo firması seçilmelidir.',
-            'shipping_terms_accepted.accepted_if' => 'Platform kargo anlaşması seçildiyse şartların kabul edildiği onaylanmalı.',
-        ]);
-    }
-
-    /**
-     * `shipping_terms_accepted` ham onay bayrağını `shipping_terms_accepted_at`
-     * damgasına çevirir; `own` seçilmişse ya da alan hiç seçilmemişse temizler.
-     * Personel bu kutuyu, elinde SaaS-side imzalı/kabul edilmiş bir onay
-     * olduğunu beyan ederek işaretler (bkz. proje planı: staff-checkbox yeterli).
-     */
-    private function applyShippingAgreementTimestamp(array $data, ?Tenant $tenant): array
-    {
-        $accepted = (bool) ($data['shipping_terms_accepted'] ?? false);
-        unset($data['shipping_terms_accepted']);
-
-        if (($data['shipping_agreement_type'] ?? null) !== 'platform') {
-            $data['shipping_terms_accepted_at'] = null;
-
-            return $data;
-        }
-
-        $data['shipping_terms_accepted_at'] = $accepted
-            ? ($tenant?->shipping_terms_accepted_at ?? now())
-            : null;
-
-        return $data;
     }
 }

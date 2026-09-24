@@ -9,6 +9,8 @@ const props = defineProps({
     arrow: { type: Boolean, default: true },
     delay: { type: Number, default: 0 },
     disabled: { type: Boolean, default: false },
+    wrap: { type: Boolean, default: false },
+    maxWidth: { type: String, default: '220px' },
 });
 
 const positionClasses = {
@@ -55,10 +57,17 @@ const tooltipClasses = computed(() => [
     visibleTransformClasses[props.position],
     variantClasses[props.variant],
     sizeClasses[props.size],
-    'absolute z-50 rounded-lg whitespace-nowrap',
+    props.wrap ? 'whitespace-normal text-left' : 'whitespace-nowrap',
+    'absolute z-50 rounded-lg',
     'opacity-0 scale-95 group-hover/tooltip:opacity-100 group-hover/tooltip:scale-100',
+    'group-focus-within/tooltip:opacity-100 group-focus-within/tooltip:scale-100',
     'transition duration-150 motion-reduce:transition-[opacity] pointer-events-none',
 ]);
+
+const tooltipStyle = computed(() => ({
+    ...(props.wrap ? { width: 'max-content', maxWidth: props.maxWidth } : {}),
+    ...(props.delay ? { transitionDelay: `${props.delay}ms` } : {}),
+}));
 
 const arrowClasses = computed(() => [
     arrowPositionClasses[props.position],
@@ -66,13 +75,12 @@ const arrowClasses = computed(() => [
     'absolute w-2 h-2 rotate-45',
 ]);
 
-const delayStyle = computed(() => (props.delay ? { transitionDelay: `${props.delay}ms` } : null));
 </script>
 
 <template>
     <div class="relative inline-flex group/tooltip">
         <slot />
-        <div v-if="!disabled && text" :class="tooltipClasses" :style="delayStyle">
+        <div v-if="!disabled && text" :class="tooltipClasses" :style="tooltipStyle">
             <span v-if="arrow" :class="arrowClasses" />
             <span class="relative z-10">{{ text }}</span>
         </div>

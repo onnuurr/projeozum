@@ -9,12 +9,10 @@
 			]"
 		/>
 
-		<FinanceNav current="supplier-invoices" />
-
 		<PageHeader title="Alınan Faturalar">
 			<template #subtitle><strong>{{ invoices.length }}</strong> tedarikçi faturası</template>
 			<template #actions>
-				<Button variant="primary" with-icon @click="openCreate">
+				<Button v-if="canManage" variant="primary" with-icon @click="openCreate">
 					<template #leading><Plus :size="13" /></template>
 					Yeni Fatura
 				</Button>
@@ -31,7 +29,7 @@
 				<template #total="{ row }"><span class="strong">{{ formatMoney(row.total) }}</span> <span class="dim">{{ row.currency }}</span></template>
 				<template #dueDate="{ value }"><span class="dim">{{ value ?? '—' }}</span></template>
 				<template #status="{ value }"><Badge :color="statusColor(value)" variant="tonal" :label="statusLabel(value)" /></template>
-				<template #actions="{ row }">
+				<template v-if="canManage" #actions="{ row }">
 					<a v-if="row.hasFile" class="table-action-btn" title="Dosyayı indir" :href="`/finance/supplier-invoices/${row.id}/file`" target="_blank"><Paperclip :size="14" /></a>
 					<button v-if="row.status !== 'paid'" class="table-action-btn" title="Ödendi işaretle" @click="markPaid(row)"><CheckCircle2 :size="14" /></button>
 					<button class="table-action-btn" title="Düzenle" @click="openEdit(row)"><Pencil :size="14" /></button>
@@ -122,8 +120,8 @@
 </template>
 
 <script setup>
-import { ref, inject, watch } from 'vue'
-import { Head, useForm, router } from '@inertiajs/vue3'
+import { ref, inject, watch, computed } from 'vue'
+import { Head, useForm, router, usePage } from '@inertiajs/vue3'
 import { Plus, Paperclip, CheckCircle2, Pencil, Trash2 } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
@@ -133,9 +131,13 @@ import DataTable from '@/Components/DataTable.vue'
 import Badge from '@/Components/Badge.vue'
 import Button from '@/Components/Button.vue'
 import AppDrawer from '@/Components/AppDrawer.vue'
-import FinanceNav from '../Components/FinanceNav.vue'
 
 defineOptions({ layout: AppLayout })
+
+// Yazma finance.manage; e-Fatura gönderme ayrıca finance.einvoice.send (bkz. Finance routes/web.php).
+const page = usePage()
+const permissions = computed(() => page.props.auth?.permissions ?? [])
+const canManage = computed(() => permissions.value.includes('finance.manage'))
 
 const $swal = inject('$swal')
 const showToast = inject('showToast')

@@ -1,136 +1,15 @@
-<template>
-	<Head :title="`İş Ortağı Ayarları · ${product.name}`" />
-	<div class="page-product-tenants">
-		<Breadcrumb
-			:items="[
-				{ label: 'Ana Sayfa', to: '/workflow', icon: 'home' },
-				{ label: 'Katalog', to: '/products' },
-				{ label: product.name },
-				{ label: 'İş Ortağı Ayarları' },
-			]"
-		/>
-
-		<PageHeader :title="`${product.name} · İş Ortağı Ayarları`">
-			<template #subtitle>
-				<span class="mono">{{ product.sku }}</span>
-				<span v-if="product.brand_name"> · {{ product.brand_name }}</span>
-				<span v-if="product.category_name"> · {{ product.category_name }}</span>
-				<span class="dim"> · Baz Fiyat: <strong>₺{{ formatPrice(product.default_price) }}</strong></span>
-			</template>
-		</PageHeader>
-
-		<Alert variant="info" class="page-alert">
-			<strong>Sadece sistem yöneticisi tarafından düzenlenebilir.</strong>
-			Tüm aktif iş ortakları listelenir. Her satırda durum kaynağı belirtilir:
-			<span class="src-tag default">varsayılan</span>
-			<span class="src-tag rule">marka/kategori kuralı</span>
-			<span class="src-tag override">ürün override</span>
-		</Alert>
-
-		<Card :title="`İş Ortağı Listesi · ${rows.length} aktif iş ortağı`" body-class="p-0">
-			<template #actions>
-				<div class="card-search">
-					<Search :size="13" />
-					<input v-model="searchQuery" type="text" placeholder="İş ortağı ara..." />
-				</div>
-			</template>
-
-			<div class="table-scroll">
-			<table class="data-table">
-				<thead>
-					<tr>
-						<th style="width: 22%">İş Ortağı</th>
-						<th style="width: 12%">Tip</th>
-						<th style="width: 13%">Durum</th>
-						<th style="width: 12%">Tip Fiyatı</th>
-						<th style="width: 16%">Özel Fiyat (₺)</th>
-						<th style="width: 13%">Görünürlük</th>
-						<th style="width: 12%">İşlem</th>
-					</tr>
-				</thead>
-				<tbody>
-					<tr v-if="filtered.length === 0">
-						<td colspan="7" class="empty-row">Aktif iş ortağı bulunamadı</td>
-					</tr>
-					<tr v-for="r in filtered" :key="r.tenant_id" :class="{ dirty: isDirty(r.tenant_id) }">
-						<td>
-							<div class="tenant-cell">
-								<Avatar :initials="r.tenant_name.charAt(0).toUpperCase()" size="sm" />
-								<div>
-									<div class="tenant-name">{{ r.tenant_name }}</div>
-									<div class="tenant-code mono">{{ r.tenant_code }}</div>
-								</div>
-							</div>
-						</td>
-						<td>
-							<Badge v-if="r.tenant_type" color="info" variant="tonal" :label="r.tenant_type" />
-							<span v-else class="dim">—</span>
-						</td>
-						<td>
-							<Badge
-								:color="r.effective === 'allowed' ? 'success' : 'danger'"
-								variant="tonal"
-								:icon="r.effective === 'allowed' ? Check : Ban"
-								:label="r.effective === 'allowed' ? 'Açık' : 'Gizli'"
-								class="mr-1.5"
-							/>
-							<span :class="['src-tag', sourceTagClass(r.source)]">{{ sourceLabel(r.source) }}</span>
-						</td>
-						<td>
-							<span v-if="r.type_price !== null" class="mono">₺{{ formatPrice(r.type_price) }}</span>
-							<span v-else class="dim">—</span>
-						</td>
-						<td>
-							<input
-								type="number"
-								min="0"
-								step="0.01"
-								class="form-input compact"
-								:placeholder="formatPrice(r.type_price ?? r.default_price)"
-								:value="getDraft(r.tenant_id).custom_price"
-								@input="setDraft(r.tenant_id, 'custom_price', $event.target.value === '' ? null : Number($event.target.value))"
-								:disabled="getDraft(r.tenant_id).is_blocked"
-							/>
-						</td>
-						<td>
-							<label class="form-check">
-								<input
-									type="checkbox"
-									:checked="getDraft(r.tenant_id).is_blocked"
-									@change="setDraft(r.tenant_id, 'is_blocked', $event.target.checked)"
-								/>
-								<span>Gizle</span>
-							</label>
-						</td>
-						<td>
-							<div class="table-actions">
-								<Button variant="primary" size="sm" :disabled="!isDirty(r.tenant_id)" :loading="!!busyMap[r.tenant_id]" @click="save(r)">
-									Kaydet
-								</Button>
-								<button v-if="r.override_id" class="table-action-btn delete" @click="confirmReset(r)" title="Override'ı sil (varsayılana dön)"><RotateCcw :size="14" /></button>
-							</div>
-						</td>
-					</tr>
-				</tbody>
-			</table>
-			</div>
-		</Card>
-	</div>
-</template>
-
 <script setup>
 import { ref, reactive, computed, inject } from 'vue'
-import { Head, router, usePage } from '@inertiajs/vue3'
-import { Search, Check, Ban, RotateCcw } from 'lucide-vue-next'
+import { Head, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import Breadcrumb from '@/Components/Breadcrumb.vue'
-import PageHeader from '@/Components/PageHeader.vue'
-import Card from '@/Components/Card.vue'
-import Badge from '@/Components/Badge.vue'
-import Avatar from '@/Components/Avatar.vue'
-import Alert from '@/Components/Alert.vue'
-import Button from '@/Components/Button.vue'
+import {
+	OzPageHeader, OzModuleTabs, OzStatTile, OzCard, OzTable, OzPill, OzButton, OzAvatar, OzEmptyState,
+	OzInput, OzCheckbox, OzAlert, OzTooltip, useOzConfirm,
+} from '@/Components/Oz'
 
+// Ürün × tüm aktif iş ortakları matrisi (Oz kit, yalnızca sistem yöneticisi).
+//   Her satır kendi taslağını tutar; "Kaydet" → POST /products/{id}/tenants/{tenant} (override upsert),
+//   sıfırla → DELETE (override silinir, iş ortağı kurala / varsayılana döner).
 defineOptions({ layout: AppLayout })
 
 const props = defineProps({
@@ -138,74 +17,68 @@ const props = defineProps({
 	rows: { type: Array, default: () => [] },
 })
 
-const showToast = inject('showToast')
-const $swal = inject('$swal')
+const showToast = inject('showToast', null)
+const confirm = useOzConfirm()
 
-const searchQuery = ref('')
-const filtered = computed(() => {
-	const q = searchQuery.value.trim().toLowerCase()
-	if (!q) return props.rows
-	return props.rows.filter(r =>
-		r.tenant_name.toLowerCase().includes(q) ||
-		r.tenant_code.toLowerCase().includes(q) ||
-		(r.tenant_type ?? '').toLowerCase().includes(q),
-	)
+const fmtPrice = (v) => `₺${Number(v ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
+const SOURCE = {
+	default: { label: 'Varsayılan', tone: 'neutral' },
+	rule_block: { label: 'Marka/kategori kuralı', tone: 'warning' },
+	override_block: { label: 'Ürün override', tone: 'accent' },
+	override_allow: { label: 'Ürün override', tone: 'accent' },
+}
+
+/* ── özet ── */
+const openCount = computed(() => props.rows.filter((r) => r.effective === 'allowed').length)
+const overrideCount = computed(() => props.rows.filter((r) => r.override_id).length)
+const stats = computed(() => [
+	{ key: 'total', label: 'Aktif iş ortağı', value: props.rows.length, icon: 'building', tone: 'accent' },
+	{ key: 'open', label: 'Görebilen', value: openCount.value, icon: 'eye', tone: 'success' },
+	{ key: 'hidden', label: 'Gizli', value: props.rows.length - openCount.value, icon: 'eye-off', tone: props.rows.length - openCount.value ? 'danger' : 'success' },
+	{ key: 'override', label: 'Override', value: overrideCount.value, icon: 'layers', tone: 'info' },
+])
+
+/* ── satır taslakları ── */
+// Taban durum etkin görünürlükten gelir: kuralla gizli bir satırda fiyat girmek ürünü sessizce açmasın.
+const baseline = (r) => ({
+	is_blocked: r.override_id ? !!r.override_is_blocked : !!r.rule_blocked,
+	custom_price: r.custom_price ?? null,
+	notes: r.notes ?? '',
 })
-
-function formatPrice(v) {
-	if (v === null || v === undefined) return '0,00'
-	return Number(v).toFixed(2).replace('.', ',')
-}
-
-const SOURCE_LABELS = {
-	default: 'varsayılan',
-	rule_block: 'marka/kategori kuralı',
-	override_block: 'ürün override',
-	override_allow: 'ürün override',
-}
-function sourceLabel(s) { return SOURCE_LABELS[s] ?? s }
-function sourceTagClass(s) {
-	if (s === 'default') return 'default'
-	if (s === 'rule_block') return 'rule'
-	return 'override'
-}
-
-/* ── Draft state per row ── */
 const drafts = reactive({})
-const busyMap = reactive({})
-
-function getDraft(tenantId) {
-	if (!drafts[tenantId]) {
-		const r = props.rows.find(x => x.tenant_id === tenantId)
-		drafts[tenantId] = {
-			is_blocked: r?.override_id ? !!r.override_is_blocked : false,
-			custom_price: r?.custom_price ?? null,
-			notes: r?.notes ?? '',
-		}
-	}
-	return drafts[tenantId]
+const busy = reactive({})
+const draftOf = (r) => drafts[r.tenant_id] ?? baseline(r)
+function setDraft(r, key, value) {
+	drafts[r.tenant_id] = { ...draftOf(r), [key]: value }
 }
-
-function setDraft(tenantId, key, value) {
-	getDraft(tenantId)[key] = value
-}
-
-function isDirty(tenantId) {
-	const r = props.rows.find(x => x.tenant_id === tenantId)
-	if (!r) return false
-	const d = drafts[tenantId]
+function isDirty(r) {
+	const d = drafts[r.tenant_id]
 	if (!d) return false
-	const origBlocked = r.override_id ? !!r.override_is_blocked : false
-	const origPrice = r.custom_price
-	const origNotes = r.notes ?? ''
-	return d.is_blocked !== origBlocked
-		|| (d.custom_price ?? null) !== (origPrice ?? null)
-		|| (d.notes ?? '') !== origNotes
+	const b = baseline(r)
+	return d.is_blocked !== b.is_blocked || (d.custom_price ?? null) !== (b.custom_price ?? null) || (d.notes ?? '') !== b.notes
 }
+const dirtyCount = computed(() => props.rows.filter(isDirty).length)
+const onPrice = (r, v) => setDraft(r, 'custom_price', v === '' || v == null ? null : Number(v))
+
+/* ── tablo ── */
+const tableRows = computed(() => props.rows.map((r) => ({ ...r, id: r.tenant_id, type_label: r.tenant_type ?? '' })))
+const columns = [
+	{ key: 'tenant_name', label: 'İş ortağı', sortable: true, searchValue: (r) => `${r.tenant_name} ${r.tenant_code} ${r.tenant_type ?? ''}` },
+	{ key: 'type_label', label: 'Tip', sortable: true, filter: { type: 'select', multiple: true } },
+	{
+		key: 'effective', label: 'Durum', sortable: true, searchable: false,
+		filter: { type: 'select', options: [{ value: 'allowed', label: 'Açık' }, { value: 'blocked', label: 'Gizli' }] },
+	},
+	{ key: 'type_price', label: 'Tip fiyatı', sortable: true, align: 'right', searchable: false },
+	{ key: 'custom_price', label: 'Özel fiyat', searchable: false, width: '150px' },
+	{ key: 'visibility', label: 'Görünürlük', searchable: false },
+	{ key: 'actions', label: '', align: 'right', searchable: false },
+]
 
 function save(r) {
-	if (busyMap[r.tenant_id]) return
-	busyMap[r.tenant_id] = true
+	if (busy[r.tenant_id] || !isDirty(r)) return
+	busy[r.tenant_id] = true
 	const d = drafts[r.tenant_id]
 	router.post(`/products/${props.product.id}/tenants/${r.tenant_id}`, {
 		is_blocked: d.is_blocked,
@@ -213,82 +86,156 @@ function save(r) {
 		notes: d.notes,
 	}, {
 		preserveScroll: true,
-		preserveState: false,  // güncel resolve sonucunu görmek için yeniden yükle
+		preserveState: true,
 		onSuccess: () => {
-			showToast?.({
-				type: 'success',
-				title: 'Kaydedildi',
-				message: `${r.tenant_name} için ayarlar uygulandı.`,
-			})
 			delete drafts[r.tenant_id]
+			showToast?.({ type: 'success', title: 'Kaydedildi', message: `${r.tenant_name} için ayarlar uygulandı.` })
 		},
-		onError: (errs) => {
-			showToast?.({
-				type: 'error',
-				title: 'Kayıt başarısız',
-				message: Object.values(errs)[0] || 'Sunucu hatası.',
-			})
-		},
-		onFinish: () => { busyMap[r.tenant_id] = false },
+		onError: (errs) => showToast?.({ type: 'error', title: 'Kaydedilemedi', message: Object.values(errs)[0] || 'Sunucu hatası.' }),
+		onFinish: () => { busy[r.tenant_id] = false },
 	})
 }
 
-async function confirmReset(r) {
-	const ok = await $swal.dangerConfirm({
-		title: 'Override\'ı Sil',
-		html: `<strong>${r.tenant_name}</strong> için override silinecek. İş ortağı marka/kategori kuralına ve varsayılan fiyatlandırmaya dönecek.`,
-		confirmText: 'Sıfırla',
-		cancelText: 'Vazgeç',
-	})
+function discard(r) {
+	delete drafts[r.tenant_id]
+}
+
+async function reset(r) {
+	const ok = await confirm.warning(
+		'Override sıfırlansın mı?',
+		`“${r.tenant_name}” için override silinecek; iş ortağı marka/kategori kuralına ve varsayılan fiyata döner.`,
+		{ confirmText: 'Sıfırla' },
+	)
 	if (!ok) return
 	router.delete(`/products/${props.product.id}/tenants/${r.tenant_id}`, {
 		preserveScroll: true,
-		preserveState: false,
+		preserveState: true,
 		onSuccess: () => {
 			delete drafts[r.tenant_id]
 			showToast?.({ type: 'warning', title: 'Override silindi', message: r.tenant_name })
 		},
-		onError: (errs) => {
-			showToast?.({ type: 'error', title: 'Silme başarısız', message: Object.values(errs)[0] || 'Sunucu hatası.' })
-		},
+		onError: (errs) => showToast?.({ type: 'error', title: 'Silinemedi', message: Object.values(errs)[0] || 'Sunucu hatası.' }),
 	})
 }
 </script>
 
+<template>
+	<Head :title="`İş Ortağı Ayarları · ${product.name}`" />
+
+	<OzPageHeader :title="product.name">
+		<template #subtitle>
+			İş ortağı ayarları · <span class="mono">{{ product.sku }}</span>
+			<template v-if="product.brand_name"> · {{ product.brand_name }}</template>
+			<template v-if="product.category_name"> · {{ product.category_name }}</template>
+			· baz fiyat <b>{{ fmtPrice(product.default_price) }}</b>
+		</template>
+		<template #actions>
+			<OzButton icon="chevron-left" @click="router.visit('/products')">Katalog</OzButton>
+		</template>
+	</OzPageHeader>
+	<OzModuleTabs />
+
+	<div class="stats">
+		<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" />
+	</div>
+
+	<OzAlert tone="info" title="Yalnızca sistem yöneticisi düzenleyebilir" class="block">
+		Tüm aktif iş ortakları listelenir; durum etiketi kaynağı gösterir (varsayılan, marka/kategori kuralı ya da ürün override).
+		Satırda değişiklik yapıp <b>Kaydet</b>'e basınca o iş ortağı için ürün override'ı yazılır.
+	</OzAlert>
+
+	<OzCard title="İş ortakları" :meta="dirtyCount ? '' : `${rows.length} aktif iş ortağı`" class="block">
+		<template v-if="dirtyCount" #actions>
+			<OzPill tone="warning">{{ dirtyCount }} satırda kaydedilmemiş değişiklik</OzPill>
+		</template>
+		<OzTable
+			:columns="columns"
+			:rows="tableRows"
+			:page-size="25"
+			:default-sort="{ key: 'tenant_name', dir: 'asc' }"
+			searchable
+			search-placeholder="İş ortağı ara…"
+			min-width="940px"
+		>
+			<template #cell-tenant_name="{ row }">
+				<div class="who">
+					<OzAvatar :name="row.tenant_name" :size="28" tone="auto" shape="square" />
+					<div class="who-text">
+						<b>{{ row.tenant_name }} <span v-if="isDirty(row)" class="dot" title="Kaydedilmemiş değişiklik" /></b>
+						<span class="mono">{{ row.tenant_code }}</span>
+					</div>
+				</div>
+			</template>
+			<template #cell-type_label="{ value }">
+				<OzPill v-if="value" tone="info">{{ value }}</OzPill>
+				<span v-else class="dim">—</span>
+			</template>
+			<template #cell-effective="{ row }">
+				<div class="status">
+					<OzPill :tone="row.effective === 'allowed' ? 'success' : 'danger'">{{ row.effective === 'allowed' ? 'Açık' : 'Gizli' }}</OzPill>
+					<span class="src" :class="`is-${SOURCE[row.source]?.tone ?? 'neutral'}`">{{ SOURCE[row.source]?.label ?? row.source }}</span>
+				</div>
+			</template>
+			<template #cell-type_price="{ value }">
+				<span v-if="value !== null" class="num">{{ fmtPrice(value) }}</span>
+				<span v-else class="dim">—</span>
+			</template>
+			<template #cell-custom_price="{ row }">
+				<OzInput
+					type="number"
+					min="0"
+					step="0.01"
+					suffix="₺"
+					class="price"
+					:model-value="draftOf(row).custom_price ?? ''"
+					:placeholder="Number(row.type_price ?? row.default_price ?? 0).toFixed(2)"
+					:disabled="draftOf(row).is_blocked"
+					:aria-label="`${row.tenant_name} özel fiyat`"
+					@update:model-value="(v) => onPrice(row, v)"
+					@keydown.enter="save(row)"
+				/>
+			</template>
+			<template #cell-visibility="{ row }">
+				<OzCheckbox :model-value="draftOf(row).is_blocked" label="Gizle" @update:model-value="(v) => setDraft(row, 'is_blocked', v)" />
+			</template>
+			<template #cell-actions="{ row }">
+				<div class="acts">
+					<OzTooltip v-if="isDirty(row)" text="Değişikliği geri al">
+						<OzButton size="sm" icon="undo" aria-label="Değişikliği geri al" @click="discard(row)" />
+					</OzTooltip>
+					<OzTooltip v-else-if="row.override_id" text="Override'ı sil (varsayılana dön)">
+						<OzButton size="sm" icon="refresh" aria-label="Override'ı sıfırla" @click="reset(row)" />
+					</OzTooltip>
+					<OzButton size="sm" variant="primary" icon="check" :disabled="!isDirty(row)" :loading="!!busy[row.tenant_id]" @click="save(row)">Kaydet</OzButton>
+				</div>
+			</template>
+			<template #empty="{ filtered, clear }">
+				<OzEmptyState v-if="filtered" icon="filter" title="Eşleşen iş ortağı yok" compact>
+					<template #actions><OzButton size="sm" icon="x" @click="clear">Filtreleri temizle</OzButton></template>
+				</OzEmptyState>
+				<OzEmptyState v-else icon="building" title="Aktif iş ortağı bulunamadı" compact />
+			</template>
+		</OzTable>
+	</OzCard>
+</template>
+
 <style scoped>
-.page-alert { margin-bottom: 16px; }
+.block { margin-bottom: 14px; }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+.mono { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; }
+.dim { color: var(--oz-muted-2); }
+.num { font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--oz-ink-soft); }
+.who { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.who-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.who-text b { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--oz-ink-soft); white-space: nowrap; }
+.who-text span { font-size: 11px; color: var(--oz-muted); }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--oz-warning); }
+.status { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+.src { font-size: 11px; font-weight: 600; white-space: nowrap; color: var(--oz-muted); }
+.src.is-warning { color: var(--oz-warning); }
+.src.is-accent { color: var(--oz-accent); }
+.price { width: 140px; }
+.acts { display: flex; justify-content: flex-end; align-items: center; gap: 6px; }
 
-.card-search { display: flex; align-items: center; gap: 6px; background: rgb(var(--color-bg-rgb)); border: 1px solid rgb(var(--color-border-rgb)); border-radius: 8px; padding: 5px 10px; min-width: 220px; }
-.card-search svg { color: rgb(var(--color-muted-rgb)); flex-shrink: 0; }
-.card-search input { border: none; background: none; outline: none; font-family: inherit; font-size: 13px; color: rgb(var(--color-ink-rgb)); width: 100%; }
-
-.data-table { width: 100%; border-collapse: separate; border-spacing: 0; }
-.data-table thead tr { background: rgb(var(--color-bg-rgb)); }
-.data-table th { text-align: left; padding: 12px 16px; font-size: 11px; font-weight: 600; color: rgb(var(--color-muted-rgb)); border-bottom: 1px solid rgb(var(--color-border-rgb)); text-transform: uppercase; letter-spacing: 0.04em; }
-.data-table td { padding: 10px 16px; font-size: 13px; color: rgb(var(--color-ink-rgb)); border-bottom: 1px solid rgb(var(--color-border-rgb)); vertical-align: middle; }
-.data-table tr:last-child td { border-bottom: none; }
-.data-table tr:hover td { background: rgb(var(--color-bg-rgb) / .5); }
-.data-table tr.dirty td { background: rgb(var(--color-warning-rgb) / .08); }
-.empty-row { text-align: center !important; color: rgb(var(--color-muted-rgb)); padding: 32px 0 !important; font-style: italic; }
-.dim { color: rgb(var(--color-muted-rgb)); font-size: 12px; }
-.mono { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; }
-
-.tenant-cell { display: flex; align-items: center; gap: 10px; }
-.tenant-name { font-weight: 600; color: rgb(var(--color-ink-rgb)); font-size: 13px; }
-.tenant-code { color: rgb(var(--color-muted-rgb)); }
-
-.src-tag { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 600; }
-.src-tag.default { background: rgb(var(--color-bg-rgb)); color: rgb(var(--color-muted-rgb)); }
-.src-tag.rule { background: rgb(var(--color-warning-rgb) / .12); color: rgb(var(--color-warning-rgb)); }
-.src-tag.override { background: rgb(var(--color-primary-soft-rgb)); color: rgb(var(--color-primary-rgb)); }
-
-.form-input { padding: 7px 10px; border: 1px solid rgb(var(--color-border-rgb)); border-radius: 6px; font-family: inherit; font-size: 13px; color: rgb(var(--color-ink-rgb)); background: rgb(var(--color-surface-rgb)); outline: none; transition: border-color .15s; }
-.form-input.compact { width: 100%; max-width: 140px; }
-.form-input:focus { border-color: rgb(var(--color-primary-rgb)); }
-.form-input:disabled { background: rgb(var(--color-bg-rgb)); color: rgb(var(--color-muted-rgb)); cursor: not-allowed; }
-.form-check { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12.5px; color: rgb(var(--color-ink-rgb)); }
-
-.table-actions { display: flex; gap: 4px; align-items: center; }
-.table-action-btn { display: inline-flex; align-items: center; justify-content: center; background: rgb(var(--color-bg-rgb)); border: none; cursor: pointer; padding: 6px; border-radius: 6px; color: rgb(var(--color-muted-rgb)); transition: all .15s; }
-.table-action-btn.delete:hover { background: rgb(var(--color-danger-rgb) / .12); color: rgb(var(--color-danger-rgb)); }
+@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 </style>

@@ -1,246 +1,332 @@
-<template>
-	<Head title="İş Emirleri" />
-	<div class="page-atelier-orders">
-		<Breadcrumb
-			:items="[
-				{ label: 'Ana Sayfa', to: '/workflow', icon: 'home' },
-				{ label: 'Üretim Atölyesi', to: '/atelier' },
-				{ label: 'İş Emirleri' },
-			]"
-		/>
-
-		<AtelierNav current="orders" />
-
-		<PageHeader title="İş Emirleri">
-			<template #subtitle><strong>{{ orders.length }}</strong> iş emri</template>
-			<template v-if="can('atelier.production.manage')" #actions>
-				<Button variant="primary" with-icon @click="showWizard = true">
-					<template #leading><Plus :size="13" /></template>
-					Yeni İş Emri
-				</Button>
-			</template>
-		</PageHeader>
-
-		<!-- Orders Table -->
-		<Card title="İş Emri Listesi" body-class="p-0">
-			<DataTable :columns="columns" :data="orders" row-key-field="id" empty-title="İş emri kaydı yok.">
-				<template #code="{ value }"><span class="mono-chip">{{ value }}</span></template>
-				<template #productName="{ value }"><span class="row-name">{{ value }}</span></template>
-				<template #status="{ value }">
-					<Badge :color="STATUS_COLORS[value]" :label="STATUS[value]" variant="tonal" />
-				</template>
-				<template #plannedQty="{ value }"><span class="num">{{ value }}</span></template>
-				<template #producedQty="{ value }"><span class="num">{{ value }}</span></template>
-				<template #totalCost="{ value }"><span class="num dim">{{ value }}</span></template>
-				<template #actions="{ row }">
-					<Button variant="secondary" size="sm" @click="router.get(`/atelier/production-orders/${row.id}`)">Detay</Button>
-				</template>
-			</DataTable>
-		</Card>
-
-		<!-- Wizard Modal -->
-		<AppDrawer v-model="showWizard" title="Yeni İş Emri" width="60vw">
-			<form id="production-order-form" class="wizard-body" @submit.prevent="submit">
-
-				<!-- Temel Bilgiler -->
-				<div class="wizard-section">
-					<div class="wizard-section-title">Temel Bilgiler</div>
-					<div class="wizard-grid">
-						<div class="form-row">
-							<label class="form-label">Ürün <span class="req">*</span></label>
-							<select v-model="form.product_id" @change="onProductOrQty" class="form-input">
-								<option value="">Seçin…</option>
-								<option v-for="p in products" :key="p.id" :value="p.id">{{ p.name }}</option>
-							</select>
-						</div>
-						<div class="form-row">
-							<label class="form-label">Adet <span class="req">*</span></label>
-							<input v-model="form.planned_qty" @change="onProductOrQty" type="number" class="form-input" />
-						</div>
-						<div class="form-row">
-							<label class="form-label">Depo</label>
-							<select v-model="form.warehouse_id" class="form-input">
-								<option value="">Seçin…</option>
-								<option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name }}</option>
-							</select>
-						</div>
-						<div class="form-row">
-							<label class="form-label">Termin</label>
-							<input v-model="form.due_date" type="date" class="form-input" />
-						</div>
-					</div>
-				</div>
-
-				<!-- Varyant Adetleri -->
-				<div v-if="form.items.length" class="wizard-section">
-					<div class="wizard-section-title">Varyant Adetleri</div>
-					<div class="variant-rows">
-						<div v-for="(it, i) in form.items" :key="i" class="variant-row">
-							<span class="variant-label">{{ it.label }}</span>
-							<input v-model="it.planned_qty" type="number" class="form-input variant-qty" />
-						</div>
-					</div>
-				</div>
-
-				<!-- Malzeme Gereksinimi -->
-				<div v-if="requirements.length" class="wizard-section">
-					<div class="wizard-section-title">Malzeme Gereksinimi (Önizleme)</div>
-					<div class="requirements-box">
-						<div v-for="(r, i) in requirements" :key="i" class="req-row">
-							<span class="req-name">{{ r.material_name }}</span>
-							<span class="req-qty">{{ r.required_qty }} {{ r.unit }}</span>
-							<span class="req-cost dim">≈{{ r.line_cost }} ₺</span>
-						</div>
-					</div>
-				</div>
-
-				<!-- Rota -->
-				<div class="wizard-section">
-					<div class="wizard-section-title">Üretim Rotası</div>
-					<div class="step-rows">
-						<div v-for="(s, i) in form.steps" :key="i" class="step-row">
-							<span class="step-seq">{{ s.sequence }}.</span>
-							<select v-model="s.operation_id" @change="onOperationChange(s)" class="form-input step-op">
-								<option value="">Operasyon…</option>
-								<option v-for="op in operations" :key="op.id" :value="op.id">{{ op.name }}</option>
-							</select>
-							<select v-model="s.location_type" class="form-input step-loc">
-								<option value="in_house">İç</option>
-								<option value="fason">Fason</option>
-							</select>
-							<input v-model="s.unit_cost" type="number" step="0.01" class="form-input step-cost" placeholder="Birim ₺" />
-							<Button type="button" variant="ghost" size="sm" class="step-remove" @click="removeStep(i)">Sil</Button>
-						</div>
-					</div>
-					<Button type="button" variant="ghost" size="sm" with-icon style="margin-top: 8px;" @click="addStep">
-						<template #leading><Plus :size="12" /></template>
-						Adım Ekle
-					</Button>
-				</div>
-			</form>
-			<template #footer="{ close }">
-				<Button variant="ghost" :disabled="form.processing" @click="close">Kapat</Button>
-				<Button type="submit" form="production-order-form" variant="primary" :loading="form.processing">Oluştur</Button>
-			</template>
-		</AppDrawer>
-	</div>
-</template>
-
 <script setup>
-import { ref } from 'vue'
-import { Head, useForm, router } from '@inertiajs/vue3'
-import { Plus } from 'lucide-vue-next'
+import { ref, computed, inject, watch } from 'vue'
+import { Head, Link, useForm } from '@inertiajs/vue3'
 import axios from 'axios'
+import { useDebounceFn } from '@vueuse/core'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import Breadcrumb from '@/Components/Breadcrumb.vue'
-import PageHeader from '@/Components/PageHeader.vue'
-import Card from '@/Components/Card.vue'
-import DataTable from '@/Components/DataTable.vue'
-import Badge from '@/Components/Badge.vue'
-import Button from '@/Components/Button.vue'
-import AppDrawer from '@/Components/AppDrawer.vue'
-import AtelierNav from '../Components/AtelierNav.vue'
+import {
+	OzPageHeader, OzModuleTabs, OzStatTile, OzCard, OzButton, OzTable, OzPill, OzDrawer,
+	OzField, OzInput, OzSelect, OzCombobox, OzTextarea, OzAlert, OzSpinner,
+} from '@/Components/Oz'
+import { ORDER_STATUS, ORDER_TONE, formatMoney, formatNumber } from '../atelierNav'
 import { useCan } from '@/composables/useCan'
 
 defineOptions({ layout: AppLayout })
 
-const { can } = useCan()
-
-const props = defineProps({ orders: Array, products: Array, warehouses: Array, operations: Array })
-
-const columns = [
-	{ key: 'code', label: 'Kod' },
-	{ key: 'productName', label: 'Ürün' },
-	{ key: 'status', label: 'Durum' },
-	{ key: 'plannedQty', label: 'Planlanan', align: 'right' },
-	{ key: 'producedQty', label: 'Üretilen', align: 'right' },
-	{ key: 'dueDate', label: 'Termin' },
-	{ key: 'totalCost', label: 'Maliyet', align: 'right' },
-]
-
-const STATUS = {
-  draft: 'Taslak', planned: 'Planlandı', in_progress: 'Üretimde', completed: 'Tamamlandı', cancelled: 'İptal',
-}
-const STATUS_COLORS = { draft: 'neutral', planned: 'info', in_progress: 'success', completed: 'success', cancelled: 'danger' }
-
-const showWizard = ref(false)
-const variants = ref([])
-const requirements = ref([])
-
-const form = useForm({
-  product_id: '', warehouse_id: '', planned_qty: 0, due_date: '', notes: '',
-  items: [], steps: [],
+const props = defineProps({
+	orders: { type: Array, default: () => [] },
+	products: { type: Array, default: () => [] },
+	warehouses: { type: Array, default: () => [] },
+	operations: { type: Array, default: () => [] },
 })
 
-async function onProductOrQty() {
-  if (!form.product_id || !form.planned_qty) return
-  const { data } = await axios.get('/atelier/production-orders/plan-preview', {
-    params: { product_id: form.product_id, planned_qty: form.planned_qty },
-  })
-  variants.value = data.variants
-  requirements.value = data.requirements
-  // varyant satırlarını eşit dağıtma yapmadan 0 ile başlat
-  form.items = data.variants.map(v => ({ product_variant_id: v.id, planned_qty: 0, label: `${v.size} / ${v.colorName}` }))
+const { can } = useCan()
+const canManage = computed(() => can('atelier.production.manage'))
+const showToast = inject('showToast', null)
+
+/* ── özet ── */
+const countBy = (...statuses) => props.orders.filter((o) => statuses.includes(o.status)).length
+const today = new Date().toISOString().slice(0, 10)
+const isLate = (o) => !!o.dueDate && o.dueDate < today && !['completed', 'cancelled'].includes(o.status)
+const stats = computed(() => [
+	{ key: 'waiting', label: 'Taslak / Planlı', value: countBy('draft', 'planned'), icon: 'clock', tone: 'info' },
+	{ key: 'progress', label: 'Üretimde', value: countBy('in_progress'), icon: 'factory', tone: 'accent' },
+	{ key: 'late', label: 'Termini Geçen', value: props.orders.filter(isLate).length, icon: 'alert', tone: props.orders.some(isLate) ? 'danger' : 'success' },
+	{ key: 'done', label: 'Tamamlanan', value: countBy('completed'), icon: 'success', tone: 'success' },
+])
+
+/* ── tablo ── */
+const statusOptions = Object.entries(ORDER_STATUS).map(([value, label]) => ({ value, label }))
+const columns = [
+	{ key: 'code', label: 'Kod', sortable: true },
+	{ key: 'productName', label: 'Ürün', sortable: true, class: 'oz-cell-strong' },
+	{ key: 'status', label: 'Durum', sortable: true, filter: { type: 'select', options: statusOptions } },
+	{ key: 'progress', label: 'Üretilen / Plan', align: 'right', searchable: false },
+	{ key: 'dueDate', label: 'Termin', sortable: true, filter: { type: 'date' } },
+	{ key: 'totalCost', label: 'Maliyet', align: 'right', sortable: true, class: 'oz-cell-amount' },
+	{ key: 'actions', label: '', align: 'right', width: '80px', searchable: false },
+]
+
+/* ── yeni iş emri sihirbazı ── */
+const productOptions = computed(() => props.products.map((p) => ({ value: p.id, label: p.name, description: p.sku })))
+const warehouseOptions = computed(() => props.warehouses.map((w) => ({ value: w.id, label: `${w.name} (${w.code})` })))
+const operationOptions = computed(() => props.operations.map((o) => ({ value: o.id, label: o.name })))
+const locationOptions = [{ value: 'in_house', label: 'İç atölye' }, { value: 'fason', label: 'Fason' }]
+
+const emptyStep = (sequence) => ({ operation_id: '', sequence, location_type: 'in_house', fason_supplier_id: null, unit_cost: 0 })
+const emptyForm = () => ({
+	product_id: '', warehouse_id: props.warehouses.length === 1 ? props.warehouses[0].id : '',
+	planned_qty: 0, due_date: '', notes: '', items: [], steps: [emptyStep(1)],
+})
+const form = useForm(emptyForm())
+const wizardOpen = ref(false)
+const requirements = ref([])
+const previewLoading = ref(false)
+
+function resetForm() {
+	form.defaults(emptyForm())
+	form.reset()
+	form.clearErrors()
+	requirements.value = []
+}
+watch(wizardOpen, (open) => { if (!open) setTimeout(resetForm, 250) })
+
+function openWizard() {
+	resetForm()
+	wizardOpen.value = true
 }
 
-function addStep() {
-  form.steps.push({ operation_id: '', sequence: form.steps.length + 1, location_type: 'in_house', fason_supplier_id: null, unit_cost: 0 })
-}
-function removeStep(i) { form.steps.splice(i, 1); form.steps.forEach((s, idx) => s.sequence = idx + 1) }
+// Ürün ya da adet değişince varyantlar + BOM malzeme gereksinimi sunucudan önizlenir
+let previewSeq = 0
+const loadPreview = useDebounceFn(async () => {
+	if (!form.product_id || !(form.planned_qty > 0)) {
+		requirements.value = []
+		return
+	}
+	const seq = ++previewSeq
+	previewLoading.value = true
+	try {
+		const { data } = await axios.get('/atelier/production-orders/plan-preview', {
+			params: { product_id: form.product_id, planned_qty: form.planned_qty },
+		})
+		if (seq !== previewSeq) return
+		requirements.value = data.requirements
+		// Varyant listesi yalnızca ürün değişince yeniden kurulur; adet değişikliği girilen dağılımı silmez
+		const ids = data.variants.map((v) => v.id).join(',')
+		if (ids !== form.items.map((i) => i.product_variant_id).join(',')) {
+			form.items = data.variants.map((v) => ({ product_variant_id: v.id, planned_qty: 0, label: `${v.size} / ${v.colorName}`, sku: v.sku }))
+		}
+	} catch {
+		if (seq === previewSeq) showToast?.({ type: 'error', title: 'Önizleme alınamadı', message: 'Ürün varyantları ve malzeme ihtiyacı yüklenemedi.' })
+	} finally {
+		if (seq === previewSeq) previewLoading.value = false
+	}
+}, 350)
+watch(() => form.product_id, () => { form.items = []; loadPreview() })
+watch(() => form.planned_qty, loadPreview)
 
+const itemsTotal = computed(() => form.items.reduce((s, i) => s + (Number(i.planned_qty) || 0), 0))
+const itemsMismatch = computed(() => form.items.length > 0 && itemsTotal.value !== Number(form.planned_qty))
+const requirementsCost = computed(() => requirements.value.reduce((s, r) => s + Number(r.line_cost || 0), 0))
+
+// Planlanan adedi varyantlara eşit böler, artan adetler ilk varyantlara eklenir
+function distributeEvenly() {
+	const n = form.items.length
+	const total = Number(form.planned_qty) || 0
+	if (!n) return
+	const base = Math.floor(total / n)
+	form.items.forEach((it, i) => { it.planned_qty = base + (i < total % n ? 1 : 0) })
+}
+
+function addStep() { form.steps.push(emptyStep(form.steps.length + 1)) }
+function removeStep(i) {
+	form.steps.splice(i, 1)
+	form.steps.forEach((s, idx) => { s.sequence = idx + 1 })
+}
 function onOperationChange(step) {
-  const op = props.operations.find(o => o.id === Number(step.operation_id))
-  if (op) { step.location_type = op.default_location; step.unit_cost = op.default_unit_cost }
+	const op = props.operations.find((o) => o.id === Number(step.operation_id))
+	if (op) {
+		step.location_type = op.default_location
+		step.unit_cost = Number(op.default_unit_cost)
+	}
 }
+const stepError = (i, field) => form.errors[`steps.${i}.${field}`]
 
 function submit() {
-  form.transform(d => ({
-    ...d,
-    items: d.items.map(({ product_variant_id, planned_qty }) => ({ product_variant_id, planned_qty })),
-  })).post('/atelier/production-orders', {
-    onSuccess: () => { showWizard.value = false; form.reset(); variants.value = []; requirements.value = [] },
-  })
+	if (form.processing) return
+	form.transform((d) => ({
+		...d,
+		items: d.items.map(({ product_variant_id, planned_qty }) => ({ product_variant_id, planned_qty })),
+	})).post('/atelier/production-orders', {
+		preserveScroll: true,
+		onSuccess: () => { wizardOpen.value = false },
+		onError: (errs) => showToast?.({ type: 'error', title: 'İş emri oluşturulamadı', message: Object.values(errs)[0] || 'Doğrulama hatası.' }),
+	})
 }
 </script>
 
+<template>
+	<Head title="İş Emirleri" />
+
+	<OzPageHeader title="İş Emirleri">
+		<template #subtitle><b>{{ orders.length }}</b> üretim iş emri</template>
+		<template #actions>
+			<OzButton v-if="canManage" variant="primary" icon="plus" @click="openWizard">Yeni İş Emri</OzButton>
+		</template>
+	</OzPageHeader>
+	<OzModuleTabs />
+
+	<div class="stats">
+		<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" />
+	</div>
+
+	<OzCard title="İş Emri Listesi">
+		<OzTable :columns="columns" :rows="orders" row-key="id" searchable search-placeholder="Kod ya da ürün ara…" empty-title="İş emri kaydı yok" min-width="820px">
+			<template #cell-code="{ value }"><span class="mono">{{ value }}</span></template>
+			<template #cell-status="{ value }">
+				<OzPill :tone="ORDER_TONE[value] ?? 'neutral'">{{ ORDER_STATUS[value] ?? value }}</OzPill>
+			</template>
+			<template #cell-progress="{ row }">
+				<span class="mono"><b>{{ row.producedQty }}</b> <span class="dim">/ {{ row.plannedQty }}</span></span>
+			</template>
+			<template #cell-dueDate="{ row }">
+				<span class="due">
+					{{ row.dueDate || '—' }}
+					<OzPill v-if="isLate(row)" tone="danger">Gecikti</OzPill>
+				</span>
+			</template>
+			<template #cell-totalCost="{ value }"><span class="mono">{{ formatMoney(value) }}</span></template>
+			<template #cell-actions="{ row }">
+				<Link :href="`/atelier/production-orders/${row.id}`" class="detail-link">Detay</Link>
+			</template>
+		</OzTable>
+	</OzCard>
+
+	<OzDrawer v-model:open="wizardOpen" title="Yeni İş Emri" subtitle="Ürün, varyant dağılımı ve üretim rotası" icon="workflow" size="lg" :persistent="form.processing">
+		<form class="form" @submit.prevent="submit">
+			<section class="section">
+				<h3 class="section-title">Temel Bilgiler</h3>
+				<OzField label="Ürün" required :error="form.errors.product_id">
+					<OzCombobox v-model="form.product_id" :options="productOptions" placeholder="Ürün seçin" search-placeholder="Ürün ya da SKU ara…" />
+				</OzField>
+				<div class="row-3">
+					<OzField label="Planlanan Adet" required :error="form.errors.planned_qty">
+						<OzInput v-model.number="form.planned_qty" type="number" min="1" step="1" suffix="adet" />
+					</OzField>
+					<OzField label="Depo" required :error="form.errors.warehouse_id" hint="Bitmiş ürün bu depoya alınır">
+						<OzSelect v-model="form.warehouse_id" :options="warehouseOptions" placeholder="Depo seçin" />
+					</OzField>
+					<OzField label="Termin" :error="form.errors.due_date">
+						<OzInput v-model="form.due_date" type="date" />
+					</OzField>
+				</div>
+			</section>
+
+			<section v-if="form.product_id" class="section">
+				<div class="section-head">
+					<h3 class="section-title">Varyant Dağılımı</h3>
+					<OzSpinner v-if="previewLoading" :size="14" />
+					<OzButton v-else-if="form.items.length" size="sm" icon="refresh" :disabled="!(form.planned_qty > 0)" @click="distributeEvenly">Eşit Dağıt</OzButton>
+				</div>
+				<p v-if="form.errors.items" class="field-error">{{ form.errors.items }}</p>
+				<p v-if="!previewLoading && !form.items.length" class="dim small">
+					{{ form.planned_qty > 0 ? 'Bu ürünün varyantı yok.' : 'Varyantları görmek için planlanan adedi girin.' }}
+				</p>
+				<div v-else class="variants">
+					<div v-for="it in form.items" :key="it.product_variant_id" class="variant">
+						<div class="variant-label">
+							<span>{{ it.label }}</span>
+							<span v-if="it.sku" class="mono dim">{{ it.sku }}</span>
+						</div>
+						<OzInput v-model.number="it.planned_qty" type="number" min="0" step="1" class="variant-qty" :aria-label="`${it.label} adedi`" />
+					</div>
+					<div class="variant-total" :class="{ 'is-off': itemsMismatch }">
+						<span>Toplam</span>
+						<span class="mono"><b>{{ itemsTotal }}</b> / {{ form.planned_qty || 0 }}</span>
+					</div>
+				</div>
+			</section>
+
+			<section v-if="requirements.length" class="section">
+				<h3 class="section-title">Malzeme Gereksinimi <span class="dim">(önizleme)</span></h3>
+				<div class="reqs">
+					<div v-for="(r, i) in requirements" :key="i" class="req">
+						<span class="req-name">{{ r.material_name }}</span>
+						<span class="mono">{{ formatNumber(r.required_qty, 3) }} {{ r.unit }}</span>
+						<span class="mono dim">≈ {{ formatMoney(r.line_cost) }}</span>
+					</div>
+					<div class="req req-total">
+						<span class="req-name">Tahmini malzeme maliyeti</span>
+						<span />
+						<span class="mono">{{ formatMoney(requirementsCost) }}</span>
+					</div>
+				</div>
+			</section>
+			<OzAlert v-else-if="form.product_id && form.planned_qty > 0 && !previewLoading" tone="warning" title="Reçete bulunamadı">
+				Bu ürünün aktif reçetesi yok; iş emri planlanırken hammadde düşülmez.
+			</OzAlert>
+
+			<section class="section">
+				<h3 class="section-title">Üretim Rotası</h3>
+				<p v-if="form.errors.steps" class="field-error">{{ form.errors.steps }}</p>
+				<div v-for="(s, i) in form.steps" :key="i" class="step">
+					<span class="step-seq">{{ s.sequence }}</span>
+					<OzField label="Operasyon" :error="stepError(i, 'operation_id')">
+						<OzSelect v-model="s.operation_id" :options="operationOptions" placeholder="Operasyon seçin" @update:model-value="onOperationChange(s)" />
+					</OzField>
+					<OzField label="Yer" :error="stepError(i, 'location_type')">
+						<OzSelect v-model="s.location_type" :options="locationOptions" />
+					</OzField>
+					<OzField label="Birim Maliyet" :error="stepError(i, 'unit_cost')">
+						<OzInput v-model.number="s.unit_cost" type="number" min="0" step="0.01" suffix="₺" />
+					</OzField>
+					<OzButton class="step-remove" size="sm" icon="trash" :disabled="form.steps.length === 1" :aria-label="`${s.sequence}. adımı kaldır`" @click="removeStep(i)" />
+				</div>
+				<OzButton size="sm" icon="plus" @click="addStep">Adım Ekle</OzButton>
+			</section>
+
+			<section class="section">
+				<OzField label="Not" :error="form.errors.notes">
+					<OzTextarea v-model="form.notes" :rows="2" placeholder="Üretime dair açıklama…" />
+				</OzField>
+			</section>
+			<button type="submit" hidden />
+		</form>
+		<template #footer>
+			<OzButton :disabled="form.processing" @click="wizardOpen = false">İptal</OzButton>
+			<OzButton variant="primary" icon="check" :loading="form.processing" @click="submit">Oluştur</OzButton>
+		</template>
+	</OzDrawer>
+</template>
+
 <style scoped>
-.num { text-align: right; font-family: 'SF Mono', Menlo, Consolas, monospace; font-weight: 600; }
-.dim { color: #888; font-weight: 500; }
-.row-name { font-weight: 600; color: #1a1a2e; }
-.mono-chip { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 11.5px; background: #f0f0f5; padding: 2px 7px; border-radius: 5px; color: #555; }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
-.wizard-body { display: flex; flex-direction: column; gap: 0; }
-.wizard-section { padding: 18px 24px; border-bottom: 1px solid #f5f5f8; }
-.wizard-section:last-of-type { border-bottom: none; }
-.wizard-section-title { font-size: 12px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; }
-.wizard-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.mono { font-family: ui-monospace, monospace; font-size: 12px; }
+.dim { color: var(--oz-muted); font-weight: 400; }
+.small { font-size: 12.5px; margin: 0; }
+.due { display: inline-flex; align-items: center; gap: 8px; }
+.detail-link { color: var(--oz-accent); text-decoration: none; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; }
+.detail-link:hover { background: var(--oz-accent-soft); }
 
-.form-row { display: flex; flex-direction: column; gap: 6px; }
-.form-label { font-size: 12px; font-weight: 600; color: #1a1a2e; }
-.form-label .req { color: #ef4444; }
-.form-input { padding: 9px 12px; border: 1px solid #e8e8f0; border-radius: 8px; font-family: inherit; font-size: 13px; color: #1a1a2e; background: #fff; outline: none; transition: border-color .15s; width: 100%; box-sizing: border-box; }
-.form-input:focus { border-color: var(--color-primary); }
+.form { display: flex; flex-direction: column; gap: 18px; }
+.section { display: flex; flex-direction: column; gap: 12px; }
+.section + .section { padding-top: 18px; border-top: 1px solid var(--oz-border-soft); }
+.section-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.section-title { margin: 0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--oz-muted); }
+.field-error { margin: 0; font-size: 12px; color: var(--oz-danger); }
+.row-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 
-.variant-rows { display: flex; flex-direction: column; gap: 8px; }
-.variant-row { display: flex; align-items: center; gap: 12px; }
-.variant-label { font-size: 13px; color: #444; font-weight: 500; min-width: 160px; }
-.variant-qty { max-width: 120px; }
+.variants { display: flex; flex-direction: column; border: 1px solid var(--oz-border-soft); border-radius: var(--oz-radius-sm); overflow: hidden; }
+.variant { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 7px 12px; }
+.variant + .variant { border-top: 1px solid var(--oz-border-soft); }
+.variant-label { display: flex; flex-direction: column; font-size: 13px; color: var(--oz-ink); }
+.variant-qty { width: 120px; }
+.variant-total { display: flex; justify-content: space-between; padding: 8px 12px; font-size: 12.5px; background: var(--oz-surface-2); border-top: 1px solid var(--oz-border-soft); color: var(--oz-muted); }
+.variant-total.is-off { color: var(--oz-warning); }
 
-.requirements-box { background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
-.req-row { display: flex; align-items: center; gap: 12px; font-size: 13px; }
-.req-name { font-weight: 600; color: #1a1a2e; flex: 1; }
-.req-qty { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; color: #444; }
-.req-cost { font-size: 12px; }
+.reqs { display: flex; flex-direction: column; border: 1px solid var(--oz-border-soft); border-radius: var(--oz-radius-sm); overflow: hidden; }
+.req { display: grid; grid-template-columns: minmax(0, 1fr) auto 110px; gap: 12px; align-items: center; padding: 7px 12px; font-size: 13px; }
+.req + .req { border-top: 1px solid var(--oz-border-soft); }
+.req > :last-child { text-align: right; }
+.req-name { font-weight: 600; color: var(--oz-ink-soft); }
+.req-total { background: var(--oz-surface-2); }
 
-.step-rows { display: flex; flex-direction: column; gap: 8px; }
-.step-row { display: flex; align-items: center; gap: 8px; }
-.step-seq { font-size: 13px; font-weight: 700; color: #888; min-width: 18px; }
-.step-op { flex: 2; }
-.step-loc { flex: 1; }
-.step-cost { flex: 1; }
-.step-remove { flex-shrink: 0; }
+.step {
+	display: grid; grid-template-columns: 26px minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) auto; gap: 10px; align-items: end;
+	padding: 10px 12px; border: 1px solid var(--oz-border-soft); border-radius: var(--oz-radius-sm); background: var(--oz-surface-2);
+}
+.step-seq {
+	align-self: center; width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+	font-size: 11px; font-weight: 700; background: var(--oz-accent-soft); color: var(--oz-accent);
+}
+.step-remove { margin-bottom: 2px; }
 
 @media (max-width: 640px) {
-	.wizard-grid { grid-template-columns: repeat(2, 1fr); }
+	.row-3 { grid-template-columns: 1fr; }
+	.step { grid-template-columns: 1fr 1fr; }
+	.step-seq { grid-column: 1 / -1; }
+	.step > :nth-child(2) { grid-column: 1 / -1; }
 }
 </style>

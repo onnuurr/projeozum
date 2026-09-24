@@ -1,131 +1,16 @@
-<template>
-	<AppModal
-		:model-value="modelValue"
-		:title="category && marketplace ? `${category.name} → ${marketplace.name}` : ''"
-		:subtitle="stage === 'picking' ? 'Pazaryeri kategorisini kademeli olarak seç' : 'Eşleştirmeyi gözden geçir ve kaydet'"
-		size="md"
-		@update:model-value="$emit('update:modelValue', $event)"
-	>
-		<template #icon>
-			<div
-				v-if="marketplace"
-				class="mp-logo"
-				:style="{ background: marketplace.color, color: '#fff' }"
-			>
-				{{ marketplace.logoText }}
-			</div>
-		</template>
-
-		<template v-if="category && marketplace">
-			<!-- ─────────── Stage 1: Kademeli select'ler ─────────── -->
-						<div v-if="stage === 'picking'" class="picker-stage">
-							<div
-								v-for="(level, idx) in levels"
-								:key="idx"
-								class="picker-level"
-							>
-								<CustomSelect
-									:label="`${ordinalLabel(idx)} Kategori`"
-									:model-value="selection[idx]"
-									:options="level.options"
-									:placeholder="idx === 0 ? 'Üst kategori seçiniz...' : 'Alt kategori seçiniz...'"
-									@update:model-value="onPick(idx, $event)"
-								/>
-							</div>
-
-							<!-- Yol önizleme (canlı) -->
-							<div v-if="pathParts.length" class="path-preview">
-								<span class="pp-label">Seçili Yol</span>
-								<div class="pp-chips">
-									<template v-for="(p, i) in pathParts" :key="i">
-										<span class="pp-chip">{{ p }}</span>
-										<svg
-											v-if="i < pathParts.length - 1"
-											class="pp-sep"
-											width="11" height="11" fill="none" stroke="currentColor"
-											stroke-width="2.5" viewBox="0 0 24 24"
-										>
-											<polyline points="9 18 15 12 9 6" />
-										</svg>
-									</template>
-								</div>
-							</div>
-
-							<div v-if="!isLeaf && pathParts.length" class="hint-banner">
-								<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-									<circle cx="12" cy="12" r="10" />
-									<line x1="12" y1="8" x2="12" y2="12" />
-									<line x1="12" y1="16" x2="12.01" y2="16" />
-								</svg>
-								En alt kategoriye ulaşana kadar seçime devam edin.
-							</div>
-						</div>
-
-						<!-- ─────────── Stage 2: Textbox önizleme ─────────── -->
-						<div v-else class="preview-stage">
-							<label class="preview-label">Pazaryeri Kategori Yolu</label>
-							<input
-								class="preview-input"
-								type="text"
-								readonly
-								:value="fullPath"
-								aria-label="Seçilen kategori yolu"
-							/>
-							<div class="preview-meta">
-								<div class="pm-row">
-									<span class="pm-key">Pazaryeri</span>
-									<span class="pm-val">{{ marketplace.name }}</span>
-								</div>
-								<div class="pm-row">
-									<span class="pm-key">Kendi kategorin</span>
-									<span class="pm-val">{{ category.name }}</span>
-								</div>
-								<div class="pm-row">
-									<span class="pm-key">Derinlik</span>
-									<span class="pm-val">{{ pathParts.length }} seviye</span>
-								</div>
-							</div>
-			</div>
-		</template>
-
-		<template v-if="category && marketplace" #footer>
-			<template v-if="stage === 'picking'">
-				<Button variant="ghost" @click="close">Vazgeç</Button>
-				<Button variant="primary" with-icon :disabled="!isLeaf" @click="confirmPick">
-					<template #leading><Check :size="13" /></template>
-					Eşleştir
-				</Button>
-			</template>
-			<template v-else>
-				<Button variant="ghost" with-icon @click="backToPicker">
-					<template #leading><ChevronLeft :size="13" /></template>
-					Geri Dön
-				</Button>
-				<Button variant="primary" with-icon @click="save">
-					<template #leading><Save :size="13" /></template>
-					Kaydet
-				</Button>
-			</template>
-		</template>
-	</AppModal>
-</template>
-
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { Check, ChevronLeft, Save } from 'lucide-vue-next'
-import CustomSelect from './CustomSelect.vue'
-import Button from './Button.vue'
-import AppModal from './AppModal.vue'
+import { OzModal, OzSelect, OzField, OzAlert, OzButton, OzIcon } from '@/Components/Oz'
 
 const props = defineProps({
-	modelValue: { type: Boolean, default: false },
 	category: { type: Object, default: null },
 	marketplace: { type: Object, default: null },
 	tree: { type: Array, default: () => [] },
 	initialPath: { type: String, default: '' },
 })
 
-const emit = defineEmits(['update:modelValue', 'submit'])
+const open = defineModel('open', { type: Boolean, default: false })
+const emit = defineEmits(['submit'])
 
 const stage = ref('picking') // 'picking' | 'preview'
 const selection = ref([])    // her seviyedeki seçili node.id
@@ -192,10 +77,6 @@ function backToPicker() {
 	stage.value = 'picking'
 }
 
-function close() {
-	emit('update:modelValue', false)
-}
-
 function save() {
 	emit('submit', {
 		categoryId: props.category?.id ?? null,
@@ -230,171 +111,109 @@ function rehydrateFromPath(path) {
 	pickedNodes.value = newPicked
 }
 
-watch(
-	() => props.modelValue,
-	(open) => {
-		if (open) {
-			reset()
-			rehydrateFromPath(props.initialPath)
-		}
+watch(open, (isOpen) => {
+	if (isOpen) {
+		reset()
+		rehydrateFromPath(props.initialPath)
 	}
-)
+})
 </script>
 
+<template>
+	<OzModal v-model:open="open" size="md" :subtitle="stage === 'picking' ? 'Pazaryeri kategorisini kademeli olarak seç' : 'Eşleştirmeyi gözden geçir ve kaydet'">
+		<template v-if="category && marketplace" #header>
+			<div v-if="marketplace" class="mp-logo" :style="{ background: marketplace.color, color: '#fff' }">{{ marketplace.logoText }}</div>
+			<div class="titles">
+				<h3>{{ category.name }} → {{ marketplace.name }}</h3>
+				<p>{{ stage === 'picking' ? 'Pazaryeri kategorisini kademeli olarak seç' : 'Eşleştirmeyi gözden geçir ve kaydet' }}</p>
+			</div>
+		</template>
+
+		<template v-if="category && marketplace">
+			<!-- ─────────── Stage 1: Kademeli select'ler ─────────── -->
+			<div v-if="stage === 'picking'" class="picker-stage">
+				<OzField v-for="(level, idx) in levels" :key="idx" :label="`${ordinalLabel(idx)} Kategori`" class="picker-level">
+					<OzSelect
+						:model-value="selection[idx]"
+						:options="level.options"
+						:placeholder="idx === 0 ? 'Üst kategori seçiniz…' : 'Alt kategori seçiniz…'"
+						@update:model-value="onPick(idx, $event)"
+					/>
+				</OzField>
+
+				<!-- Yol önizleme (canlı) -->
+				<div v-if="pathParts.length" class="path-preview">
+					<span class="pp-label">Seçili Yol</span>
+					<div class="pp-chips">
+						<template v-for="(p, i) in pathParts" :key="i">
+							<span class="pp-chip">{{ p }}</span>
+							<OzIcon v-if="i < pathParts.length - 1" name="chevron-right" :size="11" :stroke-width="2.5" class="pp-sep" />
+						</template>
+					</div>
+				</div>
+
+				<OzAlert v-if="!isLeaf && pathParts.length" tone="warning">En alt kategoriye ulaşana kadar seçime devam edin.</OzAlert>
+			</div>
+
+			<!-- ─────────── Stage 2: Textbox önizleme ─────────── -->
+			<div v-else class="preview-stage">
+				<label class="preview-label">Pazaryeri Kategori Yolu</label>
+				<input class="preview-input mono" type="text" readonly :value="fullPath" aria-label="Seçilen kategori yolu">
+				<div class="preview-meta">
+					<div class="pm-row"><span class="pm-key">Pazaryeri</span><span class="pm-val">{{ marketplace.name }}</span></div>
+					<div class="pm-row"><span class="pm-key">Kendi kategorin</span><span class="pm-val">{{ category.name }}</span></div>
+					<div class="pm-row"><span class="pm-key">Derinlik</span><span class="pm-val">{{ pathParts.length }} seviye</span></div>
+				</div>
+			</div>
+		</template>
+
+		<template v-if="category && marketplace" #footer>
+			<template v-if="stage === 'picking'">
+				<OzButton @click="open = false">Vazgeç</OzButton>
+				<OzButton variant="primary" icon="check" :disabled="!isLeaf" @click="confirmPick">Eşleştir</OzButton>
+			</template>
+			<template v-else>
+				<OzButton icon="chevron-left" @click="backToPicker">Geri Dön</OzButton>
+				<OzButton variant="primary" icon="save" @click="save">Kaydet</OzButton>
+			</template>
+		</template>
+	</OzModal>
+</template>
+
 <style scoped>
-.mp-logo {
-	width: 100%;
-	height: 100%;
-	border-radius: 10px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	font-size: 11px;
-	font-weight: 800;
-	letter-spacing: 0.04em;
-}
+.mp-logo { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; letter-spacing: 0.04em; flex-shrink: 0; }
+.titles { flex: 1; min-width: 0; }
+.titles h3 { margin: 0; font-size: 15px; font-weight: 700; color: var(--oz-ink-soft); letter-spacing: -.01em; }
+.titles p { margin: 3px 0 0; font-size: 12px; color: var(--oz-muted); }
+
+.mono { font-family: ui-monospace, monospace; }
 
 /* ── Stage 1 ── */
-.picker-stage {
-	display: flex;
-	flex-direction: column;
-	gap: 12px;
-}
+.picker-stage { display: flex; flex-direction: column; gap: 12px; }
+.picker-level { animation: slideDown .25s ease; }
+@keyframes slideDown { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
 
-.picker-level {
-	animation: slideDown .25s ease;
-}
-
-@keyframes slideDown {
-	from { opacity: 0; transform: translateY(-6px); }
-	to   { opacity: 1; transform: translateY(0); }
-}
-
-/* CustomSelect içinden gelen .form-group / .form-label tipografisini eşitle */
-.picker-stage :deep(.form-label) {
-	font-size: 11.5px;
-	font-weight: 600;
-	color: #555;
-	margin-bottom: 5px;
-	display: inline-block;
-}
-
-.path-preview {
-	margin-top: 4px;
-	padding: 12px 14px;
-	background: #fafafe;
-	border: 1px solid #f0f0f5;
-	border-radius: 10px;
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
-}
-
-.pp-label {
-	font-size: 10.5px;
-	font-weight: 700;
-	color: #888;
-	text-transform: uppercase;
-	letter-spacing: 0.06em;
-}
-
-.pp-chips {
-	display: flex;
-	align-items: center;
-	flex-wrap: wrap;
-	gap: 4px;
-}
-
-.pp-chip {
-	display: inline-flex;
-	align-items: center;
-	padding: 4px 10px;
-	background: #fff;
-	border: 1px solid #e8e8f0;
-	border-radius: 7px;
-	font-size: 12px;
-	font-weight: 600;
-	color: #1a1a2e;
-}
-
-.pp-sep {
-	color: #bbb;
-	flex-shrink: 0;
-}
-
-.hint-banner {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	padding: 9px 12px;
-	background: #fef3c7;
-	border: 1px solid #fde68a;
-	border-radius: 9px;
-	font-size: 12px;
-	color: #92400e;
-}
-.hint-banner svg { color: #d97706; flex-shrink: 0; }
+.path-preview { margin-top: 4px; padding: 12px 14px; background: var(--oz-surface-2); border: 1px solid var(--oz-border); border-radius: 10px; display: flex; flex-direction: column; gap: 8px; }
+.pp-label { font-size: 10.5px; font-weight: 700; color: var(--oz-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.pp-chips { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+.pp-chip { display: inline-flex; align-items: center; padding: 4px 10px; background: var(--oz-surface); border: 1px solid var(--oz-border); border-radius: 7px; font-size: 12px; font-weight: 600; color: var(--oz-ink-soft); }
+.pp-sep { color: var(--oz-muted-2, var(--oz-muted)); flex-shrink: 0; }
 
 /* ── Stage 2 ── */
-.preview-stage {
-	display: flex;
-	flex-direction: column;
-	gap: 14px;
-	animation: fadeIn .25s ease;
-}
+.preview-stage { display: flex; flex-direction: column; gap: 14px; animation: fadeIn .25s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: scale(.98); } to { opacity: 1; transform: scale(1); } }
 
-@keyframes fadeIn {
-	from { opacity: 0; transform: scale(.98); }
-	to   { opacity: 1; transform: scale(1); }
-}
-
-.preview-label {
-	font-size: 11.5px;
-	font-weight: 600;
-	color: #555;
-}
-
+.preview-label { font-size: 11.5px; font-weight: 600; color: var(--oz-muted); }
 .preview-input {
-	width: 100%;
-	height: 44px;
-	padding: 0 14px;
-	border: 1.5px solid rgb(var(--color-primary-rgb));
-	border-radius: 10px;
-	background: #f5f7ff;
-	color: #1a1a2e;
-	font-family: 'SF Mono', Menlo, Consolas, monospace;
-	font-size: 13.5px;
-	font-weight: 600;
-	letter-spacing: 0.01em;
-	outline: none;
-	box-shadow: 0 0 0 3px rgb(var(--color-primary-rgb) / 0.1);
-	cursor: text;
-	user-select: all;
+	width: 100%; height: 44px; padding: 0 14px;
+	border: 1.5px solid var(--oz-accent); border-radius: 10px;
+	background: var(--oz-accent-soft); color: var(--oz-ink-soft);
+	font-size: 13.5px; font-weight: 600; letter-spacing: 0.01em;
+	outline: none; box-shadow: 0 0 0 3px rgba(var(--oz-accent-rgb), .1);
+	cursor: text; user-select: all;
 }
-
-.preview-meta {
-	display: flex;
-	flex-direction: column;
-	gap: 6px;
-	padding: 12px 14px;
-	background: #fafafe;
-	border: 1px solid #f0f0f5;
-	border-radius: 10px;
-}
-
-.pm-row {
-	display: flex;
-	justify-content: space-between;
-	gap: 12px;
-	font-size: 12.5px;
-}
-.pm-key {
-	color: #888;
-	font-weight: 600;
-}
-.pm-val {
-	color: #1a1a2e;
-	font-weight: 700;
-	text-align: right;
-}
+.preview-meta { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; background: var(--oz-surface-2); border: 1px solid var(--oz-border); border-radius: 10px; }
+.pm-row { display: flex; justify-content: space-between; gap: 12px; font-size: 12.5px; }
+.pm-key { color: var(--oz-muted); font-weight: 600; }
+.pm-val { color: var(--oz-ink-soft); font-weight: 700; text-align: right; }
 </style>

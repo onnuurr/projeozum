@@ -8,8 +8,6 @@
 			]"
 		/>
 
-		<FinanceNav current="dashboard" />
-
 		<PageHeader title="Finans" subtitle="Şirket içi finansal özet — tenant'lara açık değildir" />
 
 		<div class="kpi-grid">
@@ -68,7 +66,6 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
 import PageHeader from '@/Components/PageHeader.vue'
 import Card from '@/Components/Card.vue'
-import FinanceNav from '../Components/FinanceNav.vue'
 
 defineOptions({ layout: AppLayout })
 

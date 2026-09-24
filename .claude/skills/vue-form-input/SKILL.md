@@ -15,7 +15,7 @@ description: Use when adding or editing a form input, checkbox, textarea, OTP, o
 
 | Bileşen | Ne için | Önemli prop |
 |---|---|---|
-| `FormField` | label + error sarmalı (input bunun **slot'una** girer) | `label`, `error`, `for-id`, `link?`, `variant?` |
+| `FormField` | label + error sarmalı (input bunun **slot'una** girer) | `label`, `error`, `for-id`, `link?`, `variant?`, `hint?` |
 | `FormInput` | text/email/password/number/tarih girişi | `modelValue`, `type`, `id`, `placeholder`, `required`, `minlength`, `min`, `max`, `autocomplete`, `variant?` |
 | `FormTextarea` | çok satır metin | `modelValue`, `placeholder`, `rows`, `minHeight`, `id`, `name` |
 | `FormCheckbox` | checkbox / radio | `modelValue`, `label`, `type` (`'checkbox'\|'radio'`), `value` (radio için) |
@@ -73,6 +73,29 @@ Kritik:
     </template>
 </FormInput>
 ```
+
+## Label yanında yardım ikonu (`hint`)
+
+Etiketin yanında açıklama gereken alanlarda native `title` veya elle SVG **yazma**
+— `FormField`'ın `hint` prop'unu kullan. Label'ın yanına `?` (lucide `CircleHelp`)
+ikonu basar, hover/focus'ta `Tooltip.vue`'yu `wrap` modunda açar (çok satıra
+sarılabilir, tek satırlık `Tooltip` kullanımından farklı olarak).
+
+```vue
+<FormField
+    label="KDV oranı"
+    for-id="vat_rate"
+    hint="Bu oran sadece bu ürün için geçerlidir; varsayılan kategori oranını ezer."
+>
+    <FormInput id="vat_rate" v-model="form.vat_rate" type="number" />
+</FormField>
+```
+
+- Sadece gerçekten açıklama gereken alanlarda kullan — her alana ikon eklemek
+  gürültü yaratır.
+- Metni kısa ve net tut (1-2 cümle); `Tooltip`'in `wrap` modu ~220px genişlikte sarar.
+- İkon her üç `variant` (`auth`/`settings`/`default`) için de çalışır — `FormField`'ın
+  kendi `<style scoped>` bloğunda tanımlı, `.login-page` gibi sayfa-scope'lu sınıflara bağımlı değil.
 
 ## Variant: `auth` vs default
 

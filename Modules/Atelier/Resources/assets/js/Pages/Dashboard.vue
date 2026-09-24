@@ -1,90 +1,75 @@
-<template>
-	<Head title="Atölye Paneli" />
-	<div class="page-atelier-dashboard">
-		<Breadcrumb
-			:items="[
-				{ label: 'Ana Sayfa', to: '/workflow', icon: 'home' },
-				{ label: 'Üretim Atölyesi', to: '/atelier' },
-				{ label: 'Panel' },
-			]"
-		/>
-
-		<AtelierNav current="dashboard" />
-
-		<PageHeader title="Atölye Paneli" subtitle="Üretim durumu özeti" />
-
-		<!-- Stat Cards -->
-		<div class="stat-row">
-			<div class="stat-card">
-				<div class="stat-label">Aktif İş Emri</div>
-				<div class="stat-value">{{ activeOrders.length }}</div>
-			</div>
-			<div class="stat-card">
-				<div class="stat-label">Fasonda Bekleyen Adım</div>
-				<div class="stat-value">{{ fasonPending }}</div>
-			</div>
-			<div class="stat-card stat-card-danger">
-				<div class="stat-label">Tükenen Hammadde</div>
-				<div class="stat-value danger">{{ lowStock }}</div>
-			</div>
-		</div>
-
-		<!-- Active Orders Table -->
-		<Card title="Devam Eden İş Emirleri">
-			<DataTable :columns="columns" :data="activeOrders" empty-title="Aktif iş emri yok.">
-				<template #code="{ row }"><span class="mono-chip">{{ row.code }}</span></template>
-				<template #productName="{ row }"><span class="row-name">{{ row.productName }}</span></template>
-				<template #status="{ row }">
-					<Badge :color="row.status === 'in_progress' ? 'success' : 'info'" :label="STATUS[row.status]" variant="tonal" />
-				</template>
-				<template #dueDate="{ row }">
-					{{ row.dueDate || '—' }}
-					<Badge v-if="row.isLate" color="danger" label="Gecikti" />
-				</template>
-				<template #actions="{ row }">
-					<Button variant="secondary" size="sm" @click="router.get(`/atelier/production-orders/${row.id}`)">Detay</Button>
-				</template>
-			</DataTable>
-		</Card>
-	</div>
-</template>
-
 <script setup>
-import { Head, router } from '@inertiajs/vue3'
+import { computed } from 'vue'
+import { Head, Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import Breadcrumb from '@/Components/Breadcrumb.vue'
-import PageHeader from '@/Components/PageHeader.vue'
-import Card from '@/Components/Card.vue'
-import DataTable from '@/Components/DataTable.vue'
-import Badge from '@/Components/Badge.vue'
-import Button from '@/Components/Button.vue'
-import AtelierNav from '../Components/AtelierNav.vue'
+import { OzPageHeader, OzModuleTabs, OzStatTile, OzCard, OzTable, OzPill, OzButton } from '@/Components/Oz'
+import { ORDER_STATUS, ORDER_TONE } from '../atelierNav'
 
 defineOptions({ layout: AppLayout })
 
-const props = defineProps({ activeOrders: { type: Array, default: () => [] }, fasonPending: { type: Number, default: 0 }, lowStock: { type: Number, default: 0 } })
-const STATUS = { planned: 'Planlandı', in_progress: 'Üretimde' }
+const props = defineProps({
+	activeOrders: { type: Array, default: () => [] },
+	fasonPending: { type: Number, default: 0 },
+	lowStock: { type: Number, default: 0 },
+})
+
+const lateCount = computed(() => props.activeOrders.filter((o) => o.isLate).length)
+
+const stats = computed(() => [
+	{ key: 'active', label: 'Aktif İş Emri', value: props.activeOrders.length, icon: 'workflow', tone: 'accent' },
+	{ key: 'late', label: 'Termini Geçen', value: lateCount.value, icon: 'clock', tone: lateCount.value ? 'danger' : 'success' },
+	{ key: 'fason', label: 'Fasonda Bekleyen Adım', value: props.fasonPending, icon: 'factory', tone: 'warning' },
+	{ key: 'stock', label: 'Tükenen Hammadde', value: props.lowStock, icon: 'package', tone: props.lowStock ? 'danger' : 'success' },
+])
 
 const columns = [
-	{ key: 'code', label: 'Kod' },
-	{ key: 'productName', label: 'Ürün' },
-	{ key: 'status', label: 'Durum' },
-	{ key: 'dueDate', label: 'Termin' },
+	{ key: 'code', label: 'Kod', sortable: true },
+	{ key: 'productName', label: 'Ürün', sortable: true, class: 'oz-cell-strong' },
+	{ key: 'status', label: 'Durum', sortable: true },
+	{ key: 'dueDate', label: 'Termin', sortable: true },
+	{ key: 'actions', label: '', align: 'right', width: '80px', searchable: false },
 ]
 </script>
 
+<template>
+	<Head title="Atölye Paneli" />
+
+	<OzPageHeader title="Atölye Paneli" subtitle="Üretim durumu özeti">
+		<template #actions>
+			<OzButton icon="workflow" @click="router.visit('/atelier/production-orders')">İş Emirleri</OzButton>
+		</template>
+	</OzPageHeader>
+	<OzModuleTabs />
+
+	<div class="stats">
+		<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" />
+	</div>
+
+	<OzCard title="Devam Eden İş Emirleri" :meta="`${activeOrders.length} kayıt`">
+		<OzTable :columns="columns" :rows="activeOrders" row-key="id" :default-sort="{ key: 'dueDate', dir: 'asc' }" empty-title="Aktif iş emri yok" empty-text="Planlanan ya da üretimdeki iş emirleri burada görünür." min-width="560px">
+			<template #cell-code="{ value }"><span class="mono">{{ value }}</span></template>
+			<template #cell-status="{ value }">
+				<OzPill :tone="ORDER_TONE[value] ?? 'neutral'">{{ ORDER_STATUS[value] ?? value }}</OzPill>
+			</template>
+			<template #cell-dueDate="{ row }">
+				<span class="due">
+					{{ row.dueDate || '—' }}
+					<OzPill v-if="row.isLate" tone="danger">Gecikti</OzPill>
+				</span>
+			</template>
+			<template #cell-actions="{ row }">
+				<Link :href="`/atelier/production-orders/${row.id}`" class="detail-link">Detay</Link>
+			</template>
+		</OzTable>
+	</OzCard>
+</template>
+
 <style scoped>
-.stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 20px; }
-.stat-card { background: #fff; border-radius: 14px; border: 1px solid #ebebf0; padding: 18px 20px; box-shadow: 0 1px 4px rgba(0,0,0,.04); display: flex; flex-direction: column; gap: 8px; }
-.stat-card-danger { border-color: #fee2e2; background: #fff8f8; }
-.stat-label { font-size: 12px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.04em; }
-.stat-value { font-size: 32px; font-weight: 800; color: #1a1a2e; line-height: 1; }
-.stat-value.danger { color: #dc2626; }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
-.row-name { font-weight: 600; color: #1a1a2e; }
-.mono-chip { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 11.5px; background: #f0f0f5; padding: 2px 7px; border-radius: 5px; color: #555; }
-
-@media (max-width: 640px) {
-	.stat-row { grid-template-columns: repeat(2, 1fr); }
-}
+.mono { font-family: ui-monospace, monospace; font-size: 12px; }
+.due { display: inline-flex; align-items: center; gap: 8px; }
+.detail-link { color: var(--oz-accent); text-decoration: none; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; }
+.detail-link:hover { background: var(--oz-accent-soft); }
 </style>

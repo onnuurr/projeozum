@@ -24,14 +24,10 @@ class OrderController extends Controller
 
     public function index(Request $request): Response
     {
-        $query = Order::query()
-            ->with(['tenant:id,code,name', 'items:id,order_id'])
-            ->withCount('items')
-            ->latest('created_at');
+        // Durum dışı filtreler hem listeye hem durum sayımına uygulanır; sayım durum
+        // filtresinden bağımsızdır ki chip'ler/kutucuklar her durumun sayısını gösterebilsin.
+        $query = Order::query();
 
-        if ($status = $request->string('status')->toString()) {
-            $query->status($status);
-        }
         if ($tenantId = $request->integer('tenant_id')) {
             $query->where('tenant_id', $tenantId);
         }
@@ -43,6 +39,20 @@ class OrderController extends Controller
         }
         if ($to = $request->string('date_to')->toString()) {
             $query->whereDate('created_at', '<=', $to);
+        }
+
+        $statusCounts = (clone $query)
+            ->selectRaw('status, count(*) as aggregate')
+            ->groupBy('status')
+            ->pluck('aggregate', 'status')
+            ->map(fn ($c) => (int) $c);
+
+        $query->with(['tenant:id,code,name', 'items:id,order_id'])
+            ->withCount('items')
+            ->latest('created_at');
+
+        if ($status = $request->string('status')->toString()) {
+            $query->status($status);
         }
 
         $orders = $query
@@ -62,6 +72,7 @@ class OrderController extends Controller
         return Inertia::render('Product::Orders', [
             'orders'   => $orders,
             'statuses' => Order::statuses(),
+            'statusCounts' => $statusCounts,
             'tenants'  => Tenant::query()->orderBy('name')->get(['id', 'code', 'name']),
             'filters'  => [
                 'status'    => $request->string('status')->toString(),

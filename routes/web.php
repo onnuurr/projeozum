@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\HomeDashboardController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Foundation\Application;
@@ -28,14 +29,18 @@ Route::get('/', function () {
     ]);
 });
 
-Route::get('/dashboard', function () {
-    return Inertia::render('Workflow');
-})->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('/dashboard', HomeDashboardController::class)
+    ->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
     Route::get('/component-showcase', function () {
         return Inertia::render('ComponentShowcase');
     })->name('component-showcase');
+
+    // Oz kit bileşen vitrini (yeni tasarım dili · resources/js/Components/Oz)
+    Route::get('/oz-kit', function () {
+        return Inertia::render('OzKit');
+    })->name('oz-kit');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

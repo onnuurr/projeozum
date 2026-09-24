@@ -1,171 +1,15 @@
-<template>
-	<Head title="Kullanıcılar" />
-	<div class="page-users">
-		<Breadcrumb
-			:items="[
-				{ label: 'Ana Sayfa', to: '/workflow', icon: 'home' },
-				{ label: 'Süper Admin' },
-				{ label: 'Kullanıcılar' },
-			]"
-		/>
-
-		<PageHeader title="Kullanıcılar">
-			<template #subtitle><strong>{{ users.length }}</strong> kullanıcı kayıtlı</template>
-			<template #actions>
-				<Button variant="primary" with-icon @click="openNew">
-					<template #leading><Plus :size="13" /></template>
-					Yeni Kullanıcı
-				</Button>
-			</template>
-		</PageHeader>
-
-		<Card title="Kullanıcı Listesi" body-class="p-2.5" class="filter-card">
-			<div class="filter-row">
-
-				<div class="card-search">
-					<FormField variant="default">
-						<FormInput v-model="searchQuery" type="text" placeholder="İsim, e-posta, telefon ara..." variant="default">
-							<template #icon>
-								<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-									<circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
-								</svg>
-							</template>
-						</FormInput>
-					</FormField>
-				</div>
-				<select v-model="filterRole" class="filter-select">
-					<option value="">Tüm roller</option>
-					<option v-for="r in roles" :key="r.id" :value="r.name">{{ r.display_name || r.name }}</option>
-				</select>
-				<select v-model="filterActive" class="filter-select">
-					<option value="">Tüm durumlar</option>
-					<option value="1">Aktif</option>
-					<option value="0">Pasif</option>
-				</select>
-			</div>
-
-			<DataTable :columns="columns" :data="filtered" empty-title="Kayıt bulunamadı" empty-hint="Filtreyi değiştirip tekrar deneyin.">
-			<template #user="{ row }">
-				<div class="user-cell">
-					<Avatar :initials="initials(row.name)" size="md" />
-					<div class="user-info">
-						<span class="user-name">{{ row.name }}</span>
-						<span class="user-email">{{ row.email }}</span>
-					</div>
-				</div>
-			</template>
-			<template #phone="{ value }">{{ value || '—' }}</template>
-			<template #job_title="{ value }">{{ value || '—' }}</template>
-			<template #role="{ value }">
-				<Badge v-if="value" color="primary" variant="tonal" :label="value" />
-				<span v-else class="dim">—</span>
-			</template>
-			<template #tenant="{ row }">{{ row.tenant?.name || '—' }}</template>
-			<template #is_active="{ value }">
-				<Badge :color="value ? 'success' : 'danger'" variant="tonal" :label="value ? 'Aktif' : 'Pasif'" />
-			</template>
-			<template #actions="{ row }">
-				<button class="table-action-btn view" @click="edit(row)" title="Düzenle"><Pencil :size="14" /></button>
-				<button class="table-action-btn toggle" @click="toggle(row)" :title="row.is_active ? 'Pasifleştir' : 'Aktifleştir'">
-					<component :is="row.is_active ? Pause : Play" :size="14" />
-				</button>
-				<button class="table-action-btn delete" @click="confirmDelete(row)" title="Sil"><Trash2 :size="14" /></button>
-			</template>
-		</DataTable>
-			
-		</Card>
-
-		
-
-		<AppDrawer v-model="formOpen" :title="editing ? 'Kullanıcı Düzenle' : 'Yeni Kullanıcı'" variant="info" width="640px">
-			<form class="form-grid" @submit.prevent="submit">
-				<div class="form-row-2">
-					<div class="form-row">
-						<label class="form-label">Ad Soyad <span class="req">*</span></label>
-						<input v-model="form.name" type="text" class="form-input" />
-						<span v-if="errors.name" class="form-error">{{ errors.name }}</span>
-					</div>
-					<div class="form-row">
-						<label class="form-label">E-posta <span class="req">*</span></label>
-						<input v-model="form.email" type="email" class="form-input" />
-						<span v-if="errors.email" class="form-error">{{ errors.email }}</span>
-					</div>
-				</div>
-				<div class="form-row-2">
-					<div class="form-row">
-						<label class="form-label">Telefon</label>
-						<input v-model="form.phone" type="text" class="form-input" />
-					</div>
-					<div class="form-row">
-						<label class="form-label">Unvan</label>
-						<input v-model="form.job_title" type="text" class="form-input" />
-					</div>
-				</div>
-				<div class="form-row-2">
-					<div class="form-row">
-						<label class="form-label">Şifre <span v-if="!editing" class="req">*</span></label>
-						<input v-model="form.password" type="password" class="form-input" :placeholder="editing ? 'Boş bırakılırsa değişmez' : ''" />
-						<span v-if="errors.password" class="form-error">{{ errors.password }}</span>
-					</div>
-					<div class="form-row">
-						<label class="form-label">Şifre Tekrar</label>
-						<input v-model="form.password_confirmation" type="password" class="form-input" />
-					</div>
-				</div>
-				<div class="form-row-2">
-					<div class="form-row">
-						<label class="form-label">Rol <span class="req">*</span></label>
-						<select v-model="form.role" class="form-input" :disabled="editing?.role === 'superadmin'">
-							<option value="">Seçin</option>
-							<option v-for="r in roles" :key="r.id" :value="r.name">{{ r.display_name || r.name }}</option>
-						</select>
-						<span v-if="editing?.role === 'superadmin'" class="form-hint">Superadmin rolü bu ekrandan değiştirilemez.</span>
-						<span v-if="errors.role" class="form-error">{{ errors.role }}</span>
-					</div>
-					<div class="form-row">
-						<label class="form-label">İş Ortağı</label>
-						<select v-model="form.tenant_id" class="form-input">
-							<option :value="null">Yok</option>
-							<option v-for="t in tenants" :key="t.id" :value="t.id">{{ t.name }}</option>
-						</select>
-					</div>
-				</div>
-			</form>
-			<template #footer="{ close }">
-				<Button variant="ghost" @click="close" :disabled="busy">İptal</Button>
-				<Button variant="primary" :loading="busy" @click="submit">
-					{{ editing ? 'Kaydet' : 'Ekle' }}
-				</Button>
-			</template>
-		</AppDrawer>
-	</div>
-</template>
-
 <script setup>
-import { ref, reactive, computed, inject, watch } from 'vue'
-import { Head, router } from '@inertiajs/vue3'
-import { Plus, Pencil, Pause, Play, Trash2 } from 'lucide-vue-next'
+import { ref, computed, inject } from 'vue'
+import { Head, router, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import Breadcrumb from '@/Components/Breadcrumb.vue'
-import AppDrawer from '@/Components/AppDrawer.vue'
-import Avatar from '@/Components/Avatar.vue'
-import Badge from '@/Components/Badge.vue'
-import DataTable from '@/Components/DataTable.vue'
-import Card from '@/Components/Card.vue'
-import PageHeader from '@/Components/PageHeader.vue'
-import Button from '@/Components/Button.vue'
-import FormField from '@/Components/Form/FormField.vue'
-import FormInput from '@/Components/Form/FormInput.vue'
-const columns = [
-	{ key: 'user', label: 'Kullanıcı', sortable: false },
-	{ key: 'phone', label: 'Telefon' },
-	{ key: 'job_title', label: 'Unvan' },
-	{ key: 'role', label: 'Rol' },
-	{ key: 'tenant', label: 'İş Ortağı', sortable: false },
-	{ key: 'is_active', label: 'Durum' },
-	{ key: 'created_at', label: 'Kayıt Tarihi' },
-]
+import {
+	OzPageHeader, OzModuleTabs, OzStatTile, OzCard, OzTable, OzPill, OzButton, OzAvatar, OzDropdown, OzEmptyState,
+	OzDrawer, OzField, OzInput, OzSelect, OzCombobox, useOzConfirm,
+} from '@/Components/Oz'
+import { useCan } from '@/composables/useCan'
 
+// Süper admin · Kullanıcılar (Oz kit). Liste istemci tarafında süzülür (OzTable).
+//   Ekle / düzenle / aktiflik / sil → Inertia istekleri (UserController); doğrulama hataları paneldeki alanlara düşer.
 defineOptions({ layout: AppLayout })
 
 const props = defineProps({
@@ -174,152 +18,278 @@ const props = defineProps({
 	tenants: { type: Array, default: () => [] },
 })
 
-const showToast = inject('showToast')
-const $swal = inject('$swal')
+const page = usePage()
+const { can } = useCan()
+const canManage = computed(() => can('users.manage'))
+const showToast = inject('showToast', null)
+const confirm = useOzConfirm()
+const meId = computed(() => page.props.auth?.user?.id)
 
-const searchQuery = ref('')
-const filterRole = ref('')
-const filterActive = ref('')
+/* ── roller ── */
+const ROLE_LABELS = { superadmin: 'Süper admin', tenant: 'İş ortağı', 'tenant-user': 'İş ortağı kullanıcısı' }
+const ROLE_TONES = { superadmin: 'accent', tenant: 'info', 'tenant-user': 'neutral' }
+const roleLabel = (name) => props.roles.find((r) => r.name === name)?.display_name || ROLE_LABELS[name] || name
+const roleOptions = computed(() => props.roles.map((r) => ({ value: r.name, label: roleLabel(r.name) })))
 
-const filtered = computed(() => {
-	const q = searchQuery.value.trim().toLowerCase()
-	return props.users.filter(u => {
-		if (filterRole.value && u.role !== filterRole.value) return false
-		if (filterActive.value !== '' && (u.is_active ? '1' : '0') !== String(filterActive.value)) return false
-		if (q) {
-			const hay = [u.name, u.email, u.phone].filter(Boolean).join(' ').toLowerCase()
-			if (!hay.includes(q)) return false
-		}
-		return true
-	})
-})
+/* ── özet ── */
+const activeCount = computed(() => props.users.filter((u) => u.is_active).length)
+const stats = computed(() => [
+	{ key: 'total', label: 'Toplam', value: props.users.length, icon: 'users', tone: 'accent' },
+	{ key: 'active', label: 'Aktif', value: activeCount.value, icon: 'success', tone: 'success' },
+	{ key: 'passive', label: 'Pasif', value: props.users.length - activeCount.value, icon: 'eye-off', tone: props.users.length - activeCount.value ? 'warning' : 'success' },
+	{ key: 'tenant', label: 'İş ortağına bağlı', value: props.users.filter((u) => u.tenant).length, icon: 'building', tone: 'info' },
+])
 
-function initials(name) {
-	return (name || '?').split(' ').filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase()).join('')
+/* ── tablo ── */
+const rows = computed(() => props.users.map((u) => ({
+	...u,
+	status: u.is_active ? 'active' : 'passive',
+	tenant_name: u.tenant?.name ?? '',
+	created_day: u.created_at?.slice(0, 10) ?? '',
+})))
+const columns = computed(() => [
+	{ key: 'name', label: 'Kullanıcı', sortable: true, searchValue: (r) => `${r.name} ${r.email} ${r.phone ?? ''} ${r.job_title ?? ''}` },
+	{
+		key: 'role', label: 'Rol', sortable: true, sortValue: (r) => roleLabel(r.role ?? ''), filterValue: (r) => r.role ?? '__none__',
+		filter: { type: 'select', multiple: true, options: [...roleOptions.value, { value: '__none__', label: 'Rolsüz' }] },
+	},
+	{
+		key: 'tenant_name', label: 'İş ortağı', sortable: true,
+		filter: { type: 'select', multiple: true, options: [...new Set(rows.value.map((r) => r.tenant_name).filter(Boolean))].map((n) => ({ value: n, label: n })) },
+	},
+	{ key: 'job_title', label: 'Unvan', sortable: true },
+	{ key: 'phone', label: 'Telefon' },
+	{
+		key: 'status', label: 'Durum', sortable: true,
+		filter: { type: 'select', options: [{ value: 'active', label: 'Aktif' }, { value: 'passive', label: 'Pasif' }] },
+	},
+	{ key: 'created_day', label: 'Kayıt', sortable: true, filter: { type: 'date' } },
+	{ key: 'actions', label: '', align: 'right', width: '48px', searchable: false },
+])
+
+const rowActions = (u) => {
+	const self = u.id === meId.value
+	return [
+		{ key: 'edit', label: 'Düzenle', icon: 'edit' },
+		{ key: 'toggle', label: u.is_active ? 'Pasifleştir' : 'Aktifleştir', icon: u.is_active ? 'eye-off' : 'eye', disabled: self, hint: self ? 'Kendi hesabınız' : '' },
+		{ divider: true },
+		{ key: 'remove', label: 'Sil', icon: 'trash', danger: true, disabled: self, hint: self ? 'Kendi hesabınız' : '' },
+	]
+}
+function onAction(key, u) {
+	if (key === 'edit') openEdit(u)
+	else if (key === 'toggle') toggle(u)
+	else if (key === 'remove') remove(u)
 }
 
-const formOpen = ref(false)
+/* ── ekle / düzenle ── */
+const drawerOpen = ref(false)
 const editing = ref(null)
 const busy = ref(false)
 const errors = ref({})
+const blank = () => ({ name: '', email: '', phone: '', job_title: '', password: '', password_confirmation: '', role: '', tenant_id: '' })
+const form = ref(blank())
+const lockedRole = computed(() => editing.value?.role === 'superadmin')
+const tenantOptions = computed(() => props.tenants.map((t) => ({ value: t.id, label: t.name })))
 
-const emptyForm = () => ({
-	name: '', email: '', phone: '', job_title: '',
-	password: '', password_confirmation: '', role: '', tenant_id: null,
-})
-
-const form = reactive(emptyForm())
-
-watch(formOpen, (open) => {
-	if (!open) {
-		setTimeout(() => {
-			editing.value = null
-			errors.value = {}
-			Object.assign(form, emptyForm())
-		}, 250)
-	}
-})
-
-function openNew() {
+function openCreate() {
 	editing.value = null
 	errors.value = {}
-	Object.assign(form, emptyForm())
-	formOpen.value = true
+	form.value = blank()
+	drawerOpen.value = true
 }
-
-function edit(u) {
+function openEdit(u) {
+	if (!canManage.value) return
 	editing.value = u
 	errors.value = {}
-	Object.assign(form, {
+	form.value = {
 		name: u.name, email: u.email, phone: u.phone ?? '', job_title: u.job_title ?? '',
-		password: '', password_confirmation: '', role: u.role ?? '', tenant_id: u.tenant?.id ?? null,
-	})
-	formOpen.value = true
+		password: '', password_confirmation: '', role: u.role ?? '', tenant_id: u.tenant?.id ?? '',
+	}
+	drawerOpen.value = true
 }
 
 function submit() {
 	if (busy.value) return
 	busy.value = true
 	errors.value = {}
+	const payload = { ...form.value, tenant_id: form.value.tenant_id || null }
+	const title = editing.value ? 'Kullanıcı güncellendi' : 'Kullanıcı eklendi'
 	const opts = {
 		preserveScroll: true,
 		preserveState: true,
 		onSuccess: () => {
-			formOpen.value = false
-			showToast?.({ type: 'success', title: editing.value ? 'Kullanıcı güncellendi' : 'Kullanıcı eklendi', message: form.name })
+			drawerOpen.value = false
+			showToast?.({ type: 'success', title, message: payload.name })
 		},
+		// Alan hataları panelde; toast yalnızca alana bağlanamayanlar için (panel altbilgisini örtmesin)
 		onError: (errs) => {
 			errors.value = errs
-			showToast?.({ type: 'error', title: 'Kayıt başarısız', message: Object.values(errs)[0] || 'Doğrulama hatası.' })
+			const shown = ['name', 'email', 'password', 'phone', 'job_title', 'role', 'tenant_id']
+			const other = Object.entries(errs).find(([k]) => !shown.includes(k))
+			if (other) showToast?.({ type: 'error', title: 'Kaydedilemedi', message: other[1] })
 		},
 		onFinish: () => { busy.value = false },
 	}
-	if (editing.value) {
-		router.put(`/superadmin/users/${editing.value.id}`, { ...form }, opts)
-	} else {
-		router.post('/superadmin/users', { ...form }, opts)
-	}
+	if (editing.value) router.put(route('superadmin.users.update', editing.value.id), payload, opts)
+	else router.post(route('superadmin.users.store'), payload, opts)
 }
 
 function toggle(u) {
-	router.post(`/superadmin/users/${u.id}/toggle`, {}, {
-		preserveScroll: true, preserveState: true,
+	router.post(route('superadmin.users.toggle', u.id), {}, {
+		preserveScroll: true,
+		preserveState: true,
 		onSuccess: () => showToast?.({ type: 'success', title: u.is_active ? 'Kullanıcı pasifleştirildi' : 'Kullanıcı aktifleştirildi', message: u.name }),
 		onError: (errs) => showToast?.({ type: 'error', title: 'İşlem başarısız', message: Object.values(errs)[0] || 'Sunucu hatası.' }),
 	})
 }
 
-async function confirmDelete(u) {
-	const ok = await $swal.dangerConfirm({
-		title: 'Kullanıcıyı Sil',
-		html: `<strong>${u.name}</strong> silinecek.`,
-		confirmText: 'Sil',
-		cancelText: 'Vazgeç',
-	})
+async function remove(u) {
+	const ok = await confirm.danger('Kullanıcı silinsin mi?', `“${u.name}” (${u.email}) kalıcı olarak silinecek.`)
 	if (!ok) return
-	router.delete(`/superadmin/users/${u.id}`, {
-		preserveScroll: true, preserveState: true,
+	router.delete(route('superadmin.users.destroy', u.id), {
+		preserveScroll: true,
+		preserveState: true,
 		onSuccess: () => showToast?.({ type: 'warning', title: 'Kullanıcı silindi', message: u.name }),
-		onError: (errs) => showToast?.({ type: 'error', title: 'Silme başarısız', message: Object.values(errs)[0] || 'Sunucu hatası.' }),
+		onError: (errs) => showToast?.({ type: 'error', title: 'Silinemedi', message: Object.values(errs)[0] || 'Sunucu hatası.' }),
 	})
 }
+
+const fmtDate = (s) => (s ? new Date(s.replace(' ', 'T')).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' }) : '—')
 </script>
 
+<template>
+	<Head title="Kullanıcılar · Süper Admin" />
+
+	<OzPageHeader title="Kullanıcılar" :subtitle="`${users.length} kullanıcı · ${activeCount} aktif`">
+		<template v-if="canManage" #actions>
+			<OzButton variant="primary" icon="user-plus" @click="openCreate">Yeni kullanıcı</OzButton>
+		</template>
+	</OzPageHeader>
+	<OzModuleTabs />
+
+	<div class="stats">
+		<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" />
+	</div>
+
+	<OzCard title="Kullanıcı listesi" :meta="`${users.length} kayıt`" class="block">
+		<OzTable
+			:columns="columns"
+			:rows="rows"
+			:page-size="20"
+			:default-sort="{ key: 'name', dir: 'asc' }"
+			searchable
+			search-placeholder="İsim, e-posta, telefon ara…"
+			min-width="860px"
+			class="users"
+			:class="{ clickable: canManage }"
+			@row-click="openEdit"
+		>
+			<template #cell-name="{ row }">
+				<div class="who">
+					<OzAvatar :name="row.name" :size="30" tone="auto" :status="row.is_active ? '' : 'offline'" />
+					<div class="who-text">
+						<b>{{ row.name }} <OzPill v-if="row.id === meId" tone="accent" class="me">Siz</OzPill></b>
+						<span>{{ row.email }}</span>
+					</div>
+				</div>
+			</template>
+			<template #cell-role="{ row }">
+				<OzPill v-if="row.role" :tone="ROLE_TONES[row.role] ?? 'neutral'">{{ roleLabel(row.role) }}</OzPill>
+				<span v-else class="dim">Rolsüz</span>
+			</template>
+			<template #cell-tenant_name="{ value }"><span :class="{ dim: !value }">{{ value || '—' }}</span></template>
+			<template #cell-job_title="{ value }"><span :class="{ dim: !value }">{{ value || '—' }}</span></template>
+			<template #cell-phone="{ value }"><span :class="{ dim: !value }">{{ value || '—' }}</span></template>
+			<template #cell-status="{ row }">
+				<OzPill :tone="row.is_active ? 'success' : 'neutral'">{{ row.is_active ? 'Aktif' : 'Pasif' }}</OzPill>
+			</template>
+			<template #cell-created_day="{ row }"><span class="date">{{ fmtDate(row.created_at) }}</span></template>
+			<template #cell-actions="{ row }">
+				<!-- satır tıklaması (düzenle) menüye taşmasın -->
+				<div v-if="canManage" @click.stop>
+					<OzDropdown :items="rowActions(row)" :label="`${row.name} işlemleri`" @select="(k) => onAction(k, row)" />
+				</div>
+			</template>
+			<template #empty="{ filtered, clear }">
+				<OzEmptyState v-if="filtered" icon="filter" title="Eşleşen kullanıcı yok" description="Aramayı değiştirin ya da bazı filtreleri kaldırın." compact>
+					<template #actions><OzButton size="sm" icon="x" @click="clear">Filtreleri temizle</OzButton></template>
+				</OzEmptyState>
+				<OzEmptyState v-else icon="users" title="Henüz kullanıcı yok" compact />
+			</template>
+		</OzTable>
+	</OzCard>
+
+	<OzDrawer
+		v-model:open="drawerOpen"
+		:title="editing ? `“${editing.name}” düzenle` : 'Yeni kullanıcı'"
+		:subtitle="editing ? editing.email : 'Hesap oluşturulur ve hemen aktif olur'"
+		:icon="editing ? 'edit' : 'user-plus'"
+		size="md"
+		:persistent="busy"
+		initial-focus="auto"
+	>
+		<form class="form" @submit.prevent="submit">
+			<div class="grid-2">
+				<OzField label="Ad soyad" required :error="errors.name">
+					<OzInput v-model="form.name" maxlength="150" autocomplete="off" />
+				</OzField>
+				<OzField label="E-posta" required :error="errors.email">
+					<OzInput v-model="form.email" type="email" icon="mail" maxlength="255" autocomplete="off" />
+				</OzField>
+				<OzField label="Telefon" :error="errors.phone">
+					<OzInput v-model="form.phone" type="tel" icon="phone" maxlength="30" />
+				</OzField>
+				<OzField label="Unvan" :error="errors.job_title">
+					<OzInput v-model="form.job_title" maxlength="100" placeholder="Örn. Üretim sorumlusu" />
+				</OzField>
+			</div>
+
+			<div class="section">Yetki</div>
+			<div class="grid-2">
+				<OzField label="Rol" required :error="errors.role" :hint="lockedRole ? 'Süper admin rolü bu ekrandan değiştirilemez' : ''">
+					<OzSelect v-model="form.role" :options="roleOptions" placeholder="Rol seçin" :disabled="lockedRole" />
+				</OzField>
+				<OzField label="İş ortağı" :error="errors.tenant_id" :hint="tenants.length ? '' : 'Aktif iş ortağı yok'">
+					<OzCombobox v-model="form.tenant_id" :options="tenantOptions" placeholder="Yok" search-placeholder="İş ortağı ara…" clearable :disabled="!tenants.length" />
+				</OzField>
+			</div>
+
+			<div class="section">{{ editing ? 'Şifre değiştir' : 'Şifre' }}</div>
+			<div class="grid-2">
+				<OzField label="Şifre" :required="!editing" :error="errors.password" :hint="editing ? 'Boş bırakılırsa değişmez' : 'En az 8 karakter'">
+					<OzInput v-model="form.password" type="password" revealable autocomplete="new-password" />
+				</OzField>
+				<OzField label="Şifre tekrar" :required="!editing">
+					<OzInput v-model="form.password_confirmation" type="password" revealable autocomplete="new-password" />
+				</OzField>
+			</div>
+			<button type="submit" hidden />
+		</form>
+
+		<template #footer>
+			<OzButton :disabled="busy" @click="drawerOpen = false">Vazgeç</OzButton>
+			<OzButton variant="primary" :icon="editing ? 'check' : 'plus'" :loading="busy" @click="submit">{{ editing ? 'Kaydet' : 'Ekle' }}</OzButton>
+		</template>
+	</OzDrawer>
+</template>
+
 <style scoped>
-.filter-card { margin-bottom: 14px; }
-.filter-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.card-search { display: flex; align-items: center; gap: 6px; background: var(--color-canvas); border: 1px solid var(--color-outline-variant); border-radius: 8px; padding: 5px 10px; margin-left: auto; min-width: 240px; }
-.card-search :deep(.form-group) { width: 100%; }
-.card-search :deep(.form-input-wrap) { display: flex; align-items: center; gap: 6px; }
-.card-search :deep(.form-input-icon) { color: var(--color-muted); flex-shrink: 0; display: flex; }
-.card-search :deep(.form-input) { border: none; background: none; outline: none; box-shadow: none; height: auto; padding: 0; font-family: inherit; font-size: 13px; width: 100%; }
-.card-search :deep(.form-input)::placeholder { color: var(--color-muted); }
-.filter-select { border: 1px solid var(--color-outline-variant); background: var(--color-canvas); border-radius: 8px; padding: 6px 10px; font-size: 12.5px; font-family: inherit; outline: none; }
+.block { margin-bottom: 14px; }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+.users.clickable :deep(tbody tr) { cursor: pointer; }
+.who { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.who-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.who-text b { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--oz-ink-soft); white-space: nowrap; }
+.who-text span { font-size: 11.5px; color: var(--oz-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.me { font-size: 10px; }
+.dim { color: var(--oz-muted-2); }
+.date { white-space: nowrap; color: var(--oz-muted); font-variant-numeric: tabular-nums; }
 
-.dim { color: var(--color-muted); font-size: 12px; }
+.form { display: flex; flex-direction: column; gap: 14px; }
+.grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.section { margin-top: 4px; padding-top: 12px; border-top: 1px solid var(--oz-border-soft); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--oz-muted); }
 
-.user-cell { display: flex; align-items: center; gap: 12px; }
-.user-info { display: flex; flex-direction: column; gap: 2px; }
-.user-name { font-weight: 600; color: var(--color-ink); font-size: 13px; }
-.user-email { font-size: 11px; color: var(--color-muted); }
-
-.table-action-btn { display: inline-flex; align-items: center; justify-content: center; background: var(--color-canvas); border: none; cursor: pointer; padding: 6px; border-radius: 6px; color: var(--color-muted); transition: all .15s; }
-.table-action-btn.view:hover { background: var(--color-primary-soft); color: var(--color-primary); }
-.table-action-btn.toggle:hover { background: color-mix(in srgb, var(--color-warning) 15%, transparent); color: var(--color-warning); }
-.table-action-btn.delete:hover { background: color-mix(in srgb, var(--color-danger) 12%, transparent); color: var(--color-danger); }
-
-.form-grid { display: flex; flex-direction: column; gap: 14px; }
-.form-row { display: flex; flex-direction: column; gap: 6px; }
-.form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.form-label { font-size: 12px; font-weight: 600; color: var(--color-ink); }
-.form-label .req { color: var(--color-danger); }
-.form-input { padding: 9px 12px; border: 1px solid var(--color-outline-variant); border-radius: 8px; font-family: inherit; font-size: 13px; color: var(--color-ink); background: var(--color-surface); outline: none; }
-.form-input:focus { border-color: var(--color-primary); }
-.form-input:disabled { background: var(--color-canvas); color: var(--color-muted); }
-.form-error { font-size: 11.5px; color: var(--color-danger); }
-.form-hint { font-size: 11px; color: var(--color-muted); }
-
-@media (max-width: 560px) {
-	.form-row-2 { grid-template-columns: 1fr; }
-}
+@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .grid-2 { grid-template-columns: minmax(0, 1fr); } }
 </style>

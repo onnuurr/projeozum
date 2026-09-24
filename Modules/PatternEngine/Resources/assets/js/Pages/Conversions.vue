@@ -1,191 +1,13 @@
-<template>
-	<Head title="PDF→DXF Sayısallaştırma" />
-	<div class="page-conv">
-		<Breadcrumb
-			:items="[
-				{ label: 'Ana Sayfa', to: '/workflow', icon: 'home' },
-				{ label: 'Üretim Atölyesi', to: '/atelier' },
-				{ label: 'Sayısallaştırma' },
-			]"
-		/>
-
-		<AtelierNav current="conversions" />
-
-		<PageHeader title="PDF→DXF Sayısallaştırma" subtitle="Kalıp PDF'lerini yükle; otomatik DXF + sınıflandırma, son söz operatörde.">
-			<template #actions>
-				<Badge :color="driver === 'http' ? 'success' : 'warning'" :label="driver === 'http' ? 'Servis bağlı' : 'Demo modu'" variant="tonal" />
-			</template>
-		</PageHeader>
-
-		<!-- Yükleme -->
-		<div v-if="canManage" class="card upload-card">
-			<label class="dropzone" :class="{ dragging }"
-				@dragover.prevent="dragging = true" @dragleave.prevent="dragging = false" @drop.prevent="onDrop">
-				<UploadCloud :size="26" />
-				<span class="dz-title">PDF kalıpları buraya bırak veya seç</span>
-				<span class="dz-sub">Çoklu seçim · yalnızca PDF · maks. 50MB</span>
-				<input type="file" accept="application/pdf" multiple @change="onPick" />
-			</label>
-			<div v-if="form.files.length" class="upload-tray">
-				<span v-for="(f, i) in form.files" :key="i" class="file-chip">
-					{{ f.name }} <em @click="form.files.splice(i, 1)"><X :size="11" /></em>
-				</span>
-				<Button variant="primary" size="sm" :loading="form.processing" @click="upload">
-					{{ form.files.length }} PDF gönder
-				</Button>
-			</div>
-			<p v-if="form.errors['files.0']" class="form-error">{{ form.errors['files.0'] }}</p>
-		</div>
-
-		<!-- Triyaj filtreleri -->
-		<div class="triage">
-			<button class="triage-pill" :class="{ active: !filters.status }" @click="setStatus('')">
-				Tümü <span class="tp-count">{{ total }}</span>
-			</button>
-			<button v-for="s in statuses" :key="s.key" class="triage-pill" :class="[{ active: filters.status === s.key }, s.key]" @click="setStatus(s.key)">
-				{{ s.label }} <span class="tp-count">{{ counts[s.key] || 0 }}</span>
-			</button>
-		</div>
-
-		<!-- İş listesi -->
-		<div v-if="jobs.length === 0" class="conv-empty card">
-			<p>{{ filters.status ? 'Bu durumda iş yok.' : 'Henüz dönüştürme işi yok.' }}</p>
-		</div>
-
-		<div v-else class="job-grid">
-			<article v-for="j in jobs" :key="j.id" class="job-card" :class="j.classification">
-				<div class="jc-head">
-					<span class="class-dot" :class="j.classification || 'none'"></span>
-					<span class="jc-file" :title="j.fileName">{{ j.fileName }}</span>
-					<span class="status-badge" :class="j.status">{{ statusLabel(j.status) }}</span>
-				</div>
-				<div class="jc-meta">
-					<span v-if="j.confidence !== null" class="conf">güven %{{ Math.round(j.confidence) }}</span>
-					<span v-if="j.metadata?.parts?.length" class="mtag">{{ j.metadata.parts.length }} parça</span>
-					<span v-if="j.metadata?.scale_verified" class="mtag ok"><Check :size="10" /> ölçek</span>
-					<span v-if="j.pattern" class="mtag linked"><ArrowRight :size="10" /> {{ j.pattern.name }}</span>
-				</div>
-				<ul v-if="j.errors?.length" class="jc-errors">
-					<li v-for="(e, i) in j.errors" :key="i">{{ e }}</li>
-				</ul>
-				<!-- Çıkarım özeti -->
-				<div v-if="j.metadata" class="jc-extraction">
-					<div class="jcx-row">
-						<span class="jcx-lbl">Profil:</span>
-						{{ j.metadata.profile ?? '—' }}
-						<span class="jcx-sub">({{ j.metadata.assembly }})</span>
-					</div>
-					<div v-if="j.metadata.size_layers?.length" class="jcx-row">
-						<span class="jcx-lbl">Beden katmanları:</span>
-						{{ j.metadata.size_layers.join(', ') }}
-					</div>
-					<div v-if="j.metadata.parts?.length" class="jcx-row">
-						<span class="jcx-lbl">Parçalar:</span>
-						<span v-for="p in j.metadata.parts" :key="p.part_name" class="mtag">
-							{{ p.quantity }}× {{ p.part_name }}
-						</span>
-					</div>
-					<div class="jcx-row">
-						<span class="jcx-lbl">Ölçü tablosu:</span>
-						<span :class="j.metadata.measurements ? 'mtag ok' : 'mtag warn'">
-							{{ j.metadata.measurements ? 'okundu' : 'operatör doğrulamalı' }}
-						</span>
-					</div>
-					<ul v-if="j.errors?.length" class="jc-errors">
-						<li v-for="(e, i) in j.errors" :key="i">{{ e }}</li>
-					</ul>
-				</div>
-				<div class="jc-foot">
-					<Button variant="ghost" size="sm" @click="review = j">İncele</Button>
-					<div v-if="canManage" class="jc-actions">
-						<Button v-if="canApprove(j)" variant="success" size="sm" @click="approve(j)">Onayla</Button>
-						<Button v-if="j.status === 'failed'" variant="ghost" size="sm" @click="retry(j)">Yeniden</Button>
-						<Button v-if="isOpen(j)" variant="danger" size="sm" @click="reject(j)">Reddet</Button>
-					</div>
-				</div>
-			</article>
-		</div>
-
-		<!-- İnceleme: PDF + metadata yan yana -->
-		<AppModal :model-value="!!review" :title="review?.fileName" size="lg" @update:model-value="review = null">
-			<div class="rb-body">
-				<div class="rb-pdf">
-					<embed v-if="review?.pdfUrl" :src="review.pdfUrl" type="application/pdf" />
-					<div v-else class="rb-noprev">PDF önizleme yok</div>
-				</div>
-				<div class="rb-side">
-					<div class="rb-row">
-						<span class="class-dot" :class="review?.classification || 'none'"></span>
-						<strong>{{ classLabel(review?.classification) }}</strong>
-						<span v-if="review?.confidence !== null" class="conf">%{{ Math.round(review?.confidence) }}</span>
-					</div>
-					<dl class="rb-meta">
-						<div><dt>Ürün tipi</dt><dd>{{ review?.metadata?.product_type || '—' }}</dd></div>
-						<div><dt>Beden</dt><dd>{{ review?.metadata?.size_range || '—' }}</dd></div>
-						<div><dt>Ölçek</dt><dd>{{ review?.metadata?.scale_verified ? `doğrulandı (${review?.metadata?.scale_deviation_mm ?? '?'}mm)` : 'doğrulanmadı' }}</dd></div>
-						<div v-if="review?.metadata?.grid"><dt>Izgara</dt><dd>{{ review.metadata.grid.rows }}×{{ review.metadata.grid.cols }}</dd></div>
-						<div v-if="review?.metadata?.segment_count"><dt>Segment</dt><dd>{{ review.metadata.segment_count }}</dd></div>
-					</dl>
-					<div v-if="review?.metadata?.parts?.length" class="rb-parts">
-						<span class="rb-lbl">Parçalar</span>
-						<div class="rb-partchips">
-							<span v-for="(p, i) in review.metadata.parts" :key="i" class="part-chip">{{ p.part_name }}<em v-if="p.quantity > 1"> ×{{ p.quantity }}</em></span>
-						</div>
-					</div>
-					<div v-if="review?.metadata?.measurements?.labels?.length" class="rb-measure">
-						<span class="rb-lbl">Ölçü tablosu (Maßtabelle, {{ review.metadata.measurements.unit || 'cm' }})</span>
-						<div class="rb-measure-scroll">
-							<table class="measure-tbl">
-								<thead>
-									<tr>
-										<th class="mt-corner">Beden</th>
-										<th v-for="(s, i) in review.metadata.measurements.sizes" :key="i">{{ s }}</th>
-									</tr>
-								</thead>
-								<tbody>
-									<tr v-for="lbl in review.metadata.measurements.labels" :key="lbl">
-										<th>{{ lbl }}</th>
-										<td v-for="(v, i) in review.metadata.measurements.matrix[lbl]" :key="i">{{ v ?? '—' }}</td>
-									</tr>
-								</tbody>
-							</table>
-						</div>
-						<p v-if="review.metadata.measurements.note" class="rb-measure-note">{{ review.metadata.measurements.note }}</p>
-					</div>
-					<ul v-if="review?.errors?.length" class="rb-errors">
-						<li v-for="(e, i) in review.errors" :key="i">{{ e }}</li>
-					</ul>
-					<div class="rb-files">
-						<a v-if="review?.dxfUrl" :href="review.dxfUrl" class="file-link dxf" download>DXF indir</a>
-						<a v-if="review?.pdfUrl" :href="review.pdfUrl" class="file-link pdf" target="_blank">PDF aç</a>
-					</div>
-					<div v-if="canManage && review" class="rb-decide">
-						<Button v-if="canApprove(review)" variant="success" @click="approve(review); review = null">Onayla → Kütüphaneye ekle</Button>
-						<Button v-if="review.status === 'failed'" variant="ghost" @click="retry(review); review = null">Yeniden işle</Button>
-						<Button v-if="isOpen(review)" variant="danger" @click="reject(review); review = null">Reddet</Button>
-					</div>
-				</div>
-			</div>
-		</AppModal>
-	</div>
-</template>
-
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, inject } from 'vue'
 import { Head, router, useForm } from '@inertiajs/vue3'
-import { UploadCloud, X, Check, ArrowRight } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import Breadcrumb from '@/Components/Breadcrumb.vue'
-import PageHeader from '@/Components/PageHeader.vue'
-import Badge from '@/Components/Badge.vue'
-import Button from '@/Components/Button.vue'
-import AppModal from '@/Components/AppModal.vue'
-import AtelierNav from '@Modules/Atelier/Resources/assets/js/Components/AtelierNav.vue'
+import {
+	OzPageHeader, OzModuleTabs, OzStatTile, OzCard, OzButton, OzPill, OzEmptyState, OzFileDrop, OzModal, useOzConfirm,
+} from '@/Components/Oz'
 import { useCan } from '@/composables/useCan'
 
 defineOptions({ layout: AppLayout })
-
-const { can } = useCan()
 
 const props = defineProps({
 	jobs: { type: Array, default: () => [] },
@@ -193,148 +15,286 @@ const props = defineProps({
 	counts: { type: Object, default: () => ({}) },
 	driver: { type: String, default: 'mock' },
 })
+
+const { can } = useCan()
 // Sayfa can:atelier.view ile korunur (salt-okuma yeterli); onayla/reddet/yeniden dene/yükleme
 // aksiyonları backend'de ayrı can:atelier.conversion.manage ister — buton görünürlüğü buna göre.
 const canManage = computed(() => can('atelier.conversion.manage'))
+const showToast = inject('showToast', null)
+const confirm = useOzConfirm()
 
-const statuses = [
-	{ key: 'needs_review', label: 'İncelemede' },
-	{ key: 'pending', label: 'Beklemede' },
-	{ key: 'processing', label: 'İşleniyor' },
-	{ key: 'approved', label: 'Onaylı' },
-	{ key: 'rejected', label: 'Reddedildi' },
-	{ key: 'failed', label: 'Hata' },
-]
-const total = computed(() => Object.values(props.counts).reduce((a, b) => a + b, 0))
+const STATUS = { needs_review: 'İncelemede', pending: 'Beklemede', processing: 'İşleniyor', approved: 'Onaylı', rejected: 'Reddedildi', failed: 'Hata' }
+const STATUS_TONE = { needs_review: 'info', pending: 'neutral', processing: 'warning', approved: 'success', rejected: 'danger', failed: 'danger' }
+const CLASS_LABEL = { green: 'Yeşil — otomatik', yellow: 'Sarı — kontrol gerek', red: 'Kırmızı — sorunlu' }
 
+const countOf = (k) => props.counts?.[k] ?? 0
+const total = computed(() => Object.values(props.counts ?? {}).reduce((a, b) => a + b, 0))
+const stats = computed(() => [
+	{ key: 'review', label: 'İnceleme Bekleyen', value: countOf('needs_review'), icon: 'eye', tone: 'info' },
+	{ key: 'queue', label: 'Kuyrukta', value: countOf('pending') + countOf('processing'), icon: 'clock', tone: 'accent' },
+	{ key: 'approved', label: 'Kütüphaneye Eklenen', value: countOf('approved'), icon: 'success', tone: 'success' },
+	{ key: 'failed', label: 'Hatalı', value: countOf('failed'), icon: 'alert', tone: countOf('failed') ? 'danger' : 'success' },
+])
+
+/* ── durum filtresi (sunucu tarafı) ── */
 const filters = reactive({ status: props.filters.status || '' })
 function setStatus(s) {
 	filters.status = s
-	router.get('/atelier/conversions', { status: s }, { preserveState: true, preserveScroll: true, replace: true })
+	router.get('/atelier/conversions', s ? { status: s } : {}, { preserveState: true, preserveScroll: true, replace: true })
 }
 
-function statusLabel(s) {
-	return { pending: 'Beklemede', processing: 'İşleniyor', needs_review: 'İncelemede', approved: 'Onaylı', rejected: 'Reddedildi', failed: 'Hata' }[s] || s
-}
-function classLabel(c) {
-	return { green: 'Yeşil — otomatik', yellow: 'Sarı — kontrol gerek', red: 'Kırmızı — sorunlu' }[c] || 'Sınıflandırılmadı'
-}
-function isOpen(j) { return ['needs_review', 'failed', 'pending', 'processing'].includes(j.status) }
-function canApprove(j) { return j.status === 'needs_review' && j.dxfUrl }
+const isOpen = (j) => ['needs_review', 'failed', 'pending', 'processing'].includes(j.status)
+const canApprove = (j) => j.status === 'needs_review' && !!j.dxfUrl
+const classLabel = (c) => CLASS_LABEL[c] ?? 'Sınıflandırılmadı'
 
-/* Yükleme */
+/* ── yükleme ── */
 const form = useForm({ files: [] })
-const dragging = ref(false)
-function onPick(e) { form.files = [...form.files, ...Array.from(e.target.files)]; e.target.value = '' }
-function onDrop(e) {
-	dragging.value = false
-	const pdfs = Array.from(e.dataTransfer.files).filter((f) => f.type === 'application/pdf')
-	form.files = [...form.files, ...pdfs]
+function onReject(list) {
+	showToast?.({ type: 'error', title: 'Bazı dosyalar eklenmedi', message: list.map((r) => `${r.file.name}: ${r.reason}`).join(' · ') })
 }
 function upload() {
-	form.post('/atelier/conversions', { forceFormData: true, preserveScroll: true, onSuccess: () => form.reset() })
+	if (!form.files.length || form.processing) return
+	form.post('/atelier/conversions', {
+		forceFormData: true,
+		preserveScroll: true,
+		onSuccess: () => form.reset(),
+		onError: (errs) => showToast?.({ type: 'error', title: 'Yükleme başarısız', message: Object.values(errs)[0] || 'Doğrulama hatası.' }),
+	})
 }
+const uploadError = computed(() => form.errors.files || Object.entries(form.errors).find(([k]) => k.startsWith('files.'))?.[1] || '')
 
-/* Aksiyonlar */
+/* ── aksiyonlar ── */
 const review = ref(null)
-function approve(j) { router.post(`/atelier/conversions/${j.id}/approve`, {}, { preserveScroll: true }) }
-function reject(j) { router.post(`/atelier/conversions/${j.id}/reject`, {}, { preserveScroll: true }) }
-function retry(j) { router.post(`/atelier/conversions/${j.id}/retry`, {}, { preserveScroll: true }) }
+const reviewOpen = computed({ get: () => !!review.value, set: (v) => { if (!v) review.value = null } })
+const errorToast = (title) => (errs) => showToast?.({ type: 'error', title, message: Object.values(errs)[0] || 'Sunucu hatası.' })
+
+function approve(j) {
+	review.value = null
+	router.post(`/atelier/conversions/${j.id}/approve`, {}, { preserveScroll: true, onError: errorToast('Onaylanamadı') })
+}
+function retry(j) {
+	review.value = null
+	router.post(`/atelier/conversions/${j.id}/retry`, {}, { preserveScroll: true, onError: errorToast('Yeniden işlenemedi') })
+}
+async function reject(j) {
+	const ok = await confirm.danger('İş reddedilsin mi?', `${j.fileName} kütüphaneye eklenmeyecek.`, { confirmText: 'Reddet' })
+	if (!ok) return
+	review.value = null
+	router.post(`/atelier/conversions/${j.id}/reject`, {}, { preserveScroll: true, onError: errorToast('Reddedilemedi') })
+}
 </script>
 
+<template>
+	<Head title="PDF→DXF Sayısallaştırma" />
+
+	<OzPageHeader title="PDF→DXF Sayısallaştırma" subtitle="Kalıp PDF'lerini yükle; otomatik DXF + sınıflandırma, son söz operatörde.">
+		<template #actions>
+			<OzPill :tone="driver === 'http' ? 'success' : 'warning'">{{ driver === 'http' ? 'Servis bağlı' : 'Demo modu' }}</OzPill>
+		</template>
+	</OzPageHeader>
+	<OzModuleTabs />
+
+	<div class="stats">
+		<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" />
+	</div>
+
+	<OzCard v-if="canManage" title="PDF Yükle" subtitle="çoklu seçim, her dosya ayrı iş olur" class="upload">
+		<div class="upload-body">
+			<OzFileDrop v-model="form.files" accept="application/pdf,.pdf" multiple :max-size="50 * 1024 * 1024" title="PDF kalıpları buraya bırakın" hint="PDF · en fazla 50 MB" :invalid="!!uploadError" @reject="onReject" />
+			<p v-if="uploadError" class="field-error">{{ uploadError }}</p>
+			<div v-if="form.files.length" class="upload-actions">
+				<OzButton :disabled="form.processing" @click="form.reset()">Temizle</OzButton>
+				<OzButton variant="primary" icon="upload" :loading="form.processing" @click="upload">{{ form.files.length }} PDF gönder</OzButton>
+			</div>
+		</div>
+	</OzCard>
+
+	<div class="chips" role="tablist" aria-label="Durum filtresi">
+		<button class="chip" :class="{ active: !filters.status }" type="button" @click="setStatus('')">Tümü <span class="chip-count">{{ total }}</span></button>
+		<button
+			v-for="(label, key) in STATUS"
+			:key="key"
+			class="chip"
+			:class="[{ active: filters.status === key }, `is-${key}`]"
+			type="button"
+			@click="setStatus(key)"
+		>{{ label }} <span class="chip-count">{{ countOf(key) }}</span></button>
+	</div>
+
+	<OzCard title="Dönüştürme İşleri" :meta="`${jobs.length} iş`">
+		<OzEmptyState v-if="!jobs.length" icon="file" :title="filters.status ? 'Bu durumda iş yok' : 'Henüz dönüştürme işi yok'" :description="!filters.status && canManage ? 'Yukarıdan PDF yükleyerek başlayın.' : ''" compact />
+		<div v-else class="job-grid">
+			<article v-for="j in jobs" :key="j.id" class="job" :class="`cls-${j.classification || 'none'}`">
+				<header class="job-head">
+					<span class="dot" :title="classLabel(j.classification)" />
+					<span class="job-file" :title="j.fileName">{{ j.fileName }}</span>
+					<OzPill :tone="STATUS_TONE[j.status] ?? 'neutral'">{{ STATUS[j.status] ?? j.status }}</OzPill>
+				</header>
+				<div class="tags">
+					<span v-if="j.confidence !== null" class="tag strong">güven %{{ Math.round(j.confidence) }}</span>
+					<span v-if="j.metadata?.scale_verified" class="tag ok">ölçek ✓</span>
+					<span v-if="j.pattern" class="tag ok">→ {{ j.pattern.name }}</span>
+				</div>
+				<dl v-if="j.metadata" class="extract">
+					<div><dt>Profil</dt><dd>{{ j.metadata.profile ?? '—' }} <span v-if="j.metadata.assembly" class="dim">({{ j.metadata.assembly }})</span></dd></div>
+					<div v-if="j.metadata.size_layers?.length"><dt>Beden</dt><dd>{{ j.metadata.size_layers.join(', ') }}</dd></div>
+					<div v-if="j.metadata.parts?.length">
+						<dt>Parçalar</dt>
+						<dd class="parts"><span v-for="p in j.metadata.parts" :key="p.part_name" class="tag">{{ p.quantity }}× {{ p.part_name }}</span></dd>
+					</div>
+					<div>
+						<dt>Ölçü tablosu</dt>
+						<dd><span class="tag" :class="j.metadata.measurements ? 'ok' : 'warn'">{{ j.metadata.measurements ? 'okundu' : 'operatör doğrulamalı' }}</span></dd>
+					</div>
+				</dl>
+				<ul v-if="j.errors?.length" class="errors">
+					<li v-for="(e, i) in j.errors" :key="i">{{ e }}</li>
+				</ul>
+				<footer class="job-foot">
+					<OzButton size="sm" icon="eye" @click="review = j">İncele</OzButton>
+					<div v-if="canManage" class="job-actions">
+						<OzButton v-if="j.status === 'failed'" size="sm" icon="refresh" @click="retry(j)">Yeniden</OzButton>
+						<OzButton v-if="isOpen(j)" size="sm" variant="danger" @click="reject(j)">Reddet</OzButton>
+						<OzButton v-if="canApprove(j)" size="sm" variant="primary" icon="check" @click="approve(j)">Onayla</OzButton>
+					</div>
+				</footer>
+			</article>
+		</div>
+	</OzCard>
+
+	<!-- İnceleme: PDF + çıkarım özeti yan yana -->
+	<OzModal v-model:open="reviewOpen" :title="review?.fileName ?? ''" :subtitle="review ? classLabel(review.classification) : ''" icon="file" size="lg">
+		<div v-if="review" class="rv">
+			<div class="rv-pdf">
+				<embed v-if="review.pdfUrl" :src="review.pdfUrl" type="application/pdf">
+				<OzEmptyState v-else icon="file" title="PDF önizleme yok" compact />
+			</div>
+			<div class="rv-side">
+				<div class="rv-class">
+					<span class="dot" :class="`cls-${review.classification || 'none'}`" />
+					<b>{{ classLabel(review.classification) }}</b>
+					<span v-if="review.confidence !== null" class="dim">%{{ Math.round(review.confidence) }}</span>
+				</div>
+				<dl class="kv">
+					<div><dt>Ürün tipi</dt><dd>{{ review.metadata?.product_type || '—' }}</dd></div>
+					<div><dt>Beden</dt><dd>{{ review.metadata?.size_range || '—' }}</dd></div>
+					<div><dt>Ölçek</dt><dd>{{ review.metadata?.scale_verified ? `doğrulandı (${review.metadata?.scale_deviation_mm ?? '?'} mm)` : 'doğrulanmadı' }}</dd></div>
+					<div v-if="review.metadata?.grid"><dt>Izgara</dt><dd>{{ review.metadata.grid.rows }}×{{ review.metadata.grid.cols }}</dd></div>
+					<div v-if="review.metadata?.segment_count"><dt>Segment</dt><dd>{{ review.metadata.segment_count }}</dd></div>
+				</dl>
+				<div v-if="review.metadata?.parts?.length" class="rv-block">
+					<span class="rv-lbl">Parçalar</span>
+					<div class="parts"><span v-for="(p, i) in review.metadata.parts" :key="i" class="tag">{{ p.part_name }}<template v-if="p.quantity > 1"> ×{{ p.quantity }}</template></span></div>
+				</div>
+				<div v-if="review.metadata?.measurements?.labels?.length" class="rv-block">
+					<span class="rv-lbl">Ölçü tablosu ({{ review.metadata.measurements.unit || 'cm' }})</span>
+					<div class="measure-scroll">
+						<table class="measure">
+							<thead>
+								<tr>
+									<th class="corner">Beden</th>
+									<th v-for="(s, i) in review.metadata.measurements.sizes" :key="i">{{ s }}</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr v-for="lbl in review.metadata.measurements.labels" :key="lbl">
+									<th>{{ lbl }}</th>
+									<td v-for="(v, i) in review.metadata.measurements.matrix[lbl]" :key="i">{{ v ?? '—' }}</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+					<p v-if="review.metadata.measurements.note" class="dim small">{{ review.metadata.measurements.note }}</p>
+				</div>
+				<ul v-if="review.errors?.length" class="errors">
+					<li v-for="(e, i) in review.errors" :key="i">{{ e }}</li>
+				</ul>
+				<div class="files">
+					<a v-if="review.dxfUrl" :href="review.dxfUrl" class="file-link is-dxf" download>DXF indir</a>
+					<a v-if="review.pdfUrl" :href="review.pdfUrl" class="file-link is-pdf" target="_blank" rel="noopener">PDF aç</a>
+				</div>
+			</div>
+		</div>
+		<template v-if="canManage && review && isOpen(review)" #footer>
+			<OzButton v-if="review.status === 'failed'" icon="refresh" @click="retry(review)">Yeniden İşle</OzButton>
+			<OzButton variant="danger" @click="reject(review)">Reddet</OzButton>
+			<OzButton v-if="canApprove(review)" variant="primary" icon="check" @click="approve(review)">Onayla → Kütüphaneye Ekle</OzButton>
+		</template>
+	</OzModal>
+</template>
+
 <style scoped>
-.card { background: #fff; border-radius: 16px; border: 1px solid #ebebf0; box-shadow: 0 1px 4px rgba(0,0,0,.04); }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
-/* Yükleme */
-.upload-card { padding: 16px; margin-bottom: 18px; }
-.dropzone { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 26px; border: 2px dashed #dcdce6; border-radius: 12px; color: #999; cursor: pointer; transition: all .15s; }
-.dropzone:hover, .dropzone.dragging { border-color: var(--color-primary); color: var(--color-primary); background: var(--color-primary-soft); }
-.dropzone input[type=file] { display: none; }
-.dz-title { font-size: 14px; font-weight: 600; color: #555; }
-.dz-sub { font-size: 12px; }
-.upload-tray { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
-.file-chip { font-size: 12px; background: #f3f4f6; color: #555; padding: 4px 9px; border-radius: 6px; }
-.file-chip em { display: inline-flex; align-items: center; font-style: normal; color: #aaa; cursor: pointer; margin-left: 4px; }
-.file-chip em:hover { color: #dc2626; }
-.form-error { font-size: 11.5px; color: #ef4444; margin-top: 8px; }
+.dim { color: var(--oz-muted); font-weight: 400; }
+.small { font-size: 11px; margin: 4px 0 0; }
+.field-error { margin: 0; font-size: 12px; color: var(--oz-danger); }
 
-/* Triyaj */
-.triage { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
-.triage-pill { display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px; border: 1px solid #ebebf0; background: #fff; border-radius: 20px; font-size: 12.5px; font-weight: 600; color: #777; cursor: pointer; transition: all .15s; }
-.triage-pill:hover { border-color: #d0d0dc; }
-.triage-pill.active { background: #1a1a2e; color: #fff; border-color: #1a1a2e; }
-.triage-pill.needs_review.active { background: #2563eb; border-color: #2563eb; }
-.triage-pill.failed.active { background: #dc2626; border-color: #dc2626; }
-.tp-count { font-size: 11px; background: rgba(0,0,0,.07); padding: 1px 7px; border-radius: 10px; }
-.triage-pill.active .tp-count { background: rgba(255,255,255,.22); }
+.upload { margin-bottom: 14px; }
+.upload-body { display: flex; flex-direction: column; gap: 10px; padding: 0 18px 16px; }
+.upload-actions { display: flex; justify-content: flex-end; gap: 8px; }
 
-/* İş kartları */
-.conv-empty { padding: 44px 20px; text-align: center; color: #999; font-size: 13px; }
-.job-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
-.job-card { background: #fff; border: 1px solid #ebebf0; border-left-width: 3px; border-radius: 12px; padding: 13px; display: flex; flex-direction: column; gap: 9px; box-shadow: 0 1px 4px rgba(0,0,0,.04); }
-.job-card.green { border-left-color: #10b981; } .job-card.yellow { border-left-color: #f59e0b; } .job-card.red { border-left-color: #ef4444; }
-.jc-head { display: flex; align-items: center; gap: 8px; }
-.class-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; background: #ccc; }
-.class-dot.green { background: #10b981; } .class-dot.yellow { background: #f59e0b; } .class-dot.red { background: #ef4444; }
-.jc-file { font-size: 13px; font-weight: 600; color: #1a1a2e; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.status-badge { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 6px; background: #f1f1f5; color: #777; white-space: nowrap; }
-.status-badge.needs_review { background: #eff6ff; color: #2563eb; }
-.status-badge.approved { background: #ecfdf5; color: #059669; }
-.status-badge.rejected { background: #fef2f2; color: #dc2626; }
-.status-badge.failed { background: #fef2f2; color: #dc2626; }
-.status-badge.processing { background: #fffbeb; color: #d97706; }
-.jc-meta { display: flex; flex-wrap: wrap; gap: 6px; }
-.conf { font-size: 11px; font-weight: 600; color: #888; }
-.mtag { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: #666; background: #f6f6fa; padding: 2px 7px; border-radius: 5px; }
-.mtag.ok { color: #059669; } .mtag.linked { color: #059669; font-weight: 600; }
-.jc-errors { list-style: none; display: flex; flex-direction: column; gap: 2px; }
-.jc-errors li { font-size: 11px; color: #b45309; background: #fffbeb; padding: 3px 7px; border-radius: 5px; }
-.jc-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; border-top: 1px solid #f5f5f8; padding-top: 9px; margin-top: auto; }
-.jc-actions { display: flex; gap: 6px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.chip { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--oz-border); background: var(--oz-surface); font-size: 12px; font-weight: 600; color: var(--oz-muted); cursor: pointer; transition: all .15s; }
+.chip:hover { border-color: var(--oz-border-strong); }
+.chip.active { background: var(--oz-accent); color: #fff; border-color: var(--oz-accent); }
+.chip.active.is-failed, .chip.active.is-rejected { background: var(--oz-danger); border-color: var(--oz-danger); }
+.chip-count { display: inline-block; min-width: 18px; margin-left: 4px; padding: 0 5px; border-radius: 999px; background: var(--oz-surface-2); color: var(--oz-muted); font-size: 11px; text-align: center; }
+.chip.active .chip-count { background: rgba(255, 255, 255, .22); color: #fff; }
 
-/* İnceleme modalı */
-.rb-body { display: grid; grid-template-columns: 1.4fr 1fr; min-height: 520px; height: 100%; }
-.rb-pdf { background: #2b2b38; display: flex; align-items: center; justify-content: center; }
-.rb-pdf embed { width: 100%; height: 100%; min-height: 420px; }
-.rb-noprev { color: #aaa; font-size: 13px; }
-.rb-side { padding: 18px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }
-.rb-row { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #1a1a2e; }
-.rb-meta { display: flex; flex-direction: column; gap: 8px; }
-.rb-meta > div { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; border-bottom: 1px solid #f5f5f8; padding-bottom: 6px; }
-.rb-meta dt { color: #999; } .rb-meta dd { color: #1a1a2e; font-weight: 600; text-align: right; }
-.rb-lbl { font-size: 12px; font-weight: 700; color: #888; display: block; margin-bottom: 6px; }
-.rb-partchips { display: flex; flex-wrap: wrap; gap: 5px; }
-.part-chip { font-size: 11px; background: #f4f4f8; color: #555; padding: 3px 8px; border-radius: 5px; }
-.part-chip em { font-style: normal; color: #999; }
-.rb-measure-scroll { overflow-x: auto; border: 1px solid #eee; border-radius: 8px; }
-.measure-tbl { border-collapse: collapse; font-size: 11px; white-space: nowrap; }
-.measure-tbl th, .measure-tbl td { border: 1px solid #eee; padding: 3px 7px; text-align: center; }
-.measure-tbl thead th { background: #f7f7fb; color: #444; font-weight: 700; position: sticky; top: 0; }
-.measure-tbl tbody th { background: #fafafa; color: #2563eb; font-weight: 700; text-align: left; position: sticky; left: 0; }
-.measure-tbl .mt-corner { position: sticky; left: 0; z-index: 1; }
-.measure-tbl td { color: #555; }
-.rb-measure-note { font-size: 10.5px; color: #999; margin: 5px 0 0; }
-.rb-errors { list-style: none; display: flex; flex-direction: column; gap: 3px; }
-.rb-errors li { font-size: 12px; color: #b45309; background: #fffbeb; padding: 4px 8px; border-radius: 6px; }
-.rb-files { display: flex; gap: 8px; }
+/* sınıflandırma rengi: yeşil otomatik / sarı kontrol / kırmızı sorunlu */
+.cls-green { --cls: var(--oz-success); }
+.cls-yellow { --cls: var(--oz-warning); }
+.cls-red { --cls: var(--oz-danger); }
+.cls-none { --cls: var(--oz-border-strong); }
+.dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; background: var(--cls, var(--oz-border-strong)); }
+
+.job-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 12px; padding: 0 18px 18px; }
+.job {
+	display: flex; flex-direction: column; gap: 9px; padding: 12px 13px;
+	border: 1px solid var(--oz-border); border-left: 3px solid var(--cls); border-radius: var(--oz-radius-sm); background: var(--oz-surface);
+}
+.job-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.job-file { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; color: var(--oz-ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tags, .parts { display: flex; flex-wrap: wrap; gap: 5px; }
+.tag { display: inline-flex; align-items: center; font-size: 11px; color: var(--oz-muted); background: var(--oz-surface-2); border: 1px solid var(--oz-border-soft); padding: 1px 7px; border-radius: 5px; }
+.tag.strong { color: var(--oz-ink-soft); font-weight: 600; }
+.tag.ok { color: var(--oz-success); background: var(--oz-success-soft); border-color: transparent; font-weight: 600; }
+.tag.warn { color: var(--oz-warning); background: var(--oz-warning-soft); border-color: transparent; font-weight: 600; }
+.extract { display: flex; flex-direction: column; gap: 5px; margin: 0; padding-top: 8px; border-top: 1px solid var(--oz-border-soft); }
+.extract > div { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 8px; align-items: baseline; font-size: 12px; }
+.extract dt { color: var(--oz-muted); font-weight: 600; }
+.extract dd { margin: 0; color: var(--oz-ink); }
+.errors { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.errors li { font-size: 11.5px; color: var(--oz-warning); background: var(--oz-warning-soft); padding: 4px 8px; border-radius: 6px; }
+.job-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; padding-top: 9px; border-top: 1px solid var(--oz-border-soft); }
+.job-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+
+/* inceleme penceresi */
+.rv { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; min-height: 460px; }
+.rv-pdf { border-radius: var(--oz-radius-sm); overflow: hidden; background: var(--oz-surface-2); border: 1px solid var(--oz-border); display: flex; align-items: center; justify-content: center; }
+.rv-pdf embed { width: 100%; height: 100%; min-height: 460px; }
+.rv-side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.rv-class { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--oz-ink-soft); }
+.kv { display: flex; flex-direction: column; margin: 0; }
+.kv > div { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; font-size: 12.5px; border-bottom: 1px solid var(--oz-border-soft); }
+.kv dt { color: var(--oz-muted); }
+.kv dd { margin: 0; color: var(--oz-ink-soft); font-weight: 600; text-align: right; }
+.rv-block { display: flex; flex-direction: column; gap: 6px; }
+.rv-lbl { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--oz-muted); }
+.measure-scroll { overflow-x: auto; border: 1px solid var(--oz-border); border-radius: 8px; }
+.measure { border-collapse: collapse; font-size: 11px; white-space: nowrap; }
+.measure th, .measure td { border: 1px solid var(--oz-border-soft); padding: 3px 7px; text-align: center; color: var(--oz-ink); }
+.measure thead th { background: var(--oz-surface-2); font-weight: 700; }
+.measure tbody th { background: var(--oz-surface-2); color: var(--oz-accent); font-weight: 700; text-align: left; position: sticky; left: 0; }
+.measure .corner { position: sticky; left: 0; z-index: 1; }
+.files { display: flex; gap: 8px; }
 .file-link { font-size: 12px; font-weight: 700; padding: 5px 11px; border-radius: 7px; text-decoration: none; }
-.file-link.dxf { background: #eef2ff; color: #4f46e5; } .file-link.pdf { background: #fef2f2; color: #dc2626; }
-.rb-decide { display: flex; flex-direction: column; gap: 8px; margin-top: auto; border-top: 1px solid #f0f0f5; padding-top: 14px; }
-.rb-decide .btn { width: 100%; }
-
+.file-link.is-dxf { background: var(--oz-accent-soft); color: var(--oz-accent); }
+.file-link.is-pdf { background: var(--oz-danger-soft); color: var(--oz-danger); }
 @media (max-width: 760px) {
-	.rb-body { grid-template-columns: 1fr; }
-	.rb-pdf embed { min-height: 260px; }
+	.rv { grid-template-columns: 1fr; }
+	.rv-pdf embed { min-height: 260px; }
 }
-
-@media (max-width: 640px) {
-	.job-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
-}
-
-/* Çıkarım özeti (job-card içi) */
-.jc-extraction { display: flex; flex-direction: column; gap: 4px; border-top: 1px solid #f5f5f8; padding-top: 8px; }
-.jcx-row { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; font-size: 11.5px; color: #444; }
-.jcx-lbl { font-weight: 700; color: #666; flex-shrink: 0; }
-.jcx-sub { color: #aaa; }
-.mtag.warn { color: #b45309; background: #fffbeb; }
 </style>

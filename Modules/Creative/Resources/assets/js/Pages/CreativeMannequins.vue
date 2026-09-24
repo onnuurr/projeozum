@@ -9,8 +9,6 @@
 			]"
 		/>
 
-		<CreativeNav current="mannequins" />
-
 		<PageHeader title="Sanal Manken Stüdyosu" subtitle="AI ile manken üret, pozlar oluştur ve ürünlerini giydir">
 			<template #actions>
 				<Button variant="ghost" with-icon @click="refresh">
@@ -21,7 +19,7 @@
 		</PageHeader>
 
 		<!-- Yeni manken formu -->
-		<div class="card">
+		<div v-if="can('creative.asset.manage')" class="card">
 			<div class="card-header">
 				<h3>Yeni Manken Üret</h3>
 				<span class="hint">Tarif girin, AI kimlik görselini üretsin</span>
@@ -218,7 +216,6 @@ import PageHeader from '@/Components/PageHeader.vue'
 import Button from '@/Components/Button.vue'
 import Badge from '@/Components/Badge.vue'
 import Tag from '@/Components/Tag.vue'
-import CreativeNav from '../Components/CreativeNav.vue'
 import { openRejectDialog } from '../support/rejectDialog'
 import { extOf } from '../support/mediaExt'
 import { useCan } from '@/composables/useCan'

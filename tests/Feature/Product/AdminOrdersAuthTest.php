@@ -51,6 +51,26 @@ class AdminOrdersAuthTest extends TestCase
             ->assertOk();
     }
 
+    public function test_index_status_counts_ignore_status_filter(): void
+    {
+        $tenant = Tenant::factory()->create(['credit_limit' => 1_000_000, 'current_balance' => 0]);
+        Order::factory()->forTenant($tenant)->count(2)->create(['status' => Order::STATUS_PENDING]);
+        Order::factory()->forTenant($tenant)->create(['status' => Order::STATUS_SHIPPED]);
+
+        $user = User::factory()->create();
+        $user->givePermissionTo('order.view');
+        $version = app(\App\Http\Middleware\HandleInertiaRequests::class)->version(request());
+
+        // Durum filtresi yalnızca listeyi daraltır; sayımlar tüm durumları gösterir.
+        $this->actingAs($user)
+            ->withHeaders(['X-Inertia' => 'true', 'X-Inertia-Version' => (string) $version])
+            ->get('/orders?status=shipped')
+            ->assertOk()
+            ->assertJsonPath('props.orders.total', 1)
+            ->assertJsonPath('props.statusCounts.pending', 2)
+            ->assertJsonPath('props.statusCounts.shipped', 1);
+    }
+
     public function test_update_status_forbidden_without_order_manage(): void
     {
         $order = $this->order();

@@ -1,114 +1,16 @@
-<template>
-	<div class="menus-page">
-		<Breadcrumb
-			:items="[
-				{ label: 'Ana Sayfa', to: '/workflow', icon: 'home' },
-				{ label: 'Süper Admin' },
-				{ label: 'Menü Yönetimi' },
-			]"
-		/>
-
-		<PageHeader title="Menü Yönetimi" subtitle="Sürükle-bırak ile sırala ve iç içe taşı. Kökler sidebar'da, alt menüler header'da görünür.">
-			<template #actions>
-				<Button variant="ghost" size="sm" :disabled="!dirty" @click="resetTree">Geri Al</Button>
-				<Button variant="primary" size="sm" :disabled="!dirty" :loading="saving" @click="saveOrder">
-					Sıralamayı Kaydet
-				</Button>
-				<Button variant="primary" size="sm" with-icon @click="openCreate(null)">
-					<template #leading><Plus :size="13" /></template>
-					Yeni Kök Menü
-				</Button>
-			</template>
-		</PageHeader>
-
-		<div class="mp-body">
-			<Card title="Menü Ağacı" class="mp-tree" body-class="p-3.5">
-				<MenuTree
-					:nodes="tree"
-					:parent-id="null"
-					:disabled="saving"
-					@changed="dirty = true"
-					@add-route="onAddRoute"
-					@edit="openEdit"
-					@add-child="openCreate"
-					@remove="removeMenu"
-				/>
-			</Card>
-
-			<RouteCatalog :routes="routes" :disabled="saving" class="mp-catalog" />
-		</div>
-
-		<AppDrawer
-			v-model="modalOpen"
-			:title="editing ? 'Menüyü Düzenle' : 'Yeni Menü'"
-			width="640px"
-		>
-			<form id="menu-form" class="mp-form" @submit.prevent="submitForm">
-				<label>Etiket *
-					<input v-model="form.label" type="text" maxlength="100" required />
-				</label>
-
-				<label>İkon
-					<div class="mp-icon-picker">
-						<button
-							v-for="key in iconKeys"
-							:key="key"
-							type="button"
-							class="mp-icon"
-							:class="{ active: form.icon === key }"
-							:title="key"
-							@click="form.icon = (form.icon === key ? null : key)"
-							v-html="renderMenuIcon(key, 16)"
-						></button>
-					</div>
-				</label>
-
-				<label>Route ismi
-					<input v-model="form.route_name" type="text" maxlength="150" placeholder="products.index" />
-				</label>
-
-				<label>URL (path)
-					<input v-model="form.url" type="text" maxlength="255" placeholder="/products" />
-				</label>
-
-				<label>İzin (permission)
-					<select v-model="form.permission">
-						<option :value="null">— Herkese açık —</option>
-						<option v-for="p in permissions" :key="p.name" :value="p.name">{{ p.display_name ?? p.name }}</option>
-					</select>
-				</label>
-
-				<Toggle v-model="form.is_active" label="Aktif" />
-			</form>
-
-			<template #footer="{ close }">
-				<Button variant="ghost" @click="close">Vazgeç</Button>
-				<Button type="submit" form="menu-form" variant="primary" :loading="saving">Kaydet</Button>
-			</template>
-		</AppDrawer>
-	</div>
-</template>
-
 <script setup>
-import { ref, watch, inject } from 'vue'
-import { router } from '@inertiajs/vue3'
-import { Plus } from 'lucide-vue-next'
+import { ref, computed, watch, inject, onBeforeUnmount } from 'vue'
+import { Head, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import AppDrawer from '@/Components/AppDrawer.vue'
-import Toggle from '@/Components/Toggle.vue'
-import Card from '@/Components/Card.vue'
-import Breadcrumb from '@/Components/Breadcrumb.vue'
-import PageHeader from '@/Components/PageHeader.vue'
-import Button from '@/Components/Button.vue'
-import { useToast } from '@/composables/useToast.js'
-import { menuIconKeys, renderMenuIcon } from '@/menuIcons.js'
+import { OzPageHeader, OzModuleTabs, OzCard, OzButton, OzPill, OzEmptyState, useOzConfirm } from '@/Components/Oz'
 import MenuTree from '../Components/MenuTree.vue'
 import RouteCatalog from '../Components/RouteCatalog.vue'
+import MenuItemDrawer from '../Components/MenuItemDrawer.vue'
 
+// Süper admin · menü yönetimi (Oz kit). Sol şerit, modül sekmeleri, mobil menü ve Ctrl K paleti bu ağaçtan beslenir.
+//   Sıralama / taşıma: sürükle-bırak ya da ⋯ menüsü → 600 ms sonra arka planda POST superadmin.menus.reorder
+//   Ekle / düzenle / sil / aktiflik: JSON istekleri (MenuController wantsJson) → ağaç + sol şerit yenilenir
 defineOptions({ layout: AppLayout })
-
-const $swal = inject('$swal')
-const { showToast } = useToast()
 
 const props = defineProps({
 	menus: { type: Array, required: true },
@@ -116,192 +18,231 @@ const props = defineProps({
 	routes: { type: Array, default: () => [] },
 })
 
-const iconKeys = menuIconKeys
+const showToast = inject('showToast', null)
+const confirm = useOzConfirm()
 
-// Düz listeyi ağaca çevir (server düz gönderiyor).
-function toTree(flat) {
+/* ── ağaç (sunucu düz liste gönderir) ── */
+function toTree(flat, openIds = new Set()) {
 	const byId = new Map(flat.map((m) => [m.id, { ...m, children: [] }]))
 	const roots = []
 	for (const node of byId.values()) {
-		if (node.parent_id && byId.has(node.parent_id)) {
-			byId.get(node.parent_id).children.push(node)
-		} else {
-			roots.push(node)
-		}
+		if (node.parent_id && byId.has(node.parent_id)) byId.get(node.parent_id).children.push(node)
+		else roots.push(node)
 	}
-	// Açılışta tüm alt menülü düğümler kapalı gelsin.
-		for (const node of byId.values()) {
-			if (node.children.length) node.__collapsed = true
-		}
-		return roots
+	// Açılışta alt menülü düğümler kapalı; yenilemeden sonra açık olanlar açık kalır
+	for (const node of byId.values()) if (node.children.length) node.__collapsed = !openIds.has(node.id)
+	return roots
 }
-
+function openIdsOf(nodes, acc = new Set()) {
+	for (const n of nodes) {
+		if (n.children?.length && !n.__collapsed) acc.add(n.id)
+		openIdsOf(n.children ?? [], acc)
+	}
+	return acc
+}
 const tree = ref(toTree(props.menus))
-const dirty = ref(false)
-const saving = ref(false)
+watch(() => props.menus, (val) => { tree.value = toTree(val, openIdsOf(tree.value)) })
 
-// Sunucudan menus prop'u yenilenince (create/edit/delete sonrası reload) ağacı tazele.
-watch(() => props.menus, (val) => {
-	tree.value = toTree(val)
-	dirty.value = false
-})
+const stats = computed(() => ({
+	roots: props.menus.filter((m) => !m.parent_id).length,
+	total: props.menus.length,
+	inactive: props.menus.filter((m) => !m.is_active).length,
+	restricted: props.menus.filter((m) => m.permission).length,
+}))
 
-function resetTree() {
-	clearTimeout(autoSaveTimer)
-	tree.value = toTree(props.menus)
-	dirty.value = false
+// Ağaç + sol şerit (paylaşılan `menu` prop'u) + katalog yenilenir
+function refresh(onFinish) {
+	router.reload({ only: ['menus', 'routes', 'menu'], preserveScroll: true, preserveState: true, onFinish })
 }
 
-// Ağacı reorder payload'ına düzleştir: her düğüm için id/parent_id/sort_order.
-function flatten(nodes, parentId, acc) {
-	nodes.forEach((node, index) => {
-		acc.push({ id: node.id, parent_id: parentId, sort_order: index })
-		if (node.children?.length) flatten(node.children, node.id, acc)
+/* ── sıralama: otomatik arka plan kaydı ── */
+const saveState = ref('idle') // idle | pending | saving | saved | error
+let timer = null
+let queued = false
+function flatten(nodes, parentId, acc = []) {
+	nodes.forEach((n, i) => {
+		acc.push({ id: n.id, parent_id: parentId, sort_order: i })
+		if (n.children?.length) flatten(n.children, n.id, acc)
 	})
 	return acc
 }
-
-// WordPress'in menü editörü gibi: sürükle-bırak sonrası sayfayı yenilemeden,
-// düz axios ile arka planda kaydeder. Inertia'nın router.post + back() akışı
-// her kayıtta tüm sayfayı (route kataloğu taraması + cart/menu/notifications
-// shared prop'ları dahil) yeniden render ettiği için kayıt gözle görülür
-// yavaştı; axios ile sadece bu küçük JSON isteği gider, sayfa hiç yenilenmez.
-let autoSaveTimer = null
-let pendingSave = false
-
-function saveOrder() {
-	clearTimeout(autoSaveTimer)
-	if (saving.value) {
-		pendingSave = true
-		return
+function scheduleSave() {
+	saveState.value = 'pending'
+	clearTimeout(timer)
+	timer = setTimeout(saveOrder, 600)
+}
+async function saveOrder() {
+	clearTimeout(timer)
+	if (saveState.value === 'saving') { queued = true; return }
+	saveState.value = 'saving'
+	try {
+		await window.axios.post(route('superadmin.menus.reorder'), { items: flatten(tree.value, null) })
+		saveState.value = 'saved'
+		router.reload({ only: ['menu'], preserveScroll: true, preserveState: true })
+	} catch (e) {
+		saveState.value = 'error'
+		showToast?.({ type: 'error', title: 'Sıralama kaydedilemedi', message: e.response?.data?.message ?? 'Lütfen tekrar deneyin.' })
+		refresh()
+	} finally {
+		if (queued) { queued = false; saveOrder() }
 	}
-	saving.value = true
-	const items = flatten(tree.value, null, [])
-	window.axios.post(route('superadmin.menus.reorder'), { items })
-		.then(() => {
-			dirty.value = false
-			showToast({ type: 'success', title: 'Menü sıralaması kaydedildi', duration: 1800 })
-		})
-		.catch((error) => {
-			showToast({
-				type: 'error',
-				title: 'Sıralama kaydedilemedi',
-				message: error.response?.data?.message ?? 'Lütfen tekrar deneyin.',
-			})
-		})
-		.finally(() => {
-			saving.value = false
-			if (pendingSave) {
-				pendingSave = false
-				saveOrder()
-			}
-		})
 }
+onBeforeUnmount(() => clearTimeout(timer))
+const busy = computed(() => saveState.value === 'saving' || drawerBusy.value)
+const saveLabel = computed(() => ({
+	pending: { tone: 'neutral', text: 'Kaydedilecek…' },
+	saving: { tone: 'info', text: 'Kaydediliyor…' },
+	saved: { tone: 'success', text: 'Sıralama kaydedildi' },
+	error: { tone: 'danger', text: 'Kaydedilemedi' },
+})[saveState.value])
 
-// Her sürükle-bırakta otomatik kaydet (kısa bir debounce ile, art arda
-// taşımalarda tek istek atılsın diye); "Sıralamayı Kaydet" butonu manuel/anında
-// tetiklemek isteyenler için hâlâ duruyor.
-watch(dirty, (isDirty) => {
-	if (!isDirty) return
-	clearTimeout(autoSaveTimer)
-	autoSaveTimer = setTimeout(saveOrder, 600)
-})
-
-/* ── Form (create/edit) ── */
-const modalOpen = ref(false)
-const editing = ref(null) // düzenlenen menü ya da null
-const form = ref(emptyForm())
-
-function emptyForm() {
-	return { label: '', icon: null, route_name: '', url: '', permission: null, is_active: true, parent_id: null }
-}
-
-function openCreate(parent) {
+/* ── ekle / düzenle ── */
+const drawerOpen = ref(false)
+const drawerBusy = ref(false)
+const editing = ref(null)
+const createParent = ref(null)
+const formErrors = ref({})
+function openCreate(parent = null) {
 	editing.value = null
-	form.value = { ...emptyForm(), parent_id: parent?.id ?? null }
-	modalOpen.value = true
+	createParent.value = parent?.id ?? null
+	formErrors.value = {}
+	drawerOpen.value = true
 }
-
 function openEdit(menu) {
 	editing.value = menu
-	form.value = {
-		label: menu.label,
-		icon: menu.icon,
-		route_name: menu.route_name ?? '',
-		url: menu.url ?? '',
-		permission: menu.permission ?? null,
-		is_active: !!menu.is_active,
-		parent_id: menu.parent_id ?? null,
+	formErrors.value = {}
+	drawerOpen.value = true
+}
+async function submit(payload) {
+	drawerBusy.value = true
+	formErrors.value = {}
+	try {
+		if (editing.value) await window.axios.put(route('superadmin.menus.update', editing.value.id), payload)
+		else await window.axios.post(route('superadmin.menus.store'), payload)
+		const title = editing.value ? 'Menü güncellendi' : 'Menü eklendi'
+		refresh(() => {
+			drawerBusy.value = false
+			drawerOpen.value = false
+			showToast?.({ type: 'success', title, message: payload.label })
+		})
+	} catch (e) {
+		drawerBusy.value = false
+		const errs = e.response?.data?.errors ?? {}
+		formErrors.value = Object.fromEntries(Object.entries(errs).map(([k, v]) => [k, Array.isArray(v) ? v[0] : v]))
+		// Alan hataları panelde gösterilir; toast yalnızca alana bağlanamayan hatalar için (panel altbilgisini örtmesin)
+		const shown = ['label', 'parent_id', 'route_name', 'url', 'permission']
+		const other = Object.entries(formErrors.value).find(([k]) => !shown.includes(k))
+		if (other || !Object.keys(formErrors.value).length) showToast?.({ type: 'error', title: 'Kaydedilemedi', message: other?.[1] ?? e.response?.data?.message ?? 'Sunucu hatası.' })
 	}
-	modalOpen.value = true
 }
 
-function submitForm() {
-	saving.value = true
-	const payload = { ...form.value }
-	const opts = {
-		preserveScroll: true,
-		onSuccess: () => { modalOpen.value = false; router.reload({ only: ['menus'] }) },
-		onFinish: () => { saving.value = false },
-	}
-	if (editing.value) {
-		router.put(route('superadmin.menus.update', editing.value.id), payload, opts)
-	} else {
-		router.post(route('superadmin.menus.store'), payload, opts)
+// Katalogdan sürüklenen ya da + ile eklenen rota → doğrudan menü öğesi
+async function addRoute({ route: item, parentId = null, index = null }) {
+	drawerBusy.value = true
+	try {
+		await window.axios.post(route('superadmin.menus.store'), {
+			label: item.label, route_name: item.name, url: null, permission: null, is_active: true,
+			parent_id: parentId, sort_order: index ?? tree.value.length,
+		})
+		refresh(() => {
+			drawerBusy.value = false
+			showToast?.({ type: 'success', title: 'Menüye eklendi', message: item.label })
+		})
+	} catch (e) {
+		drawerBusy.value = false
+		showToast?.({ type: 'error', title: 'Eklenemedi', message: e.response?.data?.message ?? 'Sunucu hatası.' })
+		refresh()
 	}
 }
 
-// Sağ panelden ağaca bırakılan route'tan anında menü öğesi oluştur.
-// `saving`, POST + ardından gelen reload tamamlanana kadar true kalmalı;
-// aksi halde reload sürerken başlayan yeni bir sürükleme Inertia'nın tek
-// aktif visit'ini iptal edip ağacı tutarsız/donmuş bir durumda bırakıyordu.
-function onAddRoute({ route: item, parentId, index }) {
-	saving.value = true
-	router.post(route('superadmin.menus.store'), {
-		label: item.label,
-		route_name: item.name,
-		url: '',
-		permission: null,
-		is_active: true,
-		parent_id: parentId,
-		sort_order: index,
-	}, {
-		preserveScroll: true,
-		onSuccess: () => {
-			router.reload({
-				only: ['menus', 'routes'],
-				onFinish: () => { saving.value = false },
-			})
-		},
-		onError: () => { saving.value = false },
-	})
+async function toggleActive(menu) {
+	try {
+		await window.axios.put(route('superadmin.menus.update', menu.id), {
+			label: menu.label, icon: menu.icon, route_name: menu.route_name, url: menu.url,
+			permission: menu.permission, parent_id: menu.parent_id, is_active: !menu.is_active,
+		})
+		refresh()
+	} catch (e) {
+		showToast?.({ type: 'error', title: 'Güncellenemedi', message: e.response?.data?.message ?? 'Sunucu hatası.' })
+	}
 }
 
-async function removeMenu(menu) {
-	const ok = await $swal.dangerConfirm({ title: 'Menü silinsin mi?', html: `<b>${menu.label}</b> ve tüm alt menüleri kalıcı olarak silinecek.` })
+async function remove(menu) {
+	const count = (nodes) => (nodes ?? []).reduce((t, c) => t + 1 + count(c.children), 0)
+	const n = count(menu.children)
+	const ok = await confirm.danger('Menü silinsin mi?', `“${menu.label}”${n ? ` ve altındaki ${n} menü` : ''} kalıcı olarak silinecek. Sayfalar çalışmaya devam eder.`, { confirmText: 'Sil' })
 	if (!ok) return
-	router.delete(route('superadmin.menus.destroy', menu.id), {
-		preserveScroll: true,
-		onSuccess: () => router.reload({ only: ['menus'] }),
-	})
+	try {
+		await window.axios.delete(route('superadmin.menus.destroy', menu.id))
+		refresh(() => showToast?.({ type: 'warning', title: 'Menü silindi', message: menu.label }))
+	} catch (e) {
+		showToast?.({ type: 'error', title: 'Silinemedi', message: e.response?.data?.message ?? 'Sunucu hatası.' })
+	}
 }
 </script>
 
-<style scoped>
-.menus-page { max-width: 100%; }
-.mp-body { display: grid; grid-template-columns: 1fr 360px; gap: 24px; align-items: start; }
-.mp-tree { min-width: 0; }
-@media (max-width: 900px) {
-	.mp-body { grid-template-columns: 1fr; }
-}
-.mp-form { display: flex; flex-direction: column; gap: 12px; }
-.mp-form label { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; font-weight: 600; color: var(--color-muted); }
-.mp-form input[type=text], .mp-form select { border: 1px solid var(--color-outline-variant); border-radius: 8px; padding: 8px 10px; font-size: 13px; }
-.mp-icon-picker { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; }
-.mp-icon { width: 100%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border: 1px solid var(--color-outline-variant); border-radius: 8px; background: var(--color-surface); color: var(--color-muted); cursor: pointer; }
-.mp-icon.active { border-color: var(--color-primary); color: var(--color-primary); background: var(--color-primary-soft); }
+<template>
+	<Head title="Menü Yönetimi · Süper Admin" />
 
-@media (max-width: 640px) {
-	.mp-icon-picker { grid-template-columns: repeat(5, 1fr); }
-}
+	<OzPageHeader title="Menü Yönetimi" subtitle="Sol şerit, modül sekmeleri, mobil menü ve arama paletindeki menüleri düzenleyin">
+		<template #actions>
+			<OzButton variant="primary" icon="plus" @click="openCreate()">Yeni kök menü</OzButton>
+		</template>
+	</OzPageHeader>
+	<OzModuleTabs />
+
+	<div class="stats">
+		<div class="stat"><b>{{ stats.roots }}</b><span>kök menü</span></div>
+		<div class="stat"><b>{{ stats.total }}</b><span>toplam öğe</span></div>
+		<div class="stat"><b>{{ stats.inactive }}</b><span>pasif</span></div>
+		<div class="stat"><b>{{ stats.restricted }}</b><span>izne bağlı</span></div>
+	</div>
+
+	<div class="layout">
+		<OzCard title="Menü ağacı" subtitle="sürükleyin ya da ⋯ menüsünden taşıyın">
+			<template #actions>
+				<OzPill v-if="saveLabel" :tone="saveLabel.tone">{{ saveLabel.text }}</OzPill>
+			</template>
+			<div class="tree">
+				<OzEmptyState v-if="!tree.length" icon="layers" title="Menü boş" description="Yeni kök menü ekleyin ya da katalogdan bir rota sürükleyin." compact />
+				<MenuTree
+					:nodes="tree"
+					:parent-id="null"
+					:disabled="busy"
+					@changed="scheduleSave"
+					@add-route="addRoute"
+					@edit="openEdit"
+					@add-child="openCreate"
+					@remove="remove"
+					@toggle-active="toggleActive"
+				/>
+			</div>
+		</OzCard>
+
+		<RouteCatalog :routes="routes" :disabled="busy" class="catalog" @add="(r) => addRoute({ route: r })" />
+	</div>
+
+	<MenuItemDrawer
+		v-model:open="drawerOpen"
+		:menu="editing"
+		:parent-id="createParent"
+		:tree="tree"
+		:routes="routes"
+		:permissions="permissions"
+		:busy="drawerBusy"
+		:errors="formErrors"
+		@submit="submit"
+	/>
+</template>
+
+<style scoped>
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+.stat { display: flex; align-items: baseline; gap: 6px; padding: 12px 14px; border-radius: 12px; background: var(--oz-surface); border: 1px solid var(--oz-border); box-shadow: var(--oz-shadow-sm); }
+.stat b { font-size: 20px; font-weight: 800; color: var(--oz-ink-soft); font-variant-numeric: tabular-nums; }
+.stat span { font-size: 12px; color: var(--oz-muted); }
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 14px; align-items: start; }
+.tree { padding: 0 16px 16px; }
+.catalog { position: sticky; top: 0; }
+@media (max-width: 1100px) { .layout { grid-template-columns: minmax(0, 1fr); } .catalog { position: static; } }
+@media (max-width: 640px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .tree { padding: 0 10px 12px; } }
 </style>

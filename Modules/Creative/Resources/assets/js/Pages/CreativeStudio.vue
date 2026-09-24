@@ -9,8 +9,6 @@
 			]"
 		/>
 
-		<CreativeNav current="studio" />
-
 		<PageHeader title="Creative Stüdyo" subtitle="Bir şablon ve ürün seçip sosyal medya görseli üretin">
 			<template #actions>
 				<Button variant="ghost" with-icon @click="router.visit('/creative/gallery')">
@@ -174,7 +172,6 @@ import PageHeader from '@/Components/PageHeader.vue'
 import Card from '@/Components/Card.vue'
 import Button from '@/Components/Button.vue'
 import EmptyState from '@/Components/EmptyState.vue'
-import CreativeNav from '../Components/CreativeNav.vue'
 import { useCan } from '@/composables/useCan'
 
 defineOptions({ layout: AppLayout })

@@ -1,175 +1,9 @@
-<template>
-	<Head title="Stok" />
-	<div class="page-stocks">
-		<Breadcrumb
-			:items="[
-				{ label: 'Ana Sayfa', to: '/workflow', icon: 'home' },
-				{ label: 'Katalog', to: '/products' },
-				{ label: 'Stok' },
-			]"
-		/>
-
-		<PageHeader title="Stok Yönetimi">
-			<template #subtitle>
-				<strong>{{ stocks.length }}</strong> varyant kaydı
-				<span v-if="criticalCount > 0" class="critical-chip">{{ criticalCount }} kritik</span>
-			</template>
-			<template #actions>
-				<Button variant="primary" with-icon @click="openMovement()">
-					<template #leading><Activity :size="13" /></template>
-					Stok Hareketi
-				</Button>
-			</template>
-		</PageHeader>
-
-		<div class="card">
-			<div class="card-header">
-				<h3>Stok Listesi</h3>
-				<CustomSelect
-					v-model="localFilters.warehouse_id"
-					:options="warehouseOptions"
-					:show-label="false"
-					style="width: 200px; margin-left: auto;"
-					@update:modelValue="applyFilters"
-				/>
-				<label class="check-inline">
-					<input type="checkbox" v-model="localFilters.critical_only" @change="applyFilters" />
-					<span>Sadece kritik</span>
-				</label>
-			</div>
-
-			<div class="table-scroll">
-			<table class="data-table">
-				<thead>
-					<tr>
-						<th>Ürün / Varyant</th>
-						<th style="width: 12%">Depo</th>
-						<th style="width: 10%; text-align: right;">Stok</th>
-						<th style="width: 10%; text-align: right;">Rezerve</th>
-						<th style="width: 10%; text-align: right;">Min.</th>
-						<th style="width: 12%">Durum</th>
-						<th style="width: 8%"></th>
-					</tr>
-				</thead>
-				<tbody>
-					<tr v-if="stocks.length === 0">
-						<td colspan="7" class="empty-row">Stok kaydı yok.</td>
-					</tr>
-					<tr v-for="s in stocks" :key="s.id" :class="{ 'row-critical': s.isCritical }">
-						<td>
-							<div class="product-cell">
-								<Link v-if="s.productId" :href="`/products/${s.productId}/card?tab=stok`" class="product-name product-link">{{ s.productName }}</Link>
-								<div v-else class="product-name">{{ s.productName }}</div>
-								<div class="variant-info">
-									<span v-if="s.size" class="chip">{{ s.size }}</span>
-									<span v-if="s.colorName" class="chip">
-										<span class="dot" :style="{ background: s.colorHex }"></span>
-										{{ s.colorName }}
-									</span>
-									<span class="sku">{{ s.sku }}</span>
-								</div>
-							</div>
-						</td>
-						<td>
-							<div class="warehouse-cell">
-								<div class="warehouse-name">{{ s.warehouseName }}</div>
-								<div class="warehouse-code">{{ s.warehouseCode }}</div>
-							</div>
-						</td>
-						<td class="num">{{ s.quantity }}</td>
-						<td class="num dim">{{ s.reserved_quantity }}</td>
-						<td class="num dim">{{ s.min_quantity }}</td>
-						<td>
-							<span v-if="s.isCritical" class="status-pill status-critical">
-								<span class="dot"></span> Kritik
-							</span>
-							<span v-else-if="s.quantity === 0" class="status-pill status-empty">
-								<span class="dot"></span> Tükendi
-							</span>
-							<span v-else class="status-pill status-ok">
-								<span class="dot"></span> Yeterli
-							</span>
-						</td>
-						<td>
-							<button class="table-action-btn" @click="openMovement(s)" title="Hareket Ekle"><ArrowUpDown :size="13" /></button>
-						</td>
-					</tr>
-				</tbody>
-			</table>
-			</div>
-		</div>
-
-		<!-- Stok hareket drawer -->
-		<AppDrawer
-			v-model="movementOpen"
-			title="Stok Hareketi"
-			:subtitle="selectedStock ? selectedStock.productName : 'Yeni stok hareketi kaydedin'"
-			variant="info"
-			width="480px"
-		>
-			<form class="form-grid" @submit.prevent="submitMovement">
-				<div v-if="selectedStock" class="info-box">
-					<div><strong>{{ selectedStock.productName }}</strong></div>
-					<div class="dim">
-						{{ selectedStock.size ? selectedStock.size + ' · ' : '' }}
-						{{ selectedStock.colorName ?? '' }} · {{ selectedStock.warehouseName }}
-					</div>
-					<div class="dim">Mevcut stok: <strong>{{ selectedStock.quantity }}</strong></div>
-				</div>
-
-				<div v-if="!selectedStock" class="form-row">
-					<label class="form-label">Varyant ID <span class="req">*</span></label>
-					<input v-model.number="movement.product_variant_id" type="number" class="form-input" />
-				</div>
-				<div v-if="!selectedStock" class="form-row">
-					<label class="form-label">Depo <span class="req">*</span></label>
-					<CustomSelect v-model="movement.warehouse_id" :options="warehouseOptionsForForm" :show-label="false" />
-				</div>
-
-				<div class="form-row">
-					<label class="form-label">Hareket Tipi <span class="req">*</span></label>
-					<div class="type-buttons">
-						<button
-							type="button"
-							v-for="t in movementTypes"
-							:key="t.value"
-							class="type-btn"
-							:class="{ active: movement.type === t.value }"
-							@click="movement.type = t.value"
-						><component :is="t.icon" :size="13" /> {{ t.label }}</button>
-					</div>
-				</div>
-				<div class="form-row">
-					<label class="form-label">Miktar <span class="req">*</span></label>
-					<input v-model.number="movement.quantity" type="number" min="1" class="form-input" />
-					<span v-if="errors.quantity" class="form-error">{{ errors.quantity }}</span>
-					<span v-if="movement.type === 'adjustment'" class="form-hint">
-						Düzeltme için + (artır) veya − (azalt) işaretli sayı girin.
-					</span>
-				</div>
-				<div class="form-row">
-					<label class="form-label">Not</label>
-					<textarea v-model="movement.note" class="form-input" rows="2" placeholder="Açıklama (opsiyonel)..." />
-				</div>
-			</form>
-			<template #footer="{ close }">
-				<Button variant="ghost" :disabled="busy" @click="close">İptal</Button>
-				<Button variant="primary" :loading="busy" @click="submitMovement">Kaydet</Button>
-			</template>
-		</AppDrawer>
-	</div>
-</template>
-
 <script setup>
 import { ref, computed, inject, reactive, watch } from 'vue'
-import { Head, Link, router } from '@inertiajs/vue3'
-import { Activity, ArrowUpDown, ArrowDown, ArrowUp, Pencil } from 'lucide-vue-next'
+import { Head, Link, router, usePage } from '@inertiajs/vue3'
+import { ArrowUpDown, ArrowDown, ArrowUp, Pencil } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import Breadcrumb from '@/Components/Breadcrumb.vue'
-import PageHeader from '@/Components/PageHeader.vue'
-import Button from '@/Components/Button.vue'
-import AppDrawer from '@/Components/AppDrawer.vue'
-import CustomSelect from '@/Components/CustomSelect.vue'
+import { OzPageHeader, OzModuleTabs, OzStatTile, OzCard, OzTable, OzPill, OzSelect, OzSwitch, OzButton, OzDrawer, OzField, OzInput, OzTextarea } from '@/Components/Oz'
 
 defineOptions({ layout: AppLayout })
 
@@ -180,8 +14,17 @@ const props = defineProps({
 })
 
 const showToast = inject('showToast')
+const page = usePage()
+const canCard = computed(() => (page.props.auth?.permissions ?? []).includes('product.card.view'))
 
 const criticalCount = computed(() => props.stocks.filter(s => s.isCritical).length)
+const emptyCount = computed(() => props.stocks.filter(s => s.quantity === 0).length)
+const stats = computed(() => [
+	{ key: 'total', label: 'Toplam Varyant', value: props.stocks.length, icon: 'tag', tone: 'accent' },
+	{ key: 'quantity', label: 'Toplam Stok', value: props.stocks.reduce((sum, s) => sum + s.quantity, 0), icon: 'package', tone: 'success' },
+	{ key: 'critical', label: 'Kritik', value: criticalCount.value, icon: 'warning', tone: criticalCount.value ? 'warning' : 'success' },
+	{ key: 'empty', label: 'Tükenen', value: emptyCount.value, icon: 'error', tone: emptyCount.value ? 'danger' : 'success' },
+])
 
 const localFilters = reactive({
 	warehouse_id: props.filters.warehouse_id ?? '',
@@ -203,6 +46,16 @@ function applyFilters() {
 	if (localFilters.critical_only) params.critical_only = 1
 	router.get('/products/stocks', params, { preserveState: true, preserveScroll: true, replace: true })
 }
+
+const columns = [
+	{ key: 'product', label: 'Ürün / Varyant' },
+	{ key: 'warehouse', label: 'Depo', width: '12%' },
+	{ key: 'quantity', label: 'Stok', align: 'right', width: '10%', class: 'oz-cell-amount' },
+	{ key: 'reserved_quantity', label: 'Rezerve', align: 'right', width: '10%' },
+	{ key: 'min_quantity', label: 'Min.', align: 'right', width: '10%' },
+	{ key: 'status', label: 'Durum', width: '12%' },
+	{ key: 'actions', label: '', align: 'right', width: '8%', searchable: false },
+]
 
 /* ── Movement ── */
 const movementTypes = [
@@ -275,63 +128,139 @@ function submitMovement() {
 }
 </script>
 
+<template>
+	<Head title="Stok" />
+
+	<OzPageHeader title="Stok Yönetimi">
+		<template #subtitle>
+			<b>{{ stocks.length }}</b> varyant kaydı
+			<OzPill v-if="criticalCount > 0" tone="danger">{{ criticalCount }} kritik</OzPill>
+		</template>
+		<template #actions>
+			<OzButton variant="primary" icon="activity" @click="openMovement()">Stok Hareketi</OzButton>
+		</template>
+	</OzPageHeader>
+	<OzModuleTabs />
+
+	<div class="stats">
+		<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" />
+	</div>
+
+	<OzCard title="Stok Listesi">
+		<template #actions>
+			<div class="toolbar">
+				<OzSelect v-model="localFilters.warehouse_id" :options="warehouseOptions" class="wh-select" @update:modelValue="applyFilters" />
+				<OzSwitch v-model="localFilters.critical_only" label="Sadece kritik" @update:modelValue="applyFilters" />
+			</div>
+		</template>
+		<OzTable :columns="columns" :rows="stocks" row-key="id" manual empty-title="Stok kaydı yok" min-width="760px">
+			<template #cell-product="{ row }">
+				<div class="product-cell">
+					<Link v-if="row.productId && canCard" :href="`/products/${row.productId}/card?tab=stok`" class="product-name product-link">{{ row.productName }}</Link>
+					<div v-else class="product-name">{{ row.productName }}</div>
+					<div class="variant-info">
+						<span v-if="row.size" class="chip">{{ row.size }}</span>
+						<span v-if="row.colorName" class="chip">
+							<span class="dot" :style="{ background: row.colorHex }"></span>
+							{{ row.colorName }}
+						</span>
+						<span class="sku">{{ row.sku }}</span>
+					</div>
+				</div>
+			</template>
+			<template #cell-warehouse="{ row }">
+				<div class="warehouse-cell">
+					<div class="warehouse-name">{{ row.warehouseName }}</div>
+					<div class="warehouse-code">{{ row.warehouseCode }}</div>
+				</div>
+			</template>
+			<template #cell-reserved_quantity="{ value }"><span class="dim">{{ value }}</span></template>
+			<template #cell-min_quantity="{ value }"><span class="dim">{{ value }}</span></template>
+			<template #cell-status="{ row }">
+				<OzPill v-if="row.isCritical" tone="warning">Kritik</OzPill>
+				<OzPill v-else-if="row.quantity === 0" tone="danger">Tükendi</OzPill>
+				<OzPill v-else tone="success">Yeterli</OzPill>
+			</template>
+			<template #cell-actions="{ row }">
+				<button class="table-action-btn" type="button" title="Hareket Ekle" @click="openMovement(row)"><ArrowUpDown :size="13" /></button>
+			</template>
+		</OzTable>
+	</OzCard>
+
+	<OzDrawer v-model:open="movementOpen" title="Stok Hareketi" :subtitle="selectedStock ? selectedStock.productName : 'Yeni stok hareketi kaydedin'" icon="activity" size="md" :persistent="busy">
+		<form class="form" @submit.prevent="submitMovement">
+			<div v-if="selectedStock" class="info-box">
+				<div><b>{{ selectedStock.productName }}</b></div>
+				<div class="dim">
+					{{ selectedStock.size ? selectedStock.size + ' · ' : '' }}
+					{{ selectedStock.colorName ?? '' }} · {{ selectedStock.warehouseName }}
+				</div>
+				<div class="dim">Mevcut stok: <b>{{ selectedStock.quantity }}</b></div>
+			</div>
+
+			<OzField v-if="!selectedStock" label="Varyant ID" required>
+				<OzInput v-model.number="movement.product_variant_id" type="number" />
+			</OzField>
+			<OzField v-if="!selectedStock" label="Depo" required>
+				<OzSelect v-model="movement.warehouse_id" :options="warehouseOptionsForForm" placeholder="Depo seçin" />
+			</OzField>
+
+			<OzField label="Hareket Tipi" required>
+				<div class="type-buttons">
+					<button
+						v-for="t in movementTypes"
+						:key="t.value"
+						type="button"
+						class="type-btn"
+						:class="{ active: movement.type === t.value }"
+						@click="movement.type = t.value"
+					><component :is="t.icon" :size="13" /> {{ t.label }}</button>
+				</div>
+			</OzField>
+			<OzField label="Miktar" required :error="errors.quantity" :hint="movement.type === 'adjustment' ? 'Düzeltme için + (artır) veya − (azalt) işaretli sayı girin.' : ''">
+				<OzInput v-model.number="movement.quantity" type="number" min="1" />
+			</OzField>
+			<OzField label="Not">
+				<OzTextarea v-model="movement.note" :rows="2" placeholder="Açıklama (opsiyonel)…" />
+			</OzField>
+			<button type="submit" hidden />
+		</form>
+		<template #footer>
+			<OzButton :disabled="busy" @click="movementOpen = false">İptal</OzButton>
+			<OzButton variant="primary" :loading="busy" @click="submitMovement">Kaydet</OzButton>
+		</template>
+	</OzDrawer>
+</template>
+
 <style scoped>
-.critical-chip { display: inline-block; margin-left: 8px; padding: 2px 8px; background: #fee2e2; color: #dc2626; border-radius: 999px; font-size: 11px; font-weight: 700; }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
-.card { background: #fff; border-radius: 16px; border: 1px solid #ebebf0; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.04); }
-.card-header { padding: 14px 18px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #f0f0f5; }
-.card-header h3 { font-size: 15px; font-weight: 700; color: #1a1a2e; }
-
-.check-inline { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #1a1a2e; cursor: pointer; }
-
-.data-table { width: 100%; border-collapse: separate; border-spacing: 0; }
-.data-table thead tr { background: #f8f8fc; }
-.data-table th { text-align: left; padding: 12px 16px; font-size: 11px; font-weight: 600; color: #aaa; border-bottom: 1px solid #f0f0f5; text-transform: uppercase; letter-spacing: 0.04em; }
-.data-table td { padding: 12px 16px; font-size: 13px; color: #444; border-bottom: 1px solid #f5f5f8; vertical-align: middle; }
-.data-table tr:last-child td { border-bottom: none; }
-.data-table tr:hover td { background: #fafafe; }
-.data-table tr.row-critical td { background: #fff8f8; }
-.data-table tr.row-critical:hover td { background: #fff0f0; }
-.empty-row { text-align: center !important; color: #aaa; padding: 32px 0 !important; font-style: italic; }
-.num { text-align: right; font-family: 'SF Mono', Menlo, Consolas, monospace; font-weight: 600; }
-.dim { color: #888; font-weight: 500; }
+.toolbar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.wh-select { width: 200px; }
+.dim { color: var(--oz-muted); font-weight: 500; }
 
 .product-cell { display: flex; flex-direction: column; gap: 4px; }
-.product-name { font-weight: 600; color: #1a1a2e; font-size: 13px; }
+.product-name { font-weight: 600; color: var(--oz-ink-soft); font-size: 13px; }
 .product-link { text-decoration: none; }
-.product-link:hover { color: rgb(var(--color-primary-rgb)); text-decoration: underline; }
+.product-link:hover { color: var(--oz-accent); text-decoration: underline; }
 .variant-info { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; background: #f0f0f5; color: #555; border-radius: 6px; font-size: 11px; font-weight: 600; }
-.chip .dot { width: 8px; height: 8px; border-radius: 50%; border: 1px solid #d0d0db; }
-.sku { font-size: 11px; color: #888; font-family: 'SF Mono', Menlo, Consolas, monospace; }
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; background: var(--oz-surface-2); color: var(--oz-muted); border-radius: 6px; font-size: 11px; font-weight: 600; }
+.chip .dot { width: 8px; height: 8px; border-radius: 50%; border: 1px solid var(--oz-border-strong); }
+.sku { font-size: 11px; color: var(--oz-muted); font-family: ui-monospace, monospace; }
 
 .warehouse-cell { display: flex; flex-direction: column; gap: 2px; }
-.warehouse-name { font-size: 12.5px; color: #1a1a2e; font-weight: 600; }
-.warehouse-code { font-size: 10.5px; color: #888; font-family: 'SF Mono', Menlo, Consolas, monospace; }
+.warehouse-name { font-size: 12.5px; color: var(--oz-ink-soft); font-weight: 600; }
+.warehouse-code { font-size: 10.5px; color: var(--oz-muted); font-family: ui-monospace, monospace; }
 
-.status-pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; }
-.status-pill .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
-.status-ok { background: #dcfce7; color: #16a34a; }
-.status-critical { background: #fef3c7; color: #d97706; }
-.status-empty { background: #fee2e2; color: #dc2626; }
+.table-action-btn { display: inline-flex; align-items: center; justify-content: center; background: var(--oz-surface-2); border: none; cursor: pointer; padding: 6px; border-radius: 6px; color: var(--oz-muted); transition: all .15s; }
+.table-action-btn:hover { background: var(--oz-accent-soft); color: var(--oz-accent); }
 
-.table-action-btn { display: inline-flex; align-items: center; justify-content: center; background: #f3f4f6; border: none; cursor: pointer; padding: 6px; border-radius: 6px; color: #6b7280; transition: all .15s; }
-.table-action-btn:hover { background: rgb(var(--color-primary-soft-rgb)); color: rgb(var(--color-primary-rgb)); }
-
-/* Form */
-.form-grid { display: flex; flex-direction: column; gap: 14px; }
-.form-row { display: flex; flex-direction: column; gap: 6px; }
-.form-label { font-size: 12px; font-weight: 600; color: #1a1a2e; }
-.form-label .req { color: #ef4444; }
-.form-input { padding: 9px 12px; border: 1px solid #e8e8f0; border-radius: 8px; font-family: inherit; font-size: 13px; color: #1a1a2e; background: #fff; outline: none; transition: border-color .15s; }
-.form-input:focus { border-color: rgb(var(--color-primary-rgb)); }
-.form-hint { font-size: 11px; color: #888; }
-.form-error { font-size: 11.5px; color: #ef4444; }
-
+.form { display: flex; flex-direction: column; gap: 14px; }
 .info-box {
 	padding: 12px 14px;
-	background: #fafafe;
-	border: 1px solid #f0f0f5;
+	background: var(--oz-surface-2);
+	border: 1px solid var(--oz-border);
 	border-radius: 10px;
 	font-size: 13px;
 	display: flex; flex-direction: column; gap: 4px;
@@ -341,11 +270,11 @@ function submitMovement() {
 .type-btn {
 	display: inline-flex; align-items: center; justify-content: center; gap: 5px;
 	flex: 1; padding: 10px 14px;
-	background: #fff; border: 1.5px solid #e8e8f0;
+	background: var(--oz-surface); border: 1.5px solid var(--oz-border);
 	border-radius: 9px; font-family: inherit; font-size: 12.5px;
-	font-weight: 600; color: #555; cursor: pointer;
+	font-weight: 600; color: var(--oz-muted); cursor: pointer;
 	transition: all .15s;
 }
-.type-btn:hover { border-color: #c0c0d8; }
-.type-btn.active { border-color: rgb(var(--color-primary-rgb)); background: rgb(var(--color-primary-soft-rgb)); color: rgb(var(--color-primary-hover-rgb)); }
+.type-btn:hover { border-color: var(--oz-border-strong); }
+.type-btn.active { border-color: var(--oz-accent); background: var(--oz-accent-soft); color: var(--oz-accent); }
 </style>

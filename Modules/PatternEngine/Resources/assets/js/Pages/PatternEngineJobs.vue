@@ -1,24 +1,17 @@
 <script setup>
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch, inject } from 'vue'
 import { Head, useForm, router, Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import Breadcrumb from '@/Components/Breadcrumb.vue'
-import PageHeader from '@/Components/PageHeader.vue'
-import Card from '@/Components/Card.vue'
-import Button from '@/Components/Button.vue'
-import Badge from '@/Components/Badge.vue'
-import StatusIndicator from '@/Components/StatusIndicator.vue'
-import DataTable from '@/Components/DataTable.vue'
-import CustomSelect from '@/Components/CustomSelect.vue'
-import FormField from '@/Components/Form/FormField.vue'
-import FormInput from '@/Components/Form/FormInput.vue'
-import FormCheckbox from '@/Components/Form/FormCheckbox.vue'
+import {
+	OzPageHeader, OzModuleTabs, OzStatTile, OzCard, OzButton, OzPill, OzTable, OzAlert, OzAccordion,
+	OzField, OzInput, OzSelect, OzCombobox, OzFileDrop,
+} from '@/Components/Oz'
 import { useCan } from '@/composables/useCan'
-import { Download, ScanLine, TriangleAlert } from 'lucide-vue-next'
 
 defineOptions({ layout: AppLayout })
 
 const { can } = useCan()
+const showToast = inject('showToast', null)
 
 const props = defineProps({
 	jobs: { type: Array, default: () => [] },
@@ -26,6 +19,16 @@ const props = defineProps({
 	profiles: { type: Array, default: () => [] },
 })
 
+/* ── özet (son 50 iş) ── */
+const countBy = (...s) => props.jobs.filter((j) => s.includes(j.status)).length
+const stats = computed(() => [
+	{ key: 'done', label: 'Hazır Kalıp', value: countBy('done'), icon: 'success', tone: 'success' },
+	{ key: 'pending', label: 'Sırada / İşleniyor', value: countBy('queued', 'processing'), icon: 'clock', tone: 'info' },
+	{ key: 'failed', label: 'Başarısız', value: countBy('failed'), icon: 'alert', tone: countBy('failed') ? 'danger' : 'success' },
+	{ key: 'profiles', label: 'Ölçü Profili', value: props.profiles.length, icon: 'layers', tone: 'accent' },
+])
+
+/* ── üretim formu ── */
 const form = useForm({
 	garment: 'tshirt',
 	size: '',
@@ -43,20 +46,20 @@ const form = useForm({
 // Beden/giysi seti profile göre değişir (§5.2, Sprint 4) — statik liste yok.
 const currentProfile = computed(() => props.profiles.find((p) => p.name === form.profile) ?? null)
 const availableSizes = computed(() => currentProfile.value?.sizes ?? [])
-
 const profileOptions = computed(() => props.profiles.map((p) => ({
 	value: p.name,
 	label: p.name + (p.verifiedByModelist ? '' : ' (yer tutucu)'),
+	description: p.garment,
 })))
 const sizeOptions = computed(() => availableSizes.value.map((s) => ({ value: s, label: s })))
+const otherSizeOptions = computed(() => availableSizes.value.filter((s) => s !== form.size).map((s) => ({ value: s, label: s })))
 const fitOptions = [
-	{ value: 'slim', label: 'Slim' },
-	{ value: 'regular', label: 'Regular' },
-	{ value: 'loose', label: 'Loose' },
+	{ value: 'slim', label: 'Slim — dar' },
+	{ value: 'regular', label: 'Regular — standart' },
+	{ value: 'loose', label: 'Loose — bol' },
 ]
 
-// Profil değişince o profilin bedenlerine düş; artık uygun olmayan gradasyon
-// seçimlerini temizle.
+// Profil değişince o profilin bedenlerine düş; artık uygun olmayan gradasyon seçimlerini temizle.
 watch(() => form.profile, (name) => {
 	const profile = props.profiles.find((p) => p.name === name)
 	if (!profile) return
@@ -65,47 +68,45 @@ watch(() => form.profile, (name) => {
 	form.grade_sizes = form.grade_sizes.filter((s) => profile.sizes.includes(s))
 }, { immediate: true })
 
-// Taban beden değişince, artık taban olan bedeni "ek beden" listesinden düşür.
-// AI güven rozetleri eski bedene göre hesaplanmıştı — beden değişince artık
-// yanıltıcı olur, temizlenir (alanlardaki değerler kalır, kullanıcı isterse düzeltir).
+// Taban beden değişince taban bedeni "ek beden" listesinden düşür. AI güven rozetleri eski bedene göre
+// hesaplanmıştı — beden değişince yanıltıcı olur, temizlenir (alan değerleri kalır).
 watch(() => form.size, (newSize) => {
 	form.grade_sizes = form.grade_sizes.filter((s) => s !== newSize)
 	digitizeConfidence.value = {}
 })
 
-const otherSizes = computed(() => availableSizes.value.filter((s) => s !== form.size))
-
 function submit() {
+	if (form.processing) return
 	form.post(route('patternengine.generate'), {
 		preserveScroll: true,
+		onError: (errs) => showToast?.({ type: 'error', title: 'Üretim başlatılamadı', message: Object.values(errs)[0] || 'Doğrulama hatası.' }),
 	})
 }
 
-// Technical flat'ten öneri (§4.1, Sprint 5) — AI omurga değil sağlayıcıdır (§P2):
-// bu asla otomatik üretmez, yalnızca aşağıdaki alanları önceden doldurur.
-const digitizeFile = ref(null)
+/* ── teknik çizimden öneri (§4.1, Sprint 5) — AI omurga değil sağlayıcıdır (§P2):
+   asla otomatik üretmez, yalnızca aşağıdaki alanları önceden doldurur. ── */
+const digitizeFiles = ref([])
 const digitizing = ref(false)
 const digitizeError = ref('')
 const digitizeWarnings = ref([])
 const digitizeConfidence = ref({})
 
-function onDigitizeFileChange(event) {
-	digitizeFile.value = event.target.files[0] ?? null
+// Yeni dosya henüz analiz edilmedi — eski öneriye ait rozet/uyarılar yanıltıcı olur.
+watch(digitizeFiles, () => {
 	digitizeError.value = ''
-	// Yeni dosya henüz analiz edilmedi — eski öneriye ait güven rozetleri yanıltıcı olur.
 	digitizeConfidence.value = {}
 	digitizeWarnings.value = []
-}
+})
 
 async function requestDigitizeSuggestion() {
-	if (!digitizeFile.value) return
-
+	const file = digitizeFiles.value[0]
+	if (!file || digitizing.value) return
 	digitizing.value = true
 	digitizeError.value = ''
 	digitizeWarnings.value = []
 
 	const payload = new FormData()
-	payload.append('image', digitizeFile.value)
+	payload.append('image', file)
 	payload.append('garment', form.garment)
 	payload.append('size', form.size)
 	payload.append('profile', form.profile)
@@ -125,15 +126,54 @@ async function requestDigitizeSuggestion() {
 	}
 }
 
-function confidenceBadge(field) {
+function confidence(field) {
 	const value = digitizeConfidence.value[field]
 	if (value == null) return null
-	return { color: value >= 0.6 ? 'success' : 'warning', label: `AI önerisi (güven ${value.toFixed(1)})` }
+	return { tone: value >= 0.6 ? 'success' : 'warning', label: `AI önerisi · güven ${value.toFixed(1)}` }
 }
 
-// Formdaki her alanın kalıp üretimindeki karşılığını anlatan rehber (§ aşağıdaki
-// "Alan Rehberi" kartı) — teknik terimler (ease, gradasyon vb.) modelist olmayan
-// kullanıcılar için formun altında sabit metin olarak açıklanır.
+/* ── son işler ── */
+const STATUS = { queued: 'Sırada', processing: 'İşleniyor', done: 'Hazır', failed: 'Başarısız' }
+const STATUS_TONE = { queued: 'neutral', processing: 'warning', done: 'success', failed: 'danger' }
+
+function validationSummary(job) {
+	const report = job.validation_report
+	if (!report) return null
+	if (report.findings_by_size) {
+		const sizes = Object.keys(report.all_passed_by_size || {})
+		const passed = sizes.filter((s) => report.all_passed_by_size[s]).length
+		const allPassed = passed === sizes.length && sizes.length > 0
+		return { allPassed, label: `${passed}/${sizes.length} beden geçti` }
+	}
+	if (Array.isArray(report.findings)) {
+		const failed = report.findings.filter((f) => !f.passed).length
+		const total = report.findings.length
+		return { allPassed: report.all_passed, label: report.all_passed ? `${total}/${total} kural geçti` : `${failed} kural başarısız` }
+	}
+	return null
+}
+
+const columns = [
+	{ key: 'id', label: '#', sortable: true, width: '64px' },
+	{ key: 'garment', label: 'Giysi', sortable: true },
+	{ key: 'profile', label: 'Profil', sortable: true },
+	{ key: 'size', label: 'Beden', searchable: false },
+	{ key: 'status', label: 'Durum', sortable: true, filter: { type: 'select', options: Object.entries(STATUS).map(([value, label]) => ({ value, label })) } },
+	{ key: 'validation', label: 'Doğrulama', searchable: false },
+	{ key: 'created_at', label: 'Tarih', sortable: true },
+	{ key: 'actions', label: '', align: 'right', width: '64px', searchable: false },
+]
+const formatDate = (v) => (v ? new Date(v).toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' }) : '—')
+
+const hasPending = computed(() => props.jobs.some((j) => j.status === 'queued' || j.status === 'processing'))
+let timer = null
+onMounted(() => {
+	timer = setInterval(() => { if (hasPending.value) router.reload({ only: ['jobs', 'engineOnline'] }) }, 5000)
+})
+onUnmounted(() => { if (timer) clearInterval(timer) })
+
+/* ── alan rehberi ── */
+const guideOpen = ref([])
 const FIELD_GUIDE = [
 	{ term: 'Profil', desc: 'Kullanılacak beden ölçü tablosu (ör. ts_default = tişört varsayılan ölçüleri). "(yer tutucu)" etiketli profiller istatistiksel tahmindir, modelist onayı almamıştır.' },
 	{ term: 'Beden', desc: 'Kalıbın üretileceği taban beden (S/M/L gibi) — seçilen profilin ölçü tablosundan gelir.' },
@@ -143,215 +183,160 @@ const FIELD_GUIDE = [
 	{ term: 'Beden Boyu (mm)', desc: 'Gövdenin omuz dikişinden etek ucuna toplam uzunluğu.' },
 	{ term: 'Kol Uzunluğu (mm)', desc: 'Omuz dikişinden kol ucuna uzunluk (kısa/uzun kol modeline göre değişir).' },
 	{ term: 'Etek Genişlemesi (mm)', desc: 'Etek ucunun göğüs/bel genişliğine göre ne kadar açılacağı — 0 düz kesim demektir, pozitif değer etekte evaze/genişleme verir.' },
-	{ term: 'Teknik Çizimden Öneri Al (AI)', desc: 'Bir teknik çizim (flat) görseli yükleyip yukarıdaki ölçü alanları için otomatik öneri almayı sağlar. AI kalıp üretmez, yalnızca formu önceden doldurur — yeşil rozet güven ≥ 0.6, turuncu rozet daha düşük güveni gösterir; üretmeden önce değerler gözden geçirilmelidir.' },
+	{ term: 'Teknik Çizimden Öneri Al (AI)', desc: 'Bir teknik çizim (flat) görseli yükleyip ölçü alanları için otomatik öneri almayı sağlar. AI kalıp üretmez, yalnızca formu önceden doldurur — yeşil rozet güven ≥ 0.6, turuncu rozet daha düşük güveni gösterir; üretmeden önce değerler gözden geçirilmelidir.' },
 ]
-
-const STATUS_LABELS = { queued: 'Sırada', processing: 'İşleniyor', done: 'Hazır', failed: 'Başarısız' }
-const STATUS_COLORS = { queued: 'neutral', processing: 'warning', done: 'success', failed: 'danger' }
-
-function statusLabel(s) { return STATUS_LABELS[s] || s }
-function statusColor(s) { return STATUS_COLORS[s] ?? 'neutral' }
-
-function validationSummary(job) {
-	const report = job.validation_report
-	if (!report) return null
-
-	if (report.findings_by_size) {
-		const sizes = Object.keys(report.all_passed_by_size || {})
-		const passed = sizes.filter((s) => report.all_passed_by_size[s]).length
-		return { graded: true, total: sizes.length, passed, allPassed: passed === sizes.length && sizes.length > 0 }
-	}
-
-	if (Array.isArray(report.findings)) {
-		const failed = report.findings.filter((f) => !f.passed).length
-		return { graded: false, total: report.findings.length, failed, allPassed: report.all_passed }
-	}
-
-	return null
-}
-
-const columns = [
-	{ key: 'id', label: '#', align: 'left' },
-	{ key: 'garment', label: 'Giysi' },
-	{ key: 'size', label: 'Beden', sortable: false },
-	{ key: 'status', label: 'Durum' },
-	{ key: 'validation', label: 'Doğrulama', sortable: false },
-	{ key: 'created_at', label: 'Tarih' },
-]
-
-const hasPending = computed(() => props.jobs.some((j) => j.status === 'queued' || j.status === 'processing'))
-
-function refresh() {
-	router.reload({ only: ['jobs', 'engineOnline'] })
-}
-
-let timer = null
-onMounted(() => {
-	timer = setInterval(() => { if (hasPending.value) refresh() }, 5000)
-})
-onUnmounted(() => {
-	if (timer) clearInterval(timer)
-})
 </script>
 
 <template>
 	<Head title="Kalıp Motoru" />
 
-	<Breadcrumb
-		:items="[
-			{ label: 'Ana Sayfa', to: '/workflow', icon: 'home' },
-			{ label: 'Kalıp Motoru' },
-		]"
-	/>
-
-	<PageHeader
-		title="Kalıp Motoru"
-		subtitle="Seçilen profilin ölçü tablosundan, beden/tasarım parametresiyle doğrulanmış DXF kalıp üret."
-	>
+	<OzPageHeader title="Kalıp Motoru" subtitle="Seçilen profilin ölçü tablosundan, beden/tasarım parametresiyle doğrulanmış DXF kalıp üret.">
 		<template #actions>
-			<Link v-if="can('patternengine.profile.manage')" :href="route('patternengine.profiles.index')" class="btn btn-ghost btn-sm">Profiller</Link>
-			<StatusIndicator :status="engineOnline ? 'online' : 'offline'" :label="engineOnline ? 'Servis Ayakta' : 'Servis Kapalı (mock)'" />
+			<OzPill :tone="engineOnline ? 'success' : 'warning'">{{ engineOnline ? 'Servis ayakta' : 'Servis kapalı (mock)' }}</OzPill>
 		</template>
-	</PageHeader>
+	</OzPageHeader>
+	<OzModuleTabs />
 
-	<div v-if="currentProfile && !currentProfile.verifiedByModelist" class="flex items-start gap-2.5 rounded-lg border border-warning/30 bg-warning/10 px-3.5 py-2.5 mb-5 text-xs text-ink">
-		<TriangleAlert :size="16" class="text-warning shrink-0 mt-0.5" />
-		<p>
-			<strong>Ölçüler geçici, modelist onayı yok</strong> — <code>{{ currentProfile.name }}</code> profili
-			istatistiksel yer tutucudur. Modelist onayı gelmeden bu profille üretim vaadi verilmez.
-			<Link v-if="can('patternengine.profile.manage')" :href="route('patternengine.profiles.index')" class="underline">Profilleri yönet</Link>
-		</p>
+	<div class="stats">
+		<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" />
 	</div>
 
-	<div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-		<Card title="Yeni Kalıp Üret" class="lg:col-span-1">
-			<form class="flex flex-col gap-3" @submit.prevent="submit">
-				<FormField label="Profil" :error="form.errors.profile">
-					<CustomSelect v-model="form.profile" :show-label="false" :options="profileOptions" />
-				</FormField>
+	<OzAlert v-if="currentProfile && !currentProfile.verifiedByModelist" tone="warning" title="Ölçüler geçici, modelist onayı yok" class="notice">
+		<code>{{ currentProfile.name }}</code> profili istatistiksel yer tutucudur. Modelist onayı gelmeden bu profille üretim vaadi verilmez.
+		<Link v-if="can('patternengine.profile.manage')" href="/pattern-engine/profiles" class="inline-link">Profilleri yönet</Link>
+	</OzAlert>
 
-				<FormField label="Beden" :error="form.errors.size">
-					<CustomSelect v-model="form.size" :show-label="false" :options="sizeOptions" />
-				</FormField>
-
-				<FormField label="Ek Bedenler (gradasyon, opsiyonel)" :error="form.errors['grade_sizes'] || form.errors['grade_sizes.0']">
-					<div class="flex flex-wrap gap-3 pt-1">
-						<FormCheckbox v-for="s in otherSizes" :key="s" v-model="form.grade_sizes" :value="s" :label="s" />
-					</div>
-					<p class="text-2xs text-muted mt-1">
-						Seçilirse taban bedenle birlikte, her biri kendi ölçülerinden bağımsız çözülüp
-						tek DXF'te (her beden kendi satırında) üretilir — sabit katsayı ile büyütülmez (§4.5).
-					</p>
-				</FormField>
-
-				<div class="border-t border-line pt-3">
-					<p class="text-xs font-semibold text-ink mb-2 flex items-center gap-1.5">
-						<ScanLine :size="14" /> Teknik Çizimden Öneri Al (AI)
-					</p>
-					<input type="file" accept="image/png,image/jpeg" class="form-input" @change="onDigitizeFileChange" />
-					<Button
-						type="button" variant="ghost" size="sm" class="mt-2"
-						:loading="digitizing" :disabled="!digitizeFile || !form.size"
-						@click="requestDigitizeSuggestion"
-					>
-						Görselden Öneri Al
-					</Button>
-					<p v-if="digitizeError" class="text-xs text-danger mt-1">{{ digitizeError }}</p>
-					<p v-for="(w, i) in digitizeWarnings" :key="i" class="text-2xs text-warning mt-1">{{ w }}</p>
-					<p class="text-2xs text-muted mt-1">
-						AI omurga değil sağlayıcıdır (§P2) — öneri aşağıdaki alanları önceden doldurur,
-						üretmeden önce gözden geçirip düzeltebilirsiniz.
-					</p>
+	<div class="layout">
+		<OzCard title="Yeni Kalıp Üret" class="form-card">
+			<form class="form" @submit.prevent="submit">
+				<OzField label="Profil" :error="form.errors.profile">
+					<OzCombobox v-model="form.profile" :options="profileOptions" search-placeholder="Profil ara…" />
+				</OzField>
+				<div class="row-2">
+					<OzField label="Beden" :error="form.errors.size">
+						<OzSelect v-model="form.size" :options="sizeOptions" placeholder="Beden seçin" />
+					</OzField>
+					<OzField label="Uyum (fit)" :error="form.errors['design_params.fit']">
+						<OzSelect v-model="form.design_params.fit" :options="fitOptions" />
+					</OzField>
 				</div>
+				<OzField
+					label="Ek bedenler (gradasyon)"
+					:error="form.errors.grade_sizes || form.errors['grade_sizes.0']"
+					hint="Her beden kendi ölçüsünden bağımsız çözülüp tek DXF'te üretilir — sabit katsayıyla büyütülmez (§4.5)."
+				>
+					<OzCombobox v-model="form.grade_sizes" :options="otherSizeOptions" multiple placeholder="Yok" :disabled="!otherSizeOptions.length" />
+				</OzField>
 
-				<FormField label="Uyum (fit)" :error="form.errors['design_params.fit']">
-					<CustomSelect v-model="form.design_params.fit" :show-label="false" :options="fitOptions" />
-				</FormField>
+				<section class="section">
+					<span class="section-title">Teknik çizimden öneri (AI)</span>
+					<OzFileDrop v-model="digitizeFiles" accept="image/png,image/jpeg" title="Teknik çizim (flat) bırakın" hint="PNG / JPG" />
+					<OzButton size="sm" icon="sparkles" :loading="digitizing" :disabled="!digitizeFiles.length || !form.size" @click="requestDigitizeSuggestion">Görselden Öneri Al</OzButton>
+					<p v-if="digitizeError" class="msg is-error">{{ digitizeError }}</p>
+					<p v-for="(w, i) in digitizeWarnings" :key="i" class="msg is-warn">{{ w }}</p>
+					<p class="msg">AI yalnızca aşağıdaki alanları önceden doldurur; üretmeden önce gözden geçirin (§P2).</p>
+				</section>
 
-				<FormField label="Boyun Derinliği (mm, opsiyonel)" for-id="neck_depth_front" :error="form.errors['design_params.neck_depth_front']">
-					<FormInput id="neck_depth_front" v-model="form.design_params.neck_depth_front" type="number" step="0.1" min="0" variant="default" placeholder="Formülden türet" />
-					<Badge v-if="confidenceBadge('neck_depth_front')" v-bind="confidenceBadge('neck_depth_front')" variant="tonal" class="mt-1" />
-				</FormField>
+				<section class="section">
+					<span class="section-title">Tasarım parametreleri <span class="dim">(boş = formülden)</span></span>
+					<div class="row-2">
+						<OzField label="Boyun derinliği" :error="form.errors['design_params.neck_depth_front']">
+							<OzInput v-model="form.design_params.neck_depth_front" type="number" step="0.1" min="0" suffix="mm" placeholder="Formül" />
+							<OzPill v-if="confidence('neck_depth_front')" :tone="confidence('neck_depth_front').tone" class="ai">{{ confidence('neck_depth_front').label }}</OzPill>
+						</OzField>
+						<OzField label="Beden boyu" :error="form.errors['design_params.body_length']">
+							<OzInput v-model="form.design_params.body_length" type="number" step="0.1" min="0" suffix="mm" placeholder="Formül" />
+							<OzPill v-if="confidence('body_length')" :tone="confidence('body_length').tone" class="ai">{{ confidence('body_length').label }}</OzPill>
+						</OzField>
+						<OzField label="Kol uzunluğu" :error="form.errors['design_params.sleeve_length']">
+							<OzInput v-model="form.design_params.sleeve_length" type="number" step="0.1" min="0" suffix="mm" placeholder="Formül" />
+						</OzField>
+						<OzField label="Etek genişlemesi" :error="form.errors['design_params.hem_flare']">
+							<OzInput v-model="form.design_params.hem_flare" type="number" step="0.1" suffix="mm" placeholder="0" />
+							<OzPill v-if="confidence('hem_flare')" :tone="confidence('hem_flare').tone" class="ai">{{ confidence('hem_flare').label }}</OzPill>
+						</OzField>
+					</div>
+				</section>
 
-				<FormField label="Beden Boyu (mm, opsiyonel)" for-id="body_length" :error="form.errors['design_params.body_length']">
-					<FormInput id="body_length" v-model="form.design_params.body_length" type="number" step="0.1" min="0" variant="default" placeholder="Formülden türet" />
-					<Badge v-if="confidenceBadge('body_length')" v-bind="confidenceBadge('body_length')" variant="tonal" class="mt-1" />
-				</FormField>
-
-				<FormField label="Kol Uzunluğu (mm, opsiyonel)" for-id="sleeve_length" :error="form.errors['design_params.sleeve_length']">
-					<FormInput id="sleeve_length" v-model="form.design_params.sleeve_length" type="number" step="0.1" min="0" variant="default" placeholder="Formülden türet" />
-				</FormField>
-
-				<FormField label="Etek Genişlemesi (mm)" for-id="hem_flare" :error="form.errors['design_params.hem_flare']">
-					<FormInput id="hem_flare" v-model="form.design_params.hem_flare" type="number" step="0.1" variant="default" placeholder="0" />
-					<Badge v-if="confidenceBadge('hem_flare')" v-bind="confidenceBadge('hem_flare')" variant="tonal" class="mt-1" />
-				</FormField>
-
-				<Button type="submit" variant="primary" :loading="form.processing" class="mt-1">
-					Üret
-				</Button>
+				<OzButton type="submit" variant="primary" icon="rocket" class="submit" :loading="form.processing" :disabled="!form.size">Üret</OzButton>
 			</form>
-		</Card>
+		</OzCard>
 
-		<Card title="Son İşler" class="lg:col-span-2">
-			<DataTable
-				:columns="columns"
-				:data="jobs"
-				:paginated="false"
-				empty-icon="folder"
-				empty-title="Henüz kalıp üretimi yok"
-				empty-hint="Soldaki formdan bir tişört/beden seçip üretimi başlatın."
-			>
-				<template #size="{ row }">
-					<span class="text-ink">{{ row.size }}</span>
-					<span v-if="row.graded_sizes && row.graded_sizes.length" class="text-2xs text-muted">
-						+ {{ row.graded_sizes.join(', ') }}
-					</span>
-				</template>
-
-				<template #status="{ row }">
-					<Badge :color="statusColor(row.status)" :label="statusLabel(row.status)" variant="tonal" />
-				</template>
-
-				<template #validation="{ row }">
-					<span v-if="row.status === 'failed'" class="text-xs text-danger">{{ row.error }}</span>
-					<template v-else-if="validationSummary(row)">
-						<Badge
-							:color="validationSummary(row).allPassed ? 'success' : 'danger'"
-							:label="validationSummary(row).graded
-								? `${validationSummary(row).passed}/${validationSummary(row).total} beden geçti`
-								: (validationSummary(row).allPassed
-									? `${validationSummary(row).total}/${validationSummary(row).total} geçti`
-									: `${validationSummary(row).failed} kural başarısız`)"
-							variant="tonal"
-						/>
+		<div class="col">
+			<OzCard title="Son İşler" :meta="hasPending ? 'işleniyor · 5 sn\'de bir yenilenir' : `${jobs.length} iş`">
+				<OzTable :columns="columns" :rows="jobs" row-key="id" :default-sort="{ key: 'id', dir: 'desc' }" empty-title="Henüz kalıp üretimi yok" empty-text="Soldaki formdan profil ve beden seçip üretimi başlatın." min-width="640px">
+					<template #cell-id="{ value }"><span class="mono dim">#{{ value }}</span></template>
+					<template #cell-profile="{ value }"><span class="mono">{{ value }}</span></template>
+					<template #cell-size="{ row }">
+						<b>{{ row.size }}</b>
+						<span v-if="row.graded_sizes?.length" class="dim"> + {{ row.graded_sizes.join(', ') }}</span>
 					</template>
-					<span v-else class="text-xs text-muted">—</span>
-				</template>
+					<template #cell-status="{ value }">
+						<OzPill :tone="STATUS_TONE[value] ?? 'neutral'">{{ STATUS[value] ?? value }}</OzPill>
+					</template>
+					<template #cell-validation="{ row }">
+						<span v-if="row.status === 'failed'" class="err" :title="row.error">{{ row.error }}</span>
+						<OzPill v-else-if="validationSummary(row)" :tone="validationSummary(row).allPassed ? 'success' : 'danger'">{{ validationSummary(row).label }}</OzPill>
+						<span v-else class="dim">—</span>
+					</template>
+					<template #cell-created_at="{ value }"><span class="dim">{{ formatDate(value) }}</span></template>
+					<template #cell-actions="{ row }">
+						<!-- Dosya indirme: Inertia Link değil düz bağlantı (XHR ile indirilemez) -->
+						<a v-if="row.status === 'done'" :href="route('patternengine.jobs.download', row.id)" class="dl" :aria-label="`#${row.id} DXF indir`" download>DXF</a>
+					</template>
+				</OzTable>
+			</OzCard>
 
-				<template #created_at="{ value }">
-					<span class="text-xs text-muted">{{ new Date(value).toLocaleString('tr-TR') }}</span>
-				</template>
-
-				<template #actions="{ row }">
-					<Link
-						v-if="row.status === 'done'"
-						:href="route('patternengine.jobs.download', row.id)"
-						class="btn btn-ghost btn-sm"
-					>
-						<Download :size="14" />
-					</Link>
-				</template>
-			</DataTable>
-		</Card>
+			<OzCard title="Alan Rehberi" subtitle="formdaki terimlerin anlamı">
+				<div class="guide">
+					<OzAccordion v-model="guideOpen" :items="[{ key: 'guide', title: 'Terimleri göster', icon: 'help' }]" flush>
+						<template #guide>
+							<dl class="guide-list">
+								<div v-for="item in FIELD_GUIDE" :key="item.term">
+									<dt>{{ item.term }}</dt>
+									<dd>{{ item.desc }}</dd>
+								</div>
+							</dl>
+						</template>
+					</OzAccordion>
+				</div>
+			</OzCard>
+		</div>
 	</div>
-
-	<Card title="Alan Rehberi" class="mt-4">
-		<dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3.5 text-xs">
-			<div v-for="item in FIELD_GUIDE" :key="item.term">
-				<dt class="font-semibold text-ink">{{ item.term }}</dt>
-				<dd class="text-muted mt-0.5">{{ item.desc }}</dd>
-			</div>
-		</dl>
-	</Card>
 </template>
+
+<style scoped>
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.mono { font-family: ui-monospace, monospace; font-size: 12px; }
+.dim { color: var(--oz-muted); font-weight: 400; }
+.notice { margin-bottom: 14px; }
+.inline-link { margin-left: 6px; color: var(--oz-accent); font-weight: 600; }
+
+.layout { display: grid; grid-template-columns: 380px minmax(0, 1fr); gap: 16px; align-items: start; }
+.col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.form-card { position: sticky; top: 0; }
+@media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } .form-card { position: static; } }
+
+.form { display: flex; flex-direction: column; gap: 14px; padding: 0 18px 18px; }
+.row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.section { display: flex; flex-direction: column; gap: 10px; padding-top: 14px; border-top: 1px solid var(--oz-border-soft); }
+.section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--oz-muted); }
+.section-title .dim { text-transform: none; letter-spacing: 0; }
+.msg { margin: 0; font-size: 11.5px; line-height: 1.45; color: var(--oz-muted); }
+.msg.is-error { color: var(--oz-danger); }
+.msg.is-warn { color: var(--oz-warning); }
+.ai { margin-top: 6px; }
+.submit { width: 100%; justify-content: center; }
+
+.err { display: inline-block; max-width: 260px; font-size: 12px; color: var(--oz-danger); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
+.dl { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 6px; text-decoration: none; background: var(--oz-accent-soft); color: var(--oz-accent); }
+.dl:hover { background: var(--oz-accent); color: #fff; }
+
+.guide { padding: 0 18px 12px; }
+.guide-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 24px; margin: 0; padding: 4px 0 8px; }
+.guide-list dt { font-size: 12px; font-weight: 700; color: var(--oz-ink-soft); }
+.guide-list dd { margin: 2px 0 0; font-size: 12px; line-height: 1.5; color: var(--oz-muted); }
+@media (max-width: 640px) { .guide-list, .row-2 { grid-template-columns: 1fr; } }
+</style>

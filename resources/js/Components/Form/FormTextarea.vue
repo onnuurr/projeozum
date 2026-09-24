@@ -23,6 +23,9 @@ const inlineStyle = computed(() => (props.minHeight ? { minHeight: props.minHeig
 
 <template>
     <textarea
+        v-motion
+        :initial="{ scale: 1 }"
+        :focused="{ scale: 1.008, transition: { type: 'spring', stiffness: 500, damping: 20 } }"
         :id="id || undefined"
         :name="name || undefined"
         v-model="value"

@@ -1,216 +1,243 @@
-<template>
-	<Head :title="`${order.code} — İş Emri`" />
-	<div class="page-atelier-order-detail">
-		<Breadcrumb
-			:items="[
-				{ label: 'Ana Sayfa', to: '/workflow', icon: 'home' },
-				{ label: 'Üretim Atölyesi', to: '/atelier' },
-				{ label: 'İş Emirleri', to: '/atelier/production-orders' },
-				{ label: order.code },
-			]"
-		/>
-
-		<AtelierNav current="orders" />
-
-		<!-- Page Header -->
-		<PageHeader :title="`${order.code} — ${order.productName}`">
-			<template #subtitle>
-				<span class="header-subtitle">
-					<Badge :color="STATUS_COLORS[order.status]" :label="STATUS[order.status]" variant="tonal" />
-					<span class="sep">•</span>
-					Depo: {{ order.warehouse }}
-				</span>
-			</template>
-			<template v-if="can('atelier.production.manage')" #actions>
-				<Button v-if="order.status === 'draft'" variant="warning" @click="plan">Planla (Hammadde düş)</Button>
-				<Button v-if="['planned','in_progress'].includes(order.status)" variant="success" @click="complete">Tamamla → Stoğa al</Button>
-				<Button v-if="!['completed','cancelled'].includes(order.status)" variant="outline-danger" @click="cancel">İptal</Button>
-			</template>
-		</PageHeader>
-
-		<!-- Cost Summary -->
-		<div class="stat-row">
-			<div class="stat-card">
-				<div class="stat-label">Malzeme</div>
-				<div class="stat-value">{{ order.materialCost }} <span class="stat-unit">₺</span></div>
-			</div>
-			<div class="stat-card">
-				<div class="stat-label">Fason</div>
-				<div class="stat-value">{{ order.fasonCost }} <span class="stat-unit">₺</span></div>
-			</div>
-			<div class="stat-card">
-				<div class="stat-label">İşçilik</div>
-				<div class="stat-value">{{ order.laborCost }} <span class="stat-unit">₺</span></div>
-			</div>
-			<div class="stat-card stat-card-primary">
-				<div class="stat-label">Toplam</div>
-				<div class="stat-value">{{ order.totalCost }} <span class="stat-unit">₺</span></div>
-			</div>
-			<div class="stat-card">
-				<div class="stat-label">Birim</div>
-				<div class="stat-value">{{ order.unitCost }} <span class="stat-unit">₺</span></div>
-			</div>
-		</div>
-
-		<!-- Variant Production -->
-		<Card title="Varyant Üretim Miktarları" body-class="items-body" style="margin-bottom: 16px;">
-			<div v-for="i in order.items" :key="i.id" class="item-row">
-				<span class="item-label">{{ i.size }} / {{ i.colorName }}</span>
-				<span class="item-plan dim">Plan: <strong>{{ i.plannedQty }}</strong></span>
-				<div class="form-row item-field">
-					<label class="form-label">Üretilen</label>
-					<input v-model="itemForms[i.id].produced_qty" type="number" class="form-input" />
-				</div>
-				<div class="form-row item-field">
-					<label class="form-label">Fire</label>
-					<input v-model="itemForms[i.id].scrap_qty" type="number" class="form-input" />
-				</div>
-			</div>
-			<div v-if="can('atelier.production.manage')" class="items-footer">
-				<Button size="sm" @click="saveItems">Üretim Miktarlarını Kaydet</Button>
-			</div>
-		</Card>
-
-		<!-- Steps / Route -->
-		<Card title="Rota / Üretim Aşamaları" body-class="steps-body">
-			<div v-for="s in order.steps" :key="s.id" class="step-row">
-				<div class="step-meta">
-					<span class="step-seq">{{ s.sequence }}</span>
-					<div class="step-info">
-						<span class="step-name">{{ s.operationName }}</span>
-						<Badge :color="s.locationType === 'fason' ? 'warning' : 'info'" :label="s.locationType === 'fason' ? 'Fason' : 'İç'" />
-					</div>
-				</div>
-				<div class="step-fields">
-					<div class="form-row">
-						<label class="form-label">Durum</label>
-						<select v-model="stepForms[s.id].status" class="form-input">
-							<option value="pending">Bekliyor</option>
-							<option value="in_progress">Devam</option>
-							<option value="done">Bitti</option>
-						</select>
-					</div>
-					<div class="form-row">
-						<label class="form-label">Giren</label>
-						<input v-model="stepForms[s.id].input_qty" type="number" class="form-input" />
-					</div>
-					<div class="form-row">
-						<label class="form-label">Çıkan</label>
-						<input v-model="stepForms[s.id].output_qty" type="number" class="form-input" />
-					</div>
-					<div class="form-row">
-						<label class="form-label">Fire</label>
-						<input v-model="stepForms[s.id].scrap_qty" type="number" class="form-input" />
-					</div>
-					<div class="form-row">
-						<label class="form-label">Birim ₺</label>
-						<input v-model="stepForms[s.id].unit_cost" type="number" step="0.01" class="form-input" />
-					</div>
-					<div v-if="s.locationType === 'fason'" class="form-row">
-						<label class="form-label">Fasoncu</label>
-						<select v-model="stepForms[s.id].fason_supplier_id" class="form-input">
-							<option :value="null">Seçin…</option>
-							<option v-for="f in fasonSuppliers" :key="f.id" :value="f.id">{{ f.name }}</option>
-						</select>
-					</div>
-				</div>
-				<div v-if="can('atelier.production.manage')" class="step-save">
-					<Button size="sm" @click="saveStep(s.id)">Kaydet</Button>
-				</div>
-			</div>
-			<div v-if="!order.steps.length" class="empty-steps">Rota adımı tanımlanmamış.</div>
-		</Card>
-	</div>
-</template>
-
 <script setup>
-import { reactive, inject } from 'vue'
+import { ref, reactive, computed, inject } from 'vue'
 import { Head, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import Breadcrumb from '@/Components/Breadcrumb.vue'
-import PageHeader from '@/Components/PageHeader.vue'
-import Card from '@/Components/Card.vue'
-import Badge from '@/Components/Badge.vue'
-import Button from '@/Components/Button.vue'
-import AtelierNav from '../Components/AtelierNav.vue'
+import {
+	OzPageHeader, OzModuleTabs, OzBreadcrumbs, OzStatTile, OzCard, OzButton, OzPill, OzProgress,
+	OzEmptyState, OzInput, OzSelect, useOzConfirm,
+} from '@/Components/Oz'
+import { ORDER_STATUS, ORDER_TONE, formatMoney } from '../atelierNav'
 import { useCan } from '@/composables/useCan'
 
 defineOptions({ layout: AppLayout })
 
+const props = defineProps({
+	order: { type: Object, required: true },
+	fasonSuppliers: { type: Array, default: () => [] },
+})
+
 const { can } = useCan()
-const $swal = inject('$swal')
+const canManage = computed(() => can('atelier.production.manage'))
+const showToast = inject('showToast', null)
+const confirm = useOzConfirm()
 
-const props = defineProps({ order: Object, fasonSuppliers: Array })
-
-const STATUS = { draft: 'Taslak', planned: 'Planlandı', in_progress: 'Üretimde', completed: 'Tamamlandı', cancelled: 'İptal' }
-const STATUS_COLORS = { draft: 'neutral', planned: 'info', in_progress: 'success', completed: 'success', cancelled: 'danger' }
 const STEP_STATUS = { pending: 'Bekliyor', in_progress: 'Devam', done: 'Bitti' }
+const STEP_TONE = { pending: 'neutral', in_progress: 'accent', done: 'success' }
+const stepStatusOptions = Object.entries(STEP_STATUS).map(([value, label]) => ({ value, label }))
+const fasonOptions = computed(() => props.fasonSuppliers.map((f) => ({ value: f.id, label: f.name })))
 
-const stepForms = reactive(Object.fromEntries(props.order.steps.map(s => [s.id, {
-  status: s.status, input_qty: s.inputQty, output_qty: s.outputQty, scrap_qty: s.scrapQty,
-  fason_supplier_id: null, unit_cost: s.unitCost, note: '',
-}])))
+const isOpen = computed(() => !['completed', 'cancelled'].includes(props.order.status))
+const producedPct = computed(() => props.order.plannedQty ? Math.round((props.order.producedQty / props.order.plannedQty) * 100) : 0)
+const doneSteps = computed(() => props.order.steps.filter((s) => s.status === 'done').length)
 
-const itemForms = reactive(Object.fromEntries(props.order.items.map(i => [i.id, {
-  produced_qty: i.producedQty, scrap_qty: i.scrapQty,
+const stats = computed(() => [
+	{ key: 'material', label: 'Malzeme', value: formatMoney(props.order.materialCost), icon: 'package', tone: 'info' },
+	{ key: 'fason', label: 'Fason', value: formatMoney(props.order.fasonCost), icon: 'factory', tone: 'warning' },
+	{ key: 'labor', label: 'İşçilik', value: formatMoney(props.order.laborCost), icon: 'scissors', tone: 'success' },
+	{ key: 'total', label: 'Toplam Maliyet', value: formatMoney(props.order.totalCost), icon: 'wallet', tone: 'accent' },
+])
+
+const breadcrumbs = computed(() => [
+	{ label: 'Atölye', to: '/atelier' },
+	{ label: 'İş Emirleri', to: '/atelier/production-orders' },
+	{ label: props.order.code },
+])
+
+/* ── düzenlenebilir satırlar (sunucu yanıtıyla sayfa yeniden kurulur) ── */
+// Adımın mevcut fasoncusu yalnızca adıyla geliyor; seçim kutusunda gösterilebilsin diye listeden eşlenir
+const supplierIdByName = (name) => props.fasonSuppliers.find((f) => f.name === name)?.id ?? null
+const stepForms = reactive(Object.fromEntries(props.order.steps.map((s) => [s.id, {
+	status: s.status, input_qty: s.inputQty, output_qty: s.outputQty, scrap_qty: s.scrapQty,
+	fason_supplier_id: supplierIdByName(s.fasonSupplier), unit_cost: s.unitCost, note: '',
 }])))
+const itemForms = reactive(Object.fromEntries(props.order.items.map((i) => [i.id, {
+	produced_qty: i.producedQty, scrap_qty: i.scrapQty,
+}])))
+const itemsTotal = computed(() => Object.values(itemForms).reduce((s, f) => s + (Number(f.produced_qty) || 0), 0))
+
+const busy = ref('')
+const errorToast = (title) => (errs) => showToast?.({ type: 'error', title, message: Object.values(errs)[0] || 'Sunucu hatası.' })
 
 function saveStep(id) {
-  router.put(`/atelier/production-orders/${props.order.id}/steps/${id}`, stepForms[id], { preserveScroll: true })
+	busy.value = `step-${id}`
+	router.put(`/atelier/production-orders/${props.order.id}/steps/${id}`, stepForms[id], {
+		preserveScroll: true,
+		onError: errorToast('Adım kaydedilemedi'),
+		onFinish: () => { busy.value = '' },
+	})
 }
 function saveItems() {
-  const items = props.order.items.map(i => ({ id: i.id, produced_qty: itemForms[i.id].produced_qty, scrap_qty: itemForms[i.id].scrap_qty }))
-  router.put(`/atelier/production-orders/${props.order.id}/items`, { items }, { preserveScroll: true })
+	busy.value = 'items'
+	const items = props.order.items.map((i) => ({ id: i.id, produced_qty: itemForms[i.id].produced_qty, scrap_qty: itemForms[i.id].scrap_qty }))
+	router.put(`/atelier/production-orders/${props.order.id}/items`, { items }, {
+		preserveScroll: true,
+		onError: errorToast('Miktarlar kaydedilemedi'),
+		onFinish: () => { busy.value = '' },
+	})
 }
-function plan() { router.post(`/atelier/production-orders/${props.order.id}/plan`, {}, { preserveScroll: true }) }
-function complete() { router.post(`/atelier/production-orders/${props.order.id}/complete`, {}, { preserveScroll: true }) }
+
+/* ── durum geçişleri ── */
+async function plan() {
+	const ok = await confirm({ title: 'İş emri planlansın mı?', message: 'Reçeteye göre gereken hammadde stoktan düşülecek.', tone: 'warning', confirmText: 'Planla' })
+	if (!ok) return
+	busy.value = 'plan'
+	router.post(`/atelier/production-orders/${props.order.id}/plan`, {}, { preserveScroll: true, onError: errorToast('Planlanamadı'), onFinish: () => { busy.value = '' } })
+}
+async function complete() {
+	const ok = await confirm({ title: 'İş emri tamamlansın mı?', message: `Üretilen ${props.order.producedQty} adet ${props.order.warehouse ?? 'depoya'} stoğuna alınacak.`, tone: 'accent', confirmText: 'Tamamla' })
+	if (!ok) return
+	busy.value = 'complete'
+	router.post(`/atelier/production-orders/${props.order.id}/complete`, {}, { preserveScroll: true, onError: errorToast('Tamamlanamadı'), onFinish: () => { busy.value = '' } })
+}
 async function cancel() {
-  const ok = await $swal.dangerConfirm({ title: 'İş emri iptal edilsin mi?', html: 'Bu işlem geri alınamaz.', confirmText: 'İptal Et' })
-  if (ok) router.post(`/atelier/production-orders/${props.order.id}/cancel`, {}, { preserveScroll: true })
+	const ok = await confirm.danger('İş emri iptal edilsin mi?', 'Bu işlem geri alınamaz.', { confirmText: 'İptal Et' })
+	if (!ok) return
+	busy.value = 'cancel'
+	router.post(`/atelier/production-orders/${props.order.id}/cancel`, {}, { preserveScroll: true, onError: errorToast('İptal edilemedi'), onFinish: () => { busy.value = '' } })
 }
 </script>
 
+<template>
+	<Head :title="`${order.code} — İş Emri`" />
+
+	<OzBreadcrumbs :items="breadcrumbs" class="crumbs" />
+	<OzPageHeader :title="`${order.code} · ${order.productName ?? '—'}`">
+		<template #subtitle>
+			<span class="subtitle">
+				<OzPill :tone="ORDER_TONE[order.status] ?? 'neutral'">{{ ORDER_STATUS[order.status] ?? order.status }}</OzPill>
+				<span>Depo: <b>{{ order.warehouse ?? '—' }}</b></span>
+				<span>Birim maliyet: <b class="mono">{{ formatMoney(order.unitCost) }}</b></span>
+			</span>
+		</template>
+		<template v-if="canManage && isOpen" #actions>
+			<OzButton v-if="order.status === 'draft'" variant="primary" icon="package" :loading="busy === 'plan'" @click="plan">Planla</OzButton>
+			<OzButton v-if="['planned', 'in_progress'].includes(order.status)" variant="primary" icon="check" :loading="busy === 'complete'" @click="complete">Tamamla → Stoğa Al</OzButton>
+			<OzButton variant="danger" icon="x" :loading="busy === 'cancel'" @click="cancel">İptal Et</OzButton>
+		</template>
+	</OzPageHeader>
+	<OzModuleTabs />
+
+	<div class="stats">
+		<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" />
+	</div>
+
+	<div class="grid">
+		<div class="col">
+			<OzCard title="Varyant Üretim Miktarları" :meta="`${order.items.length} varyant`">
+				<OzEmptyState v-if="!order.items.length" icon="package" title="Varyant satırı yok" compact />
+				<div v-else class="table-scroll">
+					<table class="grid-table">
+						<thead>
+							<tr>
+								<th>Varyant</th>
+								<th class="num">Plan</th>
+								<th class="num">Üretilen</th>
+								<th class="num">Fire</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr v-for="i in order.items" :key="i.id">
+								<td class="strong">{{ i.size }} / {{ i.colorName }}</td>
+								<td class="num mono">{{ i.plannedQty }}</td>
+								<td class="num"><OzInput v-model.number="itemForms[i.id].produced_qty" type="number" min="0" class="qty" :disabled="!canManage" :aria-label="`${i.size} / ${i.colorName} üretilen`" /></td>
+								<td class="num"><OzInput v-model.number="itemForms[i.id].scrap_qty" type="number" min="0" class="qty" :disabled="!canManage" :aria-label="`${i.size} / ${i.colorName} fire`" /></td>
+							</tr>
+						</tbody>
+						<tfoot>
+							<tr>
+								<td>Toplam</td>
+								<td class="num mono">{{ order.plannedQty }}</td>
+								<td class="num mono">{{ itemsTotal }}</td>
+								<td />
+							</tr>
+						</tfoot>
+					</table>
+				</div>
+				<div v-if="canManage && order.items.length" class="card-foot">
+					<OzButton size="sm" variant="primary" icon="check" :loading="busy === 'items'" @click="saveItems">Miktarları Kaydet</OzButton>
+				</div>
+			</OzCard>
+
+			<OzCard title="Rota / Üretim Aşamaları" :meta="`${doneSteps} / ${order.steps.length} tamamlandı`">
+				<OzEmptyState v-if="!order.steps.length" icon="workflow" title="Rota adımı tanımlanmamış" compact />
+				<div v-else class="steps">
+					<div v-for="s in order.steps" :key="s.id" class="step">
+						<div class="step-head">
+							<span class="step-seq" :class="`is-${s.status}`">{{ s.sequence }}</span>
+							<span class="step-name">{{ s.operationName }}</span>
+							<OzPill :tone="s.locationType === 'fason' ? 'warning' : 'info'">{{ s.locationType === 'fason' ? 'Fason' : 'İç' }}</OzPill>
+							<OzPill :tone="STEP_TONE[s.status] ?? 'neutral'">{{ STEP_STATUS[s.status] ?? s.status }}</OzPill>
+							<span class="step-cost mono">{{ formatMoney(s.stepCost) }}</span>
+						</div>
+						<div class="step-fields">
+							<label class="f"><span>Durum</span><OzSelect v-model="stepForms[s.id].status" :options="stepStatusOptions" :disabled="!canManage" /></label>
+							<label class="f"><span>Giren</span><OzInput v-model.number="stepForms[s.id].input_qty" type="number" min="0" :disabled="!canManage" /></label>
+							<label class="f"><span>Çıkan</span><OzInput v-model.number="stepForms[s.id].output_qty" type="number" min="0" :disabled="!canManage" /></label>
+							<label class="f"><span>Fire</span><OzInput v-model.number="stepForms[s.id].scrap_qty" type="number" min="0" :disabled="!canManage" /></label>
+							<label class="f"><span>Birim</span><OzInput v-model.number="stepForms[s.id].unit_cost" type="number" min="0" step="0.01" suffix="₺" :disabled="!canManage" /></label>
+							<label v-if="s.locationType === 'fason'" class="f f-wide"><span>Fasoncu</span><OzSelect v-model="stepForms[s.id].fason_supplier_id" :options="fasonOptions" placeholder="Fasoncu seçin" :disabled="!canManage" /></label>
+							<OzButton v-if="canManage" class="step-save" size="sm" icon="check" :loading="busy === `step-${s.id}`" @click="saveStep(s.id)">Kaydet</OzButton>
+						</div>
+					</div>
+				</div>
+			</OzCard>
+		</div>
+
+		<div class="col side">
+			<OzCard title="Üretim Durumu">
+				<div class="summary">
+					<OzProgress label="Üretilen" :value="producedPct" :tone="producedPct >= 100 ? 'ok' : 'accent'" />
+					<div class="kv"><span>Planlanan</span><b class="mono">{{ order.plannedQty }} adet</b></div>
+					<div class="kv"><span>Üretilen</span><b class="mono">{{ order.producedQty }} adet</b></div>
+					<div class="kv"><span>Rota</span><b>{{ doneSteps }} / {{ order.steps.length }} adım</b></div>
+					<div class="kv"><span>Birim maliyet</span><b class="mono">{{ formatMoney(order.unitCost) }}</b></div>
+				</div>
+			</OzCard>
+		</div>
+	</div>
+</template>
+
 <style scoped>
-.header-subtitle { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.sep { color: #d0d0db; }
+.crumbs { margin-bottom: 8px; }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
-/* Stat row */
-.stat-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 20px; }
-.stat-card { background: #fff; border-radius: 14px; border: 1px solid #ebebf0; padding: 16px 18px; box-shadow: 0 1px 4px rgba(0,0,0,.04); display: flex; flex-direction: column; gap: 6px; }
-.stat-card-primary { border-color: var(--color-primary); background: var(--color-primary-soft); }
-.stat-label { font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.04em; }
-.stat-value { font-size: 24px; font-weight: 800; color: #1a1a2e; line-height: 1; }
-.stat-unit { font-size: 14px; font-weight: 500; color: #888; }
+.subtitle { display: inline-flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.mono { font-family: ui-monospace, monospace; font-size: 12px; }
 
-/* Form basics */
-.form-row { display: flex; flex-direction: column; gap: 5px; }
-.form-label { font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.03em; }
-.form-input { padding: 8px 10px; border: 1px solid #e8e8f0; border-radius: 8px; font-family: inherit; font-size: 13px; color: #1a1a2e; background: #fff; outline: none; transition: border-color .15s; width: 100%; box-sizing: border-box; }
-.form-input:focus { border-color: var(--color-primary); }
+.grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); gap: 16px; align-items: start; }
+.col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+@media (max-width: 1100px) { .grid { grid-template-columns: 1fr; } .side { order: -1; } }
 
-/* Variant items */
-.items-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; }
-.item-row { display: flex; align-items: flex-end; gap: 12px; padding: 12px 14px; background: #fafafe; border-radius: 10px; border: 1px solid #f0f0f5; flex-wrap: wrap; }
-.item-label { font-size: 13px; font-weight: 600; color: #1a1a2e; min-width: 150px; flex: 1; }
-.item-plan { font-size: 12px; min-width: 80px; }
-.item-field { min-width: 100px; max-width: 130px; }
-.items-footer { display: flex; justify-content: flex-end; padding-top: 4px; }
-.dim { color: #888; }
+.table-scroll { overflow-x: auto; }
+.grid-table { width: 100%; min-width: 420px; border-collapse: collapse; font-size: 13px; }
+.grid-table th { text-align: left; padding: 8px 18px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--oz-muted); border-bottom: 1px solid var(--oz-border); }
+.grid-table td { padding: 7px 18px; border-bottom: 1px solid var(--oz-border-soft); color: var(--oz-ink); }
+.grid-table tfoot td { border-bottom: none; background: var(--oz-surface-2); font-weight: 600; color: var(--oz-muted); }
+.grid-table .num { text-align: right; }
+.grid-table .strong { font-weight: 600; color: var(--oz-ink-soft); }
+.qty { width: 110px; margin-left: auto; }
+.card-foot { display: flex; justify-content: flex-end; padding: 12px 18px 16px; }
 
-/* Steps */
-.steps-body { display: flex; flex-direction: column; }
-.step-row { display: flex; align-items: flex-start; gap: 16px; padding: 16px 18px; border-bottom: 1px solid #f5f5f8; flex-wrap: wrap; }
-.step-row:last-child { border-bottom: none; }
-.step-meta { display: flex; align-items: flex-start; gap: 10px; min-width: 200px; flex: 0 0 auto; }
-.step-seq { width: 28px; height: 28px; border-radius: 50%; background: var(--color-primary); color: var(--color-on-primary); display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; margin-top: 2px; }
-.step-info { display: flex; flex-direction: column; gap: 4px; }
-.step-name { font-size: 13px; font-weight: 700; color: #1a1a2e; }
-.step-fields { display: flex; gap: 10px; flex: 1; flex-wrap: wrap; }
-.step-fields .form-row { min-width: 90px; max-width: 120px; }
-.step-save { display: flex; align-items: flex-end; flex-shrink: 0; padding-bottom: 0; }
-.empty-steps { padding: 32px; text-align: center; color: #aaa; font-style: italic; font-size: 13px; }
-
-@media (max-width: 640px) {
-	.stat-row { grid-template-columns: repeat(2, 1fr); }
+.steps { display: flex; flex-direction: column; }
+.step { padding: 14px 18px; display: flex; flex-direction: column; gap: 10px; }
+.step + .step { border-top: 1px solid var(--oz-border-soft); }
+.step-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.step-seq {
+	width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+	font-size: 11px; font-weight: 700; background: var(--oz-surface-2); color: var(--oz-muted); border: 1px solid var(--oz-border);
 }
+.step-seq.is-in_progress { background: var(--oz-accent-soft); color: var(--oz-accent); border-color: transparent; }
+.step-seq.is-done { background: var(--oz-success); color: #fff; border-color: transparent; }
+.step-name { font-weight: 700; font-size: 13px; color: var(--oz-ink-soft); }
+.step-cost { margin-left: auto; color: var(--oz-muted); }
+.step-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; align-items: end; }
+.f { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.f > span { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--oz-muted); }
+.f-wide { grid-column: span 2; }
+.step-save { justify-self: start; }
+
+.summary { display: flex; flex-direction: column; gap: 10px; padding: 0 18px 16px; }
+.kv { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; color: var(--oz-muted); }
+.kv b { color: var(--oz-ink-soft); }
 </style>

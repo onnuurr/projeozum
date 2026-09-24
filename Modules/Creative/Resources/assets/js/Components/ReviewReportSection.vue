@@ -1,114 +1,91 @@
-<template>
-	<Card :title="title" class="section-card">
-		<template #actions>
-			<Badge
-				:color="rateColor(summary.rejection_rate)"
-				:label="`${summary.total_rejected ?? 0}/${summary.total_reviewed ?? 0} · ${formatRate(summary.rejection_rate)}`"
-			/>
-		</template>
-
-		<div class="body-stack">
-			<div v-if="tagEntries.length" class="sub-block">
-				<div class="sub-title">Ret etiketleri</div>
-				<div class="tag-list">
-					<Badge
-						v-for="[tag, count] in tagEntries"
-						:key="tag"
-						:color="count === maxTagCount ? 'primary' : 'neutral'"
-						variant="tonal"
-						:label="`${tag} (${count})`"
-					/>
-				</div>
-			</div>
-			<p v-else class="text-2xs text-muted">Ret etiketi yok.</p>
-
-			<div v-if="driverEntries.length" class="sub-block">
-				<div class="sub-title">AI sürücü kırılımı</div>
-				<div class="driver-rows">
-					<div v-for="[name, d] in driverEntries" :key="name" class="driver-row">
-						<span class="driver-name">{{ name }}</span>
-						<span class="driver-stat">{{ d.total }} toplam</span>
-						<Badge :color="rateColor(d.total > 0 ? d.rejected / d.total : null)" :label="`${d.rejected} reddedildi`" />
-						<div class="driver-models">
-							<Badge v-for="m in (d.models || [])" :key="m" color="neutral" variant="tonal" :label="m" />
-							<span v-if="!(d.models || []).length" class="driver-models-empty">model bilgisi yok</span>
-						</div>
-					</div>
-				</div>
-			</div>
-
-			<div v-if="(summary.sample_notes || []).length" class="sub-block">
-				<div class="sub-title">Örnek ret notları</div>
-				<div class="note-cards">
-					<p v-for="(n, i) in summary.sample_notes" :key="i" class="note-card">{{ n }}</p>
-				</div>
-			</div>
-		</div>
-	</Card>
-</template>
-
 <script setup>
 import { computed } from 'vue'
-import Card from '@/Components/Card.vue'
-import Badge from '@/Components/Badge.vue'
+import { OzCard, OzPill, OzIcon } from '@/Components/Oz'
+import { rateTone, formatRate, entriesOf } from '../reviewReport.js'
 
+// Ret raporunun tek aşaması (giydirme / manken / creative studio): ret etiketleri, AI sürücü kırılımı, örnek notlar.
 const props = defineProps({
 	title: { type: String, required: true },
+	icon: { type: String, default: 'layers' },
 	summary: { type: Object, default: () => ({}) },
 })
 
-const tagEntries = computed(() => Object.entries(props.summary.tag_counts || {}).sort((a, b) => b[1] - a[1]))
-const maxTagCount = computed(() => (tagEntries.value.length ? tagEntries.value[0][1] : 0))
-const driverEntries = computed(() => Object.entries(props.summary.driver_breakdown || {}))
-
-function formatRate(rate) {
-	return rate === null || rate === undefined ? '—' : `%${Math.round(rate * 100)}`
-}
-
-function rateColor(rate) {
-	if (rate === null || rate === undefined) return 'neutral'
-	if (rate < 0.15) return 'success'
-	if (rate < 0.30) return 'warning'
-	return 'danger'
-}
+const reviewed = computed(() => props.summary?.total_reviewed ?? 0)
+const tags = computed(() => entriesOf(props.summary?.tag_counts).sort((a, b) => b[1] - a[1]))
+const maxTag = computed(() => tags.value[0]?.[1] ?? 0)
+const drivers = computed(() => entriesOf(props.summary?.driver_breakdown))
+const notes = computed(() => props.summary?.sample_notes ?? [])
 </script>
 
+<template>
+	<OzCard class="section">
+		<template #title>
+			<span class="title"><OzIcon :name="icon" :size="15" /> {{ title }}</span>
+		</template>
+		<template #actions>
+			<OzPill :tone="reviewed ? rateTone(summary.rejection_rate) : 'neutral'">
+				{{ summary.total_rejected ?? 0 }}/{{ reviewed }} · {{ formatRate(summary.rejection_rate) }}
+			</OzPill>
+		</template>
+
+		<div class="body">
+			<p v-if="!reviewed" class="none">Bu pencerede inceleme yapılmamış.</p>
+			<template v-else>
+				<div v-if="tags.length" class="block">
+					<div class="label">Ret etiketleri</div>
+					<div v-for="[tag, count] in tags" :key="tag" class="tag">
+						<span class="tag-name">{{ tag }}</span>
+						<span class="tag-bar"><span :class="{ top: count === maxTag }" :style="{ width: `${(count / maxTag) * 100}%` }" /></span>
+						<b>{{ count }}</b>
+					</div>
+				</div>
+				<p v-else class="none">Ret etiketi girilmemiş.</p>
+
+				<div v-if="drivers.length" class="block">
+					<div class="label">AI sürücü kırılımı</div>
+					<div v-for="[name, d] in drivers" :key="name" class="driver">
+						<div class="driver-head">
+							<b>{{ name }}</b>
+							<span class="driver-count">{{ d.rejected }}/{{ d.total }} reddedildi</span>
+							<OzPill :tone="rateTone(d.total ? d.rejected / d.total : null)">{{ formatRate(d.total ? d.rejected / d.total : null) }}</OzPill>
+						</div>
+						<div class="models">
+							<code v-for="m in d.models || []" :key="m">{{ m }}</code>
+							<span v-if="!(d.models || []).length" class="none">model bilgisi yok</span>
+						</div>
+					</div>
+				</div>
+
+				<div v-if="notes.length" class="block">
+					<div class="label">Örnek ret notları</div>
+					<blockquote v-for="(n, i) in notes" :key="i">{{ n }}</blockquote>
+				</div>
+			</template>
+		</div>
+	</OzCard>
+</template>
+
 <style scoped>
-.section-card { margin-bottom: 18px; }
-.body-stack { display: flex; flex-direction: column; gap: 18px; }
-.sub-block { display: flex; flex-direction: column; gap: 8px; }
-.sub-title { font-size: 12px; font-weight: 700; color: var(--color-muted); text-transform: uppercase; letter-spacing: .03em; }
-.tag-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.title { display: inline-flex; align-items: center; gap: 6px; }
+.title :deep(svg) { color: var(--oz-accent); }
+.body { padding: 0 16px 16px; display: flex; flex-direction: column; gap: 16px; }
+.block { display: flex; flex-direction: column; gap: 6px; }
+.label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--oz-muted); }
+.none { margin: 0; font-size: 12.5px; color: var(--oz-muted-2); }
 
-.driver-rows { display: flex; flex-direction: column; gap: 6px; }
-.driver-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 14px; border: 1px solid var(--color-outline-variant); border-radius: 10px; background: var(--color-surface-container-low); }
-.driver-name { font-size: 12.5px; font-weight: 700; color: var(--color-ink); text-transform: capitalize; min-width: 80px; }
-.driver-stat { font-size: 12px; color: var(--color-muted); }
-.driver-models { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; margin-top: 2px; }
-.driver-models-empty { font-size: 11.5px; color: var(--color-muted); font-style: italic; }
+.tag { display: grid; grid-template-columns: minmax(0, 140px) 1fr 28px; align-items: center; gap: 10px; font-size: 12.5px; }
+.tag-name { color: var(--oz-ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tag-bar { height: 8px; border-radius: 4px; background: var(--oz-surface-2); overflow: hidden; }
+.tag-bar > span { display: block; height: 100%; border-radius: 4px; background: var(--oz-border-strong); }
+.tag-bar > span.top { background: var(--oz-accent); }
+.tag b { text-align: right; color: var(--oz-ink-soft); font-variant-numeric: tabular-nums; }
 
-.note-cards { display: flex; flex-direction: column; gap: 8px; }
-.note-card {
-	position: relative;
-	margin: 0;
-	padding: 10px 14px 10px 30px;
-	font-size: 12.5px;
-	line-height: 1.5;
-	color: var(--color-muted);
-	font-style: italic;
-	background: color-mix(in srgb, var(--color-danger) 5%, transparent);
-	border-left: 3px solid color-mix(in srgb, var(--color-danger) 40%, transparent);
-	border-radius: 0 8px 8px 0;
-}
-.note-card::before {
-	content: '\201C';
-	position: absolute;
-	left: 9px;
-	top: 4px;
-	font-size: 20px;
-	font-style: normal;
-	font-weight: 800;
-	color: var(--color-danger);
-	line-height: 1;
-}
+.driver { padding: 10px 12px; border: 1px solid var(--oz-border-soft); border-radius: 10px; background: var(--oz-surface-2); display: flex; flex-direction: column; gap: 6px; }
+.driver-head { display: flex; align-items: center; gap: 10px; font-size: 12.5px; }
+.driver-head b { text-transform: capitalize; color: var(--oz-ink-soft); }
+.driver-count { flex: 1; color: var(--oz-muted); }
+.models { display: flex; flex-wrap: wrap; gap: 4px; }
+.models code { font-family: ui-monospace, monospace; font-size: 11px; padding: 2px 6px; border-radius: 6px; background: var(--oz-surface); border: 1px solid var(--oz-border-soft); color: var(--oz-muted); }
+
+blockquote { margin: 0; padding: 8px 12px; border-left: 3px solid var(--oz-danger); border-radius: 0 8px 8px 0; background: var(--oz-danger-soft); font-size: 12.5px; line-height: 1.5; color: var(--oz-ink-soft); }
 </style>

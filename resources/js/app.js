@@ -4,6 +4,7 @@ import './bootstrap';
 import { createInertiaApp, router } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createApp, h } from 'vue';
+import { MotionPlugin } from '@vueuse/motion';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 // Components/ kiti (StatWidget, AppBadge, QuickActionWidget vb.) <UiIcon name="..."> kullanıyor,
 // global registration bekliyor — yoksa "failed to resolve component" ile sessizce hiç render olmuyor.
@@ -45,6 +46,7 @@ createInertiaApp({
         return createApp({ render: () => h(App, props) })
             .use(plugin)
             .use(ZiggyVue)
+            .use(MotionPlugin)
             .component('UiIcon', UiIcon)
             .mount(el);
     },

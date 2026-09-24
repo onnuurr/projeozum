@@ -37,6 +37,8 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'auth' => [
                 'user'        => $user,
+                // Spatie rol adları (superadmin | tenant | tenant-user) — kullanıcı menüsü role göre kurulur
+                'roles'       => fn () => $user?->getRoleNames()->all() ?? [],
                 'permissions' => fn () => $user?->getAllPermissions()?->pluck('name')->all() ?? [],
             ],
             'app' => [

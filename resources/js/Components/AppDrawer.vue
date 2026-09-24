@@ -1,5 +1,6 @@
 <script setup>
-import { watch, onBeforeUnmount } from 'vue';
+import { ref, watch, onBeforeUnmount } from 'vue';
+import { useMotion } from '@vueuse/motion';
 
 defineOptions({ inheritAttrs: false });
 
@@ -13,6 +14,19 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['update:modelValue', 'close']);
+
+const drawerPanel = ref(null);
+const { variant: motionVariant } = useMotion(drawerPanel, {
+	initial: { x: '110%' },
+	closed: { x: '110%', transition: { type: 'spring', stiffness: 340, damping: 34 } },
+	open: { x: '0%', transition: { type: 'spring', stiffness: 340, damping: 34 } },
+});
+
+watch(
+	() => props.modelValue,
+	(open) => { motionVariant.value = open ? 'open' : 'closed'; },
+	{ immediate: true },
+);
 
 function close() {
 	emit('update:modelValue', false);
@@ -42,6 +56,7 @@ onBeforeUnmount(() => {
 	<Teleport to="body">
 		<div class="drawer-overlay" :class="{ open: modelValue }" @click="close"></div>
 		<aside
+			ref="drawerPanel"
 			class="drawer"
 			:class="{ open: modelValue }"
 			:style="{ width }"
@@ -110,11 +125,8 @@ onBeforeUnmount(() => {
 		0 0 0 1px rgba(0, 0, 0, .04);
 	z-index: 9001;
 	display: flex; flex-direction: column;
-	transform: translateX(calc(100% + 24px));
-	transition: transform .32s cubic-bezier(.34, 1.28, .64, 1);
 	overflow: hidden;
 }
-.drawer.open { transform: translateX(0); }
 
 .drawer-header {
 	display: flex; align-items: center; justify-content: space-between;

@@ -1,5 +1,6 @@
 <script setup>
-import { computed, ref, nextTick, onMounted, onBeforeUnmount, watch } from 'vue';
+import { computed, reactive, ref, nextTick, onMounted, onBeforeUnmount, watch } from 'vue';
+import { useSpring, useReducedMotion } from '@vueuse/motion';
 
 const props = defineProps({
     tabs: { type: Array, required: true },
@@ -38,7 +39,8 @@ const iconsClasses = {
 const styles = computed(() => ({ underline: underlineClasses, pills: pillsClasses, icons: iconsClasses }[props.variant]));
 
 const tabRefs = ref([]);
-const indicatorStyle = ref({ transform: 'translateX(0px)', width: '0px', transition: 'none' });
+const indicator = useSpring(reactive({ x: 0, width: 0 }), { stiffness: 500, damping: 40 });
+const prefersReducedMotion = useReducedMotion();
 
 function setTabRef(el, index) {
     tabRefs.value[index] = el;
@@ -49,11 +51,12 @@ function updateIndicator(animate) {
     const activeIndex = props.tabs.findIndex((t) => t.key === activeKey.value);
     const el = tabRefs.value[activeIndex];
     if (!el) return;
-    indicatorStyle.value = {
-        transform: `translateX(${el.offsetLeft}px)`,
-        width: `${el.offsetWidth}px`,
-        transition: animate ? 'transform 200ms ease-out, width 200ms ease-out' : 'none',
-    };
+    if (animate && !prefersReducedMotion.value) {
+        indicator.set({ x: el.offsetLeft, width: el.offsetWidth });
+    } else {
+        indicator.values.x = el.offsetLeft;
+        indicator.values.width = el.offsetWidth;
+    }
 }
 
 let resizeObserver = null;
@@ -75,9 +78,9 @@ watch(activeKey, () => nextTick(() => updateIndicator(true)));
     <div :class="styles.wrapper">
         <span
             v-if="variant === 'underline' || variant === 'pills'"
-            class="absolute pointer-events-none motion-reduce:transition-none"
+            class="absolute pointer-events-none"
             :class="variant === 'underline' ? 'bottom-0 left-0 h-0.5 bg-primary rounded-full' : 'top-1 bottom-1 left-0 rounded-md bg-primary shadow-sm'"
-            :style="indicatorStyle"
+            :style="{ transform: `translateX(${indicator.values.x}px)`, width: `${indicator.values.width}px` }"
         />
         <button
             v-for="(tab, index) in tabs"

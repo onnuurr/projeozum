@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue';
+import HintIcon from '@/Components/HintIcon.vue';
 
 const props = defineProps({
     label: { type: String, default: '' },
@@ -8,6 +9,7 @@ const props = defineProps({
     variant: { type: String, default: 'auth' },
     forId: { type: String, default: '' },
     required: { type: Boolean, default: false },
+    hint: { type: String, default: '' },
 });
 
 const wrapperClass = computed(() => {
@@ -26,6 +28,7 @@ const labelClass = computed(() => {
     <div :class="[wrapperClass, { 'has-error': !!error }]">
         <label v-if="label" :class="labelClass" :for="forId || undefined">
             {{ label }}<span v-if="required" class="field-required-mark"> *</span>
+            <HintIcon v-if="hint" :text="hint" />
             <a v-if="link" class="field-link" :href="link.href">{{ link.label }}</a>
         </label>
 

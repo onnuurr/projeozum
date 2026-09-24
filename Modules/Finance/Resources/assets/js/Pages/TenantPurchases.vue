@@ -9,8 +9,6 @@
 			]"
 		/>
 
-		<FinanceNav current="tenant-purchases" />
-
 		<PageHeader title="Bayi Siparişleri">
 			<template #subtitle>
 				<strong>{{ summary.orderCount }}</strong> sipariş ·
@@ -57,7 +55,6 @@ import Card from '@/Components/Card.vue'
 import DataTable from '@/Components/DataTable.vue'
 import Badge from '@/Components/Badge.vue'
 import EmptyState from '@/Components/EmptyState.vue'
-import FinanceNav from '../Components/FinanceNav.vue'
 
 defineOptions({ layout: AppLayout })
 

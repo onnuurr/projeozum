@@ -9,8 +9,6 @@
 			]"
 		/>
 
-		<FinanceNav current="bank" />
-
 		<div class="sub-nav">
 			<Link href="/finance/bank-accounts" class="sub-tab">Hesaplar</Link>
 			<Link href="/finance/bank-statements" class="sub-tab active">Ekstreler & Mutabakat</Link>
@@ -18,7 +16,7 @@
 
 		<PageHeader title="Banka Ekstreleri" subtitle="Manuel ekstre içe aktarma (MT940 / CSV / Excel) ve mutabakat">
 			<template #actions>
-				<Button variant="primary" with-icon @click="importModalOpen = true">
+				<Button v-if="canManage" variant="primary" with-icon @click="importModalOpen = true">
 					<template #leading><Upload :size="13" /></template>
 					Ekstre İçe Aktar
 				</Button>
@@ -52,7 +50,7 @@
 						<option v-for="c in row.candidates" :key="c.type + '-' + c.id" :value="c">{{ c.label }}</option>
 					</select>
 				</template>
-				<template #actions="{ row }">
+				<template v-if="canManage" #actions="{ row }">
 					<button
 						class="table-action-btn"
 						:disabled="!selectedCandidate[row.id]"
@@ -99,8 +97,8 @@
 </template>
 
 <script setup>
-import { reactive, ref, watch, inject } from 'vue'
-import { Head, Link, useForm, router } from '@inertiajs/vue3'
+import { reactive, ref, watch, inject, provide, computed } from 'vue'
+import { Head, Link, useForm, router, usePage } from '@inertiajs/vue3'
 import { Upload, AlertTriangle, CheckCircle2, Ban } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
@@ -111,9 +109,21 @@ import Badge from '@/Components/Badge.vue'
 import Button from '@/Components/Button.vue'
 import AppDrawer from '@/Components/AppDrawer.vue'
 import Tooltip from '@/Components/Tooltip.vue'
-import FinanceNav from '../Components/FinanceNav.vue'
 
 defineOptions({ layout: AppLayout })
+
+// Hesap hareketleri /finance/bank-statements altında, menüdeki "Banka" ise /finance/bank-accounts;
+// URL öneki eşleşmediği için layout "Genel Bakış"ı seçerdi. Modül aynı kalır, etkin sekme Banka olur.
+// Yazma finance.manage; e-Fatura gönderme ayrıca finance.einvoice.send (bkz. Finance routes/web.php).
+const page = usePage()
+const permissions = computed(() => page.props.auth?.permissions ?? [])
+const canManage = computed(() => permissions.value.includes('finance.manage'))
+
+const layoutNav = inject('ozNav', null)
+provide('ozNav', {
+	module: layoutNav?.module,
+	child: computed(() => layoutNav?.module.value?.children?.find((c) => c.to === '/finance/bank-accounts') ?? layoutNav?.child.value ?? null),
+})
 
 const showToast = inject('showToast')
 

@@ -9,8 +9,6 @@
 			]"
 		/>
 
-		<CreativeNav current="templates" />
-
 		<PageHeader title="Şablonlar" subtitle="SVG şablon yükleyin, slotları sürükleyerek konumlandırın. Değişiklikler SVG'ye işlenir.">
 			<template #actions>
 				<template v-if="can('creative.template.manage')">
@@ -221,7 +219,6 @@ import PageHeader from '@/Components/PageHeader.vue'
 import Button from '@/Components/Button.vue'
 import Badge from '@/Components/Badge.vue'
 import EmptyState from '@/Components/EmptyState.vue'
-import CreativeNav from '../Components/CreativeNav.vue'
 import { useCan } from '@/composables/useCan'
 
 defineOptions({ layout: AppLayout })

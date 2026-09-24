@@ -9,15 +9,13 @@
 			]"
 		/>
 
-		<FinanceNav current="outgoing-invoices" />
-
 		<PageHeader title="Düzenlenen Faturalar">
 			<template #subtitle>
 				<strong>{{ invoices.length }}</strong> fatura ·
 				e-Fatura entegratörü henüz seçilmedi, gönderim şu an gerçek GİB iletimi yapmıyor
 			</template>
 			<template #actions>
-				<Button variant="primary" with-icon @click="openCreate">
+				<Button v-if="canManage" variant="primary" with-icon @click="openCreate">
 					<template #leading><Plus :size="13" /></template>
 					Yeni Fatura
 				</Button>
@@ -38,10 +36,10 @@
 				<template #total="{ row }"><span class="strong">{{ formatMoney(row.total) }}</span> <span class="dim">{{ row.currency }}</span></template>
 				<template #status="{ value }"><Badge :color="statusColor(value)" variant="tonal" :label="statusLabel(value)" /></template>
 				<template #efaturaStatus="{ value }"><Badge :color="efaturaColor(value)" variant="tonal" :label="efaturaLabel(value)" /></template>
-				<template #actions="{ row }">
-					<button v-if="row.efaturaStatus === 'not_sent'" class="table-action-btn" title="e-Fatura gönder" @click="send(row)"><Send :size="14" /></button>
-					<button class="table-action-btn" title="Düzenle" @click="openEdit(row)"><Pencil :size="14" /></button>
-					<button class="table-action-btn danger" title="Sil" @click="remove(row)"><Trash2 :size="14" /></button>
+				<template v-if="canManage || canSend" #actions="{ row }">
+					<button v-if="canSend && row.efaturaStatus === 'not_sent'" class="table-action-btn" title="e-Fatura gönder" @click="send(row)"><Send :size="14" /></button>
+					<button v-if="canManage" class="table-action-btn" title="Düzenle" @click="openEdit(row)"><Pencil :size="14" /></button>
+					<button v-if="canManage" class="table-action-btn danger" title="Sil" @click="remove(row)"><Trash2 :size="14" /></button>
 				</template>
 			</DataTable>
 		</Card>
@@ -124,8 +122,8 @@
 </template>
 
 <script setup>
-import { ref, inject, watch } from 'vue'
-import { Head, useForm, router } from '@inertiajs/vue3'
+import { ref, inject, watch, computed } from 'vue'
+import { Head, useForm, router, usePage } from '@inertiajs/vue3'
 import { Plus, Send, Pencil, Trash2 } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
@@ -135,9 +133,14 @@ import DataTable from '@/Components/DataTable.vue'
 import Badge from '@/Components/Badge.vue'
 import Button from '@/Components/Button.vue'
 import AppDrawer from '@/Components/AppDrawer.vue'
-import FinanceNav from '../Components/FinanceNav.vue'
 
 defineOptions({ layout: AppLayout })
+
+// Yazma finance.manage; e-Fatura gönderme ayrıca finance.einvoice.send (bkz. Finance routes/web.php).
+const page = usePage()
+const permissions = computed(() => page.props.auth?.permissions ?? [])
+const canManage = computed(() => permissions.value.includes('finance.manage'))
+const canSend = computed(() => permissions.value.includes('finance.einvoice.send'))
 
 const $swal = inject('$swal')
 const showToast = inject('showToast')

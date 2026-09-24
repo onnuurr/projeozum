@@ -9,8 +9,6 @@
 			]"
 		/>
 
-		<CreativeNav current="garment-scans" />
-
 		<PageHeader title="Giysi Parça Tespiti">
 			<template #subtitle>
 				Taranan her giysi görseli — yaka/cep/etek gibi parçaları elle işaretleyerek
@@ -48,7 +46,6 @@ import Breadcrumb from '@/Components/Breadcrumb.vue'
 import PageHeader from '@/Components/PageHeader.vue'
 import Card from '@/Components/Card.vue'
 import EmptyState from '@/Components/EmptyState.vue'
-import CreativeNav from '@Modules/Creative/Resources/assets/js/Components/CreativeNav.vue'
 
 defineOptions({ layout: AppLayout })
 

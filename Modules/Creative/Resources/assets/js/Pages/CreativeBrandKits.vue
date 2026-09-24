@@ -9,8 +9,6 @@
 			]"
 		/>
 
-		<CreativeNav current="brandkits" />
-
 		<PageHeader title="Marka Kiti" subtitle="Render, AI sahne ve caption bu token'lardan beslenir. Varsayılan kit aktif olandır.">
 			<template #actions>
 				<Button variant="primary" with-icon @click="newKit">
@@ -233,7 +231,6 @@ import PageHeader from '@/Components/PageHeader.vue'
 import Card from '@/Components/Card.vue'
 import Button from '@/Components/Button.vue'
 import EmptyState from '@/Components/EmptyState.vue'
-import CreativeNav from '../Components/CreativeNav.vue'
 import { useCan } from '@/composables/useCan'
 
 defineOptions({ layout: AppLayout })

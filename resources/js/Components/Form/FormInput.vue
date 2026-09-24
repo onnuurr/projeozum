@@ -47,6 +47,9 @@ const value = computed({
         </span>
 
         <input
+            v-motion
+            :initial="{ scale: 1 }"
+            :focused="{ scale: 1.012, transition: { type: 'spring', stiffness: 500, damping: 20 } }"
             :id="id || undefined"
             :name="name || undefined"
             v-model="value"
@@ -65,6 +68,9 @@ const value = computed({
 
     <input
         v-else
+        v-motion
+        :initial="{ scale: 1 }"
+        :focused="{ scale: 1.012, transition: { type: 'spring', stiffness: 500, damping: 20 } }"
         :id="id || undefined"
         :name="name || undefined"
         v-model="value"

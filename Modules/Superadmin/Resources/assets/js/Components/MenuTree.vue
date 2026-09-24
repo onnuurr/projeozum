@@ -1,242 +1,150 @@
-<template>
-    <draggable
-        :list="nodes"
-        :group="{ name: 'menus' }"
-        :disabled="disabled"
-        item-key="id"
-        handle=".mt-handle"
-        class="mt-list"
-        @change="onChange"
-    >
-        <template #item="{ element }">
-            <div class="mt-node">
-                <div class="mt-row" :class="{ inactive: !element.is_active }">
-                    <span class="mt-handle" title="Sürükle"><GripVertical :size="14" /></span>
-                    <button
-                        v-if="hasChildren(element)"
-                        type="button"
-                        class="mt-toggle"
-                        :title="element.__collapsed ? 'Genişlet' : 'Daralt'"
-                        @click="toggle(element)"
-                    >
-                        {{ element.__collapsed ? "▸" : "▾" }}
-                    </button>
-                    <span v-else class="mt-toggle-spacer"></span>
-                    <span class="mt-label">{{ element.label }}</span>
-                    <span v-if="hasChildren(element)" class="mt-count">{{
-                        element.children.length
-                    }}</span>
-                    <span v-if="element.permission" class="mt-badge">{{
-                        element.permission
-                    }}</span>
-                    <span class="mt-actions">
-                        <button
-                            type="button"
-                            @click="$emit('edit', element)"
-                            title="Düzenle"
-                        >
-                            <Pencil :size="13" />
-                        </button>
-                        <button
-                            type="button"
-                            @click="$emit('add-child', element)"
-                            title="Alt menü ekle"
-                        >
-                            <Plus :size="13" />
-                        </button>
-                        <button
-                            type="button"
-                            class="danger"
-                            @click="$emit('remove', element)"
-                            title="Sil"
-                        >
-                            <Trash2 :size="13" />
-                        </button>
-                    </span>
-                </div>
-                <MenuTree
-                    v-show="!element.__collapsed"
-                    :nodes="element.children"
-                    :parent-id="element.id"
-                    :disabled="disabled"
-                    class="mt-children"
-                    @changed="$emit('changed')"
-                    @add-route="$emit('add-route', $event)"
-                    @edit="$emit('edit', $event)"
-                    @add-child="$emit('add-child', $event)"
-                    @remove="$emit('remove', $event)"
-                />
-            </div>
-        </template>
-    </draggable>
-</template>
-
 <script setup>
-import draggable from "vuedraggable";
-import { GripVertical, Pencil, Plus, Trash2 } from "lucide-vue-next";
+import draggable from 'vuedraggable'
+import { OzIcon, OzPill, OzButton, OzDropdown } from '@/Components/Oz'
+import { ozIconForMenu } from '@/ozMenuIcons.js'
 
+// Menü ağacı (özyinelemeli). Sürükle-bırak: aynı ya da farklı seviyeye taşıma; rota kataloğundan
+// bırakılan klon (__route) yeni menü olarak `add-route` yayar. ⋯ menüsü sürüklemeden aynı işleri yapar.
 const props = defineProps({
-    nodes: { type: Array, required: true },
-    parentId: { type: [Number, null], default: null },
-    disabled: { type: Boolean, default: false },
-});
+	nodes: { type: Array, required: true },
+	parentId: { type: [Number, null], default: null },
+	depth: { type: Number, default: 0 },
+	disabled: { type: Boolean, default: false },
+})
+const emit = defineEmits(['changed', 'add-route', 'edit', 'add-child', 'remove', 'toggle-active'])
 
-const emit = defineEmits([
-    "changed",
-    "add-route",
-    "edit",
-    "add-child",
-    "remove",
-]);
+const hasChildren = (n) => Array.isArray(n.children) && n.children.length > 0
+const target = (n) => n.route_name || n.url || ''
 
-function hasChildren(node) {
-    return Array.isArray(node.children) && node.children.length > 0;
-}
-
-// Daralt/genişlet durumunu düğümün üzerinde tut (recursive yapıda her seviyede çalışır).
-function toggle(node) {
-    node.__collapsed = !node.__collapsed;
-}
-
-// Sağ panelden gelen route klonu bu listeye düşerse (added, __route işaretli)
-// yeni öğe yarat; mevcut bir menü öğesinin başka bir üst menüye taşınması da
-// "added" olarak gelir ama __route yok — bu durumda diğer taşımalar gibi
-// sadece "dirty" işaretlenip normal reorder/autosave akışına bırakılır.
 function onChange(evt) {
-    if (evt.added?.element?.__route) {
-        emit("add-route", {
-            route: evt.added.element.__route,
-            parentId: props.parentId,
-            index: evt.added.newIndex,
-        });
-        return;
-    }
-    emit("changed");
+	if (evt.added?.element?.__route) {
+		emit('add-route', { route: evt.added.element.__route, parentId: props.parentId, index: evt.added.newIndex })
+		return
+	}
+	emit('changed')
+}
+
+function move(node, dir) {
+	const i = props.nodes.indexOf(node)
+	const j = i + dir
+	if (j < 0 || j >= props.nodes.length) return
+	props.nodes.splice(i, 1)
+	props.nodes.splice(j, 0, node)
+	emit('changed')
+}
+
+const actions = (node) => [
+	{ key: 'edit', label: 'Düzenle', icon: 'edit' },
+	{ key: 'child', label: 'Alt menü ekle', icon: 'plus' },
+	{ key: 'toggle', label: node.is_active ? 'Pasif yap' : 'Aktif yap', icon: node.is_active ? 'eye-off' : 'eye' },
+	{ divider: true },
+	{ key: 'up', label: 'Yukarı taşı', icon: 'chevron-up', disabled: props.nodes.indexOf(node) === 0 },
+	{ key: 'down', label: 'Aşağı taşı', icon: 'chevron-down', disabled: props.nodes.indexOf(node) === props.nodes.length - 1 },
+	{ divider: true },
+	{ key: 'remove', label: 'Sil', icon: 'trash', danger: true },
+]
+function onAction(key, node) {
+	if (key === 'edit') emit('edit', node)
+	else if (key === 'child') emit('add-child', node)
+	else if (key === 'toggle') emit('toggle-active', node)
+	else if (key === 'up') move(node, -1)
+	else if (key === 'down') move(node, 1)
+	else if (key === 'remove') emit('remove', node)
 }
 </script>
 
+<template>
+	<draggable
+		:list="nodes"
+		:group="{ name: 'menus' }"
+		:disabled="disabled"
+		item-key="id"
+		handle=".grip"
+		ghost-class="is-ghost"
+		class="mt-list"
+		:class="{ 'is-nested': depth > 0 }"
+		@change="onChange"
+	>
+		<template #item="{ element }">
+			<div class="mt-node" :class="{ 'is-root': depth === 0 }">
+				<div class="mt-row" :class="{ inactive: !element.is_active }">
+					<span class="grip" title="Sürükle" aria-hidden="true"><OzIcon name="more-vertical" :size="15" /></span>
+					<button
+						type="button"
+						class="chev"
+						:class="{ open: !element.__collapsed, none: !hasChildren(element) }"
+						:disabled="!hasChildren(element)"
+						:aria-expanded="hasChildren(element) ? !element.__collapsed : undefined"
+						:aria-label="`${element.label} alt menüleri`"
+						@click="element.__collapsed = !element.__collapsed"
+					><OzIcon name="chevron-right" :size="14" /></button>
+					<span class="ico" :class="{ sm: depth > 0, empty: !element.icon }">
+						<OzIcon v-if="element.icon" :name="ozIconForMenu(element.icon)" :size="depth ? 14 : 16" />
+						<span v-else class="dot" />
+					</span>
+					<div class="text">
+						<b>{{ element.label }}</b>
+						<span :class="{ soon: !target(element) }">
+							{{ hasChildren(element) ? `${element.children.length} alt menü` : '' }}{{ hasChildren(element) && target(element) ? ' · ' : '' }}{{ target(element) || (hasChildren(element) ? '' : 'Bağlantı yok') }}
+						</span>
+					</div>
+					<div class="tags">
+						<OzPill v-if="!element.is_active" tone="neutral">Pasif</OzPill>
+						<OzPill v-if="element.permission" tone="warning" :title="`İzin: ${element.permission}`">{{ element.permission }}</OzPill>
+					</div>
+					<OzButton size="sm" icon="plus" class="add-child" :aria-label="`${element.label} altına menü ekle`" :disabled="disabled" @click="emit('add-child', element)">Alt menü</OzButton>
+					<OzDropdown :items="actions(element)" :label="`${element.label} işlemleri`" @select="(k) => onAction(k, element)" />
+				</div>
+				<MenuTree
+					v-show="!element.__collapsed"
+					:nodes="element.children"
+					:parent-id="element.id"
+					:depth="depth + 1"
+					:disabled="disabled"
+					class="mt-children"
+					@changed="emit('changed')"
+					@add-route="emit('add-route', $event)"
+					@edit="emit('edit', $event)"
+					@add-child="emit('add-child', $event)"
+					@remove="emit('remove', $event)"
+					@toggle-active="emit('toggle-active', $event)"
+				/>
+			</div>
+		</template>
+	</draggable>
+</template>
+
 <style scoped>
-.mt-list {
-    min-height: 1px;
-}
-.mt-children {
-    margin-left: 22px;
-    border-left: 1px dashed var(--color-outline-variant);
-    padding-left: 8px;
-}
-.mt-node {
-    margin: 3px 0;
-}
-.mt-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 7px 10px;
-    background: var(--color-surface);
-    border: 1px solid var(--color-outline-variant);
-    border-radius: 8px;
-    transition: border-color 0.12s;
-}
-.mt-row:hover {
-    border-color: var(--color-muted);
-}
-.mt-row.inactive {
-    opacity: 0.5;
-}
-.mt-handle {
-    cursor: grab;
-    color: var(--color-muted);
-    user-select: none;
-    display: inline-flex;
-    align-items: center;
-}
-.mt-toggle {
-    width: 18px;
-    height: 18px;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: none;
-    background: transparent;
-    cursor: pointer;
-    color: var(--color-muted);
-    font-size: 10px;
-    line-height: 1;
-    padding: 0;
-}
-.mt-toggle:hover {
-    color: var(--color-ink);
-}
-.mt-toggle-spacer {
-    width: 18px;
-    flex-shrink: 0;
-}
-.mt-label {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--color-ink);
-}
-.mt-count {
-    font-size: 10px;
-    color: var(--color-muted);
-    background: var(--color-canvas);
-    border-radius: 999px;
-    padding: 1px 7px;
-    font-weight: 600;
-}
-.mt-badge {
-    font-size: 10px;
-    color: var(--color-warning);
-    background: color-mix(in srgb, var(--color-warning) 12%, transparent);
-    border-radius: 4px;
-    padding: 1px 6px;
-}
-.mt-actions {
-    margin-left: auto;
-    display: flex;
-    gap: 4px;
-}
-.mt-actions button {
-    width: 26px;
-    height: 26px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid var(--color-outline-variant);
-    background: var(--color-surface);
-    border-radius: 6px;
-    cursor: pointer;
-    color: var(--color-muted);
-}
-.mt-actions button:hover {
-    background: var(--color-canvas);
-    color: var(--color-ink);
-}
-.mt-actions button.danger:hover {
-    background: color-mix(in srgb, var(--color-danger) 10%, transparent);
-    color: var(--color-danger);
-    border-color: color-mix(in srgb, var(--color-danger) 30%, transparent);
-}
+.mt-list { display: flex; flex-direction: column; gap: 8px; min-height: 8px; }
+/* alt listeler boşken de bırakma hedefi olsun */
+.mt-list.is-nested { min-height: 4px; gap: 6px; padding: 0 0 0 26px; }
+.mt-children:empty { padding-top: 0; }
+.mt-node.is-root { border: 1px solid var(--oz-border); border-radius: 12px; background: var(--oz-surface); }
+.mt-node.is-root > .mt-children { padding: 0 10px 10px 36px; }
+.mt-list.is-nested .mt-row { border: 1px solid var(--oz-border-soft); border-radius: 10px; background: var(--oz-surface-2); }
+.mt-row { display: flex; align-items: center; gap: 10px; padding: 9px 10px 9px 6px; }
+.grip { display: flex; color: var(--oz-muted-2); cursor: grab; padding: 2px; }
+.grip:active { cursor: grabbing; }
+.chev { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border: none; border-radius: 6px; background: none; color: var(--oz-muted); cursor: pointer; transition: transform .18s, background .12s; flex-shrink: 0; }
+.chev:hover:not(:disabled) { background: var(--oz-surface-2); }
+.chev.open { transform: rotate(90deg); }
+.chev.none { visibility: hidden; }
+.ico { width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: var(--oz-accent-soft); color: var(--oz-accent); }
+.ico.sm { width: 28px; height: 28px; border-radius: 8px; background: var(--oz-surface); color: var(--oz-muted); border: 1px solid var(--oz-border-soft); }
+.ico.empty { background: transparent; border-color: transparent; }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--oz-border-strong); }
+.inactive .ico, .inactive .text { opacity: .5; }
+.text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.text b { font-size: 13px; font-weight: 700; color: var(--oz-ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.text span { font-size: 11.5px; color: var(--oz-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: ui-monospace, monospace; }
+.text span.soon { font-family: inherit; color: var(--oz-muted-2); }
+.tags { display: flex; gap: 4px; flex-shrink: 0; max-width: 40%; overflow: hidden; }
+.is-ghost { opacity: .45; }
+.is-ghost > .mt-row { border: 1px dashed var(--oz-accent) !important; background: var(--oz-accent-soft) !important; }
 
 @media (max-width: 640px) {
-    .mt-children {
-        margin-left: 12px;
-        padding-left: 6px;
-    }
-    .mt-row {
-        gap: 6px;
-        padding: 6px 8px;
-    }
-    .mt-badge {
-        display: none;
-    }
-    .mt-actions {
-        gap: 2px;
-    }
-    .mt-actions button {
-        width: 24px;
-        height: 24px;
-    }
+	.tags, .add-child { display: none; }
+	.mt-list.is-nested { padding-left: 12px; }
+	.mt-node.is-root > .mt-children { padding-left: 14px; }
 }
 </style>

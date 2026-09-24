@@ -9,8 +9,6 @@
 			]"
 		/>
 
-		<CreativeNav current="poses" />
-
 		<PageHeader title="Poz Kütüphanesi" subtitle="Mankenden bağımsız pozlar; her poz nötr bir figürle önizlenir, giydirmede seçilir">
 			<template #actions>
 				<Badge
@@ -88,7 +86,6 @@ import Card from '@/Components/Card.vue'
 import Button from '@/Components/Button.vue'
 import Badge from '@/Components/Badge.vue'
 import EmptyState from '@/Components/EmptyState.vue'
-import CreativeNav from '../Components/CreativeNav.vue'
 import { useCan } from '@/composables/useCan'
 
 defineOptions({ layout: AppLayout })

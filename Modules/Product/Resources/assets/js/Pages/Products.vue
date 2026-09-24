@@ -1,299 +1,13 @@
-<template>
-	<Head title="Ürün Kataloğu" />
-	<div class="page-products">
-		<Breadcrumb
-			:items="[
-				{ label: 'Ana Sayfa', to: '/workflow', icon: 'home' },
-				{ label: 'Katalog' },
-				{ label: 'Tüm Ürünler' },
-			]"
-		/>
-
-		<PageHeader title="Ürün Kataloğu">
-			<template #subtitle>
-				<strong>{{ filtered.length }}</strong> ürün listeleniyor
-				<span v-if="activeFilterCount > 0" class="filter-chip">{{ activeFilterCount }} filtre aktif</span>
-			</template>
-			<template #actions>
-				<Button v-if="canAdd" variant="primary" with-icon @click="openNewProduct">
-					<template #leading><Plus :size="13" /></template>
-					Yeni Ürün
-				</Button>
-			</template>
-		</PageHeader>
-
-		<!-- Üst bar: Filtreler toggle + hızlı arama -->
-		<div class="toolbar">
-			<button class="filter-toggle" :class="{ open: filtersOpen }" @click="filtersOpen = !filtersOpen">
-				<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-					<line x1="4" y1="6" x2="20" y2="6" /><line x1="7" y1="12" x2="17" y2="12" /><line x1="10" y1="18" x2="14" y2="18" />
-				</svg>
-				<span>Filtreler</span>
-				<span v-if="activeFilterCount > 0" class="filter-badge">{{ activeFilterCount }}</span>
-				<svg class="toggle-chevron" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-					<polyline points="6 9 12 15 18 9" />
-				</svg>
-			</button>
-
-			<div class="search-box">
-				<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-					<circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
-				</svg>
-				<input v-model="searchQuery" type="text" placeholder="Hızlı ara.." />
-			</div>
-		</div>
-
-		<!-- Açılır filtre paneli -->
-		<div v-show="filtersOpen" class="filter-panel">
-			<div class="filter-grid">
-				<!-- Arama Terimi + alan seçici -->
-				<div class="filter-field">
-					<label class="filter-label">Arama Terimi</label>
-					<div class="search-with-select">
-						<input v-model="searchQuery" type="text" class="filter-input" placeholder="Ara..." />
-						<div class="search-select">
-							<CustomSelect v-model="searchField" :options="searchFieldOptions" :show-label="false" />
-						</div>
-					</div>
-				</div>
-
-				<!-- Sıralama + yön -->
-				<div class="filter-field">
-					<label class="filter-label">Sıralama</label>
-					<div class="sort-row">
-						<CustomSelect v-model="sortField" :options="sortFieldOptions" :show-label="false" />
-						<CustomSelect v-model="sortDir" :options="sortDirOptions" :show-label="false" />
-					</div>
-				</div>
-
-				<!-- Kategori -->
-				<div class="filter-field">
-					<label class="filter-label">Kategori</label>
-					<CustomSelect v-model="selectedCategory" :options="categoryOptions" :show-label="false" placeholder="Kategori Seçilmedi" />
-				</div>
-
-				<!-- Marka -->
-				<div class="filter-field">
-					<label class="filter-label">Marka</label>
-					<CustomSelect v-model="selectedBrand" :options="brandOptions" :show-label="false" placeholder="Marka Seçilmedi" />
-				</div>
-
-				<!-- Stok Miktarı -->
-				<div class="filter-field">
-					<label class="filter-label">Stok Miktarı</label>
-					<div class="range-row">
-						<input v-model.number="stockMin" type="number" min="0" class="filter-input" placeholder="0" />
-						<span class="range-sep">ile</span>
-						<input v-model.number="stockMax" type="number" min="0" class="filter-input" placeholder="0" />
-					</div>
-				</div>
-
-				<!-- Satış Fiyatı -->
-				<div class="filter-field">
-					<label class="filter-label">Satış Fiyatı</label>
-					<div class="range-row">
-						<input v-model.number="priceMin" type="number" min="0" class="filter-input" placeholder="0.00" />
-						<span class="range-sep">ile</span>
-						<input v-model.number="priceMax" type="number" min="0" class="filter-input" placeholder="0.00" />
-					</div>
-				</div>
-
-				<!-- Desi -->
-				<div class="filter-field">
-					<label class="filter-label">Desi</label>
-					<div class="range-row">
-						<input v-model.number="desiMin" type="number" min="0" class="filter-input" placeholder="0.00" />
-						<span class="range-sep">ile</span>
-						<input v-model.number="desiMax" type="number" min="0" class="filter-input" placeholder="0.00" />
-					</div>
-				</div>
-			</div>
-
-			<div class="filter-actions">
-				<Button variant="primary" size="sm" @click="filtersOpen = true">Filtrele</Button>
-				<button class="clear-link" @click="clearFilters">Temizle</button>
-			</div>
-		</div>
-
-		<!-- Toplu seçim çubuğu -->
-		<div v-if="canDelete && selectedCount" class="bulk-bar">
-			<span class="bulk-info"><strong>{{ selectedCount }}</strong> ürün seçili</span>
-			<div class="bulk-actions">
-				<Button variant="ghost" size="sm" @click="clearSelection">Temizle</Button>
-				<Button variant="danger" size="sm" with-icon :loading="bulkBusy" @click="bulkDelete">
-					<template #leading><Trash2 :size="13" /></template>
-					Seçilenleri Sil ({{ selectedCount }})
-				</Button>
-			</div>
-		</div>
-
-		<!-- Boş durum -->
-		<div v-if="paginated.length === 0" class="empty-state">
-			<svg width="42" height="42" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-				<circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
-			</svg>
-			<h3>Eşleşen ürün bulunamadı</h3>
-			<p>Filtreleri gevşeterek tekrar deneyebilirsiniz.</p>
-			<Button variant="secondary" size="sm" @click="clearFilters">Filtreleri Temizle</Button>
-		</div>
-
-		<!-- Tablo -->
-		<div v-else class="table-wrap">
-			<div class="table-scroll">
-			<table class="product-table">
-				<thead>
-					<tr>
-						<th v-if="canDelete" class="col-check">
-							<label class="cb">
-								<input type="checkbox" :checked="allVisibleSelected" @change="toggleSelectAllVisible" />
-							</label>
-						</th>
-						<th class="col-id">ID</th>
-						<th class="col-img">Görsel</th>
-						<th class="col-name">Ürün Adı</th>
-						<th class="col-price">Site Fiyatı</th>
-						<th class="col-mp">Pazaryeri</th>
-						<th class="col-stock">Stok</th>
-						<th class="col-readiness">Hazırlık</th>
-						<th class="col-actions">İşlemler</th>
-					</tr>
-				</thead>
-				<tbody>
-					<tr
-						v-for="p in paginated"
-						:key="p.id"
-						:class="{ 'row-selected': isSelected(p.id), 'row-out': p.stock === 0 }"
-					>
-						<td v-if="canDelete" class="col-check">
-							<label class="cb">
-								<input type="checkbox" :checked="isSelected(p.id)" @change="toggleRow(p.id)" />
-							</label>
-						</td>
-						<td class="col-id mono">#{{ p.id }}</td>
-						<td class="col-img">
-							<div class="thumb">
-								<img :src="p.image || '/images/product-placeholder.svg'" :alt="p.name" loading="lazy" />
-							</div>
-						</td>
-						<td class="col-name">
-							<div class="name-cell">
-								<span class="name-text">{{ p.name }}</span>
-								<span class="name-line">Kategori: <b>{{ p.category || '—' }}</b></span>
-								<span class="name-line">Kodu: <b>{{ p.sku || '—' }}</b></span>
-								<span class="name-line">Barkod: <b>{{ p.barcode || '—' }}</b></span>
-							</div>
-						</td>
-						<td class="col-price">
-							<div class="price-cell">
-								<svg
-									class="status-dot"
-									:class="{ ok: p.stock > 0, off: p.stock === 0 }"
-									width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
-								>
-									<circle cx="12" cy="12" r="10" /><path d="M8 12l2.5 2.5L16 9" />
-								</svg>
-								<span class="price-val">{{ formatPrice(p.price) }}</span>
-								<span v-if="p.marketPrice != null" class="price-pa">P: {{ formatPrice(p.marketPrice) }}</span>
-								<span v-if="p.purchasePrice != null" class="price-pa">A: {{ formatPrice(p.purchasePrice) }}</span>
-							</div>
-						</td>
-						<td class="col-mp">
-							<div v-if="marketplacesFor(p).length" class="mp-list">
-								<button
-									v-for="mp in marketplacesFor(p)"
-									:key="mp.key"
-									type="button"
-									class="mp-item"
-									:class="{ sent: listingSummary(p, mp)?.isSent }"
-									:title="mp.name"
-									:disabled="!canAdd"
-									@click="canAdd && openListing(p, mp)"
-								>
-									<img
-										v-if="!logoFailed[mp.key]"
-										class="mp-logo-img"
-										:src="`/images/marketplaces/${mp.key}.svg`"
-										:alt="mp.name"
-										@error="onLogoError(mp.key)"
-									/>
-									<span v-else class="mp-badge" :style="{ background: mp.color || '#888' }">{{ mp.logoText }}</span>
-									<span class="mp-price">{{ mpPrice(p, mp) }}</span>
-								</button>
-							</div>
-							<span v-else class="mp-empty">—</span>
-						</td>
-						<td class="col-stock">
-							<span v-if="p.stock === 0" class="stock-pill stock-out">Tükendi</span>
-							<span v-else-if="p.stock < 20" class="stock-pill stock-low">{{ p.stock }}</span>
-							<span v-else class="stock-pill stock-ok">{{ p.stock }}</span>
-						</td>
-						<td class="col-readiness">
-							<div class="readiness-badges">
-								<span
-									v-for="cap in readinessCapabilities"
-									:key="cap.key"
-									class="readiness-dot"
-									:class="{ ready: p.readiness?.[cap.key]?.ready }"
-									:title="readinessTooltip(p, cap)"
-								><component :is="cap.icon" :size="12" /></span>
-							</div>
-						</td>
-						<td class="col-actions">
-							<div class="action-btns">
-								<Link :href="`/products/${p.slug ?? p.id}`" class="icon-btn" title="Önizleme">
-									<Eye :size="15" />
-								</Link>
-								<button v-if="canAdd" class="icon-btn" title="Düzenle" @click="editProduct(p)">
-									<Pencil :size="15" />
-								</button>
-								<button v-if="canDelete" class="icon-btn icon-danger" title="Sil" @click="confirmDeleteProduct(p)">
-									<Trash2 :size="15" />
-								</button>
-							</div>
-						</td>
-					</tr>
-				</tbody>
-			</table>
-			</div>
-		</div>
-
-		<!-- Sayfalama -->
-		<div v-if="totalPages > 1" class="pagination">
-			<div class="pagination-info">
-				Sayfa <span>{{ currentPage }}</span> / <span>{{ totalPages }}</span>
-			</div>
-			<div class="pagination-controls">
-				<button class="pagination-btn" :disabled="currentPage === 1" @click="currentPage--">‹</button>
-				<button
-					v-for="page in visiblePages"
-					:key="page"
-					class="pagination-btn"
-					:class="{ active: currentPage === page }"
-					@click="currentPage = page"
-				>{{ page }}</button>
-				<button class="pagination-btn" :disabled="currentPage === totalPages" @click="currentPage++">›</button>
-			</div>
-		</div>
-
-		<MarketplaceListingDrawer
-			:open="listingOpen"
-			:product-id="activeProduct?.id"
-			:marketplace="activeMarketplace"
-			@close="listingOpen = false"
-			@saved="onListingSaved"
-		/>
-	</div>
-</template>
-
 <script setup>
 import { ref, computed, watch, inject, reactive } from 'vue'
 import { Head, Link, router, usePage } from '@inertiajs/vue3'
-import { Plus, Trash2, Eye, Pencil, Shirt, Palette, Store } from 'lucide-vue-next'
+import { useMotion, useReducedMotion } from '@vueuse/motion'
+import { Shirt, Palette, Store } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import Breadcrumb from '@/Components/Breadcrumb.vue'
-import PageHeader from '@/Components/PageHeader.vue'
-import Button from '@/Components/Button.vue'
-import CustomSelect from '@/Components/CustomSelect.vue'
+import {
+	OzPageHeader, OzModuleTabs, OzStatTile, OzButton, OzField, OzInput, OzSelect, OzPill,
+	OzDropdown, OzEmptyState, OzPagination, useOzConfirm,
+} from '@/Components/Oz'
 import MarketplaceListingDrawer from '../Components/MarketplaceListingDrawer.vue'
 
 defineOptions({ layout: AppLayout })
@@ -306,12 +20,14 @@ const props = defineProps({
 })
 
 const showToast = inject('showToast')
-const $swal = inject('$swal')
+const confirm = useOzConfirm()
 
 const page = usePage()
 const can = (perm) => (page.props.auth?.permissions ?? []).includes(perm)
 const canAdd    = computed(() => can('product.add'))
 const canDelete = computed(() => can('product.delete'))
+// Listeleme drawer'ı GET ucu product.card.view ister; kaydetme product.add.
+const canListing = computed(() => canAdd.value && can('product.card.view'))
 
 /* ── Sözlükler ── */
 const searchFieldOptions = [
@@ -343,8 +59,56 @@ const brandOptions = computed(() => [
 	...props.brands.map((b) => ({ value: b.slug, label: b.label })),
 ])
 
+/* ── İstatistikler ── */
+const stats = computed(() => {
+	const inStock = props.products.filter((p) => p.stock > 0).length
+	const ready = props.products.filter((p) => readinessCapabilities.every((c) => p.readiness?.[c.key]?.ready)).length
+	return [
+		{ key: 'total', label: 'Toplam Ürün', value: props.products.length, icon: 'grid', tone: 'accent' },
+		{ key: 'inStock', label: 'Stokta', value: inStock, icon: 'success', tone: 'success' },
+		{ key: 'outOfStock', label: 'Tükendi', value: props.products.length - inStock, icon: 'error', tone: (props.products.length - inStock) ? 'danger' : 'success' },
+		{ key: 'ready', label: 'Tümüyle Hazır', value: ready, icon: 'sparkles', tone: 'info' },
+	]
+})
+
 /* ── Filtre state ── */
 const filtersOpen = ref(false)
+
+// Filtre paneli aç/kapa animasyonu (@vueuse/motion): dış sarmalayıcı yükseklik+opaklık,
+// iç panel hafif dikey kayma. Açılış bitince yükseklik `auto` + overflow görünür yapılır ki
+// pencere yeniden boyutlanınca / açılır menüler panel dışına taşınca kırpılmasın.
+const filterWrap = ref(null)
+const filterPanel = ref(null)
+const reducedMotion = useReducedMotion()
+const { apply: animateWrap, set: setWrap } = useMotion(filterWrap, { initial: { height: 0, opacity: 0 } })
+const { apply: animatePanel, set: setPanel } = useMotion(filterPanel, { initial: { y: -10 } })
+let filterAnimSeq = 0
+
+watch(filtersOpen, async (open) => {
+	const wrap = filterWrap.value
+	const panel = filterPanel.value
+	if (!wrap || !panel) return
+	const seq = ++filterAnimSeq
+	wrap.style.overflow = 'hidden'
+	if (!open) setWrap({ height: wrap.offsetHeight })
+	const height = open ? panel.offsetHeight + parseFloat(getComputedStyle(panel).marginBottom) : 0
+
+	if (reducedMotion.value) {
+		setWrap({ height, opacity: open ? 1 : 0 })
+		setPanel({ y: 0 })
+	} else {
+		const ease = { duration: 260, ease: 'easeOut' }
+		await Promise.all([
+			animateWrap({ height, opacity: open ? 1 : 0, transition: ease }),
+			animatePanel({ y: open ? 0 : -10, transition: { type: 'spring', stiffness: 380, damping: 32 } }),
+		])
+	}
+
+	if (open && seq === filterAnimSeq) {
+		wrap.style.height = 'auto'
+		wrap.style.overflow = 'visible'
+	}
+})
 const searchQuery = ref('')
 const searchField = ref('name')
 const selectedCategory = ref('')
@@ -469,20 +233,9 @@ const filtered = computed(() => {
 	return list
 })
 
-const totalPages = computed(() => Math.max(1, Math.ceil(filtered.value.length / itemsPerPage)))
-
 const paginated = computed(() => {
 	const start = (currentPage.value - 1) * itemsPerPage
 	return filtered.value.slice(start, start + itemsPerPage)
-})
-
-const visiblePages = computed(() => {
-	const total = totalPages.value
-	const current = currentPage.value
-	if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
-	if (current <= 4) return [1, 2, 3, 4, 5, total]
-	if (current >= total - 3) return [1, total - 4, total - 3, total - 2, total - 1, total]
-	return [1, current - 1, current, current + 1, total]
 })
 
 // Filtre değişince sayfa 1'e dön
@@ -525,13 +278,19 @@ function editProduct(product) {
 	router.visit(`/products/${product.id}/edit`)
 }
 
+const rowActions = (p) => [
+	{ key: 'view', label: 'Önizleme', icon: 'eye' },
+	...(canAdd.value ? [{ key: 'edit', label: 'Düzenle', icon: 'edit' }] : []),
+	...(canDelete.value ? [{ divider: true }, { key: 'remove', label: 'Sil', icon: 'trash', danger: true }] : []),
+]
+function onRowAction(key, p) {
+	if (key === 'view') router.visit(`/products/${p.slug ?? p.id}`)
+	else if (key === 'edit') editProduct(p)
+	else if (key === 'remove') confirmDeleteProduct(p)
+}
+
 async function confirmDeleteProduct(product) {
-	const ok = await $swal.dangerConfirm({
-		title: 'Ürünü Sil',
-		html: `<strong>${product.name}</strong> silinecek.<br>Bu üründeki <strong>${product.variants?.length ?? 0}</strong> varyant da kalıcı olarak kaldırılacak.`,
-		confirmText: 'Sil',
-		cancelText: 'Vazgeç',
-	})
+	const ok = await confirm.danger('Ürünü Sil', `“${product.name}” silinecek. Bu üründeki ${product.variants?.length ?? 0} varyant da kalıcı olarak kaldırılacak.`)
 	if (!ok) return
 
 	router.delete(`/products/${product.id}`, {
@@ -572,12 +331,7 @@ function clearSelection() { selected.value = new Set() }
 async function bulkDelete() {
 	const ids = [...selected.value]
 	if (!ids.length) return
-	const ok = await $swal.dangerConfirm({
-		title: 'Ürünleri Sil',
-		html: `<strong>${ids.length}</strong> ürün ve bunlara bağlı varyantlar kalıcı olarak silinecek.`,
-		confirmText: 'Sil',
-		cancelText: 'Vazgeç',
-	})
+	const ok = await confirm.danger('Ürünleri Sil', `${ids.length} ürün ve bunlara bağlı varyantlar kalıcı olarak silinecek.`)
 	if (!ok) return
 
 	bulkBusy.value = true
@@ -594,190 +348,294 @@ async function bulkDelete() {
 		onFinish: () => { bulkBusy.value = false },
 	})
 }
-
 </script>
 
+<template>
+	<Head title="Ürün Kataloğu" />
+
+	<OzPageHeader title="Ürün Kataloğu">
+		<template #subtitle>
+			<b>{{ filtered.length }}</b> ürün listeleniyor
+			<OzPill v-if="activeFilterCount > 0" tone="accent">{{ activeFilterCount }} filtre aktif</OzPill>
+		</template>
+		<template #actions>
+			<OzButton v-if="canAdd" variant="primary" icon="plus" @click="openNewProduct">Yeni Ürün</OzButton>
+		</template>
+	</OzPageHeader>
+	<OzModuleTabs />
+
+	<div class="stats">
+		<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" />
+	</div>
+
+	<!-- Üst bar: Filtreler toggle + hızlı arama -->
+	<div class="toolbar">
+		<OzButton :class="{ 'is-open': filtersOpen }" icon="sliders" @click="filtersOpen = !filtersOpen">
+			Filtreler
+			<span v-if="activeFilterCount > 0" class="filter-badge">{{ activeFilterCount }}</span>
+		</OzButton>
+		<OzInput v-model="searchQuery" icon="search" placeholder="Hızlı ara…" class="search-box" />
+	</div>
+
+	<!-- Açılır filtre paneli -->
+	<div ref="filterWrap" class="filter-collapse" :inert="!filtersOpen" :aria-hidden="!filtersOpen">
+		<div ref="filterPanel" class="filter-panel">
+			<div class="filter-grid">
+				<OzField label="Arama Terimi">
+					<div class="search-with-select">
+						<OzInput v-model="searchQuery" placeholder="Ara…" />
+						<OzSelect v-model="searchField" :options="searchFieldOptions" />
+					</div>
+				</OzField>
+
+				<OzField label="Sıralama">
+					<div class="sort-row">
+						<OzSelect v-model="sortField" :options="sortFieldOptions" />
+						<OzSelect v-model="sortDir" :options="sortDirOptions" />
+					</div>
+				</OzField>
+
+				<OzField label="Kategori">
+					<OzSelect v-model="selectedCategory" :options="categoryOptions" />
+				</OzField>
+
+				<OzField label="Marka">
+					<OzSelect v-model="selectedBrand" :options="brandOptions" />
+				</OzField>
+
+				<OzField label="Stok Miktarı">
+					<div class="range-row">
+						<OzInput v-model.number="stockMin" type="number" min="0" placeholder="0" />
+						<span class="range-sep">ile</span>
+						<OzInput v-model.number="stockMax" type="number" min="0" placeholder="0" />
+					</div>
+				</OzField>
+
+				<OzField label="Satış Fiyatı">
+					<div class="range-row">
+						<OzInput v-model.number="priceMin" type="number" min="0" placeholder="0.00" />
+						<span class="range-sep">ile</span>
+						<OzInput v-model.number="priceMax" type="number" min="0" placeholder="0.00" />
+					</div>
+				</OzField>
+
+				<OzField label="Desi">
+					<div class="range-row">
+						<OzInput v-model.number="desiMin" type="number" min="0" placeholder="0.00" />
+						<span class="range-sep">ile</span>
+						<OzInput v-model.number="desiMax" type="number" min="0" placeholder="0.00" />
+					</div>
+				</OzField>
+			</div>
+
+			<div class="filter-actions">
+				<OzButton size="sm" @click="clearFilters">Temizle</OzButton>
+			</div>
+		</div>
+	</div>
+
+	<!-- Boş durum -->
+	<OzEmptyState v-if="!paginated.length" icon="search" title="Eşleşen ürün bulunamadı" description="Filtreleri gevşeterek tekrar deneyebilirsiniz.">
+		<template #actions><OzButton size="sm" icon="x" @click="clearFilters">Filtreleri Temizle</OzButton></template>
+	</OzEmptyState>
+
+	<!-- Tablo -->
+	<div v-else class="table-wrap">
+		<div class="table-scroll">
+			<table class="product-table">
+				<thead>
+					<tr>
+						<th v-if="canDelete" class="col-check">
+							<input type="checkbox" :checked="allVisibleSelected" aria-label="Tümünü seç" @change="toggleSelectAllVisible">
+						</th>
+						<th class="col-id">ID</th>
+						<th class="col-img">Görsel</th>
+						<th class="col-name">Ürün Adı</th>
+						<th class="col-price">Site Fiyatı</th>
+						<th class="col-mp">Pazaryeri</th>
+						<th class="col-stock">Stok</th>
+						<th class="col-readiness">Hazırlık</th>
+						<th class="col-actions"></th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr
+						v-for="p in paginated"
+						:key="p.id"
+						:class="{ 'row-selected': isSelected(p.id), 'row-out': p.stock === 0 }"
+					>
+						<td v-if="canDelete" class="col-check">
+							<input type="checkbox" :checked="isSelected(p.id)" :aria-label="`${p.name} seç`" @change="toggleRow(p.id)">
+						</td>
+						<td class="col-id mono">#{{ p.id }}</td>
+						<td class="col-img">
+							<div class="thumb">
+								<img :src="p.image || '/images/product-placeholder.svg'" :alt="p.name" loading="lazy">
+							</div>
+						</td>
+						<td class="col-name">
+							<div class="name-cell">
+								<span class="name-text">{{ p.name }}</span>
+								<span class="name-line">Kategori: <b>{{ p.category || '—' }}</b></span>
+								<span class="name-line">Kodu: <b>{{ p.sku || '—' }}</b></span>
+								<span class="name-line">Barkod: <b>{{ p.barcode || '—' }}</b></span>
+							</div>
+						</td>
+						<td class="col-price">
+							<div class="price-cell">
+								<span class="price-val">{{ formatPrice(p.price) }}</span>
+								<span v-if="p.marketPrice != null" class="price-pa">P: {{ formatPrice(p.marketPrice) }}</span>
+								<span v-if="p.purchasePrice != null" class="price-pa">A: {{ formatPrice(p.purchasePrice) }}</span>
+							</div>
+						</td>
+						<td class="col-mp">
+							<div v-if="marketplacesFor(p).length" class="mp-list">
+								<button
+									v-for="mp in marketplacesFor(p)"
+									:key="mp.key"
+									type="button"
+									class="mp-item"
+									:class="{ sent: listingSummary(p, mp)?.isSent }"
+									:title="mp.name"
+									:disabled="!canListing"
+									@click="canListing && openListing(p, mp)"
+								>
+									<img
+										v-if="!logoFailed[mp.key]"
+										class="mp-logo-img"
+										:src="`/images/marketplaces/${mp.key}.svg`"
+										:alt="mp.name"
+										@error="onLogoError(mp.key)"
+									>
+									<span v-else class="mp-badge" :style="{ background: mp.color || '#888' }">{{ mp.logoText }}</span>
+									<span class="mp-price">{{ mpPrice(p, mp) }}</span>
+								</button>
+							</div>
+							<span v-else class="mp-empty">—</span>
+						</td>
+						<td class="col-stock">
+							<OzPill v-if="p.stock === 0" tone="danger">Tükendi</OzPill>
+							<OzPill v-else-if="p.stock < 20" tone="warning">{{ p.stock }}</OzPill>
+							<OzPill v-else tone="success">{{ p.stock }}</OzPill>
+						</td>
+						<td class="col-readiness">
+							<div class="readiness-badges">
+								<span
+									v-for="cap in readinessCapabilities"
+									:key="cap.key"
+									class="readiness-dot"
+									:class="{ ready: p.readiness?.[cap.key]?.ready }"
+									:title="readinessTooltip(p, cap)"
+								><component :is="cap.icon" :size="12" /></span>
+							</div>
+						</td>
+						<td class="col-actions" @click.stop>
+							<OzDropdown :items="rowActions(p)" :label="`${p.name} işlemleri`" @select="(k) => onRowAction(k, p)" />
+						</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+	</div>
+
+	<!-- Sayfalama -->
+	<div v-if="filtered.length > itemsPerPage" class="pagination-wrap">
+		<OzPagination v-model="currentPage" :total="filtered.length" :page-size="itemsPerPage" />
+	</div>
+
+	<!-- Toplu seçim çubuğu (yüzen) -->
+	<div class="bulk-dock" :class="{ 'is-active': canDelete && selectedCount > 0 }">
+		<Transition name="bulk">
+			<div v-if="canDelete && selectedCount > 0" class="bulk-bar" role="toolbar" aria-label="Toplu işlemler">
+				<span class="bulk-info"><b>{{ selectedCount }}</b> ürün seçili</span>
+				<div class="bulk-actions">
+					<OzButton size="sm" @click="clearSelection">Temizle</OzButton>
+					<OzButton variant="danger" size="sm" icon="trash" :loading="bulkBusy" @click="bulkDelete">Seçilenleri Sil ({{ selectedCount }})</OzButton>
+				</div>
+			</div>
+		</Transition>
+	</div>
+
+	<MarketplaceListingDrawer
+		:open="listingOpen"
+		:product-id="activeProduct?.id"
+		:marketplace="activeMarketplace"
+		@close="listingOpen = false"
+		@saved="onListingSaved"
+	/>
+</template>
+
 <style scoped>
-.page-products { display: flex; flex-direction: column; }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 /* ── Üst araç çubuğu ── */
-.toolbar {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-	margin-bottom: 12px;
-	flex-wrap: wrap;
-}
-
-.filter-toggle {
-	display: inline-flex;
-	align-items: center;
-	gap: 8px;
-	background: #fff;
-	border: 1px solid #e8e8f0;
-	border-radius: 9px;
-	padding: 8px 14px;
-	font-family: inherit;
-	font-size: 13px;
-	font-weight: 600;
-	color: #1a1a2e;
-	cursor: pointer;
-	transition: border-color .15s, background .15s;
-}
-.filter-toggle:hover { border-color: #ccc; }
-.filter-toggle.open { border-color: rgb(var(--color-primary-rgb)); }
-.filter-toggle svg { color: #888; }
-.filter-toggle .toggle-chevron { transition: transform .2s; }
-.filter-toggle.open .toggle-chevron { transform: rotate(180deg); }
+.toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.toolbar :deep(.is-open) { border-color: var(--oz-accent); color: var(--oz-accent); background: var(--oz-accent-soft); }
 .filter-badge {
 	display: inline-flex; align-items: center; justify-content: center;
-	min-width: 18px; height: 18px; padding: 0 5px;
-	background: rgb(var(--color-primary-rgb)); color: #fff;
+	min-width: 18px; height: 18px; padding: 0 5px; margin-left: 2px;
+	background: var(--oz-accent); color: #fff;
 	font-size: 11px; font-weight: 700; border-radius: 999px;
 }
-
-.search-box {
-	display: flex;
-	align-items: center;
-	gap: 6px;
-	background: #fff;
-	border: 1px solid #e8e8f0;
-	border-radius: 9px;
-	padding: 8px 12px;
-	flex: 1;
-	min-width: 240px;
-}
-.search-box svg { color: #aaa; flex-shrink: 0; }
-.search-box input {
-	border: none; background: none; outline: none;
-	font-family: inherit; font-size: 13px;
-	width: 100%;
-}
-.search-box input::placeholder { color: #bbb; }
+.search-box { flex: 1; min-width: 240px; max-width: 360px; }
 
 /* ── Filtre paneli ── */
+/* Yükseklik/opaklık @vueuse/motion ile animasyonlu; başlangıç kapalı (JS gelmeden de gizli). */
+.filter-collapse { height: 0; opacity: 0; overflow: hidden; }
 .filter-panel {
-	background: #fff;
-	border: 1px solid #ebebf0;
-	border-radius: 14px;
+	background: var(--oz-surface);
+	border: 1px solid var(--oz-border);
+	border-radius: var(--oz-radius);
 	padding: 18px 20px;
 	margin-bottom: 16px;
-	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+	box-shadow: var(--oz-shadow-sm);
 }
-
-.filter-grid {
-	display: grid;
-	grid-template-columns: repeat(4, 1fr);
-	gap: 14px 18px;
-}
-
+.filter-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px 18px; }
 @media (max-width: 1100px) { .filter-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 620px)  { .filter-grid { grid-template-columns: 1fr; } }
 
-.filter-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
-.filter-label { font-size: 12.5px; font-weight: 600; color: #555; }
-
-.filter-input {
-	height: 36px;
-	border: 1.5px solid #e8e8f0;
-	border-radius: 9px;
-	background: #fafafe;
-	padding: 0 12px;
-	font-family: inherit;
-	font-size: 13px;
-	color: #1a1a2e;
-	outline: none;
-	width: 100%;
-	transition: border-color .15s, box-shadow .15s, background .15s;
-}
-.filter-input:focus {
-	border-color: rgb(var(--color-primary-rgb));
-	box-shadow: 0 0 0 3px rgb(var(--color-primary-rgb) / 0.1);
-	background: #fff;
-}
-
 .search-with-select { display: grid; grid-template-columns: 1fr 130px; gap: 6px; }
 .sort-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-
 .range-row { display: flex; align-items: center; gap: 8px; }
-.range-row .filter-input { flex: 1; min-width: 0; }
-.range-sep { font-size: 12px; color: #aaa; flex-shrink: 0; }
+.range-row > * { flex: 1; min-width: 0; }
+.range-sep { font-size: 12px; color: var(--oz-muted); flex-shrink: 0; }
 
-.filter-actions {
-	display: flex;
-	align-items: center;
-	gap: 14px;
-	margin-top: 16px;
-	padding-top: 14px;
-	border-top: 1px solid #f0f0f5;
-}
-.clear-link {
-	background: none; border: none;
-	color: #888; font-family: inherit; font-size: 12.5px;
-	cursor: pointer; padding: 4px 6px; border-radius: 6px;
-}
-.clear-link:hover { color: rgb(var(--color-primary-rgb)); background: rgb(var(--color-primary-soft-rgb)); }
-
-/* ── Başlık ── */
-.filter-chip {
-	display: inline-flex; align-items: center;
-	padding: 2px 8px;
-	background: rgb(var(--color-primary-soft-rgb));
-	color: rgb(var(--color-primary-rgb));
-	border-radius: 999px; font-size: 11px; font-weight: 600;
-}
+.filter-actions { display: flex; align-items: center; gap: 14px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--oz-border-soft); }
 
 /* ── Toplu seçim çubuğu ── */
+/* Toplu seçim çubuğu: akışta yer kaplamaz (tabloyu itmez), kaydırma alanının altında yüzer.
+   Dock, .oz-shell-content içinde sticky; seçim varken sona boşluk açar ki son satırları örtmesin. */
+.bulk-dock { position: sticky; bottom: 0; height: 0; z-index: 5; pointer-events: none; transition: height .2s ease; }
+.bulk-dock.is-active { height: 76px; }
 .bulk-bar {
-	display: flex;
-	align-items: center;
-	gap: 14px;
-	background: #faf5ff;
-	border: 1px solid #ece5fb;
-	border-radius: 10px;
-	padding: 9px 14px;
-	margin-bottom: 14px;
+	position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%);
+	display: flex; align-items: center; gap: 14px; width: max-content; max-width: calc(100% - 24px);
+	padding: 8px 8px 8px 16px; border-radius: 999px; pointer-events: auto;
+	background: var(--oz-surface); border: 1px solid var(--oz-border); box-shadow: var(--oz-shadow);
 }
-.bulk-info { font-size: 12.5px; color: rgb(var(--color-primary-hover-rgb)); }
-.bulk-info strong { font-weight: 800; }
-.bulk-actions { display: flex; gap: 8px; margin-left: auto; }
+.bulk-info { font-size: 12.5px; color: var(--oz-ink-soft); white-space: nowrap; }
+.bulk-info b { color: var(--oz-accent); }
+.bulk-actions { display: flex; gap: 8px; }
+.bulk-enter-active, .bulk-leave-active { transition: opacity .18s ease, transform .22s cubic-bezier(.2, .8, .2, 1); }
+.bulk-enter-from, .bulk-leave-to { opacity: 0; transform: translate(-50%, 14px); }
+@media (max-width: 768px) {
+	.bulk-bar { bottom: 10px; gap: 10px; padding-left: 14px; }
+}
 
 /* ── Tablo ── */
-.table-wrap {
-	background: #fff;
-	border: 1px solid #ebebf0;
-	border-radius: 14px;
-	overflow: hidden;
-	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-}
-
+.table-wrap { background: var(--oz-surface); border: 1px solid var(--oz-border); border-radius: var(--oz-radius); overflow: hidden; box-shadow: var(--oz-shadow-sm); }
+.table-scroll { overflow-x: auto; }
 .product-table { width: 100%; border-collapse: collapse; }
-
 .product-table thead th.col-price { text-align: center; }
 .product-table thead th {
-	text-align: left;
-	font-size: 11.5px;
-	font-weight: 700;
-	text-transform: uppercase;
-	letter-spacing: 0.04em;
-	color: #888;
-	background: #fafafc;
-	padding: 12px 14px;
-	border-bottom: 1px solid #ebebf0;
-	white-space: nowrap;
+	text-align: left; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+	color: var(--oz-muted); background: var(--oz-th-bg); padding: 12px 14px; border-bottom: 1px solid var(--oz-border); white-space: nowrap;
 }
-
-.product-table tbody td {
-	padding: 11px 14px;
-	border-bottom: 1px solid #f2f2f6;
-	font-size: 13px;
-	color: #1a1a2e;
-	vertical-align: middle;
-}
-.product-table tbody tr:last-child td { border-bottom: none; }
+.product-table tbody td { padding: 11px 14px; border-top: 1px solid var(--oz-border-soft); font-size: 12.5px; color: var(--oz-ink); vertical-align: middle; }
 .product-table tbody tr { transition: background .12s; }
-.product-table tbody tr:hover { background: #fafafe; }
-.product-table tbody tr.row-selected { background: rgb(var(--color-primary-soft-rgb)); }
+.product-table tbody tr:hover td { background: var(--oz-surface-2); }
+.product-table tbody tr.row-selected td { background: var(--oz-accent-soft); }
 .product-table tbody tr.row-out { opacity: .7; }
 
 .col-check { width: 44px; }
@@ -788,121 +646,38 @@ async function bulkDelete() {
 .col-mp { width: 360px; }
 .col-stock { width: 80px; }
 .col-readiness { width: 90px; }
-.col-actions { width: 120px; }
+.col-actions { width: 48px; }
 
 .readiness-badges { display: flex; gap: 4px; }
-.readiness-dot {
-	width: 22px; height: 22px;
-	border-radius: 7px;
-	display: inline-flex; align-items: center; justify-content: center;
-	color: #aaa;
-	background: #f5f5f8;
-	cursor: default;
-}
-.readiness-dot.ready { background: #dcfce7; color: #16a34a; }
+.readiness-dot { width: 22px; height: 22px; border-radius: 7px; display: inline-flex; align-items: center; justify-content: center; color: var(--oz-muted); background: var(--oz-surface-2); cursor: default; }
+.readiness-dot.ready { background: var(--oz-success-soft); color: var(--oz-success); }
 
-.mono { font-family: 'SF Mono', Consolas, monospace; color: #888; font-size: 12px; }
+.mono { font-family: ui-monospace, monospace; color: var(--oz-muted); font-size: 12px; }
 
-.cb { display: inline-flex; cursor: pointer; }
-.cb input { width: 16px; height: 16px; accent-color: rgb(var(--color-primary-rgb)); cursor: pointer; }
-
-.thumb {
-	width: 44px; height: 44px;
-	border-radius: 8px; overflow: hidden;
-	background: #f5f5fa; flex-shrink: 0;
-}
+.thumb { width: 44px; height: 44px; border-radius: 8px; overflow: hidden; background: var(--oz-surface-2); flex-shrink: 0; }
 .thumb img { width: 100%; height: 100%; object-fit: cover; }
 
 .name-cell { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.name-text { font-weight: 700; color: #1a1a2e; font-size: 13.5px; }
-.name-line { font-size: 11.5px; color: #888; }
-.name-line b { color: #555; font-weight: 600; }
+.name-text { font-weight: 700; color: var(--oz-ink-soft); font-size: 13px; }
+.name-line { font-size: 11.5px; color: var(--oz-muted); }
+.name-line b { color: var(--oz-ink); font-weight: 600; }
 
 .col-price { white-space: nowrap; text-align: center; }
 .price-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.status-dot { margin-bottom: 2px; }
-.status-dot.ok { color: #16a34a; }
-.status-dot.off { color: #cbd5e1; }
-.price-val { font-weight: 800; color: #1a1a2e; font-size: 13.5px; }
-.price-pa { font-size: 11px; color: #888; }
+.price-val { font-weight: 800; color: var(--oz-ink-soft); font-size: 13px; }
+.price-pa { font-size: 11px; color: var(--oz-muted); }
 
-.mp-list {
-	display: flex; flex-wrap: nowrap; gap: 8px;
-	overflow-x: auto; padding-bottom: 2px;
-}
-.mp-list::-webkit-scrollbar { height: 4px; }
-.mp-list::-webkit-scrollbar-thumb { background: #ddd; border-radius: 4px; }
+.mp-list { display: flex; flex-wrap: nowrap; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
 .mp-item { display: flex; flex-direction: column; align-items: center; gap: 3px; flex: 0 0 auto; background: none; border: none; cursor: pointer; padding: 2px; opacity: .55; transition: opacity .12s; }
 .mp-item:hover { opacity: 1; }
 .mp-item.sent { opacity: 1; }
 .mp-item:disabled { cursor: default; pointer-events: none; }
-.mp-badge {
-	display: inline-flex; align-items: center; justify-content: center;
-	width: 26px; height: 26px;
-	color: #fff; font-size: 10px; font-weight: 800;
-	border-radius: 7px; letter-spacing: 0.02em;
-}
+.mp-badge { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; color: #fff; font-size: 10px; font-weight: 800; border-radius: 7px; letter-spacing: 0.02em; }
 .mp-logo-img { width: 26px; height: 26px; display: block; border-radius: 7px; }
-.mp-price { font-size: 11px; font-weight: 600; color: #555; white-space: nowrap; }
-.mp-empty { color: #ccc; }
+.mp-price { font-size: 11px; font-weight: 600; color: var(--oz-muted); white-space: nowrap; }
+.mp-empty { color: var(--oz-muted-2, var(--oz-muted)); }
 
-.stock-pill {
-	display: inline-flex; align-items: center;
-	padding: 3px 9px; border-radius: 999px;
-	font-size: 12px; font-weight: 700;
-}
-.stock-ok  { background: #ecfdf3; color: #16a34a; }
-.stock-low { background: #fef9c3; color: #ca8a04; }
-.stock-out { background: #fef2f2; color: #dc2626; }
-
-.action-btns { display: flex; gap: 6px; align-items: center; }
-.icon-btn {
-	width: 30px; height: 30px;
-	border-radius: 8px;
-	border: 1.5px solid #e8e8f0;
-	background: #fff;
-	color: #6b7280;
-	cursor: pointer;
-	display: flex; align-items: center; justify-content: center;
-	transition: all .15s;
-	text-decoration: none;
-}
-.icon-btn:hover { background: #f5f5f8; border-color: #d8d8e8; color: #1a1a2e; }
-.icon-btn.icon-danger:hover { background: #fef2f2; border-color: #fecaca; color: #ef4444; }
-
-/* ── Boş durum ── */
-.empty-state {
-	display: flex; flex-direction: column;
-	align-items: center; justify-content: center; gap: 8px;
-	padding: 60px 20px;
-	background: #fff;
-	border: 1px dashed #d8d8e8;
-	border-radius: 14px;
-	color: #888; text-align: center;
-}
-.empty-state svg { color: #c0c0d8; margin-bottom: 4px; }
-.empty-state h3 { font-size: 15px; font-weight: 700; color: #1a1a2e; margin: 0; }
-.empty-state p { font-size: 12.5px; color: #888; margin: 0 0 8px 0; }
-
-/* ── Sayfalama ── */
-.pagination {
-	display: flex; align-items: center; justify-content: space-between;
-	padding: 18px 4px 4px; margin-top: 12px;
-}
-.pagination-info { font-size: 13px; color: #888; }
-.pagination-info span { color: #1a1a2e; font-weight: 600; }
-.pagination-controls { display: flex; align-items: center; gap: 4px; }
-.pagination-btn {
-	min-width: 32px; height: 32px; padding: 0 8px;
-	border: 1px solid #e8e8f0; border-radius: 6px;
-	background: #fff; color: #666;
-	font-size: 13px; font-weight: 500; cursor: pointer;
-	display: flex; align-items: center; justify-content: center;
-	transition: all .15s;
-}
-.pagination-btn:hover:not(:disabled) { border-color: #ccc; color: #333; background: #f9f9fb; }
-.pagination-btn.active { background: #1a1a2e; color: #fff; border-color: #1a1a2e; }
-.pagination-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.pagination-wrap { padding: 14px 4px 4px; }
 
 @media (max-width: 760px) {
 	.col-mp, .col-id, .col-readiness { display: none; }

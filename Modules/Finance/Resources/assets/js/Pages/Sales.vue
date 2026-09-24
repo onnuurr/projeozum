@@ -9,8 +9,6 @@
 			]"
 		/>
 
-		<FinanceNav current="sales" />
-
 		<PageHeader title="Satış Geçmişi">
 			<template #subtitle>
 				<strong>{{ summary.orderCount }}</strong> sipariş ·
@@ -46,7 +44,6 @@ import PageHeader from '@/Components/PageHeader.vue'
 import Card from '@/Components/Card.vue'
 import DataTable from '@/Components/DataTable.vue'
 import Badge from '@/Components/Badge.vue'
-import FinanceNav from '../Components/FinanceNav.vue'
 
 defineOptions({ layout: AppLayout })
 

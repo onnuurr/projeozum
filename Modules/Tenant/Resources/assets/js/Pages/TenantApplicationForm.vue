@@ -1,17 +1,24 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3'
-import { Check, X } from 'lucide-vue-next'
-import ApplicationLogo from '@/Components/ApplicationLogo.vue'
-import InputLabel from '@/Components/InputLabel.vue'
-import TextInput from '@/Components/TextInput.vue'
-import InputError from '@/Components/InputError.vue'
-import PrimaryButton from '@/Components/PrimaryButton.vue'
-import SecondaryButton from '@/Components/SecondaryButton.vue'
+import { OzCard, OzField, OzInput, OzTextarea, OzButton, OzFileDrop, OzAlert, OzIcon } from '@/Components/Oz'
+// --oz-* token'ları OzShell'in global stilinde; kabuksuz sayfada yalnızca stil için yüklenir
+import '@/Components/Oz/OzShell.vue'
 import { isValidTaxNumber } from '../utils/turkishTaxNumber'
 
+// Herkese açık iş ortağı başvuru formu (/tenant-basvuru, girişsiz, Oz kit).
+// Uygulama kabuğu yok: Oz token'ları için kendi .oz-root sarmalayıcısı var; html kaydırması Oz'da kapalı
+// olduğundan sayfa bu sarmalayıcının içinde kayar. Başarıda flash.toast mesajı gösterilir, form gizlenir.
 const page = usePage()
 const toast = computed(() => page.props.flash?.toast ?? null)
+const appName = computed(() => page.props.app?.name || 'OzumServer')
+
+const DOCS = [
+	{ key: 'vergi_levhasi', label: 'Vergi levhası', required: true },
+	{ key: 'ticaret_sicil_gazetesi', label: 'Ticaret sicil gazetesi' },
+	{ key: 'imza_sirkuleri', label: 'İmza sirküleri' },
+]
+const MAX_SIZE = 10 * 1024 * 1024
 
 const form = useForm({
 	name: '',
@@ -27,207 +34,172 @@ const form = useForm({
 	postal_code: '',
 	message: '',
 	website: '', // honeypot — insan kullanıcıda hep boş kalır
-	vergi_levhasi: null,
-	ticaret_sicil_gazetesi: null,
-	imza_sirkuleri: null,
+	// OzFileDrop dizi tutar; gönderimde tek dosyaya çevrilir
+	vergi_levhasi: [],
+	ticaret_sicil_gazetesi: [],
+	imza_sirkuleri: [],
 })
 
-// null: henüz sorgulanmadı, true/false: sorgu sonucu (VKN/TCKN checksum, dış servise gitmeden)
-const taxNumberCheck = ref(null)
+// null: henüz sorgulanmadı, true/false: VKN/TCKN checksum sonucu (dış servise gitmeden)
+const taxCheck = ref(null)
+const taxHint = computed(() => (taxCheck.value === true ? '✓ Biçim geçerli' : '10 haneli VKN ya da 11 haneli TCKN'))
+const taxError = computed(() => form.errors.tax_number || (taxCheck.value === false ? 'Geçersiz VKN/TCKN — lütfen kontrol edin' : ''))
 
-function checkTaxNumber() {
-	taxNumberCheck.value = isValidTaxNumber(form.tax_number)
+const fileErrors = ref({})
+function onReject(key, list) {
+	const r = list[0]
+	fileErrors.value[key] = r?.reason === 'size' ? 'Dosya 10 MB\'tan büyük olamaz' : 'Yalnızca PDF, JPG ya da PNG'
 }
-
-function onTaxNumberInput() {
-	// Kullanıcı yeniden yazmaya başlayınca eski sonucu geçersizleştir.
-	taxNumberCheck.value = null
-}
-
-function onFileChange(field, event) {
-	form[field] = event.target.files[0] ?? null
+function onFiles(key) {
+	fileErrors.value[key] = ''
+	form.clearErrors(key)
 }
 
 function submit() {
-	form.post(route('tenant-applications.store'), {
-		forceFormData: true,
-	})
+	form
+		.transform((d) => ({
+			...d,
+			vergi_levhasi: d.vergi_levhasi[0] ?? null,
+			ticaret_sicil_gazetesi: d.ticaret_sicil_gazetesi[0] ?? null,
+			imza_sirkuleri: d.imza_sirkuleri[0] ?? null,
+		}))
+		.post(route('tenant-applications.store'), { forceFormData: true, preserveScroll: true })
 }
 </script>
 
 <template>
-	<div class="flex min-h-screen flex-col items-center bg-gray-100 pt-6 sm:pt-10">
-		<Head title="İş Ortağı Başvurusu" />
+	<Head title="İş Ortağı Başvurusu" />
 
-		<Link href="/">
-			<ApplicationLogo class="h-16 w-16 fill-current text-gray-500" />
-		</Link>
+	<div class="oz-root apply" data-theme="light">
+		<div class="wrap">
+			<Link href="/" class="brand">
+				<span class="brand-mark"><OzIcon name="layers" :stroke-width="2.5" /></span>
+				<span class="brand-name">{{ appName }}<small>İş ortağı başvurusu</small></span>
+			</Link>
 
-		<div class="mt-6 w-full max-w-2xl overflow-hidden bg-white px-6 py-6 shadow-md sm:rounded-lg">
-		<div class="mb-4">
-			<h1 class="text-lg font-semibold text-gray-900">İş Ortağı Başvuru Formu</h1>
-			<p class="mt-1 text-sm text-gray-600">
-				İş ortağı olarak platforma katılmak için firma bilgilerinizi girin ve doğrulama
-				belgelerinizi yükleyin. Başvurunuz incelendikten sonra sizinle iletişime geçilecektir.
-			</p>
-		</div>
-
-		<div v-if="toast" class="mb-4 rounded-md border border-green-200 bg-green-50 p-4">
-			<p class="text-sm font-medium text-green-800">{{ toast.message }}</p>
-		</div>
-
-		<form v-else class="space-y-5" @submit.prevent="submit">
-			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-				<div>
-					<InputLabel for="name" value="Firma / Marka Adı *" />
-					<TextInput id="name" v-model="form.name" type="text" class="mt-1 block w-full" required autofocus />
-					<InputError class="mt-1" :message="form.errors.name" />
+			<OzCard class="card">
+				<div class="intro">
+					<h1>İş ortağı başvuru formu</h1>
+					<p>Platforma iş ortağı olarak katılmak için firma bilgilerinizi girin ve doğrulama belgelerinizi yükleyin. Başvurunuz incelendikten sonra sizinle iletişime geçilecektir.</p>
 				</div>
-				<div>
-					<InputLabel for="legal_name" value="Yasal Ünvan" />
-					<TextInput id="legal_name" v-model="form.legal_name" type="text" class="mt-1 block w-full" />
-					<InputError class="mt-1" :message="form.errors.legal_name" />
-				</div>
-			</div>
 
-			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-				<div>
-					<InputLabel for="tax_number" value="Vergi No (VKN/TCKN) *" />
-					<div class="mt-1 flex gap-2">
-						<TextInput
-							id="tax_number"
-							v-model="form.tax_number"
-							type="text"
-							class="block w-full font-mono"
-							maxlength="11"
-							required
-							@input="onTaxNumberInput"
-						/>
-						<SecondaryButton type="button" @click="checkTaxNumber">Sorgula</SecondaryButton>
+				<OzAlert v-if="toast" :tone="toast.type === 'error' ? 'danger' : (toast.type || 'success')" :title="toast.title || 'Başvurunuz alındı'">
+					{{ toast.message }}
+				</OzAlert>
+
+				<form v-else class="form" novalidate @submit.prevent="submit">
+					<div class="section">Firma</div>
+					<div class="grid-2">
+						<OzField label="Firma / marka adı" required :error="form.errors.name">
+							<OzInput v-model="form.name" maxlength="191" autocomplete="organization" autofocus />
+						</OzField>
+						<OzField label="Yasal unvan" :error="form.errors.legal_name">
+							<OzInput v-model="form.legal_name" maxlength="255" />
+						</OzField>
+						<OzField label="Vergi no (VKN/TCKN)" required :error="taxError" :hint="taxHint">
+							<div class="inline">
+								<OzInput v-model="form.tax_number" class="mono" inputmode="numeric" maxlength="11" @update:model-value="taxCheck = null" />
+								<OzButton icon="check" @click="taxCheck = isValidTaxNumber(form.tax_number)">Sorgula</OzButton>
+							</div>
+						</OzField>
+						<OzField label="Vergi dairesi" :error="form.errors.tax_office">
+							<OzInput v-model="form.tax_office" maxlength="191" />
+						</OzField>
 					</div>
-					<p v-if="taxNumberCheck === true" class="mt-1 text-sm text-green-700 flex items-center gap-1"><Check :size="14" /> Biçim geçerli.</p>
-					<p v-else-if="taxNumberCheck === false" class="mt-1 text-sm text-red-600 flex items-center gap-1"><X :size="14" /> Geçersiz VKN/TCKN — lütfen kontrol edin.</p>
-					<InputError class="mt-1" :message="form.errors.tax_number" />
-				</div>
-				<div>
-					<InputLabel for="tax_office" value="Vergi Dairesi" />
-					<TextInput id="tax_office" v-model="form.tax_office" type="text" class="mt-1 block w-full" />
-					<InputError class="mt-1" :message="form.errors.tax_office" />
-				</div>
-			</div>
 
-			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-				<div>
-					<InputLabel for="contact_person" value="Yetkili Kişi *" />
-					<TextInput id="contact_person" v-model="form.contact_person" type="text" class="mt-1 block w-full" required />
-					<InputError class="mt-1" :message="form.errors.contact_person" />
-				</div>
-				<div>
-					<InputLabel for="contact_email" value="E-posta *" />
-					<TextInput id="contact_email" v-model="form.contact_email" type="email" class="mt-1 block w-full" required />
-					<InputError class="mt-1" :message="form.errors.contact_email" />
-				</div>
-			</div>
-
-			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-				<div>
-					<InputLabel for="contact_phone" value="Telefon" />
-					<TextInput id="contact_phone" v-model="form.contact_phone" type="text" class="mt-1 block w-full" />
-					<InputError class="mt-1" :message="form.errors.contact_phone" />
-				</div>
-				<div>
-					<InputLabel for="postal_code" value="Posta Kodu" />
-					<TextInput id="postal_code" v-model="form.postal_code" type="text" class="mt-1 block w-full" />
-					<InputError class="mt-1" :message="form.errors.postal_code" />
-				</div>
-			</div>
-
-			<div>
-				<InputLabel for="address" value="Adres" />
-				<textarea
-					id="address"
-					v-model="form.address"
-					rows="2"
-					class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-				/>
-				<InputError class="mt-1" :message="form.errors.address" />
-			</div>
-
-			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-				<div>
-					<InputLabel for="city" value="İl" />
-					<TextInput id="city" v-model="form.city" type="text" class="mt-1 block w-full" />
-				</div>
-				<div>
-					<InputLabel for="district" value="İlçe" />
-					<TextInput id="district" v-model="form.district" type="text" class="mt-1 block w-full" />
-				</div>
-			</div>
-
-			<div>
-				<InputLabel for="message" value="Mesajınız" />
-				<textarea
-					id="message"
-					v-model="form.message"
-					rows="3"
-					class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-				/>
-				<InputError class="mt-1" :message="form.errors.message" />
-			</div>
-
-			<div class="border-t border-gray-200 pt-4">
-				<h2 class="text-sm font-semibold text-gray-900">Doğrulama Belgeleri</h2>
-				<p class="mt-1 text-xs text-gray-500">
-					Kimlik/unvan doğrulaması bu belgeler üzerinden yapılır (PDF/JPG/PNG, en fazla 10MB).
-				</p>
-
-				<div class="mt-3 grid grid-cols-1 gap-4">
-					<div>
-						<InputLabel for="vergi_levhasi" value="Vergi Levhası *" />
-						<input
-							id="vergi_levhasi"
-							type="file"
-							accept=".pdf,.jpg,.jpeg,.png"
-							class="mt-1 block w-full text-sm text-gray-600"
-							@change="onFileChange('vergi_levhasi', $event)"
-						/>
-						<InputError class="mt-1" :message="form.errors.vergi_levhasi" />
+					<div class="section">İletişim</div>
+					<div class="grid-2">
+						<OzField label="Yetkili kişi" required :error="form.errors.contact_person">
+							<OzInput v-model="form.contact_person" icon="user" maxlength="191" autocomplete="name" />
+						</OzField>
+						<OzField label="E-posta" required :error="form.errors.contact_email">
+							<OzInput v-model="form.contact_email" type="email" icon="mail" maxlength="191" autocomplete="email" />
+						</OzField>
+						<OzField label="Telefon" :error="form.errors.contact_phone">
+							<OzInput v-model="form.contact_phone" type="tel" icon="phone" maxlength="32" autocomplete="tel" />
+						</OzField>
+						<OzField label="Posta kodu" :error="form.errors.postal_code">
+							<OzInput v-model="form.postal_code" maxlength="16" autocomplete="postal-code" />
+						</OzField>
 					</div>
-					<div>
-						<InputLabel for="ticaret_sicil_gazetesi" value="Ticaret Sicil Gazetesi" />
-						<input
-							id="ticaret_sicil_gazetesi"
-							type="file"
-							accept=".pdf,.jpg,.jpeg,.png"
-							class="mt-1 block w-full text-sm text-gray-600"
-							@change="onFileChange('ticaret_sicil_gazetesi', $event)"
-						/>
-						<InputError class="mt-1" :message="form.errors.ticaret_sicil_gazetesi" />
+					<OzField label="Adres" :error="form.errors.address">
+						<OzTextarea v-model="form.address" :rows="2" :maxlength="1000" />
+					</OzField>
+					<div class="grid-2">
+						<OzField label="İl" :error="form.errors.city"><OzInput v-model="form.city" maxlength="100" /></OzField>
+						<OzField label="İlçe" :error="form.errors.district"><OzInput v-model="form.district" maxlength="100" /></OzField>
 					</div>
-					<div>
-						<InputLabel for="imza_sirkuleri" value="İmza Sirküleri" />
-						<input
-							id="imza_sirkuleri"
-							type="file"
-							accept=".pdf,.jpg,.jpeg,.png"
-							class="mt-1 block w-full text-sm text-gray-600"
-							@change="onFileChange('imza_sirkuleri', $event)"
-						/>
-						<InputError class="mt-1" :message="form.errors.imza_sirkuleri" />
+					<OzField label="Mesajınız" :error="form.errors.message">
+						<OzTextarea v-model="form.message" :rows="3" :maxlength="2000" />
+					</OzField>
+
+					<div class="section">Doğrulama belgeleri</div>
+					<p class="section-hint">Kimlik ve unvan doğrulaması bu belgeler üzerinden yapılır (PDF, JPG, PNG · en fazla 10 MB).</p>
+					<div class="docs">
+						<OzField v-for="d in DOCS" :key="d.key" :label="d.label" :required="d.required" :error="fileErrors[d.key] || form.errors[d.key]">
+							<OzFileDrop
+								v-model="form[d.key]"
+								accept=".pdf,.jpg,.jpeg,.png"
+								:max-size="MAX_SIZE"
+								title="Dosya seçin ya da sürükleyin"
+								@reject="(l) => onReject(d.key, l)"
+								@update:model-value="onFiles(d.key)"
+							/>
+						</OzField>
 					</div>
-				</div>
-			</div>
 
-			<!-- Bot koruması: gizli alan, insan kullanıcıda boş kalmalı -->
-			<div class="hidden" aria-hidden="true">
-				<label for="website">Website</label>
-				<input id="website" v-model="form.website" type="text" tabindex="-1" autocomplete="off" />
-			</div>
+					<!-- Bot koruması: gizli alan, insan kullanıcıda boş kalmalı -->
+					<div class="hp" aria-hidden="true">
+						<label for="website">Website</label>
+						<input id="website" v-model="form.website" type="text" tabindex="-1" autocomplete="off">
+					</div>
 
-			<div class="flex justify-end">
-				<PrimaryButton :disabled="form.processing">Başvuruyu Gönder</PrimaryButton>
-			</div>
-		</form>
+					<div class="foot">
+						<span class="req-note"><b>*</b> zorunlu alan</span>
+						<OzButton type="submit" variant="primary" icon="send" :loading="form.processing">Başvuruyu gönder</OzButton>
+					</div>
+				</form>
+			</OzCard>
 		</div>
 	</div>
 </template>
+
+<style scoped>
+/* Oz kabuğunda html/body kaymaz; bu sayfa kendi kaydırma kabı */
+.apply { position: fixed; inset: 0; overflow-y: auto; background: var(--oz-page-bg); }
+.wrap { max-width: 760px; margin: 0 auto; padding: 36px 16px 56px; }
+.brand { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 22px; font-weight: 800; font-size: 16px; color: var(--oz-ink-soft); text-decoration: none; }
+.brand-mark {
+	width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0;
+	display: flex; align-items: center; justify-content: center;
+	background: linear-gradient(135deg, var(--oz-accent), var(--oz-accent-hover));
+	color: #fff;
+	box-shadow: 0 4px 12px rgba(var(--oz-accent-rgb), .35);
+}
+.brand-name small { display: block; font-size: 9.5px; font-weight: 600; color: var(--oz-muted); letter-spacing: .04em; text-transform: uppercase; margin-top: 1px; }
+.card { padding: 22px 24px; }
+.intro { margin-bottom: 18px; }
+.intro h1 { margin: 0 0 6px; font-size: 19px; font-weight: 800; color: var(--oz-ink); }
+.intro p { margin: 0; font-size: 13px; line-height: 1.55; color: var(--oz-muted); }
+
+.form { display: flex; flex-direction: column; gap: 14px; }
+.grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.section { margin-top: 4px; padding-top: 12px; border-top: 1px solid var(--oz-border-soft); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--oz-muted); }
+.section:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+.section-hint { margin: -6px 0 0; font-size: 12px; color: var(--oz-muted); }
+.inline { display: flex; gap: 8px; }
+.inline > :first-child { flex: 1; min-width: 0; }
+.mono { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; }
+.docs { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+.foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 14px; border-top: 1px solid var(--oz-border-soft); }
+.req-note { font-size: 12px; color: var(--oz-muted); }
+.req-note b { color: var(--oz-danger); }
+
+@media (max-width: 560px) {
+	.wrap { padding-top: 22px; }
+	.card { padding: 18px 16px; }
+	.grid-2 { grid-template-columns: minmax(0, 1fr); }
+	.foot { flex-direction: column-reverse; align-items: stretch; }
+}
+</style>

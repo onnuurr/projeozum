@@ -62,6 +62,11 @@ const icons = {
 }
 .toast-leave-active {
 	animation: toastOut .2s ease forwards;
+	position: absolute;
+	width: 312px;
+}
+.toast-move {
+	transition: transform .28s cubic-bezier(.21, 1.02, .73, 1);
 }
 @keyframes toastIn {
 	from { transform: translateX(calc(100% + 20px)); opacity: 0; }

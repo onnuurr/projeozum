@@ -1,192 +1,198 @@
-<template>
-	<Head title="Fasoncular" />
-	<div class="page-fason">
-		<Breadcrumb
-			:items="[
-				{ label: 'Ana Sayfa', to: '/workflow', icon: 'home' },
-				{ label: 'Üretim Atölyesi', to: '/atelier' },
-				{ label: 'Fasoncular' },
-			]"
-		/>
-
-		<AtelierNav current="fason" />
-
-		<PageHeader title="Fasoncular">
-			<template #subtitle><strong>{{ suppliers.length }}</strong> fasoncu kaydı</template>
-			<template v-if="can('atelier.fason.manage')" #actions>
-				<Button variant="primary" with-icon @click="openCreate">
-					<template #leading><Plus :size="13" /></template>
-					Yeni Fasoncu
-				</Button>
-			</template>
-		</PageHeader>
-
-		<Card title="Fasoncu Listesi" body-class="p-0">
-			<DataTable :columns="columns" :data="suppliers" row-key-field="id" empty-title="Fasoncu kaydı yok.">
-				<template #name="{ row }">
-					<div class="supplier-cell">
-						<Avatar :name="row.name" size="sm" />
-						<div class="supplier-info">
-							<span class="row-name">{{ row.name }}</span>
-							<span v-if="row.taxNo" class="tax-no">{{ row.taxNo }}</span>
-						</div>
-					</div>
-				</template>
-				<template #phone="{ value }"><a v-if="value" :href="`tel:${value}`" class="link-dim">{{ value }}</a><span v-else class="dim">—</span></template>
-				<template #email="{ value }"><a v-if="value" :href="`mailto:${value}`" class="link-dim">{{ value }}</a><span v-else class="dim">—</span></template>
-				<template #isActive="{ value }">
-					<Badge :color="value ? 'success' : 'neutral'" :label="value ? 'Aktif' : 'Pasif'" variant="tonal" />
-				</template>
-				<template v-if="can('atelier.fason.manage')" #actions="{ row }">
-					<button class="table-action-btn" title="Düzenle" @click="openEdit(row)"><Pencil :size="14" /></button>
-					<button class="table-action-btn danger" title="Sil" @click="remove(row)"><Trash2 :size="14" /></button>
-				</template>
-			</DataTable>
-		</Card>
-
-		<AppDrawer v-model="modalOpen" :title="editing ? 'Fasoncu Düzenle' : 'Yeni Fasoncu'" width="640px">
-			<form id="fason-form" class="form-grid" @submit.prevent="submit">
-				<div class="form-row-inline">
-					<div class="form-row" style="flex: 2">
-						<label class="form-label">Ad <span class="req">*</span></label>
-						<input v-model="form.name" type="text" class="form-input" placeholder="Firma adı" />
-						<span v-if="form.errors.name" class="form-error">{{ form.errors.name }}</span>
-					</div>
-					<div class="form-row">
-						<label class="form-label">Yetkili</label>
-						<input v-model="form.contact_name" type="text" class="form-input" placeholder="Ad Soyad" />
-					</div>
-					<div class="form-row">
-						<label class="form-label">Telefon</label>
-						<input v-model="form.phone" type="text" class="form-input" placeholder="+90 5xx..." />
-					</div>
-					<div class="form-row">
-						<label class="form-label">E-posta</label>
-						<input v-model="form.email" type="email" class="form-input" placeholder="ornek@firma.com" />
-					</div>
-				</div>
-				<div class="form-row-inline">
-					<div class="form-row" style="flex: 3">
-						<label class="form-label">Adres</label>
-						<input v-model="form.address" type="text" class="form-input" placeholder="Açık adres" />
-					</div>
-					<div class="form-row">
-						<label class="form-label">Vergi No</label>
-						<input v-model="form.tax_no" type="text" class="form-input" placeholder="1234567890" />
-					</div>
-				</div>
-			</form>
-			<template #footer="{ close }">
-				<Button variant="ghost" :disabled="form.processing" @click="close">İptal</Button>
-				<Button type="submit" form="fason-form" variant="primary" :loading="form.processing">
-					{{ editing ? 'Güncelle' : 'Ekle' }}
-				</Button>
-			</template>
-		</AppDrawer>
-	</div>
-</template>
-
 <script setup>
-import { ref, inject, watch } from 'vue'
-import { Head, useForm, router } from '@inertiajs/vue3'
-import { Plus, Pencil, Trash2 } from 'lucide-vue-next'
+import { ref, computed, inject, watch } from 'vue'
+import { Head, router, useForm } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import Breadcrumb from '@/Components/Breadcrumb.vue'
-import PageHeader from '@/Components/PageHeader.vue'
-import Card from '@/Components/Card.vue'
-import DataTable from '@/Components/DataTable.vue'
-import Avatar from '@/Components/Avatar.vue'
-import Badge from '@/Components/Badge.vue'
-import Button from '@/Components/Button.vue'
-import AppDrawer from '@/Components/AppDrawer.vue'
-import AtelierNav from '../Components/AtelierNav.vue'
+import {
+	OzPageHeader, OzModuleTabs, OzStatTile, OzCard, OzButton, OzTable, OzPill, OzDropdown, OzAvatar,
+	OzDrawer, OzField, OzInput, OzTextarea, OzSwitch, useOzConfirm,
+} from '@/Components/Oz'
 import { useCan } from '@/composables/useCan'
 
 defineOptions({ layout: AppLayout })
 
-const { can } = useCan()
-const $swal = inject('$swal')
-const showToast = inject('showToast', null)
+const props = defineProps({ suppliers: { type: Array, default: () => [] } })
 
-const props = defineProps({ suppliers: Array })
+const { can } = useCan()
+const canManage = computed(() => can('atelier.fason.manage'))
+const showToast = inject('showToast', null)
+const confirm = useOzConfirm()
+
+const activeCount = computed(() => props.suppliers.filter((s) => s.isActive).length)
+const noContact = computed(() => props.suppliers.filter((s) => !s.phone && !s.email).length)
+const stats = computed(() => [
+	{ key: 'total', label: 'Toplam Fasoncu', value: props.suppliers.length, icon: 'factory', tone: 'accent' },
+	{ key: 'active', label: 'Aktif', value: activeCount.value, icon: 'success', tone: 'success' },
+	{ key: 'passive', label: 'Pasif', value: props.suppliers.length - activeCount.value, icon: 'eye-off', tone: props.suppliers.length - activeCount.value ? 'warning' : 'success' },
+	{ key: 'noContact', label: 'İletişimi Eksik', value: noContact.value, icon: 'phone', tone: noContact.value ? 'warning' : 'success' },
+])
 
 const columns = [
-	{ key: 'name', label: 'Ad' },
-	{ key: 'contactName', label: 'Yetkili' },
+	{ key: 'name', label: 'Firma', sortable: true },
+	{ key: 'contactName', label: 'Yetkili', sortable: true },
 	{ key: 'phone', label: 'Telefon' },
 	{ key: 'email', label: 'E-posta' },
-	{ key: 'isActive', label: 'Durum' },
+	{ key: 'isActive', label: 'Durum', sortable: true, filter: { type: 'select', options: [{ value: true, label: 'Aktif' }, { value: false, label: 'Pasif' }] } },
+	{ key: 'actions', label: '', align: 'right', width: '48px', searchable: false },
 ]
 
-function emptyForm() {
-	return { id: null, name: '', contact_name: '', phone: '', email: '', address: '', tax_no: '', notes: '', is_active: true }
+const rowActions = (s) => [
+	{ key: 'edit', label: 'Düzenle', icon: 'edit' },
+	{ key: 'toggle', label: s.isActive ? 'Pasife Al' : 'Aktif Et', icon: s.isActive ? 'eye-off' : 'eye' },
+	{ key: 'remove', label: 'Sil', icon: 'trash', danger: true },
+]
+function onAction(key, s) {
+	if (key === 'edit') openEdit(s)
+	else if (key === 'toggle') toggleActive(s)
+	else if (key === 'remove') remove(s)
 }
 
+const emptyForm = () => ({ id: null, name: '', contact_name: '', phone: '', email: '', address: '', tax_no: '', notes: '', is_active: true })
 const form = useForm(emptyForm())
 const editing = ref(false)
-const modalOpen = ref(false)
+const formOpen = ref(false)
 
-function openCreate() {
-	reset()
-	modalOpen.value = true
-}
-
-function openEdit(s) {
-	editing.value = true
-	Object.assign(form, { id: s.id, name: s.name, contact_name: s.contactName, phone: s.phone, email: s.email, address: s.address, tax_no: s.taxNo, notes: s.notes, is_active: s.isActive })
-	modalOpen.value = true
-}
-
-function reset() {
+function resetForm() {
 	editing.value = false
+	form.defaults(emptyForm())
 	form.reset()
-	Object.assign(form, emptyForm())
 	form.clearErrors()
 }
+watch(formOpen, (open) => { if (!open) setTimeout(resetForm, 250) })
 
-watch(modalOpen, (open) => {
-	if (!open) setTimeout(reset, 250)
+const toFormData = (s) => ({
+	id: s.id, name: s.name, contact_name: s.contactName ?? '', phone: s.phone ?? '', email: s.email ?? '',
+	address: s.address ?? '', tax_no: s.taxNo ?? '', notes: s.notes ?? '', is_active: !!s.isActive,
 })
 
+function openCreate() {
+	resetForm()
+	formOpen.value = true
+}
+function openEdit(s) {
+	resetForm()
+	editing.value = true
+	Object.assign(form, toFormData(s))
+	formOpen.value = true
+}
+
 function submit() {
+	if (form.processing) return
 	const opts = {
-		onSuccess: () => {
-			showToast?.({ type: 'success', title: editing.value ? 'Fasoncu güncellendi' : 'Fasoncu eklendi', message: form.name })
-			modalOpen.value = false
-		},
-		onError: () => {
-			showToast?.({ type: 'error', title: 'Kayıt başarısız', message: Object.values(form.errors)[0] || 'Doğrulama hatası.' })
-		},
+		preserveScroll: true,
+		onSuccess: () => { formOpen.value = false },
+		onError: (errs) => showToast?.({ type: 'error', title: 'Kayıt başarısız', message: Object.values(errs)[0] || 'Doğrulama hatası.' }),
 	}
 	editing.value ? form.put(`/atelier/fason-suppliers/${form.id}`, opts) : form.post('/atelier/fason-suppliers', opts)
 }
+
+// Güncelleme uç noktası tüm alanları doğruluyor; mevcut kaydın verisiyle yalnızca is_active değişir.
+function toggleActive(s) {
+	router.put(`/atelier/fason-suppliers/${s.id}`, { ...toFormData(s), is_active: !s.isActive }, {
+		preserveScroll: true,
+		onError: (errs) => showToast?.({ type: 'error', title: 'Güncellenemedi', message: Object.values(errs)[0] || 'Hata.' }),
+	})
+}
+
 async function remove(s) {
-  const ok = await $swal.dangerConfirm({ title: 'Fasoncu silinsin mi?', html: `<b>${s.name}</b> fason tedarikçisi kalıcı olarak silinecek.` })
-  if (ok) router.delete(`/atelier/fason-suppliers/${s.id}`)
+	const ok = await confirm.danger('Fasoncuyu Sil', `${s.name} fason tedarikçisi kalıcı olarak silinecek.`)
+	if (ok) router.delete(`/atelier/fason-suppliers/${s.id}`, { preserveScroll: true })
 }
 </script>
 
+<template>
+	<Head title="Fasoncular" />
+
+	<OzPageHeader title="Fasoncular">
+		<template #subtitle><b>{{ suppliers.length }}</b> fason tedarikçi kaydı</template>
+		<template #actions>
+			<OzButton v-if="canManage" variant="primary" icon="plus" @click="openCreate">Yeni Fasoncu</OzButton>
+		</template>
+	</OzPageHeader>
+	<OzModuleTabs />
+
+	<div class="stats">
+		<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" />
+	</div>
+
+	<OzCard title="Fasoncu Listesi">
+		<OzTable :columns="columns" :rows="suppliers" row-key="id" searchable search-placeholder="Firma, yetkili ya da iletişim ara…" empty-title="Fasoncu kaydı yok" min-width="700px">
+			<template #cell-name="{ row }">
+				<div class="supplier">
+					<OzAvatar :name="row.name" tone="auto" :size="30" />
+					<div class="supplier-text">
+						<span class="supplier-name">{{ row.name }}</span>
+						<span v-if="row.taxNo" class="mono dim">VKN {{ row.taxNo }}</span>
+					</div>
+				</div>
+			</template>
+			<template #cell-contactName="{ value }">{{ value || '—' }}</template>
+			<template #cell-phone="{ value }">
+				<a v-if="value" :href="`tel:${value}`" class="contact">{{ value }}</a><span v-else class="dim">—</span>
+			</template>
+			<template #cell-email="{ value }">
+				<a v-if="value" :href="`mailto:${value}`" class="contact">{{ value }}</a><span v-else class="dim">—</span>
+			</template>
+			<template #cell-isActive="{ value }">
+				<OzPill :tone="value ? 'success' : 'neutral'">{{ value ? 'Aktif' : 'Pasif' }}</OzPill>
+			</template>
+			<template v-if="canManage" #cell-actions="{ row }">
+				<OzDropdown :items="rowActions(row)" :label="`${row.name} işlemleri`" @select="(k) => onAction(k, row)" />
+			</template>
+		</OzTable>
+	</OzCard>
+
+	<OzDrawer v-model:open="formOpen" :title="editing ? 'Fasoncuyu Düzenle' : 'Yeni Fasoncu'" subtitle="Firma ve iletişim bilgileri" :icon="editing ? 'edit' : 'plus'" size="md" :persistent="form.processing">
+		<form class="form" @submit.prevent="submit">
+			<OzField label="Firma Adı" required :error="form.errors.name">
+				<OzInput v-model="form.name" placeholder="Firma adı" />
+			</OzField>
+			<div class="row-2">
+				<OzField label="Yetkili" :error="form.errors.contact_name">
+					<OzInput v-model="form.contact_name" icon="user" placeholder="Ad Soyad" />
+				</OzField>
+				<OzField label="Vergi No" :error="form.errors.tax_no">
+					<OzInput v-model="form.tax_no" class="mono" placeholder="1234567890" />
+				</OzField>
+			</div>
+			<div class="row-2">
+				<OzField label="Telefon" :error="form.errors.phone">
+					<OzInput v-model="form.phone" type="tel" icon="phone" placeholder="+90 5xx…" />
+				</OzField>
+				<OzField label="E-posta" :error="form.errors.email">
+					<OzInput v-model="form.email" type="email" icon="mail" placeholder="ornek@firma.com" />
+				</OzField>
+			</div>
+			<OzField label="Adres" :error="form.errors.address">
+				<OzTextarea v-model="form.address" :rows="2" placeholder="Açık adres" />
+			</OzField>
+			<OzField label="Notlar" :error="form.errors.notes">
+				<OzTextarea v-model="form.notes" :rows="2" placeholder="Uzmanlık, kapasite, ödeme koşulu…" />
+			</OzField>
+			<OzSwitch v-model="form.is_active" label="Aktif" description="Pasif fasoncular iş emri adımlarında seçilemez." />
+			<button type="submit" hidden />
+		</form>
+		<template #footer>
+			<OzButton :disabled="form.processing" @click="formOpen = false">İptal</OzButton>
+			<OzButton variant="primary" :icon="editing ? 'check' : 'plus'" :loading="form.processing" @click="submit">{{ editing ? 'Kaydet' : 'Ekle' }}</OzButton>
+		</template>
+	</OzDrawer>
+</template>
+
 <style scoped>
-.form-grid { display: flex; flex-direction: column; gap: 12px; }
-.form-row-inline { display: flex; gap: 12px; flex-wrap: wrap; }
-.form-row { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 140px; }
-.form-label { font-size: 12px; font-weight: 600; color: #1a1a2e; }
-.form-label .req { color: #ef4444; }
-.form-input { padding: 9px 12px; border: 1px solid #e8e8f0; border-radius: 8px; font-family: inherit; font-size: 13px; color: #1a1a2e; background: #fff; outline: none; transition: border-color .15s; }
-.form-input:focus { border-color: var(--color-primary); }
-.form-error { font-size: 11.5px; color: var(--color-danger); }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
-.dim { color: #888; font-size: 12px; }
-.row-name { font-weight: 600; color: #1a1a2e; }
+.mono { font-family: ui-monospace, monospace; font-size: 11.5px; }
+.dim { color: var(--oz-muted); }
+.supplier { display: flex; align-items: center; gap: 10px; }
+.supplier-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.supplier-name { font-weight: 600; color: var(--oz-ink-soft); }
+.contact { color: var(--oz-ink); text-decoration: none; }
+.contact:hover { color: var(--oz-accent); text-decoration: underline; }
 
-.supplier-cell { display: flex; align-items: center; gap: 10px; }
-.supplier-info { display: flex; flex-direction: column; gap: 2px; }
-.tax-no { font-size: 10.5px; color: #888; font-family: 'SF Mono', Menlo, Consolas, monospace; }
-
-.link-dim { color: #555; text-decoration: none; font-size: 13px; }
-.link-dim:hover { color: var(--color-primary); text-decoration: underline; }
-
-.table-action-btn { background: #f3f4f6; border: none; cursor: pointer; font-size: 13px; padding: 5px 9px; border-radius: 6px; color: #6b7280; transition: all .15s; display: inline-flex; align-items: center; }
-.table-action-btn:hover { background: var(--color-primary-soft); color: var(--color-primary); }
-.table-action-btn.danger:hover { background: #fee2e2; color: #dc2626; }
+.form { display: flex; flex-direction: column; gap: 14px; }
+.row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 560px) {
+	.row-2 { grid-template-columns: 1fr; }
+}
 </style>

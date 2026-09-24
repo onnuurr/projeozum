@@ -1,104 +1,15 @@
-<template>
-	<Head title="İş Ortağı Başvuruları" />
-	<div class="page-tenant-applications">
-		<Breadcrumb
-			:items="[
-				{ label: 'Ana Sayfa', to: '/workflow', icon: 'home' },
-				{ label: 'İlişkiler' },
-				{ label: 'Başvurular' },
-			]"
-		/>
-
-		<PageHeader title="İş Ortağı Başvuruları">
-			<template #subtitle><strong>{{ pendingCount }}</strong> bekleyen başvuru</template>
-		</PageHeader>
-
-		<Card title="Başvuru Listesi" body-class="p-0">
-			<template #actions>
-				<select v-model="filterStatus" class="filter-select">
-					<option value="">Tüm durumlar</option>
-					<option value="pending">Beklemede</option>
-					<option value="approved">Onaylandı</option>
-					<option value="rejected">Reddedildi</option>
-				</select>
-			</template>
-
-			<DataTable :columns="columns" :data="filtered" row-key-field="id" empty-title="Başvuru bulunamadı">
-				<template #applicant="{ row }">
-					<div class="applicant-cell">
-						<span class="applicant-name">{{ row.name }}</span>
-						<span v-if="row.legal_name" class="applicant-legal">{{ row.legal_name }}</span>
-					</div>
-				</template>
-				<template #tax_number="{ value }"><span class="mono">{{ value }}</span></template>
-				<template #contact="{ row }">
-					<div class="contact-cell">
-						<span class="contact-line">{{ row.contact_person }}</span>
-						<span class="contact-line dim">{{ row.contact_email }}</span>
-					</div>
-				</template>
-				<template #documents="{ row }">
-					<div class="doc-list">
-						<a
-							v-for="d in row.documents"
-							:key="d.id"
-							:href="`/tenants/applications/${row.id}/documents/${d.id}/download`"
-							class="doc-link"
-							target="_blank"
-						>
-							<FileText :size="12" /> {{ docLabel(d.type) }}
-						</a>
-						<span v-if="!row.documents.length" class="dim">Belge yok</span>
-					</div>
-				</template>
-				<template #status="{ row }">
-					<Badge :color="statusColor(row.status)" variant="tonal" :label="statusLabel(row.status)" />
-					<span v-if="row.status === 'approved' && row.convertedTenantId" class="dim converted-hint">İş ortağına dönüştürüldü</span>
-				</template>
-				<template #actions="{ row }">
-					<template v-if="row.status === 'pending' && canManage">
-						<button class="table-action-btn approve" title="Onayla" @click="approve(row)"><Check :size="14" /></button>
-						<button class="table-action-btn reject" title="Reddet" @click="openReject(row)"><X :size="14" /></button>
-					</template>
-					<Button
-						v-else-if="row.status === 'approved' && !row.convertedTenantId && canManage"
-						variant="primary"
-						size="sm"
-						@click="createTenant(row)"
-					>
-						İş Ortağı Oluştur
-					</Button>
-				</template>
-			</DataTable>
-		</Card>
-
-		<AppModal v-model="rejectOpen" title="Başvuruyu Reddet" variant="danger">
-			<div class="form-row">
-				<label class="form-label">Red gerekçesi <span class="req">*</span></label>
-				<textarea v-model="rejectReason" class="form-input" rows="3" placeholder="Örn. belgeler unvan ile uyuşmuyor..." />
-				<span v-if="rejectError" class="form-error">{{ rejectError }}</span>
-			</div>
-			<template #footer="{ close }">
-				<Button variant="ghost" :disabled="busy" @click="close">Vazgeç</Button>
-				<Button variant="danger" :loading="busy" @click="submitReject">Reddet</Button>
-			</template>
-		</AppModal>
-	</div>
-</template>
-
 <script setup>
 import { ref, computed, inject } from 'vue'
-import { Head, router, usePage } from '@inertiajs/vue3'
-import { Check, X, FileText } from 'lucide-vue-next'
+import { Head, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import Breadcrumb from '@/Components/Breadcrumb.vue'
-import PageHeader from '@/Components/PageHeader.vue'
-import Card from '@/Components/Card.vue'
-import DataTable from '@/Components/DataTable.vue'
-import Badge from '@/Components/Badge.vue'
-import Button from '@/Components/Button.vue'
-import AppModal from '@/Components/AppModal.vue'
+import {
+	OzPageHeader, OzModuleTabs, OzStatTile, OzCard, OzTable, OzPill, OzButton, OzEmptyState, OzIcon,
+	OzDrawer, OzModal, OzField, OzTextarea, OzAlert,
+} from '@/Components/Oz'
+import { useCan } from '@/composables/useCan'
 
+// İş ortağı başvuruları (Oz kit). Satıra tıklayınca ayrıntı paneli açılır (mesaj, adres, belgeler, inceleme bilgisi).
+//   Onayla / reddet → Inertia POST (TenantApplicationController); onaylı başvurudan iş ortağı /tenants?from_application=ID ile oluşturulur.
 defineOptions({ layout: AppLayout })
 
 const props = defineProps({
@@ -106,112 +17,282 @@ const props = defineProps({
 	filters: { type: Object, default: () => ({}) },
 })
 
-const columns = [
-	{ key: 'applicant', label: 'Firma', sortable: false },
-	{ key: 'tax_number', label: 'Vergi No' },
-	{ key: 'contact', label: 'İletişim', sortable: false },
-	{ key: 'documents', label: 'Belgeler', sortable: false },
-	{ key: 'status', label: 'Durum' },
-	{ key: 'createdAt', label: 'Tarih' },
-]
+const { can } = useCan()
+const canApprove = computed(() => can('tenant-application.approve'))
+const showToast = inject('showToast', null)
 
-const showToast = inject('showToast')
-const page = usePage()
-const canManage = computed(() => (page.props.auth?.permissions ?? []).includes('tenant.manage'))
-
-const filterStatus = ref(props.filters.status ?? '')
-const filtered = computed(() => {
-	if (!filterStatus.value) return props.applications
-	return props.applications.filter(a => a.status === filterStatus.value)
-})
-const pendingCount = computed(() => props.applications.filter(a => a.status === 'pending').length)
-
-const docLabels = {
-	vergi_levhasi: 'Vergi Levhası',
-	ticaret_sicil_gazetesi: 'Ticaret Sicil Gazetesi',
-	imza_sirkuleri: 'İmza Sirküleri',
+const STATUS = {
+	pending: { tone: 'warning', label: 'Beklemede' },
+	approved: { tone: 'success', label: 'Onaylandı' },
+	rejected: { tone: 'danger', label: 'Reddedildi' },
+}
+const DOC_LABELS = {
+	vergi_levhasi: 'Vergi levhası',
+	ticaret_sicil_gazetesi: 'Ticaret sicil gazetesi',
+	imza_sirkuleri: 'İmza sirküleri',
 	diger: 'Diğer',
 }
-function docLabel(type) { return docLabels[type] ?? type }
+const docLabel = (t) => DOC_LABELS[t] ?? t
+const docUrl = (a, d) => `/tenants/applications/${a.id}/documents/${d.id}/download`
+const fmtDate = (s) => (s ? new Date(s.replace(' ', 'T')).toLocaleString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—')
 
-const statusMeta = {
-	pending: { color: 'warning', label: 'Beklemede' },
-	approved: { color: 'success', label: 'Onaylandı' },
-	rejected: { color: 'danger', label: 'Reddedildi' },
+/* ── özet ── */
+const countOf = (s) => props.applications.filter((a) => a.status === s).length
+const pendingCount = computed(() => countOf('pending'))
+const awaitingTenant = computed(() => props.applications.filter((a) => a.status === 'approved' && !a.convertedTenantId).length)
+const stats = computed(() => [
+	{ key: 'pending', label: 'Bekleyen', value: pendingCount.value, icon: 'clock', tone: pendingCount.value ? 'warning' : 'success' },
+	{ key: 'awaiting', label: 'İş ortağı bekleyen onaylı', value: awaitingTenant.value, icon: 'building', tone: awaitingTenant.value ? 'info' : 'success' },
+	{ key: 'approved', label: 'Onaylanan', value: countOf('approved'), icon: 'success', tone: 'success' },
+	{ key: 'rejected', label: 'Reddedilen', value: countOf('rejected'), icon: 'x', tone: 'danger' },
+])
+
+/* ── tablo ── */
+const columns = [
+	{ key: 'name', label: 'Firma', sortable: true, searchValue: (r) => `${r.name} ${r.legal_name ?? ''} ${r.tax_number ?? ''}` },
+	{ key: 'tax_number', label: 'Vergi no', sortable: true },
+	{ key: 'contact', label: 'İletişim', searchValue: (r) => `${r.contact_person ?? ''} ${r.contact_email ?? ''} ${r.contact_phone ?? ''}` },
+	{ key: 'documents', label: 'Belgeler', searchable: false },
+	{
+		key: 'status', label: 'Durum', sortable: true, searchable: false,
+		filter: { type: 'select', options: Object.entries(STATUS).map(([value, s]) => ({ value, label: s.label })) },
+	},
+	{ key: 'createdAt', label: 'Tarih', sortable: true, searchable: false, filter: { type: 'date' } },
+	{ key: 'actions', label: '', align: 'right', searchable: false },
+]
+const tableFilters = ref({ status: props.filters.status ?? '' })
+
+/* ── ayrıntı ── */
+const detailOpen = ref(false)
+// id üzerinden: onay/red sonrası gelen güncel satırı gösterir
+const detailId = ref(null)
+const detail = computed(() => props.applications.find((a) => a.id === detailId.value) ?? null)
+function openDetail(a) {
+	detailId.value = a.id
+	detailOpen.value = true
 }
-function statusColor(s) { return statusMeta[s]?.color ?? 'info' }
-function statusLabel(s) { return statusMeta[s]?.label ?? s }
 
-function approve(row) {
-	router.post(`/tenants/applications/${row.id}/approve`, {}, {
+/* ── işlemler ── */
+const approving = ref(null)
+function approve(a) {
+	if (approving.value) return
+	approving.value = a.id
+	router.post(`/tenants/applications/${a.id}/approve`, {}, {
 		preserveScroll: true,
-		onSuccess: () => showToast?.({ type: 'success', title: 'Başvuru onaylandı', message: row.name }),
+		preserveState: true,
+		onSuccess: () => {
+			showToast?.({ type: 'success', title: 'Başvuru onaylandı', message: a.name })
+		},
 		onError: (errs) => showToast?.({ type: 'error', title: 'İşlem başarısız', message: Object.values(errs)[0] || 'Sunucu hatası.' }),
+		onFinish: () => { approving.value = null },
 	})
 }
 
-function createTenant(row) {
-	router.visit(`/tenants?from_application=${row.id}`)
+function createTenant(a) {
+	router.visit(`/tenants?from_application=${a.id}`)
 }
 
 const rejectOpen = ref(false)
+const rejectTarget = ref(null)
 const rejectReason = ref('')
 const rejectError = ref('')
 const busy = ref(false)
-const rejectTarget = ref(null)
 
-function openReject(row) {
-	rejectTarget.value = row
+function openReject(a) {
+	rejectTarget.value = a
 	rejectReason.value = ''
 	rejectError.value = ''
 	rejectOpen.value = true
 }
 
 function submitReject() {
+	if (busy.value) return
 	if (!rejectReason.value.trim()) {
 		rejectError.value = 'Red gerekçesi zorunlu.'
 		return
 	}
 	busy.value = true
-	router.post(`/tenants/applications/${rejectTarget.value.id}/reject`, {
-		rejection_reason: rejectReason.value,
-	}, {
+	const a = rejectTarget.value
+	router.post(`/tenants/applications/${a.id}/reject`, { rejection_reason: rejectReason.value }, {
 		preserveScroll: true,
+		preserveState: true,
 		onSuccess: () => {
 			rejectOpen.value = false
-			showToast?.({ type: 'warning', title: 'Başvuru reddedildi', message: rejectTarget.value.name })
+			showToast?.({ type: 'warning', title: 'Başvuru reddedildi', message: a.name })
 		},
-		onError: (errs) => { rejectError.value = Object.values(errs)[0] || 'Sunucu hatası.' },
+		onError: (errs) => { rejectError.value = errs.rejection_reason || Object.values(errs)[0] || 'Sunucu hatası.' },
 		onFinish: () => { busy.value = false },
 	})
 }
 </script>
 
+<template>
+	<Head title="İş Ortağı Başvuruları" />
+
+	<OzPageHeader title="İş Ortağı Başvuruları" :subtitle="`${applications.length} başvuru · ${pendingCount} bekliyor`" />
+	<OzModuleTabs />
+
+	<div class="stats">
+		<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" />
+	</div>
+
+	<OzCard title="Başvuru listesi" :meta="`${applications.length} kayıt`" class="block">
+		<OzTable
+			v-model:filters="tableFilters"
+			:columns="columns"
+			:rows="applications"
+			:page-size="20"
+			:default-sort="{ key: 'createdAt', dir: 'desc' }"
+			searchable
+			search-placeholder="Firma, vergi no, yetkili ara…"
+			min-width="960px"
+			class="apps"
+			@row-click="openDetail"
+		>
+			<template #cell-name="{ row }">
+				<div class="who-text">
+					<b>{{ row.name }}</b>
+					<span v-if="row.legal_name">{{ row.legal_name }}</span>
+				</div>
+			</template>
+			<template #cell-tax_number="{ value }"><span class="mono">{{ value || '—' }}</span></template>
+			<template #cell-contact="{ row }">
+				<div class="stack">
+					<span>{{ row.contact_person }}</span>
+					<span class="dim">{{ row.contact_email }}</span>
+				</div>
+			</template>
+			<template #cell-documents="{ row }">
+				<div class="docs" @click.stop>
+					<a v-for="d in row.documents" :key="d.id" :href="docUrl(row, d)" target="_blank" rel="noopener" class="doc" :title="d.name">
+						<OzIcon name="file" :size="12" />{{ docLabel(d.type) }}
+					</a>
+					<span v-if="!row.documents.length" class="dim">Belge yok</span>
+				</div>
+			</template>
+			<template #cell-status="{ row }">
+				<div class="stack">
+					<OzPill :tone="STATUS[row.status]?.tone ?? 'neutral'">{{ STATUS[row.status]?.label ?? row.status }}</OzPill>
+					<span v-if="row.status === 'approved' && row.convertedTenantId" class="dim small">İş ortağına dönüştürüldü</span>
+				</div>
+			</template>
+			<template #cell-createdAt="{ value }"><span class="date">{{ fmtDate(value) }}</span></template>
+			<template #cell-actions="{ row }">
+				<div v-if="canApprove" class="acts" @click.stop>
+					<template v-if="row.status === 'pending'">
+						<OzButton size="sm" icon="check" :loading="approving === row.id" @click="approve(row)">Onayla</OzButton>
+						<OzButton size="sm" variant="danger" icon="x" @click="openReject(row)">Reddet</OzButton>
+					</template>
+					<OzButton v-else-if="row.status === 'approved' && !row.convertedTenantId" size="sm" variant="primary" icon="building" @click="createTenant(row)">İş ortağı oluştur</OzButton>
+				</div>
+			</template>
+			<template #empty="{ filtered, clear }">
+				<OzEmptyState v-if="filtered" icon="filter" title="Eşleşen başvuru yok" compact>
+					<template #actions><OzButton size="sm" icon="x" @click="clear">Filtreleri temizle</OzButton></template>
+				</OzEmptyState>
+				<OzEmptyState v-else icon="file" title="Henüz başvuru yok" description="Başvurular /tenant-basvuru formundan gelir." compact />
+			</template>
+		</OzTable>
+	</OzCard>
+
+	<!-- Ayrıntı -->
+	<OzDrawer
+		v-model:open="detailOpen"
+		:title="detail?.name ?? ''"
+		:subtitle="detail?.legal_name || 'Başvuru ayrıntısı'"
+		icon="file"
+		size="md"
+	>
+		<div v-if="detail" class="detail">
+			<OzAlert v-if="detail.status === 'rejected'" tone="danger" title="Reddedildi">
+				{{ detail.rejection_reason || 'Gerekçe belirtilmemiş.' }}
+			</OzAlert>
+			<OzAlert v-else-if="detail.status === 'approved'" :tone="detail.convertedTenantId ? 'success' : 'info'" :title="detail.convertedTenantId ? 'İş ortağına dönüştürüldü' : 'Onaylandı'">
+				{{ detail.convertedTenantId ? 'Bu başvurudan iş ortağı kaydı oluşturuldu.' : 'Başvuru onaylı; iş ortağı kaydı henüz oluşturulmadı.' }}
+			</OzAlert>
+
+			<dl class="facts">
+				<dt>Durum</dt><dd><OzPill :tone="STATUS[detail.status]?.tone ?? 'neutral'">{{ STATUS[detail.status]?.label ?? detail.status }}</OzPill></dd>
+				<dt>Vergi no</dt><dd class="mono">{{ detail.tax_number || '—' }}</dd>
+				<dt>Vergi dairesi</dt><dd>{{ detail.tax_office || '—' }}</dd>
+				<dt>Yetkili</dt><dd>{{ detail.contact_person || '—' }}</dd>
+				<dt>E-posta</dt><dd><a v-if="detail.contact_email" :href="`mailto:${detail.contact_email}`">{{ detail.contact_email }}</a><template v-else>—</template></dd>
+				<dt>Telefon</dt><dd>{{ detail.contact_phone || '—' }}</dd>
+				<dt>Adres</dt><dd>{{ [detail.address, detail.district, detail.city].filter(Boolean).join(', ') || '—' }}</dd>
+				<dt>Başvuru</dt><dd>{{ fmtDate(detail.createdAt) }}</dd>
+				<template v-if="detail.reviewedAt">
+					<dt>İnceleyen</dt><dd>{{ detail.reviewer || '—' }} · {{ fmtDate(detail.reviewedAt) }}</dd>
+				</template>
+			</dl>
+
+			<div v-if="detail.message" class="section">Mesaj</div>
+			<p v-if="detail.message" class="message">{{ detail.message }}</p>
+
+			<div class="section">Belgeler</div>
+			<p v-if="!canApprove" class="dim">Belgeleri görmek için başvuru onay yetkisi gerekir.</p>
+			<div v-else-if="detail.documents.length" class="doc-list">
+				<a v-for="d in detail.documents" :key="d.id" :href="docUrl(detail, d)" target="_blank" rel="noopener" class="doc-row">
+					<OzIcon name="file" :size="16" />
+					<span class="doc-text"><b>{{ docLabel(d.type) }}</b><span>{{ d.name }}</span></span>
+					<OzIcon name="download" :size="14" />
+				</a>
+			</div>
+			<p v-else class="dim">Belge yüklenmemiş.</p>
+		</div>
+
+		<template v-if="detail && canApprove" #footer>
+			<template v-if="detail.status === 'pending'">
+				<OzButton variant="danger" icon="x" @click="openReject(detail)">Reddet</OzButton>
+				<OzButton variant="primary" icon="check" :loading="approving === detail.id" @click="approve(detail)">Onayla</OzButton>
+			</template>
+			<OzButton v-else-if="detail.status === 'approved' && !detail.convertedTenantId" variant="primary" icon="building" @click="createTenant(detail)">İş ortağı oluştur</OzButton>
+			<OzButton v-else @click="detailOpen = false">Kapat</OzButton>
+		</template>
+	</OzDrawer>
+
+	<!-- Red -->
+	<OzModal v-model:open="rejectOpen" title="Başvuruyu reddet" :subtitle="rejectTarget?.name ?? ''" icon="x" tone="danger" size="sm" :persistent="busy">
+		<OzField label="Red gerekçesi" required :error="rejectError" hint="Başvuru sahibine iletilebilecek kısa bir açıklama">
+			<OzTextarea v-model="rejectReason" :rows="3" placeholder="Örn. belgeler unvan ile uyuşmuyor…" @update:model-value="rejectError = ''" />
+		</OzField>
+		<template #footer>
+			<OzButton :disabled="busy" @click="rejectOpen = false">Vazgeç</OzButton>
+			<OzButton variant="danger" icon="x" :loading="busy" @click="submitReject">Reddet</OzButton>
+		</template>
+	</OzModal>
+</template>
+
 <style scoped>
-.filter-select { border: 1px solid rgb(var(--color-border-rgb)); background: rgb(var(--color-bg-rgb)); border-radius: 8px; padding: 6px 10px; font-size: 12.5px; color: rgb(var(--color-ink-rgb)); font-family: inherit; outline: none; }
-.dim { color: rgb(var(--color-muted-rgb)); font-size: 12px; }
-.mono { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; }
+.block { margin-bottom: 14px; }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+.apps :deep(tbody tr) { cursor: pointer; }
+.who-text { display: flex; flex-direction: column; gap: 1px; }
+.who-text b { font-size: 13px; color: var(--oz-ink-soft); white-space: nowrap; }
+.who-text span { font-size: 11.5px; color: var(--oz-muted); }
+.stack { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; font-size: 12.5px; white-space: nowrap; }
+.mono { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; }
+.dim { color: var(--oz-muted-2); }
+.small { font-size: 11px; }
+.date { white-space: nowrap; color: var(--oz-muted); font-variant-numeric: tabular-nums; }
+.docs { display: flex; flex-direction: column; gap: 3px; }
+.doc { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 500; color: var(--oz-accent); text-decoration: none; white-space: nowrap; }
+.doc:hover { text-decoration: underline; }
+.acts { display: flex; justify-content: flex-end; gap: 6px; white-space: nowrap; }
 
-.applicant-cell { display: flex; flex-direction: column; gap: 2px; }
-.applicant-name { font-weight: 600; color: rgb(var(--color-ink-rgb)); font-size: 13px; }
-.applicant-legal { font-size: 11px; color: rgb(var(--color-muted-rgb)); }
+.detail { display: flex; flex-direction: column; gap: 14px; }
+.facts { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 8px 12px; margin: 0; font-size: 13px; }
+.facts dt { color: var(--oz-muted); }
+.facts dd { margin: 0; color: var(--oz-ink-soft); overflow-wrap: anywhere; }
+.facts a { color: var(--oz-accent); }
+.section { padding-top: 12px; border-top: 1px solid var(--oz-border-soft); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--oz-muted); }
+.message { margin: -4px 0 0; font-size: 13px; line-height: 1.55; color: var(--oz-ink-soft); white-space: pre-line; }
+.doc-list { display: flex; flex-direction: column; gap: 6px; margin-top: -4px; }
+.doc-row { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--oz-border); border-radius: 10px; color: var(--oz-muted); text-decoration: none; transition: border-color .15s, background .15s; }
+.doc-row:hover { border-color: var(--oz-accent); background: var(--oz-accent-soft); color: var(--oz-accent); }
+.doc-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.doc-text b { font-size: 13px; color: var(--oz-ink-soft); }
+.doc-text span { font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.contact-cell { display: flex; flex-direction: column; gap: 2px; }
-.contact-line { font-size: 12px; color: rgb(var(--color-ink-rgb)); }
-
-.doc-list { display: flex; flex-direction: column; gap: 4px; }
-.doc-link { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: rgb(var(--color-primary-rgb)); text-decoration: none; }
-.doc-link:hover { text-decoration: underline; }
-
-.converted-hint { display: block; margin-top: 2px; }
-
-.table-action-btn { display: inline-flex; align-items: center; justify-content: center; background: rgb(var(--color-bg-rgb)); border: none; cursor: pointer; padding: 6px; border-radius: 6px; color: rgb(var(--color-muted-rgb)); transition: all .15s; }
-.table-action-btn.approve:hover { background: rgb(var(--color-success-rgb) / .15); color: rgb(var(--color-success-rgb)); }
-.table-action-btn.reject:hover { background: rgb(var(--color-danger-rgb) / .12); color: rgb(var(--color-danger-rgb)); }
-
-.form-row { display: flex; flex-direction: column; gap: 6px; }
-.form-label { font-size: 12px; font-weight: 600; color: rgb(var(--color-ink-rgb)); }
-.form-label .req { color: rgb(var(--color-danger-rgb)); }
-.form-input { padding: 9px 12px; border: 1px solid rgb(var(--color-border-rgb)); border-radius: 8px; font-family: inherit; font-size: 13px; color: rgb(var(--color-ink-rgb)); background: rgb(var(--color-surface-rgb)); outline: none; }
-.form-error { font-size: 11.5px; color: rgb(var(--color-danger-rgb)); }
+@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .facts { grid-template-columns: minmax(0, 1fr); gap: 2px; } .facts dd { margin-bottom: 8px; } }
 </style>

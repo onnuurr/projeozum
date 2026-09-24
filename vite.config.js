@@ -68,6 +68,9 @@ export default defineConfig({
                 manualChunks: {
                     "vendor-vue": ["vue", "@inertiajs/vue3"],
                     "vendor-chart": ["chart.js"], // Chart.js'i kendi dosyasına ayır
+                    // Oz kit: animasyon (motion-v) ve VueUse ayrı önbelleklensin
+                    "vendor-motion": ["motion-v"],
+                    "vendor-vueuse": ["@vueuse/core"],
                 },
             },
         },

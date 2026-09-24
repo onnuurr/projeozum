@@ -80,46 +80,72 @@ export function useAppShell() {
 	})
 
 	/* ── Kullanıcı ── */
-	// Inertia'nın paylaştığı auth.user'dan oku — HandleInertiaRequests şu an
-	// session('demo_role') değerine göre 4 farklı mock profil döner.
-	const currentUser = computed(
-		() =>
-			page.props.auth?.user || {
-				id: 0,
-				name: 'Misafir',
-				shortName: 'Misafir',
-				initials: '?',
-				email: '',
-				role: 'tenant',
-				roleLabel: 'Misafir',
-			}
-	)
+	// auth.user = User modeli, auth.roles = Spatie rol adları (HandleInertiaRequests).
+	// Ön yüzde tek bir rol anahtarına indirgenir: superadmin | tenant | user
+	const ROLE_LABELS = { superadmin: 'Süper Admin', tenant: 'İş Ortağı', user: 'Kullanıcı' }
+	const role = computed(() => {
+		const roles = page.props.auth?.roles ?? []
+		if (roles.includes('superadmin')) return 'superadmin'
+		if (roles.includes('tenant') || roles.includes('tenant-user') || page.props.auth?.user?.tenant_id) return 'tenant'
+		return 'user'
+	})
+	const initialsOf = (name = '') =>
+		name.trim().split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toLocaleUpperCase('tr')).join('') || '?'
+
+	const currentUser = computed(() => {
+		const u = page.props.auth?.user
+		if (!u) {
+			return { id: 0, name: 'Misafir', shortName: 'Misafir', initials: '?', email: '', role: 'guest', roleLabel: 'Misafir' }
+		}
+		return {
+			...u,
+			shortName: u.shortName ?? u.name?.split(' ')[0] ?? '',
+			initials: u.initials ?? initialsOf(u.name),
+			role: role.value,
+			roleLabel: ROLE_LABELS[role.value],
+		}
+	})
 	const isStaff = computed(() => STAFF_ROLES.includes(currentUser.value.role))
 
+	const ICON = (path) => `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">${path}</svg>`
+	const USER_ICONS = {
+		profile: ICON('<path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>'),
+		company: ICON('<path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/><path d="M9 9h.01M9 13h.01M9 17h.01"/>'),
+		shield: ICON('<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>'),
+		settings: ICON('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>'),
+		bell: ICON('<path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/>'),
+		keys: ICON('<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8"/>'),
+		help: ICON('<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01"/>'),
+		logout: ICON('<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>'),
+	}
+
+	// Kullanıcı menüsü role göre kurulur:
+	//   superadmin → Profilim + Süper Admin Paneli
+	//   tenant     → Firma Profili (Profilim yerine) + firma ayarları
+	//   diğer      → Profilim
 	const userMenu = computed(() => {
-		const role = currentUser.value.role
+		const byRole = {
+			superadmin: [
+				{ label: 'Profilim', icon: USER_ICONS.profile, to: '/profile' },
+				{ label: 'Süper Admin Paneli', icon: USER_ICONS.shield, to: '/superadmin/settings' },
+			],
+			tenant: [
+				{ label: 'Firma Profili', icon: USER_ICONS.company, to: '/tenant' },
+				{ label: 'Ayarlar', icon: USER_ICONS.settings, to: '/tenant/settings' },
+			],
+			user: [
+				{ label: 'Profilim', icon: USER_ICONS.profile, to: '/profile' },
+			],
+		}
 		return [
-			{ label: 'Profilim', icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>', to: '/profile' },
-			{ label: 'Firma Profili', icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/><path d="M9 9h.01M9 13h.01M9 17h.01"/></svg>', to: '/tenant' },
+			...(byRole[currentUser.value.role] ?? byRole.user),
 			{ divider: true },
-			{ label: 'Üretim Atölyesi', icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>', to: '/atelier', visible: STAFF_ROLES.includes(role) },
-			{ label: 'Süper Admin Paneli', icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>', to: '/superadmin/settings', visible: role === 'superadmin' },
-			{ label: 'Menü Yönetimi', icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>', to: '/superadmin/menus', visible: role === 'superadmin' },
-			{ label: 'Kullanıcı Yönetimi', icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>', to: '/superadmin/users', visible: role === 'superadmin' },
-			{ label: 'Ayarlar', icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>', to: '/tenant/settings' },
-			{ label: 'Bildirimler', icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>' },
+			{ label: 'Bildirimler', icon: USER_ICONS.bell },
+			{ label: 'Kısayollar', icon: USER_ICONS.keys },
+			{ label: 'Yardım & Destek', icon: USER_ICONS.help },
 			{ divider: true },
-			{ heading: `Rol Değiştir · ${currentUser.value.roleLabel}` },
-			{ label: 'Tasarımcı', icon: '🎨', to: '/demo/role/designer', demoRole: 'designer', activeDemoRole: role === 'designer' },
-			{ label: 'İnceleyici', icon: '👀', to: '/demo/role/reviewer', demoRole: 'reviewer', activeDemoRole: role === 'reviewer' },
-			{ label: 'Süper Admin', icon: '🛡️', to: '/demo/role/superadmin', demoRole: 'superadmin', activeDemoRole: role === 'superadmin' },
-			{ label: 'Firma (Tenant)', icon: '🏢', to: '/demo/role/tenant', demoRole: 'tenant', activeDemoRole: role === 'tenant' },
-			{ divider: true },
-			{ label: 'Kısayollar', icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8"/></svg>' },
-			{ label: 'Yardım & Destek', icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01"/></svg>' },
-			{ divider: true },
-			{ label: 'Çıkış Yap', icon: '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>', action: 'logout', danger: true },
-		].filter((it) => it.visible !== false)
+			{ label: 'Çıkış Yap', icon: USER_ICONS.logout, action: 'logout', danger: true },
+		]
 	})
 
 	/* ── Bildirimler ── */

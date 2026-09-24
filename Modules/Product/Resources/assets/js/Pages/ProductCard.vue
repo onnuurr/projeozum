@@ -1,376 +1,13 @@
-<template>
-	<Head :title="`Ürün Kartı · ${product.name}`" />
-	<div class="page-product-card">
-		<Breadcrumb
-			:items="[
-				{ label: 'Ana Sayfa', to: '/workflow', icon: 'home' },
-				{ label: 'Katalog', to: '/products' },
-				{ label: product.name },
-			]"
-		/>
-
-		<PageHeader :title="product.name" back-href="/products">
-			<template #subtitle>
-				<span class="mono">{{ product.sku }}</span>
-				<span v-if="product.barcode"> · <span class="mono">{{ product.barcode }}</span></span>
-				<Badge :label="statusLabel" :color="statusColor" variant="tonal" size="sm" />
-			</template>
-			<template #actions>
-				<Link :href="`/products/${product.id}/edit`" class="btn btn-ghost btn-sm">
-					<Pencil :size="13" />
-					Ürünü Düzenle
-				</Link>
-				<Button v-if="canStock && variants.length > 0" variant="primary" with-icon @click="openMovement()">
-					<template #leading><Activity :size="13" /></template>
-					Stok Hareketi Ekle
-				</Button>
-			</template>
-		</PageHeader>
-
-		<!-- Sekmeler -->
-		<div class="tab-bar">
-			<button
-				v-for="t in tabs"
-				:key="t.key"
-				class="tab-btn"
-				:class="{ active: activeTab === t.key }"
-				@click="activeTab = t.key"
-			>
-				<component :is="t.icon" :size="14" />
-				{{ t.label }}
-			</button>
-		</div>
-
-		<!-- ══════════ GENEL ══════════ -->
-		<template v-if="activeTab === 'genel'">
-			<Card v-if="product.images.length" title="Görseller" body-class="p-3">
-				<div class="gallery-strip">
-					<div v-for="img in product.images" :key="img.id" class="gallery-thumb" :class="{ cover: img.isCover }">
-						<img :src="img.url" :alt="product.name" loading="lazy" />
-						<span v-if="img.isCover" class="cover-badge">Kapak</span>
-					</div>
-				</div>
-			</Card>
-
-			<Card title="Kimlik" body-class="p-4">
-				<dl class="field-grid">
-					<div class="field"><dt>SKU</dt><dd class="mono">{{ product.sku || '—' }}</dd></div>
-					<div class="field"><dt>Barkod</dt><dd class="mono">{{ product.barcode || '—' }}</dd></div>
-					<div class="field"><dt>Durum</dt><dd><Badge :label="statusLabel" :color="statusColor" variant="tonal" /></dd></div>
-					<div class="field"><dt>Cinsiyet</dt><dd>{{ product.gender || '—' }}</dd></div>
-					<div class="field"><dt>Kategori</dt><dd>{{ product.category || '—' }}</dd></div>
-					<div class="field"><dt>Marka</dt><dd>{{ product.brand || '—' }}</dd></div>
-				</dl>
-			</Card>
-
-			<Card title="Fiyat (Temel)" body-class="p-4">
-				<dl class="field-grid">
-					<div class="field"><dt>Satış Fiyatı</dt><dd>{{ money(product.price) }}</dd></div>
-					<div class="field"><dt>Eski Fiyat</dt><dd>{{ product.oldPrice ? money(product.oldPrice) : '—' }}</dd></div>
-					<div class="field"><dt>Piyasa Fiyatı</dt><dd>{{ product.marketPrice ? money(product.marketPrice) : '—' }}</dd></div>
-					<div class="field"><dt>Alış Fiyatı</dt><dd>{{ product.purchasePrice ? money(product.purchasePrice) : '—' }}</dd></div>
-				</dl>
-			</Card>
-
-			<Card title="Lojistik" body-class="p-4">
-				<dl class="field-grid">
-					<div class="field"><dt>Ağırlık</dt><dd>{{ product.weight ? `${product.weight} kg` : '—' }}</dd></div>
-					<div class="field"><dt>Desi</dt><dd>{{ product.desi ?? '—' }}</dd></div>
-					<div class="field"><dt>Kargo Süresi</dt><dd>{{ product.shippingTime ? `${product.shippingTime} gün` : '—' }}</dd></div>
-					<div class="field"><dt>Kargo Ücreti</dt><dd>{{ product.freeShipping ? 'Ücretsiz' : (product.shippingFee ? money(product.shippingFee) : '—') }}</dd></div>
-					<div class="field"><dt>Min. Sipariş</dt><dd>{{ product.minOrderQty ?? '—' }} adet</dd></div>
-					<div class="field"><dt>Sipariş Katı</dt><dd>{{ product.orderMultiple ?? '—' }}</dd></div>
-					<div class="field"><dt>Menşei</dt><dd>{{ product.originCountry || '—' }} <span v-if="product.isDomestic" class="chip">Yerli</span></dd></div>
-					<div class="field"><dt>Üretici Kodu</dt><dd class="mono">{{ product.manufacturerCode || '—' }}</dd></div>
-					<div class="field"><dt>GTİP</dt><dd class="mono">{{ product.gtipCode || '—' }}</dd></div>
-				</dl>
-			</Card>
-
-			<Card v-if="product.material || product.careInstructions" title="İçerik" body-class="p-4">
-				<dl class="field-grid">
-					<div class="field"><dt>Materyal</dt><dd>{{ product.material || '—' }}</dd></div>
-					<div class="field"><dt>Bakım Talimatları</dt><dd>{{ product.careInstructions || '—' }}</dd></div>
-				</dl>
-			</Card>
-		</template>
-
-		<!-- ══════════ STOK ══════════ -->
-		<template v-if="activeTab === 'stok'">
-			<div class="stat-grid">
-				<StatWidget :icon="Boxes" :value="totals.stock" title="Toplam Stok" color="primary" />
-				<StatWidget :icon="Lock" :value="totals.reserved" title="Rezerve" color="info" />
-				<StatWidget :icon="CheckCircle2" :value="totals.available" title="Kullanılabilir" color="success" />
-				<StatWidget :icon="AlertTriangle" :value="totals.criticalVariants" title="Kritik Varyant" color="warning" />
-			</div>
-
-			<Card title="Depo Bazlı Stok" body-class="p-0">
-				<EmptyState v-if="variants.length === 0" :icon="Boxes" title="Varyant yok" hint="Bu ürüne ait stok takipli varyant bulunamadı." />
-				<div v-else class="table-scroll">
-					<table class="matrix-table">
-						<thead>
-							<tr>
-								<th class="col-variant">Varyant</th>
-								<th v-for="w in warehouses" :key="w.id" class="col-wh">
-									<div class="wh-head">
-										<span>{{ w.name }}</span>
-										<span class="wh-code">{{ w.code }}</span>
-									</div>
-								</th>
-								<th class="col-total">Toplam</th>
-							</tr>
-						</thead>
-						<tbody>
-							<tr v-for="v in variants" :key="v.id">
-								<td class="col-variant">
-									<div class="variant-cell">
-										<div class="variant-info">
-											<span v-if="v.size" class="chip">{{ v.size }}</span>
-											<span v-if="v.colorName" class="chip">
-												<span class="dot" :style="{ background: v.colorHex }"></span>
-												{{ v.colorName }}
-											</span>
-										</div>
-										<span class="mono sku">{{ v.sku }}</span>
-									</div>
-								</td>
-								<td v-for="cell in v.warehouses" :key="cell.warehouseId" class="col-wh" :class="{ 'cell-critical': cell.isCritical }">
-									<button class="cell-btn" :disabled="!canStock" @click="openMovement(v, cell.warehouseId)" title="Stok hareketi ekle">
-										<span class="cell-qty">{{ cell.quantity }}</span>
-										<span v-if="cell.reserved > 0" class="cell-reserved">rez. {{ cell.reserved }}</span>
-									</button>
-								</td>
-								<td class="col-total num">{{ v.totalStock }}</td>
-							</tr>
-						</tbody>
-					</table>
-				</div>
-			</Card>
-
-			<Card title="Son Hareketler" body-class="p-0">
-				<EmptyState v-if="movements.length === 0" :icon="ArrowUpDown" title="Hareket kaydı yok" hint="Bu ürün için henüz stok hareketi girilmemiş." />
-				<div v-else class="table-scroll">
-					<table class="movement-table">
-						<thead>
-							<tr>
-								<th>Tarih</th>
-								<th>Varyant</th>
-								<th>Depo</th>
-								<th>Tip</th>
-								<th class="num">Miktar</th>
-								<th class="num">Önce → Sonra</th>
-								<th>Kullanıcı</th>
-								<th>Not</th>
-							</tr>
-						</thead>
-						<tbody>
-							<tr v-for="m in movements" :key="m.id">
-								<td class="dim">{{ m.createdAt }}</td>
-								<td>
-									<span v-if="m.size" class="chip">{{ m.size }}</span>
-									<span v-if="m.colorName" class="chip">{{ m.colorName }}</span>
-									<span class="mono sku">{{ m.sku }}</span>
-								</td>
-								<td>{{ m.warehouseName }} <span class="dim mono">{{ m.warehouseCode }}</span></td>
-								<td><Badge :label="movementTypeLabel(m.type)" :color="movementTypeColor(m.type)" variant="tonal" /></td>
-								<td class="num mono" :class="m.quantity > 0 ? 'text-pos' : 'text-neg'">{{ m.quantity > 0 ? '+' : '' }}{{ m.quantity }}</td>
-								<td class="num mono dim">{{ m.beforeQuantity }} → {{ m.afterQuantity }}</td>
-								<td class="dim">{{ m.userName || '—' }}</td>
-								<td class="dim note-cell">{{ m.note || '—' }}</td>
-							</tr>
-						</tbody>
-					</table>
-				</div>
-			</Card>
-		</template>
-
-		<!-- ══════════ FİYAT ══════════ -->
-		<template v-if="activeTab === 'fiyat'">
-			<Card title="Fiyat Listeleri" body-class="p-0">
-				<EmptyState v-if="variants.length === 0" :icon="Tag" title="Varyant yok" hint="Fiyat listesi tanımlamak için önce varyant gerekir." />
-				<div v-else class="table-scroll">
-					<table class="matrix-table">
-						<thead>
-							<tr>
-								<th class="col-variant">Varyant</th>
-								<th v-for="pt in priceTypes" :key="pt.value" class="col-wh">{{ pt.label }}</th>
-							</tr>
-						</thead>
-						<tbody>
-							<tr v-for="v in variants" :key="v.id">
-								<td class="col-variant">
-									<div class="variant-cell">
-										<div class="variant-info">
-											<span v-if="v.size" class="chip">{{ v.size }}</span>
-											<span v-if="v.colorName" class="chip">
-												<span class="dot" :style="{ background: v.colorHex }"></span>
-												{{ v.colorName }}
-											</span>
-										</div>
-										<span class="mono sku">{{ v.sku }}</span>
-									</div>
-								</td>
-								<td v-for="pt in priceTypes" :key="pt.value" class="col-wh">
-									<button class="cell-btn" :disabled="!canPriceList" @click="openPrice(v, pt.value)" title="Fiyat düzenle">
-										<template v-if="findPrice(v, pt.value)">
-											<span class="cell-qty">{{ money(findPrice(v, pt.value).price) }}</span>
-											<span v-if="!findPrice(v, pt.value).isActive" class="cell-reserved">pasif</span>
-										</template>
-										<span v-else class="dim">—</span>
-									</button>
-								</td>
-							</tr>
-						</tbody>
-					</table>
-				</div>
-			</Card>
-		</template>
-
-		<!-- ══════════ PAZARYERİ ══════════ -->
-		<template v-if="activeTab === 'pazaryeri'">
-			<Card title="Pazaryeri Listeleme" body-class="p-3">
-				<EmptyState v-if="marketplaces.length === 0" :icon="Store" title="Uygun pazaryeri yok" hint="Bu ürünün kategorisi henüz bir pazaryeri eşlemesine bağlı değil." />
-				<div v-else class="mp-grid">
-					<button
-						v-for="mp in marketplaces"
-						:key="mp.key"
-						class="mp-card"
-						@click="openListing(mp)"
-					>
-						<span class="mp-logo" :style="{ background: mp.color || '#888' }">{{ mp.logoText }}</span>
-						<div class="mp-info">
-							<span class="mp-name">{{ mp.name }}</span>
-							<Badge
-								:label="listings[mp.key]?.isSent ? 'Gönderildi' : 'Gönderilmedi'"
-								:color="listings[mp.key]?.isSent ? 'success' : 'neutral'"
-								variant="tonal"
-								size="sm"
-							/>
-						</div>
-						<span v-if="listings[mp.key]?.price" class="mp-price">{{ money(listings[mp.key].price) }}</span>
-					</button>
-				</div>
-			</Card>
-		</template>
-
-		<!-- Stok hareket drawer -->
-		<AppDrawer v-model="movementOpen" title="Stok Hareketi" :subtitle="product.name" variant="info" width="480px">
-			<form class="form-grid" @submit.prevent="submitMovement">
-				<div class="form-row">
-					<label class="form-label">Varyant <span class="req">*</span></label>
-					<CustomSelect v-model="movement.product_variant_id" :options="variantOptions" :show-label="false" />
-				</div>
-				<div class="form-row">
-					<label class="form-label">Depo <span class="req">*</span></label>
-					<CustomSelect v-model="movement.warehouse_id" :options="warehouseOptions" :show-label="false" />
-				</div>
-				<div class="form-row">
-					<label class="form-label">Hareket Tipi <span class="req">*</span></label>
-					<div class="type-buttons">
-						<button
-							type="button"
-							v-for="t in movementTypes"
-							:key="t.value"
-							class="type-btn"
-							:class="{ active: movement.type === t.value }"
-							@click="movement.type = t.value"
-						><component :is="t.icon" :size="13" /> {{ t.label }}</button>
-					</div>
-				</div>
-				<div class="form-row">
-					<label class="form-label">Miktar <span class="req">*</span></label>
-					<input v-model.number="movement.quantity" type="number" min="1" class="form-input" />
-					<span v-if="errors.quantity" class="form-error">{{ errors.quantity }}</span>
-					<span v-if="movement.type === 'adjustment'" class="form-hint">
-						Düzeltme için + (artır) veya − (azalt) işaretli sayı girin.
-					</span>
-				</div>
-				<div class="form-row">
-					<label class="form-label">Not</label>
-					<textarea v-model="movement.note" class="form-input" rows="2" placeholder="Açıklama (opsiyonel)..." />
-				</div>
-			</form>
-
-			<div class="field-guide">
-				<p class="fg-title">Alan Rehberi</p>
-				<dl>
-					<div v-for="item in MOVEMENT_FIELD_GUIDE" :key="item.term" class="fg-item">
-						<dt>{{ item.term }}</dt>
-						<dd>{{ item.desc }}</dd>
-					</div>
-				</dl>
-			</div>
-			<template #footer="{ close }">
-				<Button variant="ghost" :disabled="busy" @click="close">İptal</Button>
-				<Button variant="primary" :loading="busy" @click="submitMovement">Kaydet</Button>
-			</template>
-		</AppDrawer>
-
-		<!-- Fiyat drawer -->
-		<AppDrawer v-model="priceOpen" title="Fiyat Listesi" :subtitle="priceForm.variantLabel" variant="info" width="420px">
-			<form class="form-grid" @submit.prevent="submitPrice">
-				<div class="form-row">
-					<label class="form-label">Tip</label>
-					<div class="lst-readonly">{{ priceTypeLabel(priceForm.type) }}</div>
-				</div>
-				<div class="form-row">
-					<label class="form-label">Fiyat <span class="req">*</span></label>
-					<input v-model.number="priceForm.price" type="number" min="0" step="0.01" class="form-input" />
-					<span v-if="priceErrors.price" class="form-error">{{ priceErrors.price }}</span>
-				</div>
-				<div class="form-row">
-					<label class="form-label">Para Birimi</label>
-					<CustomSelect v-model="priceForm.currency" :options="currencyOptions" :show-label="false" />
-				</div>
-				<label class="check-inline">
-					<input type="checkbox" v-model="priceForm.is_active" />
-					<span>Aktif</span>
-				</label>
-			</form>
-
-			<div class="field-guide">
-				<p class="fg-title">Alan Rehberi</p>
-				<dl>
-					<div v-for="item in PRICE_FIELD_GUIDE" :key="item.term" class="fg-item">
-						<dt>{{ item.term }}</dt>
-						<dd>{{ item.desc }}</dd>
-					</div>
-				</dl>
-			</div>
-			<template #footer="{ close }">
-				<Button v-if="priceForm.id" variant="danger" :disabled="priceBusy" @click="deletePrice">Sil</Button>
-				<Button variant="ghost" :disabled="priceBusy" @click="close">İptal</Button>
-				<Button variant="primary" :loading="priceBusy" @click="submitPrice">Kaydet</Button>
-			</template>
-		</AppDrawer>
-
-		<!-- Pazaryeri listeleme drawer (paylaşılan component) -->
-		<MarketplaceListingDrawer
-			:open="listingOpen"
-			:product-id="product.id"
-			:marketplace="activeMarketplace"
-			@close="listingOpen = false"
-			@saved="listingOpen = false"
-		/>
-	</div>
-</template>
-
 <script setup>
 import { computed, inject, reactive, ref, watch } from 'vue'
-import { Head, Link, router, usePage } from '@inertiajs/vue3'
-import {
-	Activity, ArrowDown, ArrowUp, ArrowUpDown,
-	AlertTriangle, Boxes, CheckCircle2, Info, Lock, Pencil, Store, Tag,
-} from 'lucide-vue-next'
+import { Head, router, usePage } from '@inertiajs/vue3'
+import { ArrowDown, ArrowUp, Pencil } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import Breadcrumb from '@/Components/Breadcrumb.vue'
-import PageHeader from '@/Components/PageHeader.vue'
-import Card from '@/Components/Card.vue'
-import StatWidget from '@/Components/StatWidget.vue'
-import Badge from '@/Components/Badge.vue'
-import Button from '@/Components/Button.vue'
-import AppDrawer from '@/Components/AppDrawer.vue'
-import CustomSelect from '@/Components/CustomSelect.vue'
-import EmptyState from '@/Components/EmptyState.vue'
+import {
+	OzPageHeader, OzModuleTabs, OzBreadcrumbs, OzCard, OzStatTile, OzTabs, OzTable,
+	OzPill, OzButton, OzDrawer, OzField, OzInput, OzTextarea, OzSelect, OzCombobox,
+	OzSwitch, OzEmptyState, useOzConfirm,
+} from '@/Components/Oz'
 import MarketplaceListingDrawer from '../Components/MarketplaceListingDrawer.vue'
 
 defineOptions({ layout: AppLayout })
@@ -387,30 +24,55 @@ const props = defineProps({
 })
 
 const showToast = inject('showToast')
-const $swal = inject('$swal')
+const confirm = useOzConfirm()
 const page = usePage()
 
 const permissions = computed(() => page.props.auth?.permissions ?? [])
 const canStock = computed(() => permissions.value.includes('stock.manage'))
 const canPriceList = computed(() => permissions.value.includes('price-list.manage'))
+const canEdit = computed(() => permissions.value.includes('product.add'))
 
 const validTabs = ['genel', 'stok', 'fiyat', 'pazaryeri']
 const activeTab = ref(validTabs.includes(props.initialTab) ? props.initialTab : 'genel')
 
 const tabs = [
-	{ key: 'genel', label: 'Genel', icon: Info },
-	{ key: 'stok', label: 'Stok', icon: Boxes },
-	{ key: 'fiyat', label: 'Fiyat', icon: Tag },
-	{ key: 'pazaryeri', label: 'Pazaryeri', icon: Store },
+	{ key: 'genel', label: 'Genel', icon: 'info' },
+	{ key: 'stok', label: 'Stok', icon: 'package' },
+	{ key: 'fiyat', label: 'Fiyat', icon: 'tag' },
+	{ key: 'pazaryeri', label: 'Pazaryeri', icon: 'store' },
 ]
 
 const statuses = { draft: ['Taslak', 'neutral'], published: ['Yayında', 'success'], archived: ['Arşivlendi', 'danger'] }
 const statusLabel = computed(() => statuses[props.product.status]?.[0] ?? props.product.status)
 const statusColor = computed(() => statuses[props.product.status]?.[1] ?? 'neutral')
 
+/* ── Stok özetleri (tekil-kayıt özet kartları) ── */
+const stats = computed(() => [
+	{ key: 'stock', label: 'Toplam Stok', value: props.totals.stock, icon: 'package', tone: 'accent' },
+	{ key: 'reserved', label: 'Rezerve', value: props.totals.reserved, icon: 'lock', tone: 'info' },
+	{ key: 'available', label: 'Kullanılabilir', value: props.totals.available, icon: 'success', tone: 'success' },
+	{ key: 'critical', label: 'Kritik Varyant', value: props.totals.criticalVariants, icon: 'warning', tone: 'warning' },
+])
+
 function money(v) {
 	return '₺' + Number(v ?? 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
+
+function editProduct() {
+	router.visit(`/products/${props.product.id}/edit`)
+}
+
+/* ── Son hareketler tablosu (salt-okuma → OzTable) ── */
+const movementColumns = [
+	{ key: 'createdAt', label: 'Tarih' },
+	{ key: 'variant', label: 'Varyant' },
+	{ key: 'warehouse', label: 'Depo' },
+	{ key: 'type', label: 'Tip' },
+	{ key: 'quantity', label: 'Miktar', align: 'right' },
+	{ key: 'change', label: 'Önce → Sonra', align: 'right' },
+	{ key: 'user', label: 'Kullanıcı' },
+	{ key: 'note', label: 'Not' },
+]
 
 /* ── Stok hareket drawer ── */
 const variantOptions = computed(() =>
@@ -563,12 +225,7 @@ function submitPrice() {
 
 async function deletePrice() {
 	if (!priceForm.id) return
-	const ok = await $swal.dangerConfirm({
-		title: 'Fiyatı Sil',
-		html: `<strong>${priceTypeLabel(priceForm.type)}</strong> fiyatı silinecek.`,
-		confirmText: 'Sil',
-		cancelText: 'Vazgeç',
-	})
+	const ok = await confirm.danger('Fiyatı Sil', `${priceTypeLabel(priceForm.type)} fiyatı silinecek.`)
 	if (!ok) return
 	priceBusy.value = true
 	router.delete(`/products/prices/${priceForm.id}`, {
@@ -592,52 +249,341 @@ function openListing(mp) {
 }
 </script>
 
-<style scoped>
-.page-product-card { display: flex; flex-direction: column; gap: 14px; }
+<template>
+	<Head :title="`Ürün Kartı · ${product.name}`" />
 
-.mono { font-family: 'SF Mono', Menlo, Consolas, monospace; }
-.dim { color: rgb(var(--color-muted-rgb)); }
+	<OzBreadcrumbs :items="[
+		{ label: 'Katalog', to: '/products', icon: 'layers' },
+		{ label: product.name },
+	]" />
+
+	<OzPageHeader :title="product.name">
+		<template #subtitle>
+			<span class="mono">{{ product.sku }}</span>
+			<span v-if="product.barcode"> · <span class="mono">{{ product.barcode }}</span></span>
+			&nbsp;<OzPill :tone="statusColor">{{ statusLabel }}</OzPill>
+		</template>
+		<template #actions>
+			<OzButton v-if="canEdit" variant="ghost" icon="edit" @click="editProduct">Ürünü Düzenle</OzButton>
+			<OzButton v-if="canStock && variants.length > 0" variant="primary" icon="activity" @click="openMovement()">
+				Stok Hareketi Ekle
+			</OzButton>
+		</template>
+	</OzPageHeader>
+	<OzModuleTabs />
+
+	<OzTabs v-model="activeTab" :tabs="tabs" aria-label="Ürün kartı bölümleri" class="block" />
+
+	<div class="panels">
+		<!-- ══════════ GENEL ══════════ -->
+		<template v-if="activeTab === 'genel'">
+			<OzCard v-if="product.images.length" title="Görseller" class="block">
+				<div class="gallery-strip">
+					<div v-for="img in product.images" :key="img.id" class="gallery-thumb" :class="{ cover: img.isCover }">
+						<img :src="img.url" :alt="product.name" loading="lazy" />
+						<span v-if="img.isCover" class="cover-badge">Kapak</span>
+					</div>
+				</div>
+			</OzCard>
+
+			<OzCard title="Kimlik" class="block">
+				<dl class="field-grid">
+					<div class="field"><dt>SKU</dt><dd class="mono">{{ product.sku || '—' }}</dd></div>
+					<div class="field"><dt>Barkod</dt><dd class="mono">{{ product.barcode || '—' }}</dd></div>
+					<div class="field"><dt>Durum</dt><dd><OzPill :tone="statusColor">{{ statusLabel }}</OzPill></dd></div>
+					<div class="field"><dt>Cinsiyet</dt><dd>{{ product.gender || '—' }}</dd></div>
+					<div class="field"><dt>Kategori</dt><dd>{{ product.category || '—' }}</dd></div>
+					<div class="field"><dt>Marka</dt><dd>{{ product.brand || '—' }}</dd></div>
+				</dl>
+			</OzCard>
+
+			<OzCard title="Fiyat (Temel)" class="block">
+				<dl class="field-grid">
+					<div class="field"><dt>Satış Fiyatı</dt><dd>{{ money(product.price) }}</dd></div>
+					<div class="field"><dt>Eski Fiyat</dt><dd>{{ product.oldPrice ? money(product.oldPrice) : '—' }}</dd></div>
+					<div class="field"><dt>Piyasa Fiyatı</dt><dd>{{ product.marketPrice ? money(product.marketPrice) : '—' }}</dd></div>
+					<div class="field"><dt>Alış Fiyatı</dt><dd>{{ product.purchasePrice ? money(product.purchasePrice) : '—' }}</dd></div>
+				</dl>
+			</OzCard>
+
+			<OzCard title="Lojistik" class="block">
+				<dl class="field-grid">
+					<div class="field"><dt>Ağırlık</dt><dd>{{ product.weight ? `${product.weight} kg` : '—' }}</dd></div>
+					<div class="field"><dt>Desi</dt><dd>{{ product.desi ?? '—' }}</dd></div>
+					<div class="field"><dt>Kargo Süresi</dt><dd>{{ product.shippingTime ? `${product.shippingTime} gün` : '—' }}</dd></div>
+					<div class="field"><dt>Kargo Ücreti</dt><dd>{{ product.freeShipping ? 'Ücretsiz' : (product.shippingFee ? money(product.shippingFee) : '—') }}</dd></div>
+					<div class="field"><dt>Min. Sipariş</dt><dd>{{ product.minOrderQty ?? '—' }} adet</dd></div>
+					<div class="field"><dt>Sipariş Katı</dt><dd>{{ product.orderMultiple ?? '—' }}</dd></div>
+					<div class="field"><dt>Menşei</dt><dd>{{ product.originCountry || '—' }} <OzPill v-if="product.isDomestic" tone="accent">Yerli</OzPill></dd></div>
+					<div class="field"><dt>Üretici Kodu</dt><dd class="mono">{{ product.manufacturerCode || '—' }}</dd></div>
+					<div class="field"><dt>GTİP</dt><dd class="mono">{{ product.gtipCode || '—' }}</dd></div>
+				</dl>
+			</OzCard>
+
+			<OzCard v-if="product.material || product.careInstructions" title="İçerik" class="block">
+				<dl class="field-grid">
+					<div class="field"><dt>Materyal</dt><dd>{{ product.material || '—' }}</dd></div>
+					<div class="field"><dt>Bakım Talimatları</dt><dd>{{ product.careInstructions || '—' }}</dd></div>
+				</dl>
+			</OzCard>
+		</template>
+
+		<!-- ══════════ STOK ══════════ -->
+		<template v-if="activeTab === 'stok'">
+			<div class="stats">
+				<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" />
+			</div>
+
+			<OzCard title="Depo Bazlı Stok" :meta="variants.length ? `${variants.length} varyant` : ''" class="block">
+				<OzEmptyState v-if="variants.length === 0" icon="package" title="Varyant yok" description="Bu ürüne ait stok takipli varyant bulunamadı." compact />
+				<div v-else class="table-scroll">
+					<table class="matrix-table">
+						<thead>
+							<tr>
+								<th class="col-variant">Varyant</th>
+								<th v-for="w in warehouses" :key="w.id" class="col-wh">
+									<div class="wh-head">
+										<span>{{ w.name }}</span>
+										<span class="wh-code">{{ w.code }}</span>
+									</div>
+								</th>
+								<th class="col-total">Toplam</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr v-for="v in variants" :key="v.id">
+								<td class="col-variant">
+									<div class="variant-cell">
+										<div class="variant-info">
+											<span v-if="v.size" class="chip">{{ v.size }}</span>
+											<span v-if="v.colorName" class="chip">
+												<span class="dot" :style="{ background: v.colorHex }"></span>
+												{{ v.colorName }}
+											</span>
+										</div>
+										<span class="mono sku">{{ v.sku }}</span>
+									</div>
+								</td>
+								<td v-for="cell in v.warehouses" :key="cell.warehouseId" class="col-wh" :class="{ 'cell-critical': cell.isCritical }">
+									<button class="cell-btn" :disabled="!canStock" title="Stok hareketi ekle" @click="openMovement(v, cell.warehouseId)">
+										<span class="cell-qty">{{ cell.quantity }}</span>
+										<span v-if="cell.reserved > 0" class="cell-reserved">rez. {{ cell.reserved }}</span>
+									</button>
+								</td>
+								<td class="col-total num">{{ v.totalStock }}</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+			</OzCard>
+
+			<OzCard title="Son Hareketler" :meta="movements.length ? `son ${movements.length} kayıt` : ''" class="block">
+				<OzTable :columns="movementColumns" :rows="movements" row-key="id" min-width="820px" empty-title="Hareket kaydı yok" empty-text="Bu ürün için henüz stok hareketi girilmemiş.">
+					<template #cell-variant="{ row }">
+						<span v-if="row.size" class="chip">{{ row.size }}</span>
+						<span v-if="row.colorName" class="chip">{{ row.colorName }}</span>
+						<span class="mono sku">{{ row.sku }}</span>
+					</template>
+					<template #cell-warehouse="{ row }">{{ row.warehouseName }} <span class="dim mono">{{ row.warehouseCode }}</span></template>
+					<template #cell-type="{ row }"><OzPill :tone="movementTypeColor(row.type)">{{ movementTypeLabel(row.type) }}</OzPill></template>
+					<template #cell-quantity="{ row }">
+						<span class="mono" :class="row.quantity > 0 ? 'text-pos' : 'text-neg'">{{ row.quantity > 0 ? '+' : '' }}{{ row.quantity }}</span>
+					</template>
+					<template #cell-change="{ row }"><span class="mono dim">{{ row.beforeQuantity }} → {{ row.afterQuantity }}</span></template>
+					<template #cell-user="{ row }"><span class="dim">{{ row.userName || '—' }}</span></template>
+					<template #cell-note="{ row }"><span class="dim note-cell">{{ row.note || '—' }}</span></template>
+				</OzTable>
+			</OzCard>
+		</template>
+
+		<!-- ══════════ FİYAT ══════════ -->
+		<template v-if="activeTab === 'fiyat'">
+			<OzCard title="Fiyat Listeleri" :meta="variants.length ? `${variants.length} varyant` : ''" class="block">
+				<OzEmptyState v-if="variants.length === 0" icon="tag" title="Varyant yok" description="Fiyat listesi tanımlamak için önce varyant gerekir." compact />
+				<div v-else class="table-scroll">
+					<table class="matrix-table">
+						<thead>
+							<tr>
+								<th class="col-variant">Varyant</th>
+								<th v-for="pt in priceTypes" :key="pt.value" class="col-wh">{{ pt.label }}</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr v-for="v in variants" :key="v.id">
+								<td class="col-variant">
+									<div class="variant-cell">
+										<div class="variant-info">
+											<span v-if="v.size" class="chip">{{ v.size }}</span>
+											<span v-if="v.colorName" class="chip">
+												<span class="dot" :style="{ background: v.colorHex }"></span>
+												{{ v.colorName }}
+											</span>
+										</div>
+										<span class="mono sku">{{ v.sku }}</span>
+									</div>
+								</td>
+								<td v-for="pt in priceTypes" :key="pt.value" class="col-wh">
+									<button class="cell-btn" :disabled="!canPriceList" title="Fiyat düzenle" @click="openPrice(v, pt.value)">
+										<template v-if="findPrice(v, pt.value)">
+											<span class="cell-qty">{{ money(findPrice(v, pt.value).price) }}</span>
+											<span v-if="!findPrice(v, pt.value).isActive" class="cell-reserved">pasif</span>
+										</template>
+										<span v-else class="dim">—</span>
+									</button>
+								</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+			</OzCard>
+		</template>
+
+		<!-- ══════════ PAZARYERİ ══════════ -->
+		<template v-if="activeTab === 'pazaryeri'">
+			<OzCard title="Pazaryeri Listeleme" :meta="marketplaces.length ? `${marketplaces.length} kanal` : ''" class="block">
+				<OzEmptyState v-if="marketplaces.length === 0" icon="store" title="Uygun pazaryeri yok" description="Bu ürünün kategorisi henüz bir pazaryeri eşlemesine bağlı değil." compact />
+				<div v-else class="mp-grid">
+					<button
+						v-for="mp in marketplaces"
+						:key="mp.key"
+						type="button"
+						class="mp-card"
+						@click="openListing(mp)"
+					>
+						<span class="mp-logo" :style="{ background: mp.color || '#888' }">{{ mp.logoText }}</span>
+						<div class="mp-info">
+							<span class="mp-name">{{ mp.name }}</span>
+							<OzPill :tone="listings[mp.key]?.isSent ? 'success' : 'neutral'">
+								{{ listings[mp.key]?.isSent ? 'Gönderildi' : 'Gönderilmedi' }}
+							</OzPill>
+						</div>
+						<span v-if="listings[mp.key]?.price" class="mp-price">{{ money(listings[mp.key].price) }}</span>
+					</button>
+				</div>
+			</OzCard>
+		</template>
+	</div>
+
+	<!-- Stok hareket drawer -->
+	<OzDrawer v-model:open="movementOpen" title="Stok Hareketi" :subtitle="product.name" icon="activity" tone="info">
+		<form class="form-stack" @submit.prevent="submitMovement">
+			<OzField label="Varyant" required :error="errors.product_variant_id">
+				<OzCombobox v-model="movement.product_variant_id" :options="variantOptions" placeholder="Varyant seçin" search-placeholder="Varyant ara…" empty-text="Sonuç bulunamadı" />
+			</OzField>
+			<OzField label="Depo" required :error="errors.warehouse_id">
+				<OzCombobox v-model="movement.warehouse_id" :options="warehouseOptions" placeholder="Depo seçin" search-placeholder="Depo ara…" empty-text="Sonuç bulunamadı" />
+			</OzField>
+			<OzField label="Hareket Tipi" required>
+				<div class="type-buttons">
+					<button
+						v-for="t in movementTypes"
+						:key="t.value"
+						type="button"
+						class="type-btn"
+						:class="{ active: movement.type === t.value }"
+						@click="movement.type = t.value"
+					><component :is="t.icon" :size="13" /> {{ t.label }}</button>
+				</div>
+			</OzField>
+			<OzField label="Miktar" required :error="errors.quantity" hint="Düzeltme için + (artır) veya − (azalt) işaretli sayı girin.">
+				<OzInput v-model="movement.quantity" type="number" min="1" />
+			</OzField>
+			<OzField label="Not" :error="errors.note">
+				<OzTextarea v-model="movement.note" :rows="2" placeholder="Açıklama (opsiyonel)..." />
+			</OzField>
+		</form>
+
+		<div class="field-guide">
+			<p class="fg-title">Alan Rehberi</p>
+			<dl>
+				<div v-for="item in MOVEMENT_FIELD_GUIDE" :key="item.term" class="fg-item">
+					<dt>{{ item.term }}</dt>
+					<dd>{{ item.desc }}</dd>
+				</div>
+			</dl>
+		</div>
+		<template #footer>
+			<OzButton variant="ghost" :disabled="busy" @click="movementOpen = false">İptal</OzButton>
+			<OzButton variant="primary" :loading="busy" @click="submitMovement">Kaydet</OzButton>
+		</template>
+	</OzDrawer>
+
+	<!-- Fiyat drawer -->
+	<OzDrawer v-model:open="priceOpen" title="Fiyat Listesi" :subtitle="priceForm.variantLabel" icon="tag" tone="info" size="sm">
+		<form class="form-stack" @submit.prevent="submitPrice">
+			<OzField label="Tip">
+				<OzInput :model-value="priceTypeLabel(priceForm.type)" readonly />
+			</OzField>
+			<OzField label="Fiyat" required :error="priceErrors.price">
+				<OzInput v-model="priceForm.price" type="number" min="0" step="0.01" suffix="₺" />
+			</OzField>
+			<OzField label="Para Birimi">
+				<OzSelect v-model="priceForm.currency" :options="currencyOptions" />
+			</OzField>
+			<OzSwitch v-model="priceForm.is_active" label="Aktif" />
+		</form>
+
+		<div class="field-guide">
+			<p class="fg-title">Alan Rehberi</p>
+			<dl>
+				<div v-for="item in PRICE_FIELD_GUIDE" :key="item.term" class="fg-item">
+					<dt>{{ item.term }}</dt>
+					<dd>{{ item.desc }}</dd>
+				</div>
+			</dl>
+		</div>
+		<template #footer>
+			<OzButton v-if="priceForm.id" variant="danger" :disabled="priceBusy" @click="deletePrice">Sil</OzButton>
+			<OzButton variant="ghost" :disabled="priceBusy" @click="priceOpen = false">İptal</OzButton>
+			<OzButton variant="primary" :loading="priceBusy" @click="submitPrice">Kaydet</OzButton>
+		</template>
+	</OzDrawer>
+
+	<!-- Pazaryeri listeleme drawer (paylaşılan component — API'si korunuyor) -->
+	<MarketplaceListingDrawer
+		:open="listingOpen"
+		:product-id="product.id"
+		:marketplace="activeMarketplace"
+		@close="listingOpen = false"
+		@saved="listingOpen = false"
+	/>
+</template>
+
+<style scoped>
+.block { margin-bottom: 14px; }
+.panels { display: flex; flex-direction: column; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.dim { color: var(--oz-muted); }
 .num { text-align: right; }
 
-/* Sekmeler */
-.tab-bar { display: flex; gap: 4px; border-bottom: 1px solid rgb(var(--color-border-rgb)); }
-.tab-btn {
-	display: inline-flex; align-items: center; gap: 6px;
-	padding: 9px 14px; background: none; border: none; border-bottom: 2px solid transparent;
-	font-family: inherit; font-size: 13px; font-weight: 600; color: rgb(var(--color-muted-rgb));
-	cursor: pointer; transition: all .15s; margin-bottom: -1px;
-}
-.tab-btn:hover { color: rgb(var(--color-ink-rgb)); }
-.tab-btn.active { color: rgb(var(--color-primary-rgb)); border-bottom-color: rgb(var(--color-primary-rgb)); }
+/* ── Stok özetleri (standart liste stats grid'i) ── */
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
-/* Genel bilgiler */
-.field-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px 20px; }
-.field dt { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: rgb(var(--color-muted-rgb)); margin-bottom: 3px; }
-.field dd { font-size: 13px; font-weight: 600; color: rgb(var(--color-ink-rgb)); }
+/* ── Genel bilgiler ── */
+.field-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px 20px; padding: 18px; }
+.field dt { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--oz-muted); margin-bottom: 3px; }
+.field dd { margin: 0; font-size: 13px; font-weight: 600; color: var(--oz-ink-soft); }
 
-.gallery-strip { display: flex; gap: 8px; flex-wrap: wrap; }
-.gallery-thumb { position: relative; width: 64px; height: 64px; border-radius: 8px; overflow: hidden; border: 1px solid rgb(var(--color-border-rgb)); }
+.gallery-strip { display: flex; gap: 8px; flex-wrap: wrap; padding: 14px 18px 18px; }
+.gallery-thumb { position: relative; width: 64px; height: 64px; border-radius: 8px; overflow: hidden; border: 1px solid var(--oz-border); }
 .gallery-thumb img { width: 100%; height: 100%; object-fit: cover; }
-.gallery-thumb.cover { border-color: rgb(var(--color-primary-rgb)); }
-.cover-badge { position: absolute; bottom: 0; left: 0; right: 0; background: rgb(var(--color-primary-rgb) / .85); color: #fff; font-size: 8.5px; font-weight: 700; text-align: center; padding: 1px 0; }
+.gallery-thumb.cover { border-color: var(--oz-accent); }
+.cover-badge { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(var(--oz-accent-rgb), .85); color: #fff; font-size: 8.5px; font-weight: 700; text-align: center; padding: 1px 0; }
 
-/* Stat kutuları */
-.stat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-@media (min-width: 900px) { .stat-grid { grid-template-columns: repeat(4, 1fr); } }
-
-/* Matris tablo */
+/* ── Matris tablo (tıklanabilir hücreler — özel tablo + token) ── */
 .table-scroll { overflow-x: auto; }
-.matrix-table, .movement-table { width: 100%; border-collapse: separate; border-spacing: 0; }
-.matrix-table thead tr, .movement-table thead tr { background: rgb(var(--color-bg-rgb) / .6); }
-.matrix-table th, .movement-table th {
-	text-align: left; padding: 10px 14px; font-size: 10.5px; font-weight: 700; color: rgb(var(--color-muted-rgb));
-	border-bottom: 1px solid rgb(var(--color-border-rgb)); text-transform: uppercase; letter-spacing: .04em; white-space: nowrap;
+.matrix-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.matrix-table thead tr { background: var(--oz-surface-2); }
+.matrix-table th {
+	text-align: left; padding: 10px 14px; font-size: 10.5px; font-weight: 700; color: var(--oz-muted);
+	border-bottom: 1px solid var(--oz-border); text-transform: uppercase; letter-spacing: .04em; white-space: nowrap;
 }
-.matrix-table td, .movement-table td {
-	padding: 8px 14px; font-size: 13px; color: rgb(var(--color-ink-rgb)); border-bottom: 1px solid rgb(var(--color-border-rgb) / .6); vertical-align: middle;
+.matrix-table td {
+	padding: 8px 14px; font-size: 13px; color: var(--oz-ink); border-bottom: 1px solid var(--oz-border-soft); vertical-align: middle;
 }
-.matrix-table tr:last-child td, .movement-table tr:last-child td { border-bottom: none; }
-.matrix-table tr:hover td, .movement-table tr:hover td { background: rgb(var(--color-bg-rgb) / .4); }
+.matrix-table tr:last-child td { border-bottom: none; }
+.matrix-table tbody tr:hover td { background: var(--oz-surface-2); }
 
 .col-variant { min-width: 200px; }
 .col-wh { text-align: center; min-width: 110px; }
@@ -647,66 +593,61 @@ function openListing(mp) {
 
 .variant-cell { display: flex; flex-direction: column; gap: 3px; }
 .variant-info { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
-.chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px; background: rgb(var(--color-bg-rgb)); color: rgb(var(--color-muted-rgb)); border-radius: 6px; font-size: 10.5px; font-weight: 600; }
-.chip .dot { width: 7px; height: 7px; border-radius: 50%; border: 1px solid rgb(var(--color-border-rgb)); }
-.sku { font-size: 10.5px; color: rgb(var(--color-muted-rgb)); }
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px; background: var(--oz-surface-2); color: var(--oz-muted); border-radius: 6px; font-size: 10.5px; font-weight: 600; }
+.chip .dot { width: 7px; height: 7px; border-radius: 50%; border: 1px solid var(--oz-border-strong); }
+.sku { font-size: 10.5px; color: var(--oz-muted); }
 
 .cell-btn {
 	display: flex; flex-direction: column; align-items: center; gap: 1px; margin: 0 auto;
 	background: none; border: none; cursor: pointer; padding: 4px 10px; border-radius: 7px; transition: background .15s;
+	font: inherit; color: var(--oz-ink);
 }
-.cell-btn:hover:not(:disabled) { background: rgb(var(--color-primary-soft-rgb)); }
+.cell-btn:hover:not(:disabled) { background: var(--oz-accent-soft); }
 .cell-btn:disabled { cursor: default; }
-.cell-qty { font-weight: 700; font-family: 'SF Mono', Menlo, Consolas, monospace; }
-.cell-reserved { font-size: 9.5px; color: rgb(var(--color-muted-rgb)); }
-.cell-critical .cell-qty { color: rgb(var(--color-warning-rgb)); }
+.cell-btn:focus-visible { outline: 2px solid var(--oz-accent); outline-offset: 1px; }
+.cell-qty { font-weight: 700; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.cell-reserved { font-size: 9.5px; color: var(--oz-muted); }
+.cell-critical .cell-qty { color: var(--oz-warning); }
 
-.text-pos { color: rgb(var(--color-success-rgb)); }
-.text-neg { color: rgb(var(--color-danger-rgb)); }
-.note-cell { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.text-pos { color: var(--oz-success); }
+.text-neg { color: var(--oz-danger); }
+.note-cell { display: inline-block; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
 
-/* Pazaryeri kartları */
-.mp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+/* ── Pazaryeri kartları (kit karşılığı yok, token ile) ── */
+.mp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; padding: 18px; }
 .mp-card {
 	display: flex; align-items: center; gap: 10px; padding: 12px; text-align: left;
-	background: var(--color-surface); border: 1px solid rgb(var(--color-border-rgb)); border-radius: 10px;
-	cursor: pointer; transition: all .15s; font-family: inherit;
+	background: var(--oz-surface); border: 1px solid var(--oz-border); border-radius: 10px;
+	cursor: pointer; transition: border-color .15s, box-shadow .15s; font: inherit;
 }
-.mp-card:hover { border-color: rgb(var(--color-primary-rgb) / .4); box-shadow: 0 1px 6px rgb(var(--color-ink-rgb) / .06); }
+.mp-card:hover { border-color: rgba(var(--oz-accent-rgb), .4); box-shadow: var(--oz-shadow-sm); }
+.mp-card:focus-visible { outline: 2px solid var(--oz-accent); outline-offset: 1px; }
 .mp-logo { width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 12px; flex-shrink: 0; }
-.mp-info { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
-.mp-name { font-size: 13px; font-weight: 700; color: rgb(var(--color-ink-rgb)); }
-.mp-price { font-size: 12px; font-weight: 700; color: rgb(var(--color-ink-rgb)); font-family: 'SF Mono', Menlo, Consolas, monospace; }
+.mp-info { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; flex: 1; min-width: 0; }
+.mp-name { font-size: 13px; font-weight: 700; color: var(--oz-ink-soft); }
+.mp-price { font-size: 12px; font-weight: 700; color: var(--oz-ink-soft); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 
-/* Form */
-.form-grid { display: flex; flex-direction: column; gap: 14px; }
-.form-row { display: flex; flex-direction: column; gap: 6px; }
-.form-label { font-size: 12px; font-weight: 600; color: rgb(var(--color-ink-rgb)); }
-.form-label .req { color: rgb(var(--color-danger-rgb)); }
-.form-input { padding: 9px 12px; border: 1px solid rgb(var(--color-border-rgb)); border-radius: 8px; font-family: inherit; font-size: 13px; color: rgb(var(--color-ink-rgb)); background: var(--color-surface); outline: none; transition: border-color .15s; }
-.form-input:focus { border-color: rgb(var(--color-primary-rgb)); }
-.form-hint { font-size: 11px; color: rgb(var(--color-muted-rgb)); }
-.form-error { font-size: 11.5px; color: rgb(var(--color-danger-rgb)); }
-.lst-readonly { padding: 9px 12px; border: 1px solid rgb(var(--color-border-rgb)); border-radius: 8px; font-size: 13px; color: rgb(var(--color-muted-rgb)); background: rgb(var(--color-bg-rgb) / .5); }
-.check-inline { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: rgb(var(--color-ink-rgb)); cursor: pointer; }
-
+/* ── Drawer formları ── */
+.form-stack { display: flex; flex-direction: column; gap: 14px; }
 .type-buttons { display: flex; gap: 6px; }
 .type-btn {
 	display: inline-flex; align-items: center; justify-content: center; gap: 5px;
 	flex: 1; padding: 10px 14px;
-	background: var(--color-surface); border: 1.5px solid rgb(var(--color-border-rgb));
-	border-radius: 9px; font-family: inherit; font-size: 12.5px;
-	font-weight: 600; color: rgb(var(--color-muted-rgb)); cursor: pointer;
-	transition: all .15s;
+	background: var(--oz-surface); border: 1px solid var(--oz-border);
+	border-radius: 9px; font: inherit; font-size: 12.5px;
+	font-weight: 600; color: var(--oz-muted); cursor: pointer;
+	transition: border-color .15s, background .15s, color .15s;
 }
-.type-btn:hover { border-color: rgb(var(--color-primary-rgb) / .4); }
-.type-btn.active { border-color: rgb(var(--color-primary-rgb)); background: rgb(var(--color-primary-soft-rgb)); color: rgb(var(--color-primary-rgb)); }
+.type-btn:hover { border-color: rgba(var(--oz-accent-rgb), .4); }
+.type-btn.active { border-color: var(--oz-accent); background: var(--oz-accent-soft); color: var(--oz-accent); }
+.type-btn:focus-visible { outline: 2px solid var(--oz-accent); outline-offset: 1px; }
 
-/* Alan rehberi (drawer form'larının altında) */
-.field-guide { border-top: 1px solid rgb(var(--color-border-rgb)); padding-top: 12px; margin-top: 2px; }
-.fg-title { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: rgb(var(--color-muted-rgb)); margin-bottom: 8px; }
+/* ── Alan rehberi ── */
+.field-guide { border-top: 1px solid var(--oz-border); padding-top: 12px; margin-top: 16px; }
+.fg-title { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--oz-muted); margin: 0 0 8px; }
+.fg-title + dl { margin: 0; }
 .fg-item { margin-bottom: 8px; }
 .fg-item:last-child { margin-bottom: 0; }
-.fg-item dt { font-size: 12px; font-weight: 600; color: rgb(var(--color-ink-rgb)); }
-.fg-item dd { font-size: 11.5px; color: rgb(var(--color-muted-rgb)); margin-top: 1px; }
+.fg-item dt { font-size: 12px; font-weight: 600; color: var(--oz-ink-soft); }
+.fg-item dd { font-size: 11.5px; color: var(--oz-muted); margin: 1px 0 0; }
 </style>

@@ -1,107 +1,15 @@
-<template>
-	<Head title="Siparişler" />
-	<div class="page-orders">
-		<Breadcrumb
-			:items="[
-				{ label: 'Ana Sayfa', to: '/workflow', icon: 'home' },
-				{ label: 'Siparişler' },
-			]"
-		/>
-
-		<PageHeader title="Siparişler">
-			<template #subtitle><strong>{{ orders.total }}</strong> sipariş kayıtlı</template>
-		</PageHeader>
-
-		<!-- Durum filtre chip'leri -->
-		<div class="status-chips">
-			<button
-				class="chip"
-				:class="{ active: !localFilters.status }"
-				@click="setStatus('')"
-			>Tümü</button>
-			<button
-				v-for="(label, key) in statuses"
-				:key="key"
-				class="chip"
-				:class="[{ active: localFilters.status === key }, `chip-${key}`]"
-				@click="setStatus(key)"
-			>{{ label }}</button>
-		</div>
-
-		<div class="filters-row">
-			<input
-				v-model="localFilters.order_no"
-				type="text"
-				class="filter-input"
-				placeholder="Sipariş no ara…"
-				@keyup.enter="applyFilters"
-			/>
-			<select v-model="localFilters.tenant_id" class="filter-input" @change="applyFilters">
-				<option value="">Tüm Bayiler</option>
-				<option v-for="t in tenants" :key="t.id" :value="t.id">{{ t.name }} ({{ t.code }})</option>
-			</select>
-			<input v-model="localFilters.date_from" type="date" class="filter-input" @change="applyFilters" />
-			<input v-model="localFilters.date_to" type="date" class="filter-input" @change="applyFilters" />
-			<Button variant="ghost" @click="applyFilters">Filtrele</Button>
-		</div>
-
-		<div class="card">
-			<div class="table-scroll">
-			<table class="data-table">
-				<thead>
-					<tr>
-						<th>Sipariş No</th>
-						<th>Bayi</th>
-						<th>Tarih</th>
-						<th>Ürün</th>
-						<th>Tutar</th>
-						<th>Durum</th>
-						<th></th>
-					</tr>
-				</thead>
-				<tbody>
-					<tr v-if="orders.data.length === 0">
-						<td colspan="7" class="empty">Sipariş bulunamadı.</td>
-					</tr>
-					<tr v-for="o in orders.data" :key="o.id">
-						<td class="mono">{{ o.order_no }}</td>
-						<td>{{ o.tenant?.name ?? '—' }}</td>
-						<td>{{ o.created_at?.slice(0, 10) }}</td>
-						<td class="mono">{{ o.item_count }}</td>
-						<td class="mono">{{ formatMoney(o.total) }}</td>
-						<td><span class="status-pill" :class="`status-${o.status}`">{{ statuses[o.status] ?? o.status }}</span></td>
-						<td><Link :href="`/orders/${o.id}`" class="btn-ghost">Detay</Link></td>
-					</tr>
-				</tbody>
-			</table>
-			</div>
-		</div>
-
-		<nav class="pagination" v-if="orders.last_page > 1">
-			<Link
-				v-for="link in orders.links"
-				:key="link.label"
-				:href="link.url ?? '#'"
-				v-html="link.label"
-				:class="['page-link', { active: link.active, disabled: !link.url }]"
-			/>
-		</nav>
-	</div>
-</template>
-
 <script setup>
-import { reactive } from 'vue'
+import { reactive, computed } from 'vue'
 import { Head, Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import Breadcrumb from '@/Components/Breadcrumb.vue'
-import PageHeader from '@/Components/PageHeader.vue'
-import Button from '@/Components/Button.vue'
+import { OzPageHeader, OzModuleTabs, OzStatTile, OzCard, OzTable, OzPill, OzInput, OzSelect, OzButton } from '@/Components/Oz'
 
 defineOptions({ layout: AppLayout })
 
 const props = defineProps({
 	orders: { type: Object, required: true },
 	statuses: { type: Object, default: () => ({}) },
+	statusCounts: { type: Object, default: () => ({}) },
 	tenants: { type: Array, default: () => [] },
 	filters: { type: Object, default: () => ({}) },
 })
@@ -113,6 +21,31 @@ const localFilters = reactive({
 	date_from: props.filters.date_from ?? '',
 	date_to: props.filters.date_to ?? '',
 })
+
+const tenantOptions = [{ value: '', label: 'Tüm Bayiler' }, ...props.tenants.map(t => ({ value: t.id, label: `${t.name} (${t.code})` }))]
+
+const columns = [
+	{ key: 'order_no', label: 'Sipariş No' },
+	{ key: 'tenant', label: 'Bayi' },
+	{ key: 'created_at', label: 'Tarih' },
+	{ key: 'item_count', label: 'Ürün', align: 'right' },
+	{ key: 'total', label: 'Tutar', align: 'right', class: 'oz-cell-amount' },
+	{ key: 'status', label: 'Durum' },
+	{ key: 'actions', label: '', align: 'right', width: '80px', searchable: false },
+]
+
+const STATUS_TONE = { pending: 'warning', confirmed: 'info', preparing: 'accent', shipped: 'info', delivered: 'success', cancelled: 'danger' }
+
+// Sayımlar durum filtresinden bağımsız (diğer filtreler uygulanmış) gelir.
+const countOf = (key) => props.statusCounts?.[key] ?? 0
+const totalCount = computed(() => Object.values(props.statusCounts ?? {}).reduce((a, b) => a + b, 0))
+
+const stats = computed(() => [
+	{ key: 'total', label: 'Toplam Sipariş', value: totalCount.value, icon: 'receipt', tone: 'accent' },
+	{ key: 'pending', label: 'Onay Bekleyen', value: countOf('pending'), icon: 'clock', tone: 'warning' },
+	{ key: 'shipped', label: 'Kargoda', value: countOf('shipped'), icon: 'truck', tone: 'info' },
+	{ key: 'delivered', label: 'Teslim Edildi', value: countOf('delivered'), icon: 'check', tone: 'success' },
+])
 
 function setStatus(key) {
 	localFilters.status = key
@@ -132,29 +65,88 @@ function formatMoney(v) {
 }
 </script>
 
+<template>
+	<Head title="Siparişler" />
+
+	<OzPageHeader title="Siparişler">
+		<template #subtitle><b>{{ orders.total }}</b> sipariş kayıtlı</template>
+	</OzPageHeader>
+	<OzModuleTabs />
+
+	<div class="stats">
+		<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" />
+	</div>
+
+	<div class="status-chips">
+		<button class="chip" :class="{ active: !localFilters.status }" type="button" @click="setStatus('')">Tümü <span class="chip-count">{{ totalCount }}</span></button>
+		<button
+			v-for="(label, key) in statuses"
+			:key="key"
+			class="chip"
+			:class="{ active: localFilters.status === key }"
+			type="button"
+			@click="setStatus(key)"
+		>{{ label }} <span class="chip-count">{{ countOf(key) }}</span></button>
+	</div>
+
+	<div class="filters-row">
+		<OzInput v-model="localFilters.order_no" class="f-order" placeholder="Sipariş no ara…" icon="search" @keyup.enter="applyFilters" />
+		<OzSelect v-model="localFilters.tenant_id" class="f-tenant" :options="tenantOptions" @update:modelValue="applyFilters" />
+		<OzInput v-model="localFilters.date_from" type="date" class="f-date" @change="applyFilters" />
+		<OzInput v-model="localFilters.date_to" type="date" class="f-date" @change="applyFilters" />
+		<OzButton icon="filter" @click="applyFilters">Filtrele</OzButton>
+	</div>
+
+	<OzCard>
+		<OzTable :columns="columns" :rows="orders.data" row-key="id" manual empty-title="Sipariş bulunamadı" min-width="760px">
+			<template #cell-order_no="{ value }"><span class="mono">{{ value }}</span></template>
+			<template #cell-tenant="{ row }">{{ row.tenant?.name ?? '—' }}</template>
+			<template #cell-created_at="{ value }">{{ value?.slice(0, 10) }}</template>
+			<template #cell-item_count="{ value }"><span class="mono">{{ value }}</span></template>
+			<template #cell-total="{ value }"><span class="mono">{{ formatMoney(value) }}</span></template>
+			<template #cell-status="{ row }">
+				<OzPill :tone="STATUS_TONE[row.status] ?? 'neutral'">{{ statuses[row.status] ?? row.status }}</OzPill>
+			</template>
+			<template #cell-actions="{ row }">
+				<Link :href="`/orders/${row.id}`" class="detail-link">Detay</Link>
+			</template>
+		</OzTable>
+	</OzCard>
+
+	<nav v-if="orders.last_page > 1" class="pagination">
+		<Link
+			v-for="link in orders.links"
+			:key="link.label"
+			:href="link.url ?? '#'"
+			v-html="link.label"
+			:class="['page-link', { active: link.active, disabled: !link.url }]"
+		/>
+	</nav>
+</template>
+
 <style scoped>
+.mono { font-family: ui-monospace, monospace; font-size: 12px; }
+
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
 .status-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
-.chip { padding: 6px 12px; border-radius: 999px; border: 1px solid #ebebf0; background: #fff; font-size: 12px; font-weight: 600; color: #555; cursor: pointer; }
-.chip.active { background: #4338ca; color: #fff; border-color: #4338ca; }
-.filters-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
-.filter-input { padding: 7px 10px; border-radius: 8px; border: 1px solid #ebebf0; font-size: 13px; background: #fff; }
-.btn-ghost { color: #4338ca; text-decoration: none; padding: 4px 10px; border-radius: 6px; font-size: 12px; }
-.btn-ghost:hover { background: #eef2ff; }
-.mono { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; }
-.card { background: #fff; border-radius: 16px; border: 1px solid #ebebf0; overflow: hidden; }
-.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.data-table th, .data-table td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #f5f5f8; }
-.data-table th { font-size: 11px; text-transform: uppercase; color: #888; background: #f8f8fc; }
-.empty { text-align: center; color: #aaa; padding: 32px; font-style: italic; }
-.status-pill { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; background: #f0f0f5; color: #555; }
-.status-pending { background: #fef3c7; color: #92400e; }
-.status-confirmed { background: #dbeafe; color: #1e40af; }
-.status-preparing { background: #ede9fe; color: #5b21b6; }
-.status-shipped { background: #cffafe; color: #155e75; }
-.status-delivered { background: #dcfce7; color: #166534; }
-.status-cancelled { background: #fee2e2; color: #991b1b; }
-.pagination { display: flex; gap: 4px; margin-top: 12px; }
-.page-link { padding: 6px 10px; border-radius: 6px; font-size: 12px; color: #555; text-decoration: none; background: #fff; border: 1px solid #ebebf0; }
-.page-link.active { background: #4338ca; color: #fff; border-color: #4338ca; }
-.page-link.disabled { color: #ccc; pointer-events: none; }
+.chip { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--oz-border); background: var(--oz-surface); font-size: 12px; font-weight: 600; color: var(--oz-muted); cursor: pointer; transition: all .15s; }
+.chip:hover { border-color: var(--oz-border-strong); }
+.chip.active { background: var(--oz-accent); color: #fff; border-color: var(--oz-accent); }
+.chip-count { display: inline-block; min-width: 18px; margin-left: 4px; padding: 0 5px; border-radius: 999px; background: var(--oz-surface-2); color: var(--oz-muted); font-size: 11px; text-align: center; }
+.chip.active .chip-count { background: rgba(255, 255, 255, .22); color: #fff; }
+
+.filters-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 16px; }
+.f-order { flex: 1 1 200px; max-width: 260px; }
+.f-tenant { width: 200px; }
+.f-date { width: 150px; }
+
+.detail-link { color: var(--oz-accent); text-decoration: none; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; }
+.detail-link:hover { background: var(--oz-accent-soft); }
+
+.pagination { display: flex; gap: 4px; margin-top: 12px; flex-wrap: wrap; }
+.page-link { padding: 6px 10px; border-radius: 6px; font-size: 12px; color: var(--oz-muted); text-decoration: none; background: var(--oz-surface); border: 1px solid var(--oz-border); }
+.page-link.active { background: var(--oz-accent); color: #fff; border-color: var(--oz-accent); }
+.page-link.disabled { color: var(--oz-muted-2, var(--oz-muted)); pointer-events: none; opacity: .5; }
 </style>

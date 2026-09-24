@@ -1,199 +1,73 @@
-<template>
-	<Head title="Süper Admin · Panel" />
-	<div class="page-sa-dashboard">
-		<Breadcrumb
-			:items="[
-				{ label: 'Ana Sayfa', href: '/dashboard'},
-				{ label: 'Süper Admin' },
-			]"
-		/>
-
-		<PageHeader
-			badge=""
-			title="Sistem Paneli"
-			subtitle="Platformun canlı durumu, kullanım sayıları ve hızlı erişim."
-		>
-			<template #actions>
-				<StatusIndicator :status="systemFetchedAt ? 'online' : 'updating'" :label="systemFetchedAt ? 'Sistem Aktif' : 'Yükleniyor…'" />
-				<Button variant="secondary" size="sm" with-icon @click="router.visit('/superadmin/settings')">
-					<template #leading><Settings :size="13" /></template>
-					Sistem Ayarları
-				</Button>
-			</template>
-		</PageHeader>
-
-		<!-- Kullanım sayıları -->
-		<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 mb-6">
-			<StatWidget :icon="Building2" :value="fmt(liveSystem.totalTenants)" title="İş Ortağı" color="primary" />
-			<StatWidget :icon="UsersRound" :value="fmt(liveSystem.totalUsers)" title="Kullanıcı" color="success" />
-			<StatWidget :icon="ShoppingCart" :value="fmt(liveSystem.totalOrders)" title="Sipariş" color="info" />
-			<StatWidget :icon="Clock" :value="fmt(liveSystem.queueJobsPending)" title="Bekleyen iş" color="warning" />
-			<Link href="/superadmin/failed-jobs" class="block">
-				<StatWidget :icon="AlertCircle" :value="fmt(liveSystem.queueJobsFailed)" title="Başarısız iş" :color="liveSystem.queueJobsFailed > 0 ? 'danger' : 'neutral'" />
-			</Link>
-		</div>
-
-		<div class="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
-			<!-- Canlı metrikler -->
-			<Card title="Kullanım Metrikleri" class="lg:col-span-2" body-class="p-3 sm:p-4 md:p-6">
-				<template #actions>
-					<span class="text-xs text-muted" v-if="!liveSystem.liveMetrics && !systemFetchedAt">İlk ölçüm bekleniyor…</span>
-					<span class="text-xs text-danger" v-else-if="systemFetchError">Canlı veri alınamadı, son bilinen değerler gösteriliyor</span>
-				</template>
-
-				<div class="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3.5">
-					<div class="bg-canvas rounded-lg p-3">
-						<div class="flex items-baseline justify-between mb-2">
-							<span class="text-xs text-muted">CPU</span>
-							<strong class="text-[15px] font-bold text-ink">%{{ cpuPct }}</strong>
-						</div>
-						<ProgressBar :value="cpuPct" :color="metricColor(cpuPct)" />
-					</div>
-					<div class="bg-canvas rounded-lg p-3">
-						<div class="flex items-baseline justify-between mb-2">
-							<span class="text-xs text-muted">RAM</span>
-							<strong class="text-[15px] font-bold text-ink">%{{ ramPct }}</strong>
-						</div>
-						<ProgressBar :value="ramPct" :color="metricColor(ramPct)" />
-						<div class="text-[11px] text-muted mt-1.5">{{ liveSystem.memoryUsageMB }} / {{ liveSystem.memoryTotalMB }} MB</div>
-					</div>
-					<div class="bg-canvas rounded-lg p-3">
-						<div class="flex items-baseline justify-between mb-2">
-							<span class="text-xs text-muted">Disk</span>
-							<strong class="text-[15px] font-bold text-ink">%{{ diskPct }}</strong>
-						</div>
-						<ProgressBar :value="diskPct" :color="metricColor(diskPct)" />
-						<div class="text-[11px] text-muted mt-1.5">{{ liveSystem.diskUsageGB }} / {{ liveSystem.diskTotalGB }} GB</div>
-					</div>
-					<div class="bg-canvas rounded-lg p-3">
-						<div class="flex items-baseline justify-between mb-2">
-							<span class="text-xs text-muted">Çalışma Süresi</span>
-							<strong class="text-[15px] font-bold text-ink">{{ liveSystem.uptime }}</strong>
-						</div>
-						<div class="text-[11px] text-muted mt-1.5">Sunucu: {{ liveSystem.serverOs }}</div>
-					</div>
-				</div>
-
-				<div class="flex items-center gap-3 mt-4 p-3 rounded-lg border border-line">
-					<span class="w-2 h-2 rounded-full flex-shrink-0" :class="reverbInfo.running ? 'bg-success' : 'bg-danger'"></span>
-					<div class="flex-1 min-w-0">
-						<div class="text-xs font-semibold text-ink">Reverb (WebSocket)</div>
-						<div class="text-[11px] text-muted font-mono">{{ reverbInfo.host }}:{{ reverbInfo.port }}</div>
-					</div>
-					<Badge :color="reverbInfo.running ? 'success' : 'danger'" variant="tonal" :label="reverbInfo.running ? 'Çalışıyor' : 'Kapalı'" />
-				</div>
-			</Card>
-
-			<!-- Yazılım sürümleri -->
-			<Card title="Yazılım Sürümleri" class="lg:col-span-1" body-class="p-3 sm:p-4 md:p-6 divide-y divide-line">
-				<div class="flex justify-between items-center py-2 first:pt-0 last:pb-0">
-					<span class="text-xs text-muted">PHP</span>
-					<span class="text-xs font-mono text-ink">{{ liveSystem.phpVersion }}</span>
-				</div>
-				<div class="flex justify-between items-center py-2 first:pt-0 last:pb-0">
-					<span class="text-xs text-muted">Laravel</span>
-					<span class="text-xs font-mono text-ink">{{ liveSystem.laravelVersion }}</span>
-				</div>
-				<div class="flex justify-between items-center py-2 first:pt-0 last:pb-0">
-					<span class="text-xs text-muted">Inertia.js</span>
-					<span class="text-xs font-mono text-ink">{{ liveSystem.inertiaVersion }}</span>
-				</div>
-				<div class="flex justify-between items-center py-2 first:pt-0 last:pb-0">
-					<span class="text-xs text-muted">Vue.js</span>
-					<span class="text-xs font-mono text-ink">{{ liveSystem.vueVersion }}</span>
-				</div>
-				<div class="flex justify-between items-center py-2 first:pt-0 last:pb-0">
-					<span class="text-xs text-muted">Veritabanı</span>
-					<span class="text-xs font-mono text-ink">{{ liveSystem.mysqlVersion }}</span>
-				</div>
-				<div class="flex justify-between items-center py-2 first:pt-0 last:pb-0">
-					<span class="text-xs text-muted">Redis</span>
-					<span class="text-xs font-mono text-ink">{{ liveSystem.redisVersion }}</span>
-				</div>
-				<div class="flex justify-between items-center py-2 first:pt-0 last:pb-0">
-					<span class="text-xs text-muted">Web Sunucu</span>
-					<span class="text-xs font-mono text-ink">{{ liveSystem.webServer }}</span>
-				</div>
-			</Card>
-		</div>
-
-		<!-- Hızlı erişim -->
-		<Card title="Hızlı Erişim" body-class="p-3 sm:p-4 md:p-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
-			<QuickActionWidget
-				:icon="Settings"
-				title="Sistem Ayarları"
-				subtitle="Genel, güvenlik, e-posta, ödeme ve performans"
-				color="primary"
-				@click="router.visit('/superadmin/settings')"
-			/>
-			<QuickActionWidget
-				:icon="Lock"
-				title="Roller & İzinler"
-				subtitle="Rol matrisi ve izin yönetimi"
-				color="primary"
-				@click="router.visit('/superadmin/settings')"
-			/>
-		</Card>
-	</div>
-</template>
-
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { Head, Link, router } from '@inertiajs/vue3'
-import { Settings, Building2, UsersRound, ShoppingCart, Clock, AlertCircle, Lock } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import Breadcrumb from '@/Components/Breadcrumb.vue'
-import PageHeader from '@/Components/PageHeader.vue'
-import Card from '@/Components/Card.vue'
-import Button from '@/Components/Button.vue'
-import StatWidget from '@/Components/StatWidget.vue'
-import StatusIndicator from '@/Components/StatusIndicator.vue'
-import ProgressBar from '@/Components/ProgressBar.vue'
-import Badge from '@/Components/Badge.vue'
-import QuickActionWidget from '@/Components/QuickActionWidget.vue'
+import {
+	OzPageHeader, OzModuleTabs, OzStatTile, OzCard, OzProgress, OzPill, OzButton, OzAlert, OzSettingRow,
+} from '@/Components/Oz'
 
+// Süper admin · sistem paneli (Oz kit).
+// İlk render sunucunun staticPayload()'ı ile gelir; canlı metrikler 5 sn'de bir /superadmin/system-info'dan yenilenir.
 defineOptions({ layout: AppLayout })
 
 const props = defineProps({
 	system: { type: Object, required: true },
 })
 
-/* ── Canlı sistem metrikleri ── */
+/* ── canlı sistem metrikleri ── */
 const liveSystem = ref({ ...props.system })
 const systemFetchedAt = ref(null)
 const systemFetchError = ref(false)
 let systemTimer = null
 const SYSTEM_POLL_MS = 5000
 
+const pct = (used, total) => {
+	const t = Number(total) || 0
+	return t > 0 ? Math.round(((Number(used) || 0) / t) * 1000) / 10 : 0
+}
 const cpuPct = computed(() => Number(liveSystem.value.cpuUsagePct) || 0)
-const ramPct = computed(() => {
-	const total = Number(liveSystem.value.memoryTotalMB) || 0
-	const used = Number(liveSystem.value.memoryUsageMB) || 0
-	if (total <= 0) return 0
-	return Math.round((used / total) * 1000) / 10
-})
-const diskPct = computed(() => {
-	const total = Number(liveSystem.value.diskTotalGB) || 0
-	const used = Number(liveSystem.value.diskUsageGB) || 0
-	if (total <= 0) return 0
-	return Math.round((used / total) * 1000) / 10
-})
+const ramPct = computed(() => pct(liveSystem.value.memoryUsageMB, liveSystem.value.memoryTotalMB))
+const diskPct = computed(() => pct(liveSystem.value.diskUsageGB, liveSystem.value.diskTotalGB))
 
-const reverbInfo = computed(() => ({
+// <60 iyi · <85 dikkat · üstü kritik
+const toneOf = (p) => (p < 60 ? 'ok' : p < 85 ? 'warn' : 'over')
+
+const metrics = computed(() => [
+	{ key: 'cpu', label: 'CPU', value: cpuPct.value, note: '' },
+	{ key: 'ram', label: 'RAM', value: ramPct.value, note: `${liveSystem.value.memoryUsageMB} / ${liveSystem.value.memoryTotalMB} MB` },
+	{ key: 'disk', label: 'Disk', value: diskPct.value, note: `${liveSystem.value.diskUsageGB} / ${liveSystem.value.diskTotalGB} GB` },
+])
+
+const reverb = computed(() => ({
 	running: !!liveSystem.value.reverb?.running,
 	host: liveSystem.value.reverb?.host ?? '127.0.0.1',
 	port: liveSystem.value.reverb?.port ?? 8080,
 }))
 
-function fmt(n) {
-	return Number(n || 0).toLocaleString('tr-TR')
-}
+const versions = computed(() => [
+	['PHP', liveSystem.value.phpVersion],
+	['Laravel', liveSystem.value.laravelVersion],
+	['Inertia.js', liveSystem.value.inertiaVersion],
+	['Vue.js', liveSystem.value.vueVersion],
+	['Veritabanı', liveSystem.value.mysqlVersion],
+	['Redis', liveSystem.value.redisVersion],
+	['Web sunucu', liveSystem.value.webServer],
+])
 
-function metricColor(pct) {
-	if (pct < 60) return 'success'
-	if (pct < 85) return 'warning'
-	return 'danger'
-}
+const failed = computed(() => Number(liveSystem.value.queueJobsFailed) || 0)
+const stats = computed(() => [
+	{ key: 'tenants', label: 'İş ortağı', value: liveSystem.value.totalTenants, icon: 'building', tone: 'accent' },
+	{ key: 'users', label: 'Kullanıcı', value: liveSystem.value.totalUsers, icon: 'users', tone: 'success' },
+	{ key: 'orders', label: 'Sipariş', value: liveSystem.value.totalOrders, icon: 'cart', tone: 'info' },
+	{ key: 'pending', label: 'Bekleyen iş', value: liveSystem.value.queueJobsPending, icon: 'clock', tone: 'warning' },
+	{ key: 'failed', label: 'Başarısız iş', value: failed.value, icon: 'alert', tone: failed.value > 0 ? 'danger' : 'info', href: '/superadmin/failed-jobs' },
+])
+
+const status = computed(() => {
+	if (systemFetchError.value) return { tone: 'danger', label: 'Canlı veri alınamadı' }
+	if (!systemFetchedAt.value) return { tone: 'neutral', label: 'Ölçülüyor…' }
+	return { tone: 'success', label: 'Sistem aktif' }
+})
 
 async function fetchSystemInfo() {
 	try {
@@ -204,8 +78,7 @@ async function fetchSystemInfo() {
 			systemFetchError.value = false
 		}
 	} catch (e) {
-		// Son bilinen değerler ekranda kalır — ama artık bu bir hata olarak işaretlenir,
-		// sessizce "sanki her şey yolunda" gösterilmez (bkz. sa-panel-sub-error).
+		// Son bilinen değerler ekranda kalır ama hata açıkça gösterilir (sessizce "her şey yolunda" denmez).
 		systemFetchError.value = true
 	}
 }
@@ -214,9 +87,110 @@ onMounted(() => {
 	fetchSystemInfo()
 	systemTimer = setInterval(fetchSystemInfo, SYSTEM_POLL_MS)
 })
-
 onBeforeUnmount(() => {
 	if (systemTimer) clearInterval(systemTimer)
 	systemTimer = null
 })
+
+const quickLinks = [
+	{ icon: 'settings', title: 'Sistem ayarları', description: 'Genel, güvenlik, e-posta, ödeme ve performans', to: '/superadmin/settings' },
+	{ icon: 'shield', title: 'Roller & izinler', description: 'Rol matrisi ve izin yönetimi', to: '/superadmin/settings?section=roles' },
+	{ icon: 'sliders', title: 'Menü yönetimi', description: 'Sol şerit ve alt menüler', to: '/superadmin/menus' },
+	{ icon: 'users', title: 'Kullanıcılar', description: 'Hesaplar, roller ve erişim', to: '/superadmin/users' },
+]
 </script>
+
+<template>
+	<Head title="Süper Admin · Panel" />
+
+	<OzPageHeader title="Sistem Paneli" subtitle="Platformun canlı durumu, kullanım sayıları ve hızlı erişim">
+		<template #actions>
+			<OzPill :tone="status.tone">{{ status.label }}</OzPill>
+			<OzButton icon="settings" @click="router.visit('/superadmin/settings')">Sistem ayarları</OzButton>
+		</template>
+	</OzPageHeader>
+	<OzModuleTabs />
+
+	<OzAlert v-if="systemFetchError" tone="danger" title="Canlı veri alınamadı" class="mb">
+		Son bilinen değerler gösteriliyor; bağlantı düzelince ölçümler kendiliğinden güncellenir.
+	</OzAlert>
+
+	<div class="stats">
+		<template v-for="s in stats" :key="s.key">
+			<Link v-if="s.href" :href="s.href" class="stat-link" :aria-label="`${s.label} · ayrıntılar`">
+				<OzStatTile :label="s.label" :value="s.value ?? 0" :icon="s.icon" :tone="s.tone" />
+			</Link>
+			<OzStatTile v-else :label="s.label" :value="s.value ?? 0" :icon="s.icon" :tone="s.tone" />
+		</template>
+	</div>
+
+	<div class="grid">
+		<OzCard title="Kullanım metrikleri" :subtitle="systemFetchedAt ? '5 sn’de bir güncellenir' : 'ilk ölçüm bekleniyor'" class="span-2">
+			<div class="pad">
+				<div class="metrics">
+					<div v-for="m in metrics" :key="m.key" class="metric">
+						<OzProgress :label="m.label" :value="m.value" :tone="toneOf(m.value)" />
+						<span v-if="m.note" class="note">{{ m.note }}</span>
+					</div>
+					<div class="metric uptime">
+						<span class="k">Çalışma süresi</span>
+						<b>{{ liveSystem.uptime }}</b>
+						<span class="note">Sunucu: {{ liveSystem.serverOs }}</span>
+					</div>
+				</div>
+				<OzSettingRow icon="activity" title="Reverb (WebSocket)" :description="`${reverb.host}:${reverb.port}`">
+					<OzPill :tone="reverb.running ? 'success' : 'danger'">{{ reverb.running ? 'Çalışıyor' : 'Kapalı' }}</OzPill>
+				</OzSettingRow>
+			</div>
+		</OzCard>
+
+		<OzCard title="Yazılım sürümleri">
+			<dl class="versions">
+				<template v-for="[k, v] in versions" :key="k">
+					<dt>{{ k }}</dt>
+					<dd>{{ v || '—' }}</dd>
+				</template>
+			</dl>
+		</OzCard>
+	</div>
+
+	<OzCard title="Hızlı erişim">
+		<div class="quick">
+			<OzSettingRow v-for="q in quickLinks" :key="q.title" :icon="q.icon" :title="q.title" :description="q.description">
+				<OzButton size="sm" icon="chevron-right" :aria-label="`${q.title} sayfasına git`" @click="router.visit(q.to)" />
+			</OzSettingRow>
+		</div>
+	</OzCard>
+</template>
+
+<style scoped>
+.mb { margin-bottom: 14px; }
+.stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+.stat-link { display: block; color: inherit; text-decoration: none; border-radius: var(--oz-radius); }
+.stat-link:focus-visible { outline: 2px solid var(--oz-accent); outline-offset: 2px; }
+
+.grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-bottom: 14px; align-items: start; }
+.span-2 { grid-column: span 2; }
+.pad { display: flex; flex-direction: column; gap: 16px; padding: 4px 18px 18px; }
+
+.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.metric { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: 12px; background: var(--oz-surface-2); border: 1px solid var(--oz-border-soft); }
+.note { font-size: 11px; color: var(--oz-muted); font-variant-numeric: tabular-nums; }
+.uptime .k { font-size: 12px; font-weight: 600; color: var(--oz-ink-soft); }
+.uptime b { font-size: 15px; font-weight: 800; color: var(--oz-ink-soft); }
+
+.versions { display: grid; grid-template-columns: auto 1fr; margin: 0; padding: 0 18px 12px; }
+.versions dt, .versions dd { padding: 9px 0; border-top: 1px solid var(--oz-border-soft); font-size: 12.5px; }
+.versions dt:first-of-type, .versions dd:first-of-type { border-top: none; }
+.versions dt { color: var(--oz-muted); }
+.versions dd { margin: 0; text-align: right; font-family: ui-monospace, monospace; font-size: 12px; color: var(--oz-ink-soft); }
+
+.quick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 0 18px 18px; }
+
+@media (max-width: 1280px) { .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 1040px) { .grid { grid-template-columns: minmax(0, 1fr); } .span-2 { grid-column: auto; } }
+@media (max-width: 640px) {
+	.stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+	.quick { grid-template-columns: minmax(0, 1fr); }
+}
+</style>

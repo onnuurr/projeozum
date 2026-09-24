@@ -1,207 +1,11 @@
-<template>
-	<Head title="Kategoriler" />
-	<div class="page-categories">
-		<Breadcrumb
-			:items="[
-				{ label: 'Ana Sayfa', to: '/workflow', icon: 'home' },
-				{ label: 'Katalog', to: '/products' },
-				{ label: 'Kategoriler' },
-			]"
-		/>
-
-		<PageHeader title="Kategoriler" subtitle="Ürün kategorilerini yönet, pazaryeri entegrasyonlarıyla eşleştir">
-			<template #actions>
-				<Button v-if="canManage" variant="primary" with-icon @click="openNewCategoryDrawer">
-					<template #leading><Plus :size="13" /></template>
-					Yeni Kategori
-				</Button>
-			</template>
-		</PageHeader>
-
-		<!-- İstatistik kartları -->
-		<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-5">
-			<StatWidget :icon="Folder" :value="stats.total" title="Toplam Kategori" color="primary" />
-			<StatWidget :icon="Package" :value="stats.products.toLocaleString('tr-TR')" title="Toplam Ürün" color="success" />
-			<StatWidget :icon="Store" :value="`${stats.activeMarketplaces} / ${marketplaces.length}`" title="Aktif Pazaryeri" color="info" />
-			<StatWidget :icon="Link2" :value="`${stats.mappingRate}%`" title="Ortalama Eşleştirme" color="warning" />
-		</div>
-
-		<!-- Kategori tablosu -->
-		<div class="card">
-			<div class="card-header">
-				<h3>Kategori Listesi</h3>
-				<div class="card-search">
-					<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-						<circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
-					</svg>
-					<input v-model="searchQuery" type="text" placeholder="Kategori ara..." />
-				</div>
-				<CustomSelect
-					v-model="parentFilter"
-					:options="parentFilterOptions"
-					:show-label="false"
-					style="width: 160px"
-				/>
-				<CustomSelect
-					v-model="statusFilter"
-					:options="statusFilterOptions"
-					:show-label="false"
-					style="width: 130px"
-				/>
-			</div>
-
-			<!-- Toplu işlem çubuğu -->
-			<div v-if="canManage && selectedCount > 0" class="bulk-bar">
-				<span class="bulk-info"><strong>{{ selectedCount }}</strong> kategori seçildi</span>
-				<div class="bulk-actions">
-					<Button variant="ghost" size="sm" @click="clearSelection">Vazgeç</Button>
-					<Button variant="danger" size="sm" with-icon :loading="bulkBusy" @click="bulkDelete">
-						<template #leading><Trash2 :size="13" /></template>
-						Seçilenleri Sil
-					</Button>
-				</div>
-			</div>
-
-			<div class="table-scroll">
-			<table class="data-table">
-				<thead>
-					<tr>
-						<th class="col-check">
-							<input type="checkbox" :checked="allVisibleSelected" @change="toggleSelectAllVisible" aria-label="Tümünü seç" />
-						</th>
-						<th style="width: 26%">Kategori</th>
-						<th style="width: 10%">Ürün</th>
-						<th style="width: 28%">Pazaryeri Entegrasyonları</th>
-						<th style="width: 10%">Durum</th>
-						<th style="width: 12%">Güncelleme</th>
-						<th style="width: 14%">İşlemler</th>
-					</tr>
-				</thead>
-				<tbody>
-					<tr v-if="paginated.length === 0">
-						<td colspan="7" class="empty-row">Kayıt bulunamadı</td>
-					</tr>
-					<tr v-for="cat in paginated" :key="cat.id" :class="{ 'row-selected': isSelected(cat.id) }">
-						<td class="col-check">
-							<input type="checkbox" :checked="isSelected(cat.id)" @change="toggleRow(cat.id)" :aria-label="`${cat.name} seç`" />
-						</td>
-						<td>
-							<div class="cat-cell">
-								<div class="cat-icon">{{ cat.icon }}</div>
-								<div class="cat-info">
-									<span class="cat-name">{{ cat.name }}</span>
-									<span class="cat-parent">{{ cat.parent }}</span>
-								</div>
-							</div>
-						</td>
-						<td>
-							<span class="product-count">{{ cat.productCount }}</span>
-						</td>
-						<td>
-							<div class="mp-logos">
-								<button
-									v-for="mp in marketplaces"
-									:key="mp.key"
-									class="mp-chip"
-									:class="mpChipClass(cat, mp)"
-									:style="mpChipStyle(cat, mp)"
-									:disabled="!canManage"
-									@click="canManage && openMarketplaceCheck(cat, mp)"
-									:title="canManage ? mpTooltip(cat, mp) : `${mp.name} — görüntüleme yetkiniz var, düzenlemek için yetkiniz yok`"
-								>
-									{{ mp.logoText }}
-									<span
-										v-if="cat.marketplaces[mp.key]?.mapped && mp.connected"
-										class="mp-dot mp-dot-success"
-									></span>
-									<span
-										v-else-if="!mp.connected"
-										class="mp-dot mp-dot-error"
-									></span>
-								</button>
-							</div>
-						</td>
-						<td>
-							<span class="status-pill" :class="`status-${cat.status}`">
-								<span class="dot"></span>
-								{{ cat.status === 'active' ? 'Aktif' : 'Pasif' }}
-							</span>
-						</td>
-						<td class="dim">{{ cat.updatedAt }}</td>
-						<td>
-							<div class="table-actions">
-								<button v-if="canManage" class="table-action-btn view" @click="editCategory(cat)" title="Düzenle"><Pencil :size="12" /> Düzenle</button>
-								<button v-if="canManage" class="table-action-btn view" @click="openAttributesModal(cat)" title="Özellikler"><Tag :size="12" /></button>
-								<button v-if="canManage" class="table-action-btn delete" @click="confirmDelete(cat)" title="Sil"><Trash2 :size="12" /></button>
-							</div>
-						</td>
-					</tr>
-				</tbody>
-			</table>
-			</div>
-
-			<div class="pagination">
-				<div class="pagination-info">
-					Toplam <span>{{ filtered.length }}</span> kategori
-					(<span>{{ startIndex }}</span>-<span>{{ endIndex }}</span> arası)
-				</div>
-				<div class="pagination-controls">
-					<button class="pagination-btn" :disabled="currentPage === 1" @click="currentPage--">‹</button>
-					<button
-						v-for="page in visiblePages"
-						:key="page"
-						class="pagination-btn"
-						:class="{ active: currentPage === page }"
-						@click="currentPage = page"
-					>{{ page }}</button>
-					<button class="pagination-btn" :disabled="currentPage === totalPages || totalPages === 0" @click="currentPage++">›</button>
-				</div>
-			</div>
-		</div>
-
-		<MarketplaceConnectDrawer
-			v-model="connectDrawerOpen"
-			:marketplace="connectingMarketplace"
-			:category="connectingCategory"
-			@submit="handleConnectSubmit"
-		/>
-
-		<MarketplaceCategoryPickerModal
-			v-model="mapperOpen"
-			:category="mappingCategory"
-			:marketplace="mappingMarketplace"
-			:tree="mappingMarketplace?.categoryTree || []"
-			:initial-path="mappingInitialPath"
-			@submit="handleMapperSubmit"
-		/>
-
-		<CategoryFormDrawer
-			v-model="formDrawerOpen"
-			:category="editingCategory"
-			:parent-categories="categories"
-			:busy="formBusy"
-			:errors="formErrors"
-			@submit="handleFormSubmit"
-		/>
-
-		<CategoryAttributesModal
-			v-model="attributesModalOpen"
-			:category="attributesCategory"
-			@changed="() => router.reload({ only: ['categories'], preserveScroll: true })"
-		/>
-	</div>
-</template>
-
 <script setup>
 import { ref, computed, inject, watch, onBeforeUnmount } from 'vue'
 import { Head, router } from '@inertiajs/vue3'
-import { Plus, Trash2, Pencil, Tag, Folder, Package, Store, Link2 } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import Breadcrumb from '@/Components/Breadcrumb.vue'
-import PageHeader from '@/Components/PageHeader.vue'
-import Button from '@/Components/Button.vue'
-import StatWidget from '@/Components/StatWidget.vue'
-import CustomSelect from '@/Components/CustomSelect.vue'
+import {
+	OzPageHeader, OzModuleTabs, OzStatTile, OzCard, OzInput, OzSelect, OzPill, OzDropdown,
+	OzPagination, OzEmptyState, OzButton, OzModal, useOzConfirm,
+} from '@/Components/Oz'
 import MarketplaceConnectDrawer from '@/Components/MarketplaceConnectDrawer.vue'
 import MarketplaceCategoryPickerModal from '@/Components/MarketplaceCategoryPickerModal.vue'
 import CategoryFormDrawer from '@/Components/CategoryFormDrawer.vue'
@@ -216,7 +20,7 @@ const props = defineProps({
 })
 
 const showToast = inject('showToast')
-const $swal = inject('$swal')
+const confirm = useOzConfirm()
 const { can } = useCan()
 const canManage = computed(() => can('category.manage'))
 
@@ -318,12 +122,7 @@ function clearSelection() { selected.value = new Set() }
 async function bulkDelete() {
 	const ids = [...selected.value]
 	if (!ids.length) return
-	const ok = await $swal.dangerConfirm({
-		title: 'Kategorileri Sil',
-		html: `<strong>${ids.length}</strong> kategori kalıcı olarak silinecek.<br>İçlerindeki ürünler ve pazaryeri eşleştirmeleri de etkilenir.`,
-		confirmText: 'Sil',
-		cancelText: 'Vazgeç',
-	})
+	const ok = await confirm.danger('Kategorileri Sil', `${ids.length} kategori kalıcı olarak silinecek. İçlerindeki ürünler ve pazaryeri eşleştirmeleri de etkilenir.`)
 	if (!ok) return
 
 	bulkBusy.value = true
@@ -371,24 +170,24 @@ const filtered = computed(() => {
 		return matchesSearch && matchesParent && matchesStatus
 	})
 })
-
-const totalPages = computed(() => Math.max(1, Math.ceil(filtered.value.length / itemsPerPage)))
-const startIndex = computed(() => filtered.value.length ? (currentPage.value - 1) * itemsPerPage + 1 : 0)
-const endIndex = computed(() => Math.min(currentPage.value * itemsPerPage, filtered.value.length))
+watch([searchQuery, parentFilter, statusFilter], () => { currentPage.value = 1 })
 
 const paginated = computed(() => {
 	const start = (currentPage.value - 1) * itemsPerPage
 	return filtered.value.slice(start, start + itemsPerPage)
 })
 
-const visiblePages = computed(() => {
-	const total = totalPages.value
-	const current = currentPage.value
-	if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
-	if (current <= 4) return [1, 2, 3, 4, 5, total]
-	if (current >= total - 3) return [1, total - 4, total - 3, total - 2, total - 1, total]
-	return [1, current - 1, current, current + 1, total]
-})
+const rowActions = () => [
+	{ key: 'edit', label: 'Düzenle', icon: 'edit' },
+	{ key: 'attributes', label: 'Özellikler', icon: 'tag' },
+	{ divider: true },
+	{ key: 'remove', label: 'Sil', icon: 'trash', danger: true },
+]
+function onRowAction(key, cat) {
+	if (key === 'edit') editCategory(cat)
+	else if (key === 'attributes') openAttributesModal(cat)
+	else if (key === 'remove') confirmDelete(cat)
+}
 
 /* ── Pazaryeri logo durumu ── */
 function mpChipClass(cat, mp) {
@@ -413,7 +212,14 @@ function mpTooltip(cat, mp) {
 	return `${mp.name} — Eşleştirilmemiş`
 }
 
-/* ── Pazaryeri tıklama: SweetAlert ile durum gösterimi ── */
+/* ── Pazaryeri tıklama: bağlı değilse bağlantı drawer, eşleşmişse durum modalı, yoksa eşleştirme onayı ── */
+const mpStatusOpen = ref(false)
+const mpStatusCategory = ref(null)
+const mpStatusMarketplace = ref(null)
+const mpStatusMapping = computed(() => mpStatusCategory.value && mpStatusMarketplace.value
+	? mpStatusCategory.value.marketplaces[mpStatusMarketplace.value.key]
+	: null)
+
 async function openMarketplaceCheck(cat, mp) {
 	// Senaryo 1: Pazaryeri bağlı değil → bağlantı drawer'ı aç
 	if (!mp.connected) {
@@ -423,65 +229,31 @@ async function openMarketplaceCheck(cat, mp) {
 
 	const mapping = cat.marketplaces[mp.key]
 
-	// Senaryo 2: Eşleştirme var
+	// Senaryo 2: Eşleştirme var → durum modalı (düzenle / kaldır / kapat)
 	if (mapping?.mapped) {
-		const result = await $swal.fire({
-			icon: 'success',
-			title: `${cat.name} ↔ ${mp.name}`,
-			html: `
-				<div class="mp-info">
-					<div class="mp-info-row">
-						<span class="mp-info-label">Pazaryeri kategorisi</span>
-						<span class="mp-info-value">${mapping.categoryPath}</span>
-					</div>
-					<div class="mp-info-row">
-						<span class="mp-info-label">Harici ID</span>
-						<span class="mp-info-value mono">${mapping.externalId}</span>
-					</div>
-					<div class="mp-info-row">
-						<span class="mp-info-label">Senkron ürün</span>
-						<span class="mp-info-value"><strong>${mapping.syncedProducts}</strong> / ${cat.productCount}</span>
-					</div>
-					<div class="mp-info-row">
-						<span class="mp-info-label">Son senkron</span>
-						<span class="mp-info-value">${mapping.lastSync}</span>
-					</div>
-				</div>
-			`,
-			showCancelButton: true,
-			showDenyButton: true,
-			confirmButtonText: 'Düzenle',
-			denyButtonText: 'Eşleştirmeyi Kaldır',
-			cancelButtonText: 'Kapat',
-			customClass: {
-				popup: 'tek-swal',
-				title: 'tek-swal-title',
-				htmlContainer: 'tek-swal-body',
-				icon: 'tek-swal-icon',
-				actions: 'tek-swal-actions',
-				confirmButton: 'btn btn-secondary',
-				denyButton: 'btn btn-outline-danger',
-				cancelButton: 'btn btn-ghost',
-			},
-		})
-
-		if (result.isConfirmed) {
-			openMappingEditor(cat, mp, mapping)
-		} else if (result.isDenied) {
-			await confirmUnmap(cat, mp)
-		}
+		mpStatusCategory.value = cat
+		mpStatusMarketplace.value = mp
+		mpStatusOpen.value = true
 		return
 	}
 
 	// Senaryo 3: Eşleştirme yok
-	const ok = await $swal.confirm({
-		icon: 'warning',
+	const ok = await confirm({
+		tone: 'warning',
 		title: `${mp.name}'e Eşleştir`,
-		html: `<strong>${cat.name}</strong> kategorisi <strong>${mp.name}</strong>'te henüz eşleştirilmemiş.<br>Şimdi eşleştirip <strong>${cat.productCount}</strong> ürünü bu pazaryerine yollayabilirsin.`,
+		message: `“${cat.name}” kategorisi ${mp.name}'te henüz eşleştirilmemiş. Şimdi eşleştirip ${cat.productCount} ürünü bu pazaryerine yollayabilirsin.`,
 		confirmText: 'Şimdi Eşleştir',
-		cancelText: 'Vazgeç',
 	})
 	if (ok) openMappingEditor(cat, mp, null)
+}
+
+function mpStatusEdit() {
+	mpStatusOpen.value = false
+	openMappingEditor(mpStatusCategory.value, mpStatusMarketplace.value, mpStatusMapping.value)
+}
+async function mpStatusUnmap() {
+	mpStatusOpen.value = false
+	await confirmUnmap(mpStatusCategory.value, mpStatusMarketplace.value)
 }
 
 function openMappingEditor(cat, mp, currentMapping) {
@@ -557,12 +329,7 @@ async function handleConnectSubmit(payload) {
 }
 
 async function confirmUnmap(cat, mp) {
-	const ok = await $swal.dangerConfirm({
-		title: 'Eşleştirmeyi Kaldır',
-		html: `<strong>${cat.name}</strong> kategorisinin <strong>${mp.name}</strong> eşleştirmesi kaldırılacak. Bu pazaryerindeki ürün senkronizasyonu duracak.`,
-		confirmText: 'Kaldır',
-		cancelText: 'Vazgeç',
-	})
+	const ok = await confirm.danger('Eşleştirmeyi Kaldır', `“${cat.name}” kategorisinin ${mp.name} eşleştirmesi kaldırılacak. Bu pazaryerindeki ürün senkronizasyonu duracak.`, { confirmText: 'Kaldır' })
 	if (!ok) return
 
 	router.delete(`/products/categories/${cat.id}/marketplaces/${mp.id}`, {
@@ -623,12 +390,7 @@ function handleFormSubmit({ mode, id, payload }) {
 
 async function confirmDelete(cat) {
 	const mappedCount = marketplaces.value.filter((mp) => cat.marketplaces[mp.key]?.mapped).length
-	const ok = await $swal.dangerConfirm({
-		title: 'Kategoriyi Sil',
-		html: `<strong>${cat.name}</strong> silinecek.<br>Bu kategoride <strong>${cat.productCount}</strong> ürün ve <strong>${mappedCount}</strong> pazaryeri eşleştirmesi var.`,
-		confirmText: 'Sil',
-		cancelText: 'Vazgeç',
-	})
+	const ok = await confirm.danger('Kategoriyi Sil', `“${cat.name}” silinecek. Bu kategoride ${cat.productCount} ürün ve ${mappedCount} pazaryeri eşleştirmesi var.`)
 	if (!ok) return
 
 	router.delete(`/products/categories/${cat.id}`, {
@@ -644,296 +406,229 @@ async function confirmDelete(cat) {
 }
 </script>
 
+<template>
+	<Head title="Kategoriler" />
+
+	<OzPageHeader title="Kategoriler" subtitle="Ürün kategorilerini yönet, pazaryeri entegrasyonlarıyla eşleştir">
+		<template #actions>
+			<OzButton v-if="canManage" variant="primary" icon="plus" @click="openNewCategoryDrawer">Yeni Kategori</OzButton>
+		</template>
+	</OzPageHeader>
+	<OzModuleTabs />
+
+	<div class="stats">
+		<OzStatTile icon="layers" tone="accent" label="Toplam Kategori" :value="stats.total" />
+		<OzStatTile icon="package" tone="success" label="Toplam Ürün" :value="stats.products" />
+		<OzStatTile icon="store" tone="info" label="Aktif Pazaryeri" :value="`${stats.activeMarketplaces} / ${marketplaces.length}`" />
+		<OzStatTile icon="link" tone="warning" label="Ortalama Eşleştirme" :value="`%${stats.mappingRate}`" />
+	</div>
+
+	<OzCard title="Kategori Listesi">
+		<template #actions>
+			<div class="toolbar">
+				<OzInput v-model="searchQuery" icon="search" placeholder="Kategori ara…" class="tb-search" />
+				<OzSelect v-model="parentFilter" :options="parentFilterOptions" class="tb-select" />
+				<OzSelect v-model="statusFilter" :options="statusFilterOptions" class="tb-select-sm" />
+			</div>
+		</template>
+
+		<div class="table-scroll">
+			<table class="cat-table">
+				<thead>
+					<tr>
+						<th v-if="canManage" class="col-check">
+							<input type="checkbox" :checked="allVisibleSelected" aria-label="Tümünü seç" @change="toggleSelectAllVisible">
+						</th>
+						<th style="width: 26%">Kategori</th>
+						<th style="width: 10%">Ürün</th>
+						<th style="width: 28%">Pazaryeri Entegrasyonları</th>
+						<th style="width: 10%">Durum</th>
+						<th style="width: 12%">Güncelleme</th>
+						<th v-if="canManage" style="width: 48px"></th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr v-for="cat in paginated" :key="cat.id" :class="{ 'row-selected': isSelected(cat.id) }">
+						<td v-if="canManage" class="col-check">
+							<input type="checkbox" :checked="isSelected(cat.id)" :aria-label="`${cat.name} seç`" @change="toggleRow(cat.id)">
+						</td>
+						<td>
+							<div class="cat-cell">
+								<div class="cat-icon">{{ cat.icon }}</div>
+								<div class="cat-info">
+									<span class="cat-name">{{ cat.name }}</span>
+									<span class="cat-parent">{{ cat.parent }}</span>
+								</div>
+							</div>
+						</td>
+						<td><span class="product-count">{{ cat.productCount }}</span></td>
+						<td>
+							<div class="mp-logos">
+								<button
+									v-for="mp in marketplaces"
+									:key="mp.key"
+									class="mp-chip"
+									:class="mpChipClass(cat, mp)"
+									:style="mpChipStyle(cat, mp)"
+									:disabled="!canManage"
+									:title="canManage ? mpTooltip(cat, mp) : `${mp.name} — görüntüleme yetkiniz var, düzenlemek için yetkiniz yok`"
+									@click="canManage && openMarketplaceCheck(cat, mp)"
+								>
+									{{ mp.logoText }}
+									<span v-if="cat.marketplaces[mp.key]?.mapped && mp.connected" class="mp-dot mp-dot-success"></span>
+									<span v-else-if="!mp.connected" class="mp-dot mp-dot-error"></span>
+								</button>
+							</div>
+						</td>
+						<td>
+							<OzPill :tone="cat.status === 'active' ? 'success' : 'neutral'">{{ cat.status === 'active' ? 'Aktif' : 'Pasif' }}</OzPill>
+						</td>
+						<td class="dim">{{ cat.updatedAt }}</td>
+						<td v-if="canManage" @click.stop>
+							<OzDropdown :items="rowActions()" :label="`${cat.name} işlemleri`" @select="(k) => onRowAction(k, cat)" />
+						</td>
+					</tr>
+				</tbody>
+			</table>
+			<OzEmptyState v-if="!paginated.length" icon="layers" title="Kayıt bulunamadı" compact />
+		</div>
+
+		<div v-if="filtered.length" class="pagination-wrap">
+			<OzPagination v-model="currentPage" :total="filtered.length" :page-size="itemsPerPage" />
+		</div>
+	</OzCard>
+
+	<!-- Toplu seçim çubuğu (yüzen) -->
+	<div class="bulk-dock" :class="{ 'is-active': canManage && selectedCount > 0 }">
+		<Transition name="bulk">
+			<div v-if="canManage && selectedCount > 0" class="bulk-bar" role="toolbar" aria-label="Toplu işlemler">
+				<span class="bulk-info"><b>{{ selectedCount }}</b> kategori seçildi</span>
+				<div class="bulk-actions">
+					<OzButton size="sm" @click="clearSelection">Vazgeç</OzButton>
+					<OzButton variant="danger" size="sm" icon="trash" :loading="bulkBusy" @click="bulkDelete">Seçilenleri Sil</OzButton>
+				</div>
+			</div>
+		</Transition>
+	</div>
+
+	<MarketplaceConnectDrawer
+		v-model:open="connectDrawerOpen"
+		:marketplace="connectingMarketplace"
+		:category="connectingCategory"
+		@submit="handleConnectSubmit"
+	/>
+
+	<MarketplaceCategoryPickerModal
+		v-model:open="mapperOpen"
+		:category="mappingCategory"
+		:marketplace="mappingMarketplace"
+		:tree="mappingMarketplace?.categoryTree || []"
+		:initial-path="mappingInitialPath"
+		@submit="handleMapperSubmit"
+	/>
+
+	<CategoryFormDrawer
+		v-model:open="formDrawerOpen"
+		:category="editingCategory"
+		:parent-categories="categories"
+		:busy="formBusy"
+		:errors="formErrors"
+		@submit="handleFormSubmit"
+	/>
+
+	<CategoryAttributesModal
+		v-model:open="attributesModalOpen"
+		:category="attributesCategory"
+		@changed="() => router.reload({ only: ['categories'], preserveScroll: true })"
+	/>
+
+	<OzModal v-model:open="mpStatusOpen" :title="mpStatusCategory && mpStatusMarketplace ? `${mpStatusCategory.name} ↔ ${mpStatusMarketplace.name}` : ''" icon="success" tone="success" size="sm">
+		<div v-if="mpStatusMapping" class="mp-info">
+			<div class="mp-info-row"><span class="mp-info-label">Pazaryeri kategorisi</span><span class="mp-info-value">{{ mpStatusMapping.categoryPath }}</span></div>
+			<div class="mp-info-row"><span class="mp-info-label">Harici ID</span><span class="mp-info-value mono">{{ mpStatusMapping.externalId }}</span></div>
+			<div class="mp-info-row"><span class="mp-info-label">Senkron ürün</span><span class="mp-info-value"><b>{{ mpStatusMapping.syncedProducts }}</b> / {{ mpStatusCategory?.productCount }}</span></div>
+			<div class="mp-info-row"><span class="mp-info-label">Son senkron</span><span class="mp-info-value">{{ mpStatusMapping.lastSync }}</span></div>
+		</div>
+		<template #footer>
+			<OzButton variant="danger" @click="mpStatusUnmap">Eşleştirmeyi Kaldır</OzButton>
+			<OzButton @click="mpStatusOpen = false">Kapat</OzButton>
+			<OzButton variant="primary" @click="mpStatusEdit">Düzenle</OzButton>
+		</template>
+	</OzModal>
+</template>
+
 <style scoped>
-/* ── Kart ── */
-.card {
-	background: #fff;
-	border-radius: 16px;
-	border: 1px solid #ebebf0;
-	overflow: hidden;
-	box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
-}
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
-.card-header {
-	padding: 14px 18px;
-	display: flex;
-	align-items: center;
-	gap: 12px;
-	border-bottom: 1px solid #f0f0f5;
-}
-.card-header h3 { font-size: 15px; font-weight: 700; color: #1a1a2e; }
+.toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.tb-search { width: 220px; }
+.tb-select { width: 170px; }
+.tb-select-sm { width: 140px; }
 
-.card-search {
-	display: flex; align-items: center; gap: 6px;
-	background: #f5f5f8; border: 1px solid #e8e8f0;
-	border-radius: 8px; padding: 5px 10px;
-	margin-left: auto;
-	min-width: 220px;
-}
-.card-search svg { color: #aaa; flex-shrink: 0; }
-.card-search input {
-	border: none; background: none; outline: none;
-	font-family: inherit; font-size: 13px; color: #1a1a2e;
-	width: 100%;
-}
-.card-search input::placeholder { color: #bbb; }
-
-/* ── Toplu işlem çubuğu ── */
+/* Toplu seçim çubuğu: akışta yer kaplamaz (tabloyu itmez), kaydırma alanının altında yüzer.
+   Dock, .oz-shell-content içinde sticky; seçim varken sona boşluk açar ki son satırları örtmesin. */
+.bulk-dock { position: sticky; bottom: 0; height: 0; z-index: 5; pointer-events: none; transition: height .2s ease; }
+.bulk-dock.is-active { height: 76px; }
 .bulk-bar {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 12px;
-	padding: 10px 18px;
-	background: #faf5ff;
-	border-bottom: 1px solid #f0e9fb;
+	position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%);
+	display: flex; align-items: center; gap: 14px; width: max-content; max-width: calc(100% - 24px);
+	padding: 8px 8px 8px 16px; border-radius: 999px; pointer-events: auto;
+	background: var(--oz-surface); border: 1px solid var(--oz-border); box-shadow: var(--oz-shadow);
 }
-.bulk-info { font-size: 13px; color: rgb(var(--color-primary-hover-rgb)); }
-.bulk-info strong { font-weight: 800; }
+.bulk-info { font-size: 12.5px; color: var(--oz-ink-soft); white-space: nowrap; }
+.bulk-info b { color: var(--oz-accent); }
 .bulk-actions { display: flex; gap: 8px; }
-
-.col-check { width: 40px; text-align: center; padding-left: 16px; padding-right: 0; }
-.col-check input { width: 15px; height: 15px; accent-color: rgb(var(--color-primary-rgb)); cursor: pointer; }
-.data-table tr.row-selected td { background: #faf5ff; }
-
-/* ── Tablo ── */
-.data-table {
-	width: 100%;
-	border-collapse: separate;
-	border-spacing: 0;
-}
-.data-table thead tr { background: #f8f8fc; }
-.data-table th {
-	text-align: left;
-	padding: 12px 16px;
-	font-size: 11px;
-	font-weight: 600;
-	color: #aaa;
-	border-bottom: 1px solid #f0f0f5;
-	text-transform: uppercase;
-	letter-spacing: 0.04em;
-}
-.data-table td {
-	padding: 12px 16px;
-	font-size: 13px;
-	color: #444;
-	border-bottom: 1px solid #f5f5f8;
-	vertical-align: middle;
-}
-.data-table tr:last-child td { border-bottom: none; }
-.data-table tr:hover td { background: #fafafe; }
-
-.empty-row {
-	text-align: center !important;
-	color: #aaa;
-	padding: 32px 0 !important;
-	font-style: italic;
+.bulk-enter-active, .bulk-leave-active { transition: opacity .18s ease, transform .22s cubic-bezier(.2, .8, .2, 1); }
+.bulk-enter-from, .bulk-leave-to { opacity: 0; transform: translate(-50%, 14px); }
+@media (max-width: 768px) {
+	.bulk-bar { bottom: 10px; gap: 10px; padding-left: 14px; }
 }
 
-.dim { font-size: 12px; color: #888; }
+.col-check { width: 40px; text-align: center; padding-left: 16px !important; padding-right: 0 !important; }
+.col-check input { width: 15px; height: 15px; accent-color: var(--oz-accent); cursor: pointer; }
 
-/* ── Kategori hücresi ── */
+.table-scroll { overflow-x: auto; padding: 0 4px; }
+.cat-table { width: 100%; border-collapse: collapse; }
+.cat-table th { text-align: left; padding: 10px 14px; font-size: 10.5px; font-weight: 700; color: var(--oz-muted); text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid var(--oz-border); background: var(--oz-th-bg); }
+.cat-table td { padding: 12px 14px; font-size: 12.5px; border-top: 1px solid var(--oz-border-soft); vertical-align: middle; }
+.cat-table tr:hover td { background: var(--oz-surface-2); }
+.cat-table tr.row-selected td { background: var(--oz-accent-soft); }
+
+.dim { font-size: 12px; color: var(--oz-muted); }
+
 .cat-cell { display: flex; align-items: center; gap: 12px; }
-.cat-icon {
-	width: 36px; height: 36px;
-	border-radius: 10px;
-	background: rgb(var(--color-primary-soft-rgb));
-	display: flex; align-items: center; justify-content: center;
-	font-size: 18px;
-	flex-shrink: 0;
-}
+.cat-icon { width: 34px; height: 34px; border-radius: 10px; background: var(--oz-accent-soft); display: flex; align-items: center; justify-content: center; font-size: 17px; flex-shrink: 0; }
 .cat-info { display: flex; flex-direction: column; gap: 2px; }
-.cat-name { font-weight: 600; color: #1a1a2e; font-size: 13px; }
-.cat-parent {
-	font-size: 10.5px;
-	color: #888;
-	font-weight: 500;
-}
+.cat-name { font-weight: 700; color: var(--oz-ink-soft); font-size: 12.5px; }
+.cat-parent { font-size: 10.5px; color: var(--oz-muted); font-weight: 500; }
 
-.product-count {
-	display: inline-block;
-	padding: 2px 9px;
-	background: #f0f0f5;
-	color: #555;
-	border-radius: 6px;
-	font-size: 11.5px;
-	font-weight: 700;
-	font-family: 'SF Mono', Menlo, Consolas, monospace;
-}
+.product-count { display: inline-block; padding: 2px 9px; background: var(--oz-surface-2); color: var(--oz-muted); border-radius: 6px; font-size: 11.5px; font-weight: 700; font-family: ui-monospace, monospace; }
 
-/* ── Pazaryeri logoları ── */
-.mp-logos {
-	display: flex;
-	gap: 5px;
-	flex-wrap: wrap;
-}
-
+.mp-logos { display: flex; gap: 5px; flex-wrap: wrap; }
 .mp-chip {
-	position: relative;
-	width: 32px;
-	height: 32px;
-	border-radius: 9px;
-	background: #fff;
-	border: 1.5px solid #e8e8f0;
-	color: #aaa;
-	font-family: inherit;
-	font-size: 10px;
-	font-weight: 800;
-	letter-spacing: 0.04em;
-	cursor: pointer;
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	transition: transform .12s, box-shadow .12s, border-color .12s;
-	padding: 0;
+	position: relative; width: 32px; height: 32px; border-radius: 9px;
+	background: var(--oz-surface); border: 1.5px solid var(--oz-border); color: var(--oz-muted-2, var(--oz-muted));
+	font-family: inherit; font-size: 10px; font-weight: 800; letter-spacing: .04em; cursor: pointer;
+	display: inline-flex; align-items: center; justify-content: center;
+	transition: transform .12s, box-shadow .12s, border-color .12s; padding: 0;
 }
-.mp-chip:disabled {
-	cursor: default;
-	opacity: .6;
-	pointer-events: none;
-}
-.mp-chip:hover {
-	transform: translateY(-1px);
-	box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
-}
+.mp-chip:disabled { cursor: default; opacity: .6; pointer-events: none; }
+.mp-chip:hover { transform: translateY(-1px); box-shadow: var(--oz-shadow); }
+.mp-chip.mp-mapped { border-color: transparent; }
+.mp-chip.mp-mapped::after { content: ''; position: absolute; inset: 0; border-radius: 9px; box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.25); pointer-events: none; }
+.mp-chip.mp-unmapped { background: var(--oz-surface-2); color: var(--oz-muted); border-style: dashed; }
+.mp-chip.mp-unmapped:hover { border-color: var(--oz-border-strong); color: var(--oz-ink-soft); }
+.mp-chip.mp-disconnected { background: var(--oz-danger-soft); color: var(--oz-danger); border-color: rgba(var(--oz-danger-rgb), .3); }
+.mp-dot { position: absolute; top: -3px; right: -3px; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--oz-surface); }
+.mp-dot-success { background: var(--oz-success); }
+.mp-dot-error { background: var(--oz-danger); }
 
-.mp-chip.mp-mapped {
-	border-color: transparent;
-}
-.mp-chip.mp-mapped::after {
-	content: '';
-	position: absolute;
-	inset: 0;
-	border-radius: 9px;
-	box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.25);
-	pointer-events: none;
-}
+.pagination-wrap { padding: 14px 18px 16px; border-top: 1px solid var(--oz-border-soft); }
 
-.mp-chip.mp-unmapped {
-	background: #fafafe;
-	color: #c4c4d0;
-	border-style: dashed;
-	border-color: #e0e0ea;
-}
-.mp-chip.mp-unmapped:hover { border-color: #c0c0d8; color: #888; }
-
-.mp-chip.mp-disconnected {
-	background: #fef2f2;
-	color: #dc2626;
-	border-color: #fecaca;
-}
-.mp-chip.mp-disconnected:hover { border-color: #fca5a5; }
-
-.mp-dot {
-	position: absolute;
-	top: -3px;
-	right: -3px;
-	width: 10px;
-	height: 10px;
-	border-radius: 50%;
-	border: 2px solid #fff;
-}
-.mp-dot-success { background: #16a34a; }
-.mp-dot-error { background: #dc2626; }
-
-/* ── Status pill ── */
-.status-pill {
-	display: inline-flex;
-	align-items: center;
-	gap: 5px;
-	padding: 3px 10px;
-	border-radius: 999px;
-	font-size: 11px;
-	font-weight: 600;
-}
-.status-pill .dot {
-	width: 5px; height: 5px;
-	border-radius: 50%;
-	background: currentColor;
-}
-.status-active { background: #dcfce7; color: #16a34a; }
-.status-passive { background: #fee2e2; color: #dc2626; }
-
-/* ── İşlem butonları ── */
-.table-actions { display: flex; gap: 4px; }
-.table-action-btn {
-	display: inline-flex; align-items: center; gap: 4px;
-	background: #f3f4f6;
-	border: none; cursor: pointer;
-	font-size: 11.5px;
-	padding: 5px 9px;
-	border-radius: 6px;
-	font-weight: 500;
-	color: #6b7280;
-	transition: all .15s;
-}
-.table-action-btn.view:hover { background: rgb(var(--color-primary-soft-rgb)); color: rgb(var(--color-primary-rgb)); }
-.table-action-btn.delete:hover { background: #fee2e2; color: #dc2626; }
-
-/* ── Pagination ── */
-.pagination {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	padding: 16px 20px;
-	border-top: 1px solid #f0f0f5;
-}
-.pagination-info { font-size: 13px; color: #888; }
-.pagination-info span { color: #1a1a2e; font-weight: 600; }
-.pagination-controls { display: flex; align-items: center; gap: 4px; }
-.pagination-btn {
-	min-width: 32px; height: 32px;
-	padding: 0 8px;
-	border: 1px solid #e8e8f0;
-	border-radius: 6px;
-	background: #fff; color: #666;
-	font-size: 13px; font-weight: 500;
-	cursor: pointer;
-	display: flex; align-items: center; justify-content: center;
-	transition: all .15s;
-}
-.pagination-btn:hover:not(:disabled) { border-color: #ccc; color: #333; background: #f9f9fb; }
-.pagination-btn.active { background: #1a1a2e; color: #fff; border-color: #1a1a2e; }
-.pagination-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-</style>
-
-<style>
-/* SweetAlert içinde kullanılan dahili stiller (scoped olmamalı) */
-.mp-info {
-	text-align: left;
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
-	margin-top: 8px;
-	padding: 12px 14px;
-	background: #fafafe;
-	border: 1px solid #f0f0f5;
-	border-radius: 10px;
-}
-.mp-info-row {
-	display: flex;
-	justify-content: space-between;
-	align-items: flex-start;
-	gap: 12px;
-	font-size: 12.5px;
-}
-.mp-info-label {
-	font-size: 11px;
-	font-weight: 700;
-	color: #888;
-	text-transform: uppercase;
-	letter-spacing: 0.04em;
-	flex-shrink: 0;
-}
-.mp-info-value {
-	color: #1a1a2e;
-	text-align: right;
-	font-weight: 500;
-}
-.mp-info-value strong { color: #1a1a2e; font-weight: 800; }
-.mp-info-value.mono {
-	font-family: 'SF Mono', Menlo, Consolas, monospace;
-	font-size: 11.5px;
-}
-.tek-swal-body .muted { color: #888; font-size: 11.5px; }
+.mono { font-family: ui-monospace, monospace; font-size: 11.5px; }
+.mp-info { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; background: var(--oz-surface-2); border: 1px solid var(--oz-border); border-radius: 10px; }
+.mp-info-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; font-size: 12.5px; }
+.mp-info-label { font-size: 11px; font-weight: 700; color: var(--oz-muted); text-transform: uppercase; letter-spacing: .04em; flex-shrink: 0; }
+.mp-info-value { color: var(--oz-ink-soft); text-align: right; font-weight: 500; }
 </style>

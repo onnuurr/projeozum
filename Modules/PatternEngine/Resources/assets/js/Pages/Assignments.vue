@@ -1,178 +1,11 @@
-<template>
-	<Head title="Atölye İş Akışı" />
-	<div class="page-assign">
-		<Breadcrumb
-			:items="[
-				{ label: 'Ana Sayfa', to: '/workflow', icon: 'home' },
-				{ label: 'Üretim Atölyesi', to: '/atelier' },
-				{ label: 'Atölye İşleri' },
-			]"
-		/>
-
-		<AtelierNav current="assignments" />
-
-		<PageHeader title="Atölye İş Akışı" subtitle="Tasarım kartı / kalıp → kalıpçıya ata, teslimi takip et.">
-			<template #actions>
-				<Button :variant="filters.mine ? 'primary' : 'secondary'" @click="toggleMine">Bana atananlar</Button>
-				<Button v-if="canManage" variant="primary" with-icon @click="openAssign">
-					<template #leading><Plus :size="13" /></template>
-					Yeni Atama
-				</Button>
-			</template>
-		</PageHeader>
-
-		<!-- İş akışı şeritleri -->
-		<div class="lanes">
-			<section v-for="lane in lanes" :key="lane.key" class="lane">
-				<div class="lane-head">
-					<span class="lane-title">{{ lane.label }}</span>
-					<span class="lane-count">{{ lane.items.length }}</span>
-				</div>
-				<div class="lane-body">
-					<p v-if="lane.items.length === 0" class="lane-empty">—</p>
-					<article v-for="a in lane.items" :key="a.id" class="assign-card" :class="{ late: a.isLate }">
-						<div class="ac-top">
-							<Badge :color="a.kind === 'designer' ? 'primary' : 'info'" :label="a.kind === 'designer' ? 'Tasarımcı' : 'Kalıpçı'" variant="tonal" />
-							<span v-if="a.dueDate" class="due" :class="{ late: a.isLate }">{{ a.dueDate }}</span>
-						</div>
-						<h4 class="ac-title">{{ a.title }}</h4>
-						<div class="ac-refs">
-							<span v-if="a.pattern" class="ref"><Ruler :size="11" /> {{ a.pattern.name }}</span>
-							<span v-else-if="a.designCardId" class="ref"><Sparkles :size="11" /> konsept #{{ a.designCardId }}</span>
-						</div>
-						<p v-if="a.instructions" class="ac-note">{{ a.instructions }}</p>
-						<div class="ac-people">
-							<span class="who">{{ a.assignee?.name || '—' }}</span>
-							<span v-if="a.isMine" class="mine-tag">sen</span>
-						</div>
-
-						<div v-if="a.reviewNote" class="ac-review">“{{ a.reviewNote }}”</div>
-						<a v-if="a.deliveredUrl" :href="a.deliveredUrl" class="ac-file" download><Download :size="11" /> Teslim dosyası</a>
-
-						<div class="ac-actions">
-							<template v-if="a.status === 'pending'">
-								<Button v-if="a.isMine || canManage" variant="success" size="sm" @click="act(a, 'start')">Başla</Button>
-							</template>
-							<template v-else-if="a.status === 'in_progress'">
-								<Button v-if="a.isMine || canManage" variant="success" size="sm" @click="openDeliver(a)">Teslim et</Button>
-							</template>
-							<template v-else-if="a.status === 'delivered'">
-								<Button v-if="canManage" variant="success" size="sm" @click="act(a, 'accept')">Kabul</Button>
-								<Button v-if="canManage" variant="danger" size="sm" @click="openReject(a)">Reddet</Button>
-							</template>
-							<template v-else-if="a.status === 'rejected'">
-								<Button v-if="a.isMine || canManage" variant="ghost" size="sm" @click="act(a, 'start')">Yeniden başla</Button>
-							</template>
-							<span v-else class="done-tag"><CheckCircle2 :size="12" /> kabul edildi</span>
-						</div>
-					</article>
-				</div>
-			</section>
-		</div>
-
-		<!-- Atama modalı -->
-		<AppDrawer v-model="assign.open" title="Yeni Atama" width="640px">
-			<form id="assign-form" class="form-grid" @submit.prevent="submitAssign">
-				<div class="form-row">
-					<label class="form-label">İş başlığı <span class="req">*</span></label>
-					<input v-model="assign.form.title" class="form-input" placeholder="örn. Kalıbı 116-134 bedene çıkar" />
-					<span v-if="assign.form.errors.title" class="form-error">{{ assign.form.errors.title }}</span>
-				</div>
-				<div class="form-2">
-					<div class="form-row">
-						<label class="form-label">Tür</label>
-						<select v-model="assign.form.kind" class="form-input">
-							<option value="pattern_maker">Kalıpçı</option>
-							<option value="designer">Tasarımcı</option>
-						</select>
-					</div>
-					<div class="form-row">
-						<label class="form-label">Atanan kişi <span class="req">*</span></label>
-						<select v-model="assign.form.assigned_to" class="form-input">
-							<option :value="null" disabled>Seç…</option>
-							<option v-for="u in assignees" :key="u.id" :value="u.id">{{ u.name }}</option>
-						</select>
-						<span v-if="assign.form.errors.assigned_to" class="form-error">{{ assign.form.errors.assigned_to }}</span>
-					</div>
-				</div>
-				<div class="form-2">
-					<div class="form-row">
-						<label class="form-label">Kalıp</label>
-						<select v-model="assign.form.pattern_id" class="form-input">
-							<option :value="null">— yok —</option>
-							<option v-for="p in patterns" :key="p.id" :value="p.id">{{ p.name }} · {{ p.product_type }}</option>
-						</select>
-					</div>
-					<div class="form-row">
-						<label class="form-label">Konsept kartı</label>
-						<select v-model="assign.form.design_card_id" class="form-input">
-							<option :value="null">— yok —</option>
-							<option v-for="c in designCards" :key="c.id" :value="c.id">{{ c.label }}</option>
-						</select>
-					</div>
-				</div>
-				<span v-if="assign.form.errors.pattern_id" class="form-error">{{ assign.form.errors.pattern_id }}</span>
-				<div class="form-row">
-					<label class="form-label">Talimat</label>
-					<textarea v-model="assign.form.instructions" rows="2" class="form-input" placeholder="Detaylar (ops.)"></textarea>
-				</div>
-				<div class="form-row">
-					<label class="form-label">Termin</label>
-					<input v-model="assign.form.due_date" type="date" class="form-input" />
-				</div>
-			</form>
-			<template #footer="{ close }">
-				<Button variant="ghost" :disabled="assign.form.processing" @click="close">Vazgeç</Button>
-				<Button type="submit" form="assign-form" variant="primary" :loading="assign.form.processing">Ata</Button>
-			</template>
-		</AppDrawer>
-
-		<!-- Teslim modalı -->
-		<AppDrawer v-model="deliver.open" title="İşi teslim et" width="640px">
-			<form id="deliver-form" class="form-grid" @submit.prevent="submitDeliver">
-				<label class="file-drop">
-					<span class="fd-label">Teslim dosyası (revize DXF/PDF — ops.)</span>
-					<input type="file" @change="deliver.form.file = $event.target.files[0] || null" />
-					<span class="fd-name">{{ deliver.form.file ? deliver.form.file.name : 'dosya seç' }}</span>
-				</label>
-				<div class="form-row">
-					<label class="form-label">Not</label>
-					<textarea v-model="deliver.form.note" rows="2" class="form-input" placeholder="Teslim notu (ops.)"></textarea>
-				</div>
-			</form>
-			<template #footer="{ close }">
-				<Button variant="ghost" :disabled="deliver.form.processing" @click="close">Vazgeç</Button>
-				<Button type="submit" form="deliver-form" variant="primary" :loading="deliver.form.processing">Teslim et</Button>
-			</template>
-		</AppDrawer>
-
-		<!-- Ret modalı -->
-		<AppDrawer v-model="reject.open" title="İşi reddet" width="640px">
-			<form id="reject-form" class="form-grid" @submit.prevent="submitReject">
-				<div class="form-row">
-					<label class="form-label">Ret gerekçesi</label>
-					<textarea v-model="reject.form.note" rows="3" class="form-input" placeholder="Neden geri gönderiliyor?"></textarea>
-				</div>
-			</form>
-			<template #footer="{ close }">
-				<Button variant="ghost" :disabled="reject.form.processing" @click="close">Vazgeç</Button>
-				<Button type="submit" form="reject-form" variant="danger" :loading="reject.form.processing">Reddet</Button>
-			</template>
-		</AppDrawer>
-	</div>
-</template>
-
 <script setup>
-import { reactive, computed } from 'vue'
+import { ref, reactive, computed, inject } from 'vue'
 import { Head, router, useForm } from '@inertiajs/vue3'
-import { Plus, Ruler, Sparkles, CheckCircle2, Download } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import Breadcrumb from '@/Components/Breadcrumb.vue'
-import PageHeader from '@/Components/PageHeader.vue'
-import Badge from '@/Components/Badge.vue'
-import Button from '@/Components/Button.vue'
-import AppDrawer from '@/Components/AppDrawer.vue'
-import AtelierNav from '@Modules/Atelier/Resources/assets/js/Components/AtelierNav.vue'
+import {
+	OzPageHeader, OzModuleTabs, OzStatTile, OzButton, OzPill, OzAvatar, OzDrawer, OzModal,
+	OzField, OzInput, OzSelect, OzCombobox, OzTextarea, OzFileDrop,
+} from '@/Components/Oz'
 
 defineOptions({ layout: AppLayout })
 
@@ -186,88 +19,279 @@ const props = defineProps({
 	designCards: { type: Array, default: () => [] },
 })
 
-const filters = reactive({ mine: !!props.filters.mine, status: props.filters.status || '' })
+const showToast = inject('showToast', null)
+const errorToast = (title) => (errs) => showToast?.({ type: 'error', title, message: Object.values(errs)[0] || 'Sunucu hatası.' })
+
+const KIND = { pattern_maker: 'Kalıpçı', designer: 'Tasarımcı' }
+const kindOptions = Object.entries(KIND).map(([value, label]) => ({ value, label }))
+
+/* ── filtre: bana atananlar ── */
+const mine = ref(!!props.filters.mine)
 function toggleMine() {
-	filters.mine = !filters.mine
-	router.get('/atelier/assignments', { mine: filters.mine ? 1 : 0 }, { preserveState: true, preserveScroll: true, replace: true })
+	mine.value = !mine.value
+	router.get('/atelier/assignments', mine.value ? { mine: 1 } : {}, { preserveState: true, preserveScroll: true, replace: true })
 }
 
+/* ── şeritler ── */
+const byStatus = (...s) => props.assignments.filter((a) => s.includes(a.status))
 const lanes = computed(() => [
-	{ key: 'pending', label: 'Atandı', items: byStatus('pending') },
-	{ key: 'in_progress', label: 'Çalışılıyor', items: byStatus('in_progress') },
-	{ key: 'delivered', label: 'Teslim', items: byStatus('delivered') },
-	{ key: 'done', label: 'Sonuçlandı', items: props.assignments.filter((a) => ['accepted', 'rejected'].includes(a.status)) },
+	{ key: 'pending', label: 'Atandı', icon: 'clock', items: byStatus('pending') },
+	{ key: 'in_progress', label: 'Çalışılıyor', icon: 'edit', items: byStatus('in_progress') },
+	{ key: 'delivered', label: 'Teslim Edildi', icon: 'upload', items: byStatus('delivered') },
+	{ key: 'done', label: 'Sonuçlandı', icon: 'success', items: byStatus('accepted', 'rejected') },
 ])
-function byStatus(s) { return props.assignments.filter((a) => a.status === s) }
+const lateCount = computed(() => props.assignments.filter((a) => a.isLate).length)
+const stats = computed(() => [
+	{ key: 'pending', label: 'Atandı', value: byStatus('pending').length, icon: 'clock', tone: 'info' },
+	{ key: 'progress', label: 'Çalışılıyor', value: byStatus('in_progress').length, icon: 'edit', tone: 'accent' },
+	{ key: 'review', label: 'Onay Bekleyen', value: byStatus('delivered').length, icon: 'upload', tone: 'warning' },
+	{ key: 'late', label: 'Termini Geçen', value: lateCount.value, icon: 'alert', tone: lateCount.value ? 'danger' : 'success' },
+])
 
+const busyId = ref(null)
 function act(a, verb) {
-	router.post(`/atelier/assignments/${a.id}/${verb}`, {}, { preserveScroll: true })
+	busyId.value = `${a.id}-${verb}`
+	router.post(`/atelier/assignments/${a.id}/${verb}`, {}, {
+		preserveScroll: true,
+		onError: errorToast('İşlem yapılamadı'),
+		onFinish: () => { busyId.value = null },
+	})
 }
 
-/* Atama */
-const assign = reactive({ open: false, form: useForm({ title: '', kind: 'pattern_maker', assigned_to: null, pattern_id: null, design_card_id: null, instructions: '', due_date: '' }) })
-function openAssign() { assign.form.reset(); assign.form.clearErrors(); assign.open = true }
-function submitAssign() { assign.form.post('/atelier/assignments', { preserveScroll: true, onSuccess: () => { assign.open = false } }) }
+/* ── yeni atama ── */
+const assigneeOptions = computed(() => props.assignees.map((u) => ({ value: u.id, label: u.name })))
+const patternOptions = computed(() => props.patterns.map((p) => ({ value: p.id, label: p.name, description: p.product_type })))
+const cardOptions = computed(() => props.designCards.map((c) => ({ value: c.id, label: c.label })))
 
-/* Teslim */
-const deliver = reactive({ open: false, id: null, form: useForm({ file: null, note: '' }) })
-function openDeliver(a) { deliver.id = a.id; deliver.form.reset(); deliver.open = true }
+const emptyAssign = () => ({ title: '', kind: 'pattern_maker', assigned_to: '', pattern_id: '', design_card_id: '', instructions: '', due_date: '' })
+const assignOpen = ref(false)
+const assignForm = useForm(emptyAssign())
+function openAssign() {
+	assignForm.defaults(emptyAssign())
+	assignForm.reset()
+	assignForm.clearErrors()
+	assignOpen.value = true
+}
+function submitAssign() {
+	if (assignForm.processing) return
+	// boş seçimler sunucuya null gider (nullable exists kuralları)
+	assignForm.transform((d) => ({
+		...d,
+		assigned_to: d.assigned_to || null,
+		pattern_id: d.pattern_id || null,
+		design_card_id: d.design_card_id || null,
+	})).post('/atelier/assignments', {
+		preserveScroll: true,
+		onSuccess: () => { assignOpen.value = false },
+		onError: errorToast('Atama yapılamadı'),
+	})
+}
+
+/* ── teslim ── */
+const deliver = reactive({ open: false, item: null })
+const deliverForm = useForm({ file: null, note: '' })
+const deliverFiles = computed({
+	get: () => (deliverForm.file ? [deliverForm.file] : []),
+	set: (list) => { deliverForm.file = list[0] ?? null },
+})
+function openDeliver(a) {
+	deliver.item = a
+	deliverForm.reset()
+	deliverForm.clearErrors()
+	deliver.open = true
+}
 function submitDeliver() {
-	deliver.form.post(`/atelier/assignments/${deliver.id}/deliver`, { forceFormData: true, preserveScroll: true, onSuccess: () => { deliver.open = false } })
+	if (deliverForm.processing) return
+	deliverForm.post(`/atelier/assignments/${deliver.item.id}/deliver`, {
+		forceFormData: true,
+		preserveScroll: true,
+		onSuccess: () => { deliver.open = false },
+		onError: errorToast('Teslim edilemedi'),
+	})
 }
 
-/* Ret */
-const reject = reactive({ open: false, id: null, form: useForm({ note: '' }) })
-function openReject(a) { reject.id = a.id; reject.form.reset(); reject.open = true }
+/* ── ret ── */
+const reject = reactive({ open: false, item: null })
+const rejectForm = useForm({ note: '' })
+function openReject(a) {
+	reject.item = a
+	rejectForm.reset()
+	rejectForm.clearErrors()
+	reject.open = true
+}
 function submitReject() {
-	reject.form.post(`/atelier/assignments/${reject.id}/reject`, { preserveScroll: true, onSuccess: () => { reject.open = false } })
+	if (rejectForm.processing) return
+	rejectForm.post(`/atelier/assignments/${reject.item.id}/reject`, {
+		preserveScroll: true,
+		onSuccess: () => { reject.open = false },
+		onError: errorToast('Reddedilemedi'),
+	})
 }
 </script>
 
+<template>
+	<Head title="Atölye İş Akışı" />
+
+	<OzPageHeader title="Atölye İş Akışı" subtitle="Tasarım kartı / kalıp → kalıpçıya ata, teslimi takip et.">
+		<template #actions>
+			<OzButton :variant="mine ? 'primary' : 'ghost'" icon="user" :aria-pressed="mine" @click="toggleMine">Bana Atananlar</OzButton>
+			<OzButton v-if="canManage" variant="primary" icon="plus" @click="openAssign">Yeni Atama</OzButton>
+		</template>
+	</OzPageHeader>
+	<OzModuleTabs />
+
+	<div class="stats">
+		<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" />
+	</div>
+
+	<div class="board">
+		<section v-for="lane in lanes" :key="lane.key" class="lane" :aria-label="lane.label">
+			<header class="lane-head">
+				<span class="lane-title">{{ lane.label }}</span>
+				<span class="lane-count">{{ lane.items.length }}</span>
+			</header>
+			<div class="lane-body">
+				<p v-if="!lane.items.length" class="lane-empty">Kayıt yok</p>
+				<article v-for="a in lane.items" :key="a.id" class="card" :class="{ late: a.isLate }">
+					<div class="card-top">
+						<OzPill :tone="a.kind === 'designer' ? 'accent' : 'info'">{{ KIND[a.kind] ?? a.kind }}</OzPill>
+						<span v-if="a.dueDate" class="due" :class="{ late: a.isLate }">{{ a.dueDate }}</span>
+					</div>
+					<h4 class="card-title">{{ a.title }}</h4>
+					<div v-if="a.pattern || a.designCardId" class="refs">
+						<span v-if="a.pattern" class="ref">Kalıp · {{ a.pattern.name }}</span>
+						<span v-else class="ref">Konsept #{{ a.designCardId }}</span>
+					</div>
+					<p v-if="a.instructions" class="note">{{ a.instructions }}</p>
+					<div class="people">
+						<OzAvatar :name="a.assignee?.name || '?'" :size="22" tone="auto" />
+						<span class="who">{{ a.assignee?.name || '—' }}</span>
+						<OzPill v-if="a.isMine" tone="accent">sen</OzPill>
+					</div>
+					<p v-if="a.reviewNote" class="review">“{{ a.reviewNote }}”</p>
+					<a v-if="a.deliveredUrl" :href="a.deliveredUrl" class="file" download>Teslim dosyasını indir</a>
+
+					<div class="card-actions">
+						<template v-if="a.status === 'pending'">
+							<OzButton v-if="a.isMine || canManage" size="sm" variant="primary" :loading="busyId === `${a.id}-start`" @click="act(a, 'start')">Başla</OzButton>
+						</template>
+						<template v-else-if="a.status === 'in_progress'">
+							<OzButton v-if="a.isMine || canManage" size="sm" variant="primary" icon="upload" @click="openDeliver(a)">Teslim Et</OzButton>
+						</template>
+						<template v-else-if="a.status === 'delivered'">
+							<OzButton v-if="canManage" size="sm" variant="primary" icon="check" :loading="busyId === `${a.id}-accept`" @click="act(a, 'accept')">Kabul</OzButton>
+							<OzButton v-if="canManage" size="sm" variant="danger" @click="openReject(a)">Reddet</OzButton>
+						</template>
+						<template v-else-if="a.status === 'rejected'">
+							<OzPill tone="danger">reddedildi</OzPill>
+							<OzButton v-if="a.isMine || canManage" size="sm" icon="refresh" :loading="busyId === `${a.id}-start`" @click="act(a, 'start')">Yeniden Başla</OzButton>
+						</template>
+						<OzPill v-else tone="success">kabul edildi</OzPill>
+					</div>
+				</article>
+			</div>
+		</section>
+	</div>
+
+	<!-- Yeni atama -->
+	<OzDrawer v-model:open="assignOpen" title="Yeni Atama" subtitle="Kalıp ya da konsept kartını bir kişiye ata" icon="user-plus" size="md" :persistent="assignForm.processing">
+		<form class="form" @submit.prevent="submitAssign">
+			<OzField label="İş başlığı" required :error="assignForm.errors.title">
+				<OzInput v-model="assignForm.title" placeholder="örn. Kalıbı 116-134 bedene çıkar" />
+			</OzField>
+			<div class="row-2">
+				<OzField label="Tür" :error="assignForm.errors.kind">
+					<OzSelect v-model="assignForm.kind" :options="kindOptions" />
+				</OzField>
+				<OzField label="Atanan kişi" required :error="assignForm.errors.assigned_to">
+					<OzCombobox v-model="assignForm.assigned_to" :options="assigneeOptions" placeholder="Kişi seçin" search-placeholder="İsim ara…" />
+				</OzField>
+			</div>
+			<div class="row-2">
+				<OzField label="Kalıp" :error="assignForm.errors.pattern_id" hint="Yalnızca onaylı kalıplar">
+					<OzCombobox v-model="assignForm.pattern_id" :options="patternOptions" placeholder="Yok" clearable />
+				</OzField>
+				<OzField label="Konsept kartı" :error="assignForm.errors.design_card_id">
+					<OzCombobox v-model="assignForm.design_card_id" :options="cardOptions" placeholder="Yok" clearable />
+				</OzField>
+			</div>
+			<OzField label="Talimat" :error="assignForm.errors.instructions">
+				<OzTextarea v-model="assignForm.instructions" :rows="3" placeholder="Detaylar (opsiyonel)" />
+			</OzField>
+			<OzField label="Termin" :error="assignForm.errors.due_date">
+				<OzInput v-model="assignForm.due_date" type="date" />
+			</OzField>
+			<button type="submit" hidden />
+		</form>
+		<template #footer>
+			<OzButton :disabled="assignForm.processing" @click="assignOpen = false">Vazgeç</OzButton>
+			<OzButton variant="primary" icon="check" :loading="assignForm.processing" @click="submitAssign">Ata</OzButton>
+		</template>
+	</OzDrawer>
+
+	<!-- Teslim -->
+	<OzDrawer v-model:open="deliver.open" title="İşi Teslim Et" :subtitle="deliver.item?.title ?? ''" icon="upload" size="sm" :persistent="deliverForm.processing">
+		<form class="form" @submit.prevent="submitDeliver">
+			<OzField label="Teslim dosyası (opsiyonel)" :error="deliverForm.errors.file">
+				<OzFileDrop v-model="deliverFiles" :max-size="50 * 1024 * 1024" title="Dosyayı buraya bırakın" hint="Revize DXF / PDF · en fazla 50 MB" />
+			</OzField>
+			<OzField label="Not" :error="deliverForm.errors.note">
+				<OzTextarea v-model="deliverForm.note" :rows="3" placeholder="Teslim notu (opsiyonel)" />
+			</OzField>
+			<button type="submit" hidden />
+		</form>
+		<template #footer>
+			<OzButton :disabled="deliverForm.processing" @click="deliver.open = false">Vazgeç</OzButton>
+			<OzButton variant="primary" icon="check" :loading="deliverForm.processing" @click="submitDeliver">Teslim Et</OzButton>
+		</template>
+	</OzDrawer>
+
+	<!-- Ret -->
+	<OzModal v-model:open="reject.open" title="İşi Reddet" :subtitle="reject.item?.title ?? ''" icon="x" tone="danger" size="sm" :persistent="rejectForm.processing">
+		<OzField label="Ret gerekçesi" :error="rejectForm.errors.note" hint="Kişiye kartta gösterilir">
+			<OzTextarea v-model="rejectForm.note" :rows="3" placeholder="Neden geri gönderiliyor?" />
+		</OzField>
+		<template #footer>
+			<OzButton :disabled="rejectForm.processing" @click="reject.open = false">Vazgeç</OzButton>
+			<OzButton variant="danger" :loading="rejectForm.processing" @click="submitReject">Reddet</OzButton>
+		</template>
+	</OzModal>
+</template>
+
 <style scoped>
-/* Şeritler */
-.lanes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; align-items: start; }
-.lane { background: #f7f7fb; border: 1px solid #ededf2; border-radius: 14px; padding: 10px; min-height: 120px; }
-.lane-head { display: flex; align-items: center; justify-content: space-between; padding: 4px 6px 10px; }
-.lane-title { font-size: 12.5px; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: .03em; }
-.lane-count { font-size: 11px; font-weight: 600; color: #999; background: #fff; padding: 1px 8px; border-radius: 10px; }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.board { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; align-items: start; }
+.lane { background: var(--oz-surface-2); border: 1px solid var(--oz-border); border-radius: var(--oz-radius); padding: 10px; min-height: 140px; }
+.lane-head { display: flex; align-items: center; justify-content: space-between; padding: 2px 4px 10px; }
+.lane-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--oz-muted); }
+.lane-count { min-width: 22px; text-align: center; font-size: 11px; font-weight: 700; color: var(--oz-muted); background: var(--oz-surface); border: 1px solid var(--oz-border); padding: 0 7px; border-radius: 999px; }
 .lane-body { display: flex; flex-direction: column; gap: 10px; }
-.lane-empty { text-align: center; color: #ccc; font-size: 13px; padding: 10px 0; }
+.lane-empty { margin: 0; padding: 14px 0; text-align: center; font-size: 12px; color: var(--oz-muted-2, var(--oz-muted)); }
 
-.assign-card { background: #fff; border: 1px solid #ebebf0; border-radius: 11px; padding: 12px; display: flex; flex-direction: column; gap: 7px; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
-.assign-card.late { border-color: #fca5a5; }
-.ac-top { display: flex; align-items: center; justify-content: space-between; }
-.due { font-size: 11px; color: #999; font-family: 'SF Mono', Menlo, Consolas, monospace; }
-.due.late { color: #dc2626; font-weight: 700; }
-.ac-title { font-size: 13.5px; font-weight: 700; color: #1a1a2e; line-height: 1.3; }
-.ac-refs { display: flex; flex-wrap: wrap; gap: 5px; }
-.ref { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: #666; background: #f4f4f8; padding: 2px 8px; border-radius: 5px; }
-.ac-note { font-size: 12px; color: #888; line-height: 1.4; }
-.ac-people { display: flex; align-items: center; gap: 7px; }
-.who { font-size: 12px; font-weight: 600; color: #555; }
-.mine-tag { font-size: 10px; font-weight: 700; background: var(--color-primary-soft); color: var(--color-primary); padding: 1px 7px; border-radius: 10px; }
-.ac-review { font-size: 11.5px; color: #b45309; background: #fffbeb; padding: 5px 8px; border-radius: 6px; font-style: italic; }
-.ac-file { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 700; color: #4f46e5; text-decoration: none; }
-.ac-file:hover { text-decoration: underline; }
-.ac-actions { display: flex; gap: 6px; margin-top: 2px; }
-.done-tag { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 600; color: #059669; }
+.card { display: flex; flex-direction: column; gap: 8px; padding: 12px; background: var(--oz-surface); border: 1px solid var(--oz-border); border-radius: var(--oz-radius-sm); box-shadow: var(--oz-shadow-sm); }
+.card.late { border-color: rgba(var(--oz-danger-rgb), .45); }
+.card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.due { font-family: ui-monospace, monospace; font-size: 11px; color: var(--oz-muted); }
+.due.late { color: var(--oz-danger); font-weight: 700; }
+.card-title { margin: 0; font-size: 13.5px; font-weight: 700; line-height: 1.3; color: var(--oz-ink-soft); }
+.refs { display: flex; flex-wrap: wrap; gap: 5px; }
+.ref { font-size: 11px; color: var(--oz-muted); background: var(--oz-surface-2); border: 1px solid var(--oz-border-soft); padding: 1px 7px; border-radius: 5px; }
+.note { margin: 0; font-size: 12px; line-height: 1.45; color: var(--oz-muted); }
+.people { display: flex; align-items: center; gap: 7px; }
+.who { font-size: 12px; font-weight: 600; color: var(--oz-ink); }
+.review { margin: 0; font-size: 11.5px; font-style: italic; color: var(--oz-warning); background: var(--oz-warning-soft); padding: 5px 8px; border-radius: 6px; }
+.file { font-size: 12px; font-weight: 700; color: var(--oz-accent); text-decoration: none; }
+.file:hover { text-decoration: underline; }
+.card-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding-top: 8px; border-top: 1px solid var(--oz-border-soft); }
 
-/* Modal */
-.form-grid { display: flex; flex-direction: column; gap: 14px; }
-.form-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.form-row { display: flex; flex-direction: column; gap: 6px; }
-.form-label { font-size: 12px; font-weight: 600; color: #1a1a2e; }
-.req { color: #ef4444; }
-.form-input { padding: 9px 12px; border: 1px solid #e8e8f0; border-radius: 8px; font-family: inherit; font-size: 13px; color: #1a1a2e; background: #fff; outline: none; width: 100%; }
-.form-input:focus { border-color: var(--color-primary); }
-textarea.form-input { resize: vertical; }
-.form-error { font-size: 11.5px; color: #ef4444; }
-.file-drop { display: flex; flex-direction: column; gap: 4px; border: 1px dashed #d8d8e2; border-radius: 9px; padding: 12px; cursor: pointer; }
-.file-drop:hover { border-color: var(--color-primary); }
-.file-drop input[type=file] { display: none; }
-.fd-label { font-size: 12px; font-weight: 600; color: #555; }
-.fd-name { font-size: 11.5px; color: #999; }
+.form { display: flex; flex-direction: column; gap: 14px; }
+.row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
-@media (max-width: 900px) { .lanes { grid-template-columns: 1fr 1fr; } }
-@media (max-width: 560px) { .lanes { grid-template-columns: 1fr; } .form-2 { grid-template-columns: 1fr; } }
+@media (max-width: 1100px) { .board { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) {
+	.board { grid-template-columns: 1fr; }
+	.row-2 { grid-template-columns: 1fr; }
+}
 </style>

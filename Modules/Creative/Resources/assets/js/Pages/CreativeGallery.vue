@@ -9,8 +9,6 @@
 			]"
 		/>
 
-		<CreativeNav current="gallery" />
-
 		<PageHeader title="Creative Galeri">
 			<template #subtitle><strong>{{ assets.total }}</strong> üretilmiş görsel</template>
 			<template #actions>
@@ -223,7 +221,6 @@ import PageHeader from '@/Components/PageHeader.vue'
 import Button from '@/Components/Button.vue'
 import Badge from '@/Components/Badge.vue'
 import Tag from '@/Components/Tag.vue'
-import CreativeNav from '../Components/CreativeNav.vue'
 import { useCan } from '@/composables/useCan'
 import { openRejectDialog } from '../support/rejectDialog'
 import { extOf } from '../support/mediaExt'

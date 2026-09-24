@@ -1,24 +1,15 @@
 <script setup>
-import { computed, ref } from 'vue'
-import { Head, useForm, Link } from '@inertiajs/vue3'
+import { computed, ref, watch, inject } from 'vue'
+import { Head, useForm } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import Breadcrumb from '@/Components/Breadcrumb.vue'
-import PageHeader from '@/Components/PageHeader.vue'
-import Card from '@/Components/Card.vue'
-import Button from '@/Components/Button.vue'
-import Badge from '@/Components/Badge.vue'
-import DataTable from '@/Components/DataTable.vue'
-import CustomSelect from '@/Components/CustomSelect.vue'
-import FormField from '@/Components/Form/FormField.vue'
-import FormInput from '@/Components/Form/FormInput.vue'
-import FormTextarea from '@/Components/Form/FormTextarea.vue'
-import FormCheckbox from '@/Components/Form/FormCheckbox.vue'
-import { useCan } from '@/composables/useCan'
-import { Plus, Trash2 } from 'lucide-vue-next'
+import {
+	OzPageHeader, OzModuleTabs, OzStatTile, OzCard, OzButton, OzPill, OzTable, OzDropdown, OzDrawer, OzAlert,
+	OzAccordion, OzField, OzInput, OzSelect, OzTextarea, OzCheckbox, OzTooltip, OzIcon,
+} from '@/Components/Oz'
 
 defineOptions({ layout: AppLayout })
 
-const { can } = useCan()
+const showToast = inject('showToast', null)
 
 const props = defineProps({
 	profiles: { type: Array, default: () => [] },
@@ -27,33 +18,49 @@ const props = defineProps({
 // tshirt bloklarının (blocks/tshirt.py) resolve() için okuduğu ölçü alanları —
 // bkz. sizes.yaml şeması, mimari doküman §5.3.
 const MEASUREMENT_FIELDS = [
-	{ key: 'height', label: 'Boy' },
-	{ key: 'chest_circ', label: 'Göğüs Çevresi' },
-	{ key: 'waist_circ', label: 'Bel Çevresi' },
-	{ key: 'shoulder_width', label: 'Omuz Genişliği' },
-	{ key: 'neck_circ', label: 'Boyun Çevresi' },
-	{ key: 'back_width', label: 'Sırt Genişliği' },
-	{ key: 'arm_length', label: 'Kol Uzunluğu' },
-	{ key: 'armhole_depth', label: 'Kol Evi Derinliği' },
-	{ key: 'upper_arm_circ', label: 'Pazı Çevresi' },
-	{ key: 'body_length', label: 'Beden Boyu' },
+	{ key: 'height', label: 'Boy', hint: 'Tepeden tabana toplam vücut boyu.' },
+	{ key: 'chest_circ', label: 'Göğüs Çevresi', hint: 'Göğüs hizasından ölçülen tam çevre.' },
+	{ key: 'waist_circ', label: 'Bel Çevresi', hint: 'Bel hizasından ölçülen tam çevre.' },
+	{ key: 'shoulder_width', label: 'Omuz Genişliği', hint: 'Bir omuz ucundan diğerine yatay mesafe.' },
+	{ key: 'neck_circ', label: 'Boyun Çevresi', hint: 'Boyun kökünden ölçülen tam çevre.' },
+	{ key: 'back_width', label: 'Sırt Genişliği', hint: 'Kürek kemikleri hizasında ölçülen sırt genişliği.' },
+	{ key: 'arm_length', label: 'Kol Uzunluğu', hint: 'Omuzdan bilek ucuna kol uzunluğu.' },
+	{ key: 'armhole_depth', label: 'Kol Evi Derinliği', hint: 'Omuzdan koltuk altına dikey derinlik.' },
+	{ key: 'upper_arm_circ', label: 'Pazı Çevresi', hint: 'Üst kol (pazı) çevresi.' },
+	{ key: 'body_length', label: 'Beden Boyu', hint: 'Omuz dikişinden etek ucuna gövde uzunluğu.' },
 ]
 
+/* ── özet ── */
+const verified = computed(() => props.profiles.filter((p) => p.verifiedByModelist).length)
+const sizeCount = computed(() => props.profiles.reduce((s, p) => s + (p.sizes?.length ?? 0), 0))
+const stats = computed(() => [
+	{ key: 'total', label: 'Ölçü Profili', value: props.profiles.length, icon: 'layers', tone: 'accent' },
+	{ key: 'verified', label: 'Modelist Onaylı', value: verified.value, icon: 'success', tone: 'success' },
+	{ key: 'placeholder', label: 'Yer Tutucu', value: props.profiles.length - verified.value, icon: 'alert', tone: props.profiles.length - verified.value ? 'warning' : 'success' },
+	{ key: 'sizes', label: 'Tanımlı Beden', value: sizeCount.value, icon: 'rows', tone: 'info' },
+])
+
+/* ── liste ── */
+const columns = [
+	{ key: 'name', label: 'Profil', sortable: true },
+	{ key: 'garment', label: 'Giysi', sortable: true },
+	{ key: 'sizes', label: 'Bedenler', searchable: false },
+	{ key: 'source', label: 'Kaynak', sortable: true },
+	{ key: 'verifiedByModelist', label: 'Onay', sortable: true, filter: { type: 'select', options: [{ value: true, label: 'Onaylı' }, { value: false, label: 'Yer tutucu' }] } },
+	{ key: 'actions', label: '', align: 'right', width: '48px', searchable: false },
+]
+const rowActions = [{ key: 'sizes', label: 'Beden Ekle / Güncelle', icon: 'plus' }]
+
+/* ── form (oluştur ya da mevcut profile beden ekle; gönderim MERGE) ── */
 function emptyMeasurements() {
 	const obj = {}
 	for (const f of MEASUREMENT_FIELDS) obj[f.key] = ''
 	return obj
 }
-
 const sizeRows = ref([{ sizeKey: '', ...emptyMeasurements() }])
 const duplicateSizeError = ref('')
-
-function addSizeRow() {
-	sizeRows.value.push({ sizeKey: '', ...emptyMeasurements() })
-}
-function removeSizeRow(index) {
-	if (sizeRows.value.length > 1) sizeRows.value.splice(index, 1)
-}
+function addSizeRow() { sizeRows.value.push({ sizeKey: '', ...emptyMeasurements() }) }
+function removeSizeRow(index) { if (sizeRows.value.length > 1) sizeRows.value.splice(index, 1) }
 
 const form = useForm({
 	name: '',
@@ -65,23 +72,36 @@ const form = useForm({
 		note: '',
 	},
 })
+const formOpen = ref(false)
 
 // Yazılan ad var olan bir profille eşleşiyorsa mevcut bedenlerini hatırlat —
 // gönderim MERGE olduğu için (bkz. create_or_update_profile) veri kaybı yok,
 // ama kullanıcı hangi bedenlerin zaten tanımlı olduğunu görmeli.
-const existingSizesForName = computed(() => {
-	const match = props.profiles.find((p) => p.name === form.name)
-	return match ? match.sizes : null
-})
-
+const existingSizesForName = computed(() => props.profiles.find((p) => p.name === form.name)?.sizes ?? null)
 const baseProfileOptions = computed(() => props.profiles.map((p) => ({ value: p.name, label: p.name })))
 
 function resetForm() {
 	sizeRows.value = [{ sizeKey: '', ...emptyMeasurements() }]
+	duplicateSizeError.value = ''
 	form.reset()
+	form.clearErrors()
+}
+watch(formOpen, (open) => { if (!open) setTimeout(resetForm, 250) })
+
+function openCreate() {
+	resetForm()
+	formOpen.value = true
+}
+function openForProfile(p) {
+	resetForm()
+	form.name = p.name
+	form.provenance.source = p.source ?? ''
+	form.provenance.verified_by_modelist = !!p.verifiedByModelist
+	formOpen.value = true
 }
 
 function submit() {
+	if (form.processing) return
 	duplicateSizeError.value = ''
 
 	const keys = sizeRows.value.map((row) => row.sizeKey).filter(Boolean)
@@ -102,21 +122,13 @@ function submit() {
 
 	form.post(route('patternengine.profiles.store'), {
 		preserveScroll: true,
-		onSuccess: resetForm,
+		onSuccess: () => { formOpen.value = false },
+		onError: (errs) => showToast?.({ type: 'error', title: 'Profil kaydedilemedi', message: Object.values(errs)[0] || 'Doğrulama hatası.' }),
 	})
 }
 
-const columns = [
-	{ key: 'name', label: 'Profil' },
-	{ key: 'garment', label: 'Giysi' },
-	{ key: 'sizes', label: 'Bedenler', sortable: false },
-	{ key: 'source', label: 'Kaynak' },
-	{ key: 'verifiedByModelist', label: 'Onay' },
-]
-
-// Formdaki her alanın ne anlama geldiğini anlatan rehber (bkz. Kalıp Motoru
-// sayfasındaki aynı desen) — ölçü terimleri modelist olmayan kullanıcılar için
-// formun altında sabit metin olarak açıklanır.
+/* ── alan rehberi ── */
+const guideOpen = ref([])
 const FIELD_GUIDE = [
 	{ term: 'Profil Adı (slug)', desc: 'Bu ölçü tablosunu tanımlayan benzersiz kısa ad (ör. müşteri/firma kodu). Kalıp Motoru formundaki "Profil" seçiminde bu ad görünür.' },
 	{ term: 'Taban Profil', desc: 'Çizim formüllerinin (ease, oranlar) kopyalanacağı kaynak profil. Ölçü tablosundan bağımsızdır — yalnızca formüller taban profilden alınır, bedenler bu formdan girilir.' },
@@ -124,126 +136,165 @@ const FIELD_GUIDE = [
 	{ term: 'Modelist onaylı', desc: 'İşaretlenmezse profil "yer tutucu" sayılır — Kalıp Motoru sayfasında uyarı gösterilir ve bu profille üretim vaadi verilmez.' },
 	{ term: 'Not (opsiyonel)', desc: 'Ölçü tablosuna dair serbest metin açıklama.' },
 	{ term: 'Beden (satır anahtarı)', desc: 'Bu ölçü setinin karşılık geldiği beden kodu (ör. 6Y, S, M). Kalıp Motoru\'ndaki Beden seçiminde bu değer listelenir.' },
-	{ term: 'Boy (mm)', desc: 'Tepeden tabana toplam vücut boyu.' },
-	{ term: 'Göğüs Çevresi (mm)', desc: 'Göğüs hizasından ölçülen tam çevre.' },
-	{ term: 'Bel Çevresi (mm)', desc: 'Bel hizasından ölçülen tam çevre.' },
-	{ term: 'Omuz Genişliği (mm)', desc: 'Bir omuz ucundan diğerine yatay mesafe.' },
-	{ term: 'Boyun Çevresi (mm)', desc: 'Boyun kökünden ölçülen tam çevre.' },
-	{ term: 'Sırt Genişliği (mm)', desc: 'Kürek kemikleri hizasında ölçülen sırt genişliği.' },
-	{ term: 'Kol Uzunluğu (mm)', desc: 'Omuzdan bilek ucuna kol uzunluğu.' },
-	{ term: 'Kol Evi Derinliği (mm)', desc: 'Omuzdan koltuk altına dikey derinlik.' },
-	{ term: 'Pazı Çevresi (mm)', desc: 'Üst kol (pazı) çevresi.' },
-	{ term: 'Beden Boyu (mm)', desc: 'Omuz dikişinden etek ucuna gövde uzunluğu.' },
+	...MEASUREMENT_FIELDS.map((f) => ({ term: `${f.label} (mm)`, desc: f.hint })),
 ]
-
-// Kalıp Motoru sayfası ayrı bir yetkiyle (patternengine.manage) korunuyor —
-// bu yetkisi olmayan bir profil-editörüne kırık/403 link göstermeyelim.
-const breadcrumbItems = computed(() => [
-	{ label: 'Ana Sayfa', to: '/workflow', icon: 'home' },
-	can('patternengine.manage')
-		? { label: 'Kalıp Motoru', to: route('patternengine.index') }
-		: { label: 'Kalıp Motoru' },
-	{ label: 'Profiller' },
-])
 </script>
 
 <template>
 	<Head title="Kalıp Profilleri" />
 
-	<Breadcrumb :items="breadcrumbItems" />
-
-	<PageHeader
-		title="Kalıp Profilleri"
-		subtitle="Her firma/modelist kendi ölçü tablosunu tanımlar (§5.2) — çizim formülleri taban profilden kopyalanır, ölçü tablosu bağımsızdır."
-	>
+	<OzPageHeader title="Kalıp Profilleri" subtitle="Her firma/modelist kendi ölçü tablosunu tanımlar (§5.2) — çizim formülleri taban profilden kopyalanır, ölçü tablosu bağımsızdır.">
 		<template #actions>
-			<Link v-if="can('patternengine.manage')" :href="route('patternengine.index')" class="btn btn-ghost btn-sm">Kalıp Motoruna Dön</Link>
+			<OzButton variant="primary" icon="plus" @click="openCreate">Yeni Profil</OzButton>
 		</template>
-	</PageHeader>
+	</OzPageHeader>
+	<OzModuleTabs />
 
-	<div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-		<Card title="Yeni Profil" class="lg:col-span-1">
-			<form class="flex flex-col gap-3" @submit.prevent="submit">
-				<FormField label="Profil Adı (slug)" for-id="profile_name" :error="form.errors.name">
-					<FormInput id="profile_name" v-model="form.name" variant="default" placeholder="musteri_x" />
-					<p v-if="existingSizesForName" class="text-2xs text-muted mt-1">
-						Bu profil zaten var, mevcut bedenleri: {{ existingSizesForName.join(', ') }}.
-						Aşağıda yalnızca eklediğiniz/değiştirdiğiniz bedenler güncellenir, diğerleri korunur.
-					</p>
-				</FormField>
-
-				<FormField label="Taban Profil (formüller buradan kopyalanır)" :error="form.errors.base_profile">
-					<CustomSelect v-model="form.base_profile" :show-label="false" :options="baseProfileOptions" />
-				</FormField>
-
-				<FormField label="Kaynak" for-id="provenance_source" :error="form.errors['provenance.source']">
-					<FormInput id="provenance_source" v-model="form.provenance.source" variant="default" placeholder="ör. Müşteri X modelist tablosu" />
-				</FormField>
-
-				<FormCheckbox v-model="form.provenance.verified_by_modelist" label="Modelist onaylı" />
-
-				<FormField label="Not (opsiyonel)" for-id="provenance_note" :error="form.errors['provenance.note']">
-					<FormTextarea id="provenance_note" v-model="form.provenance.note" :rows="2" />
-				</FormField>
-
-				<div class="border-t border-line pt-3 mt-1">
-					<p class="text-xs font-semibold text-ink mb-2">Bedenler</p>
-
-					<div v-for="(row, index) in sizeRows" :key="index" class="rounded-lg border border-line p-2.5 mb-2">
-						<div class="flex items-center gap-2 mb-2">
-							<FormInput v-model="row.sizeKey" variant="default" placeholder="ör. 6Y" />
-							<Button v-if="sizeRows.length > 1" type="button" variant="ghost" size="sm" icon-only @click="removeSizeRow(index)">
-								<Trash2 :size="14" />
-							</Button>
-						</div>
-						<div class="grid grid-cols-2 gap-2">
-							<label v-for="f in MEASUREMENT_FIELDS" :key="f.key" class="text-2xs text-muted">
-								{{ f.label }} (mm)
-								<FormInput v-model="row[f.key]" type="number" step="0.1" min="0" variant="default" />
-							</label>
-						</div>
-					</div>
-
-					<Button type="button" variant="ghost" size="sm" @click="addSizeRow">
-						<template #leading><Plus :size="14" /></template>
-						Beden Ekle
-					</Button>
-
-					<p v-if="duplicateSizeError" class="text-xs text-danger mt-1">{{ duplicateSizeError }}</p>
-					<p v-if="form.errors.sizes" class="text-xs text-danger mt-1">{{ form.errors.sizes }}</p>
-				</div>
-
-				<Button type="submit" variant="primary" :loading="form.processing" class="mt-1">
-					Profili Kaydet
-				</Button>
-			</form>
-		</Card>
-
-		<Card title="Var Olan Profiller" class="lg:col-span-2">
-			<DataTable
-				:columns="columns"
-				:data="profiles"
-				:paginated="false"
-				empty-icon="folder"
-				empty-title="Henüz profil yok"
-			>
-				<template #sizes="{ value }">
-					<span class="text-xs text-muted">{{ value.join(', ') }}</span>
-				</template>
-
-				<template #verifiedByModelist="{ value }">
-					<Badge :color="value ? 'success' : 'warning'" :label="value ? 'Onaylı' : 'Yer tutucu'" variant="tonal" />
-				</template>
-			</DataTable>
-		</Card>
+	<div class="stats">
+		<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" />
 	</div>
 
-	<Card title="Alan Rehberi" class="mt-4">
-		<dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3.5 text-xs">
-			<div v-for="item in FIELD_GUIDE" :key="item.term">
-				<dt class="font-semibold text-ink">{{ item.term }}</dt>
-				<dd class="text-muted mt-0.5">{{ item.desc }}</dd>
+	<OzCard title="Var Olan Profiller">
+		<OzTable :columns="columns" :rows="profiles" row-key="name" searchable search-placeholder="Profil ya da kaynak ara…" empty-title="Henüz profil yok" empty-text="“Yeni Profil” ile ilk ölçü tablosunu ekleyin." min-width="620px">
+			<template #cell-name="{ value }"><span class="mono strong">{{ value }}</span></template>
+			<template #cell-sizes="{ value }">
+				<div class="chips"><span v-for="s in value" :key="s" class="chip">{{ s }}</span></div>
+			</template>
+			<template #cell-source="{ value }"><span class="dim">{{ value || '—' }}</span></template>
+			<template #cell-verifiedByModelist="{ value }">
+				<OzPill :tone="value ? 'success' : 'warning'">{{ value ? 'Onaylı' : 'Yer tutucu' }}</OzPill>
+			</template>
+			<template #cell-actions="{ row }">
+				<OzDropdown :items="rowActions" :label="`${row.name} işlemleri`" @select="openForProfile(row)" />
+			</template>
+		</OzTable>
+	</OzCard>
+
+	<OzCard title="Alan Rehberi" subtitle="formdaki terimlerin anlamı" class="guide-card">
+		<div class="guide">
+			<OzAccordion v-model="guideOpen" :items="[{ key: 'guide', title: 'Terimleri göster', icon: 'help' }]" flush>
+				<template #guide>
+					<dl class="guide-list">
+						<div v-for="item in FIELD_GUIDE" :key="item.term">
+							<dt>{{ item.term }}</dt>
+							<dd>{{ item.desc }}</dd>
+						</div>
+					</dl>
+				</template>
+			</OzAccordion>
+		</div>
+	</OzCard>
+
+	<OzDrawer v-model:open="formOpen" :title="existingSizesForName ? 'Profili Güncelle' : 'Yeni Profil'" subtitle="Ölçü tablosu · bedenler mevcut profile birleştirilir" icon="layers" size="lg" :persistent="form.processing">
+		<form class="form" @submit.prevent="submit">
+			<div class="row-2">
+				<OzField
+					label="Profil adı (slug)"
+					required
+					:error="form.errors.name"
+					hint="Bu ölçü tablosunu tanımlayan benzersiz kısa ad (ör. müşteri/firma kodu). Kalıp Motoru formundaki &quot;Profil&quot; seçiminde bu ad görünür."
+				>
+					<OzInput v-model="form.name" class="mono" placeholder="musteri_x" />
+				</OzField>
+				<OzField
+					label="Taban profil (formüller buradan kopyalanır)"
+					:error="form.errors.base_profile"
+					hint="Çizim formüllerinin (ease, oranlar) kopyalanacağı kaynak profil. Ölçü tablosundan bağımsızdır — yalnızca formüller taban profilden alınır, bedenler bu formdan girilir."
+				>
+					<OzSelect v-model="form.base_profile" :options="baseProfileOptions" />
+				</OzField>
 			</div>
-		</dl>
-	</Card>
+			<OzAlert v-if="existingSizesForName" tone="info" title="Bu profil zaten var">
+				Mevcut bedenler: <b>{{ existingSizesForName.join(', ') }}</b>. Yalnızca eklediğiniz/değiştirdiğiniz bedenler güncellenir, diğerleri korunur.
+			</OzAlert>
+			<OzField
+				label="Kaynak"
+				:error="form.errors['provenance.source']"
+				hint="Ölçülerin nereden geldiğine dair not (ör. &quot;Müşteri X modelist tablosu&quot;, &quot;istatistiksel tahmin&quot;)."
+			>
+				<OzInput v-model="form.provenance.source" placeholder="ör. Müşteri X modelist tablosu" />
+			</OzField>
+			<OzCheckbox
+				v-model="form.provenance.verified_by_modelist"
+				label="Modelist onaylı"
+				description="İşaretlenmezse profil &quot;yer tutucu&quot; sayılır — Kalıp Motoru sayfasında uyarı gösterilir ve bu profille üretim vaadi verilmez."
+			/>
+			<OzField label="Not (opsiyonel)" :error="form.errors['provenance.note']" hint="Ölçü tablosuna dair serbest metin açıklama.">
+				<OzTextarea v-model="form.provenance.note" :rows="2" />
+			</OzField>
+
+			<section class="section">
+				<div class="section-head">
+					<span class="section-title">Bedenler</span>
+					<OzButton size="sm" icon="plus" @click="addSizeRow">Beden Ekle</OzButton>
+				</div>
+				<div v-for="(row, index) in sizeRows" :key="index" class="size">
+					<div class="size-head">
+						<label class="m-field size-key">
+							<span class="m-label">
+								Beden
+								<OzTooltip text="Bu ölçü setinin karşılık geldiği beden kodu (ör. 6Y, S, M). Kalıp Motoru'ndaki Beden seçiminde bu değer listelenir.">
+									<span class="hint-ico" tabindex="0" aria-label="Beden açıklaması"><OzIcon name="help" :size="12" /></span>
+								</OzTooltip>
+							</span>
+							<OzInput v-model="row.sizeKey" class="mono" placeholder="ör. 6Y" />
+						</label>
+						<OzButton v-if="sizeRows.length > 1" size="sm" icon="trash" :aria-label="`${row.sizeKey || index + 1}. bedeni kaldır`" @click="removeSizeRow(index)" />
+					</div>
+					<div class="measures">
+						<label v-for="f in MEASUREMENT_FIELDS" :key="f.key" class="m-field">
+							<span class="m-label">
+								{{ f.label }}
+								<OzTooltip :text="f.hint">
+									<span class="hint-ico" tabindex="0" :aria-label="`${f.label} açıklaması`"><OzIcon name="help" :size="12" /></span>
+								</OzTooltip>
+							</span>
+							<OzInput v-model="row[f.key]" type="number" step="0.1" min="0" suffix="mm" />
+						</label>
+					</div>
+				</div>
+				<p v-if="duplicateSizeError" class="field-error">{{ duplicateSizeError }}</p>
+				<p v-if="form.errors.sizes" class="field-error">{{ form.errors.sizes }}</p>
+			</section>
+			<button type="submit" hidden />
+		</form>
+		<template #footer>
+			<OzButton :disabled="form.processing" @click="formOpen = false">Vazgeç</OzButton>
+			<OzButton variant="primary" icon="check" :loading="form.processing" @click="submit">Profili Kaydet</OzButton>
+		</template>
+	</OzDrawer>
 </template>
+
+<style scoped>
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.mono { font-family: ui-monospace, monospace; font-size: 12px; }
+.strong { font-weight: 700; color: var(--oz-ink-soft); }
+.dim { color: var(--oz-muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip { font-family: ui-monospace, monospace; font-size: 11px; color: var(--oz-muted); background: var(--oz-surface-2); border: 1px solid var(--oz-border-soft); padding: 0 6px; border-radius: 5px; }
+.guide-card { margin-top: 16px; }
+.guide { padding: 0 18px 12px; }
+.guide-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 24px; margin: 0; padding: 4px 0 8px; }
+.guide-list dt { font-size: 12px; font-weight: 700; color: var(--oz-ink-soft); }
+.guide-list dd { margin: 2px 0 0; font-size: 12px; line-height: 1.5; color: var(--oz-muted); }
+
+.form { display: flex; flex-direction: column; gap: 14px; }
+.row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.section { display: flex; flex-direction: column; gap: 10px; padding-top: 14px; border-top: 1px solid var(--oz-border-soft); }
+.section-head { display: flex; align-items: center; justify-content: space-between; }
+.section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--oz-muted); }
+.size { display: flex; flex-direction: column; gap: 10px; padding: 12px; border: 1px solid var(--oz-border-soft); border-radius: var(--oz-radius-sm); background: var(--oz-surface-2); }
+.size-head { display: flex; align-items: flex-end; gap: 8px; }
+.size-key { flex: 0 1 220px; }
+.measures { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.field-error { margin: 0; font-size: 12px; color: var(--oz-danger); }
+.m-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.m-label { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: var(--oz-ink-soft); }
+.hint-ico { display: inline-flex; color: var(--oz-muted); cursor: help; border-radius: 50%; }
+.hint-ico:hover, .hint-ico:focus-visible { color: var(--oz-accent); outline: none; }
+@media (max-width: 640px) {
+	.row-2, .guide-list { grid-template-columns: 1fr; }
+}
+</style>

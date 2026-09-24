@@ -1,7 +1,7 @@
 <template>
 	<Teleport to="body">
 		<div class="modal-overlay" :class="{ open: modelValue }" @click.self="close">
-			<div class="modal" :class="`modal-${size}`" role="dialog" aria-modal="true">
+			<div ref="modalBox" class="modal" :class="`modal-${size}`" role="dialog" aria-modal="true">
 				<div class="modal-header">
 					<div class="modal-title">
 						<div class="modal-title-icon" :class="`icon-${variant}`">
@@ -43,7 +43,8 @@
 </template>
 
 <script setup>
-import { watch, onBeforeUnmount } from 'vue'
+import { ref, watch, onBeforeUnmount } from 'vue'
+import { useMotion } from '@vueuse/motion'
 
 const props = defineProps({
 	modelValue: { type: Boolean, default: false },
@@ -54,6 +55,29 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:modelValue', 'close'])
+
+const modalBox = ref(null)
+const { variant: motionVariant } = useMotion(modalBox, {
+	initial: { opacity: 0, scale: 0.95, y: 10 },
+	closed: {
+		opacity: 0,
+		scale: 0.95,
+		y: 10,
+		transition: { type: 'spring', stiffness: 380, damping: 32 },
+	},
+	open: {
+		opacity: 1,
+		scale: 1,
+		y: 0,
+		transition: { type: 'spring', stiffness: 380, damping: 32 },
+	},
+})
+
+watch(
+	() => props.modelValue,
+	(open) => { motionVariant.value = open ? 'open' : 'closed' },
+	{ immediate: true },
+)
 
 function close() {
 	emit('update:modelValue', false)
@@ -102,12 +126,8 @@ onBeforeUnmount(() => {
 	   butonu görünmez olur ve kaydırma imkânı olmazdı. */
 	max-height: calc(100vh - 40px);
 	display: flex; flex-direction: column;
-	transform: scale(.95) translateY(10px);
-	transition: transform .22s cubic-bezier(.34, 1.56, .64, 1), opacity .2s ease;
-	opacity: 0;
 	overflow: hidden;
 }
-.modal-overlay.open .modal { transform: scale(1) translateY(0); opacity: 1; }
 
 .modal.modal-md { max-width: 640px; }
 

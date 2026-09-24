@@ -9,8 +9,6 @@
 			]"
 		/>
 
-		<FinanceNav current="bank" />
-
 		<div class="sub-nav">
 			<Link href="/finance/bank-accounts" class="sub-tab active">Hesaplar</Link>
 			<Link href="/finance/bank-statements" class="sub-tab">Ekstreler & Mutabakat</Link>
@@ -19,7 +17,7 @@
 		<PageHeader title="Banka Hesapları">
 			<template #subtitle><strong>{{ accounts.length }}</strong> hesap kayıtlı</template>
 			<template #actions>
-				<Button variant="primary" with-icon @click="openCreate">
+				<Button v-if="canManage" variant="primary" with-icon @click="openCreate">
 					<template #leading><Plus :size="13" /></template>
 					Yeni Hesap
 				</Button>
@@ -32,7 +30,7 @@
 				<template #isActive="{ value }">
 					<Badge :color="value ? 'success' : 'neutral'" variant="tonal" :label="value ? 'Aktif' : 'Pasif'" />
 				</template>
-				<template #actions="{ row }">
+				<template v-if="canManage" #actions="{ row }">
 					<button class="table-action-btn" title="Düzenle" @click="openEdit(row)"><Pencil :size="14" /></button>
 					<button class="table-action-btn danger" title="Sil" @click="remove(row)"><Trash2 :size="14" /></button>
 				</template>
@@ -84,8 +82,8 @@
 </template>
 
 <script setup>
-import { ref, inject, watch } from 'vue'
-import { Head, Link, useForm, router } from '@inertiajs/vue3'
+import { ref, inject, watch, computed } from 'vue'
+import { Head, Link, useForm, router, usePage } from '@inertiajs/vue3'
 import { Plus, Pencil, Trash2 } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
@@ -95,9 +93,13 @@ import DataTable from '@/Components/DataTable.vue'
 import Badge from '@/Components/Badge.vue'
 import Button from '@/Components/Button.vue'
 import AppDrawer from '@/Components/AppDrawer.vue'
-import FinanceNav from '../Components/FinanceNav.vue'
 
 defineOptions({ layout: AppLayout })
+
+// Yazma finance.manage; e-Fatura gönderme ayrıca finance.einvoice.send (bkz. Finance routes/web.php).
+const page = usePage()
+const permissions = computed(() => page.props.auth?.permissions ?? [])
+const canManage = computed(() => permissions.value.includes('finance.manage'))
 
 const $swal = inject('$swal')
 const showToast = inject('showToast')

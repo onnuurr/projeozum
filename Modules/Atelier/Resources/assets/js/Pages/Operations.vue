@@ -1,177 +1,171 @@
-<template>
-	<Head title="Operasyonlar" />
-	<div class="page-operations">
-		<Breadcrumb
-			:items="[
-				{ label: 'Ana Sayfa', to: '/workflow', icon: 'home' },
-				{ label: 'Üretim Atölyesi', to: '/atelier' },
-				{ label: 'Operasyonlar' },
-			]"
-		/>
-
-		<AtelierNav current="operations" />
-
-		<PageHeader title="Operasyonlar">
-			<template #subtitle><strong>{{ operations.length }}</strong> operasyon tanımı</template>
-			<template v-if="can('atelier.operation.manage')" #actions>
-				<Button variant="primary" with-icon @click="openCreate">
-					<template #leading><Plus :size="13" /></template>
-					Yeni Operasyon
-				</Button>
-			</template>
-		</PageHeader>
-
-		<Card title="Operasyon Listesi" body-class="p-0">
-			<DataTable :columns="columns" :data="operations" row-key-field="id" empty-title="Operasyon kaydı yok.">
-				<template #code="{ value }"><span class="mono-chip">{{ value }}</span></template>
-				<template #name="{ value }"><span class="row-name">{{ value }}</span></template>
-				<template #defaultLocation="{ value }">
-					<Badge :color="value === 'fason' ? 'warning' : 'success'" :label="value === 'fason' ? 'Fason' : 'İç'" variant="tonal" />
-				</template>
-				<template #defaultUnitCost="{ value }"><span class="num">{{ value }}</span></template>
-				<template #sortOrder="{ value }"><span class="num dim">{{ value }}</span></template>
-				<template v-if="can('atelier.operation.manage')" #actions="{ row }">
-					<button class="table-action-btn" title="Düzenle" @click="openEdit(row)"><Pencil :size="14" /></button>
-					<button class="table-action-btn danger" title="Sil" @click="remove(row)"><Trash2 :size="14" /></button>
-				</template>
-			</DataTable>
-		</Card>
-
-		<AppDrawer v-model="modalOpen" :title="editing ? 'Operasyon Düzenle' : 'Yeni Operasyon'" width="640px">
-			<form id="operation-form" class="form-grid-inline" @submit.prevent="submit">
-				<div class="form-row">
-					<label class="form-label">Kod <span class="req">*</span></label>
-					<input v-model="form.code" type="text" class="form-input" placeholder="örn. OP-01" />
-					<span v-if="form.errors.code" class="form-error">{{ form.errors.code }}</span>
-				</div>
-				<div class="form-row" style="flex: 2">
-					<label class="form-label">Ad <span class="req">*</span></label>
-					<input v-model="form.name" type="text" class="form-input" placeholder="Operasyon adı" />
-					<span v-if="form.errors.name" class="form-error">{{ form.errors.name }}</span>
-				</div>
-				<div class="form-row">
-					<label class="form-label">Varsayılan Yer</label>
-					<select v-model="form.default_location" class="form-input">
-						<option value="in_house">İç atölye</option>
-						<option value="fason">Fason</option>
-					</select>
-				</div>
-				<div class="form-row">
-					<label class="form-label">Birim İşçilik</label>
-					<input v-model="form.default_unit_cost" type="number" step="0.01" class="form-input" placeholder="0.00" />
-				</div>
-				<div class="form-row" style="flex: 0 0 80px">
-					<label class="form-label">Sıra</label>
-					<input v-model="form.sort_order" type="number" class="form-input" placeholder="0" />
-				</div>
-			</form>
-			<template #footer="{ close }">
-				<Button variant="ghost" :disabled="form.processing" @click="close">İptal</Button>
-				<Button type="submit" form="operation-form" variant="primary" :loading="form.processing">
-					{{ editing ? 'Güncelle' : 'Ekle' }}
-				</Button>
-			</template>
-		</AppDrawer>
-	</div>
-</template>
-
 <script setup>
-import { ref, inject, watch } from 'vue'
-import { Head, useForm, router } from '@inertiajs/vue3'
-import { Plus, Pencil, Trash2 } from 'lucide-vue-next'
+import { ref, computed, inject, watch } from 'vue'
+import { Head, router, useForm } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import Breadcrumb from '@/Components/Breadcrumb.vue'
-import PageHeader from '@/Components/PageHeader.vue'
-import Card from '@/Components/Card.vue'
-import DataTable from '@/Components/DataTable.vue'
-import Badge from '@/Components/Badge.vue'
-import Button from '@/Components/Button.vue'
-import AppDrawer from '@/Components/AppDrawer.vue'
-import AtelierNav from '../Components/AtelierNav.vue'
+import {
+	OzPageHeader, OzModuleTabs, OzStatTile, OzCard, OzButton, OzTable, OzPill, OzDropdown,
+	OzDrawer, OzField, OzInput, OzRadioGroup, useOzConfirm,
+} from '@/Components/Oz'
+import { formatMoney } from '../atelierNav'
 import { useCan } from '@/composables/useCan'
 
 defineOptions({ layout: AppLayout })
 
+const props = defineProps({ operations: { type: Array, default: () => [] } })
+
 const { can } = useCan()
-const $swal = inject('$swal')
+const canManage = computed(() => can('atelier.operation.manage'))
 const showToast = inject('showToast', null)
+const confirm = useOzConfirm()
 
-const props = defineProps({ operations: Array })
-
-const columns = [
-	{ key: 'code', label: 'Kod' },
-	{ key: 'name', label: 'Ad' },
-	{ key: 'defaultLocation', label: 'Yer' },
-	{ key: 'defaultUnitCost', label: 'Birim İşçilik', align: 'right' },
-	{ key: 'sortOrder', label: 'Sıra', align: 'right' },
+const LOCATIONS = { in_house: 'İç Atölye', fason: 'Fason' }
+const locationOptions = [
+	{ value: 'in_house', label: 'İç atölye', description: 'Kendi atölyemizde yapılır' },
+	{ value: 'fason', label: 'Fason', description: 'Dış fasoncuya gönderilir' },
 ]
 
-function emptyForm() {
-	return { id: null, code: '', name: '', default_location: 'in_house', default_unit_cost: 0, sort_order: 0 }
+const inHouse = computed(() => props.operations.filter((o) => o.defaultLocation === 'in_house').length)
+const avgCost = computed(() => props.operations.length
+	? props.operations.reduce((s, o) => s + o.defaultUnitCost, 0) / props.operations.length
+	: 0)
+const stats = computed(() => [
+	{ key: 'total', label: 'Toplam Operasyon', value: props.operations.length, icon: 'workflow', tone: 'accent' },
+	{ key: 'inHouse', label: 'İç Atölye', value: inHouse.value, icon: 'scissors', tone: 'success' },
+	{ key: 'fason', label: 'Fason', value: props.operations.length - inHouse.value, icon: 'factory', tone: 'warning' },
+	{ key: 'avg', label: 'Ort. Birim İşçilik', value: formatMoney(avgCost.value), icon: 'coins', tone: 'info' },
+])
+
+const columns = [
+	{ key: 'sortOrder', label: 'Sıra', align: 'right', sortable: true, width: '64px' },
+	{ key: 'code', label: 'Kod', sortable: true },
+	{ key: 'name', label: 'Ad', sortable: true, class: 'oz-cell-strong' },
+	{ key: 'defaultLocation', label: 'Varsayılan Yer', sortable: true, filter: { type: 'select', options: [{ value: 'in_house', label: 'İç Atölye' }, { value: 'fason', label: 'Fason' }] } },
+	{ key: 'defaultUnitCost', label: 'Birim İşçilik', align: 'right', sortable: true, class: 'oz-cell-amount' },
+	{ key: 'actions', label: '', align: 'right', width: '48px', searchable: false },
+]
+
+const rowActions = () => [
+	{ key: 'edit', label: 'Düzenle', icon: 'edit' },
+	{ key: 'remove', label: 'Sil', icon: 'trash', danger: true },
+]
+function onAction(key, o) {
+	if (key === 'edit') openEdit(o)
+	else if (key === 'remove') remove(o)
 }
 
+const emptyForm = () => ({ id: null, code: '', name: '', default_location: 'in_house', default_unit_cost: 0, sort_order: 0 })
 const form = useForm(emptyForm())
 const editing = ref(false)
-const modalOpen = ref(false)
+const formOpen = ref(false)
+
+function resetForm() {
+	editing.value = false
+	form.defaults(emptyForm())
+	form.reset()
+	form.clearErrors()
+}
+watch(formOpen, (open) => { if (!open) setTimeout(resetForm, 250) })
 
 function openCreate() {
-	reset()
-	modalOpen.value = true
+	resetForm()
+	// yeni operasyon listenin sonuna eklensin
+	form.sort_order = props.operations.reduce((m, o) => Math.max(m, o.sortOrder ?? 0), 0) + 1
+	formOpen.value = true
 }
-
 function openEdit(o) {
+	resetForm()
 	editing.value = true
 	Object.assign(form, {
 		id: o.id, code: o.code, name: o.name,
 		default_location: o.defaultLocation, default_unit_cost: o.defaultUnitCost, sort_order: o.sortOrder,
 	})
-	modalOpen.value = true
+	formOpen.value = true
 }
-
-function reset() {
-	editing.value = false
-	form.reset()
-	Object.assign(form, emptyForm())
-	form.clearErrors()
-}
-
-watch(modalOpen, (open) => {
-	if (!open) setTimeout(reset, 250)
-})
 
 function submit() {
+	if (form.processing) return
 	const opts = {
-		onSuccess: () => {
-			showToast?.({ type: 'success', title: editing.value ? 'Operasyon güncellendi' : 'Operasyon eklendi', message: form.name })
-			modalOpen.value = false
-		},
-		onError: () => {
-			showToast?.({ type: 'error', title: 'Kayıt başarısız', message: Object.values(form.errors)[0] || 'Doğrulama hatası.' })
-		},
+		preserveScroll: true,
+		onSuccess: () => { formOpen.value = false },
+		onError: (errs) => showToast?.({ type: 'error', title: 'Kayıt başarısız', message: Object.values(errs)[0] || 'Doğrulama hatası.' }),
 	}
 	editing.value ? form.put(`/atelier/operations/${form.id}`, opts) : form.post('/atelier/operations', opts)
 }
+
 async function remove(o) {
-  const ok = await $swal.dangerConfirm({ title: 'Operasyon silinsin mi?', html: 'Bu operasyon kalıcı olarak silinecek.' })
-  if (ok) router.delete(`/atelier/operations/${o.id}`)
+	const ok = await confirm.danger('Operasyonu Sil', `${o.name} operasyonu kalıcı olarak silinecek.`)
+	if (ok) router.delete(`/atelier/operations/${o.id}`, { preserveScroll: true })
 }
 </script>
 
+<template>
+	<Head title="Operasyonlar" />
+
+	<OzPageHeader title="Operasyonlar">
+		<template #subtitle><b>{{ operations.length }}</b> operasyon tanımı · iş emri rotalarında kullanılır</template>
+		<template #actions>
+			<OzButton v-if="canManage" variant="primary" icon="plus" @click="openCreate">Yeni Operasyon</OzButton>
+		</template>
+	</OzPageHeader>
+	<OzModuleTabs />
+
+	<div class="stats">
+		<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" />
+	</div>
+
+	<OzCard title="Operasyon Listesi">
+		<OzTable :columns="columns" :rows="operations" row-key="id" :default-sort="{ key: 'sortOrder', dir: 'asc' }" searchable search-placeholder="Operasyon ara…" empty-title="Operasyon kaydı yok" min-width="600px">
+			<template #cell-sortOrder="{ value }"><span class="mono dim">{{ value }}</span></template>
+			<template #cell-code="{ value }"><span class="mono">{{ value }}</span></template>
+			<template #cell-defaultLocation="{ value }">
+				<OzPill :tone="value === 'fason' ? 'warning' : 'success'">{{ LOCATIONS[value] ?? value }}</OzPill>
+			</template>
+			<template #cell-defaultUnitCost="{ value }"><span class="mono">{{ formatMoney(value) }}</span></template>
+			<template v-if="canManage" #cell-actions="{ row }">
+				<OzDropdown :items="rowActions()" :label="`${row.name} işlemleri`" @select="(k) => onAction(k, row)" />
+			</template>
+		</OzTable>
+	</OzCard>
+
+	<OzDrawer v-model:open="formOpen" :title="editing ? 'Operasyonu Düzenle' : 'Yeni Operasyon'" subtitle="Rota adımlarında varsayılan olarak gelen değerler" :icon="editing ? 'edit' : 'plus'" size="md" :persistent="form.processing">
+		<form class="form" @submit.prevent="submit">
+			<div class="row-2">
+				<OzField label="Kod" required :error="form.errors.code">
+					<OzInput v-model="form.code" class="mono" placeholder="OP-01" />
+				</OzField>
+				<OzField label="Ad" required :error="form.errors.name">
+					<OzInput v-model="form.name" placeholder="Kesim" />
+				</OzField>
+			</div>
+			<OzField label="Varsayılan Yer" required :error="form.errors.default_location">
+				<OzRadioGroup v-model="form.default_location" :options="locationOptions" variant="cards" aria-label="Varsayılan yer" />
+			</OzField>
+			<div class="row-2">
+				<OzField label="Birim İşçilik" required :error="form.errors.default_unit_cost">
+					<OzInput v-model.number="form.default_unit_cost" type="number" min="0" step="0.01" suffix="₺" placeholder="0,00" />
+				</OzField>
+				<OzField label="Sıra" :error="form.errors.sort_order">
+					<OzInput v-model.number="form.sort_order" type="number" min="0" placeholder="0" />
+				</OzField>
+			</div>
+			<button type="submit" hidden />
+		</form>
+		<template #footer>
+			<OzButton :disabled="form.processing" @click="formOpen = false">İptal</OzButton>
+			<OzButton variant="primary" :icon="editing ? 'check' : 'plus'" :loading="form.processing" @click="submit">{{ editing ? 'Kaydet' : 'Ekle' }}</OzButton>
+		</template>
+	</OzDrawer>
+</template>
+
 <style scoped>
-.form-grid-inline { display: flex; flex-wrap: wrap; gap: 12px; }
-.form-row { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 120px; }
-.form-label { font-size: 12px; font-weight: 600; color: #1a1a2e; }
-.form-label .req { color: #ef4444; }
-.form-input { padding: 9px 12px; border: 1px solid #e8e8f0; border-radius: 8px; font-family: inherit; font-size: 13px; color: #1a1a2e; background: #fff; outline: none; transition: border-color .15s; }
-.form-input:focus { border-color: var(--color-primary); }
-.form-error { font-size: 11.5px; color: var(--color-danger); }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
-.num { text-align: right; font-family: 'SF Mono', Menlo, Consolas, monospace; font-weight: 600; }
-.dim { color: #888; font-weight: 500; }
-.row-name { font-weight: 600; color: #1a1a2e; }
-.mono-chip { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 11.5px; background: #f0f0f5; padding: 2px 7px; border-radius: 5px; color: #555; }
-
-.table-action-btn { background: #f3f4f6; border: none; cursor: pointer; font-size: 13px; padding: 5px 9px; border-radius: 6px; color: #6b7280; transition: all .15s; display: inline-flex; align-items: center; }
-.table-action-btn:hover { background: var(--color-primary-soft); color: var(--color-primary); }
-.table-action-btn.danger:hover { background: #fee2e2; color: #dc2626; }
+.mono { font-family: ui-monospace, monospace; font-size: 12px; }
+.dim { color: var(--oz-muted); }
+.form { display: flex; flex-direction: column; gap: 14px; }
+.row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 560px) {
+	.row-2 { grid-template-columns: 1fr; }
+}
 </style>
