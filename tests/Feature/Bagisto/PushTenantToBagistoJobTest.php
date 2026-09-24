@@ -131,4 +131,17 @@ class PushTenantToBagistoJobTest extends TestCase
 
         Http::assertNothingSent();
     }
+
+    public function test_plain_password_is_not_stored_in_queue_payload(): void
+    {
+        // Gerçek serileştirme için fake değil database sürücüsü: payload jobs tablosuna yazılır
+        // (başarısız olursa aynı payload failed_jobs'a kopyalanır).
+        config(['queue.default' => 'database']);
+
+        PushTenantToBagisto::dispatch(1, 'activated', 'GizliSifre-123');
+
+        $payload = (string) \Illuminate\Support\Facades\DB::table('jobs')->value('payload');
+        $this->assertNotSame('', $payload);
+        $this->assertStringNotContainsString('GizliSifre-123', $payload);
+    }
 }

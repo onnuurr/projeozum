@@ -12,6 +12,7 @@ use Modules\Product\Events\ProductArchived;
 use Modules\Product\Events\ProductCreated;
 use Modules\Product\Events\ProductDeleted;
 use Modules\Product\Events\ProductPublished;
+use Modules\Product\Events\ProductStatusChanged;
 use Modules\Product\Events\ProductUpdated;
 use Modules\Product\Events\ProductVariantsSynced;
 use Modules\Product\Exceptions\BarcodeGenerationException;
@@ -124,8 +125,9 @@ class ProductService
      */
     public function transitionStatus(Product $product, string $to, User $actor, ?string $note = null): Product
     {
-        $product = DB::transaction(function () use ($product, $to, $actor, $note) {
-            $from    = $product->status;
+        $from = $product->status;
+
+        $product = DB::transaction(function () use ($product, $from, $to, $actor, $note) {
             $allowed = Product::allowedTransitions()[$from] ?? [];
 
             if (! in_array($to, $allowed, true)) {
@@ -150,6 +152,8 @@ class ProductService
             Product::STATUS_ARCHIVED  => ProductArchived::dispatch($product),
             default                   => null,
         };
+
+        ProductStatusChanged::dispatch($product, $from, $to);
 
         return $product;
     }

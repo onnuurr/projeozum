@@ -3,7 +3,7 @@
 namespace Modules\Bagisto\Jobs;
 
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldBeUnique;
+use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -17,12 +17,14 @@ use Modules\Product\Models\Product;
  * `Webkul\SaasSync\Jobs\PushEventToSaas` (Bagisto tarafı) ile parite: aynı
  * tries/backoff — checkout/ürün kayıt akışını bloklamadan kuyruk üzerinden.
  *
- * `ShouldBeUnique`: ayni ürün+event için art arda dispatch'ler tek job'a
- * sıkıştırılır (aksi halde art arda hızlı güncellemelerde bir retry'daki
- * job diğerini kuyrukta "geçip" sırayı bozabilir). `handle()` her zaman
- * DB'den GÜNCEL durumu okuduğu için hangi kopyanın çalıştığı önemli değil.
+ * `ShouldBeUniqueUntilProcessing`: aynı ürün+event için kuyrukta BEKLEYEN
+ * dispatch'ler tek job'a sıkıştırılır; kilit job işlenmeye başladığında kalkar.
+ * (Eskiden `ShouldBeUnique` idi: kilit job BİTENE kadar tutulduğu için, çalışan
+ * bir job durumu okuduktan sonra gelen değişikliğin — ör. arşivleme — dispatch'i
+ * düşüyor ve mağazaya hiç yansımıyordu.) `handle()` her zaman DB'den GÜNCEL
+ * durumu okuduğu için en son çalışan kopya en güncel durumu gönderir.
  */
-class PushProductToBagisto implements ShouldQueue, ShouldBeUnique
+class PushProductToBagisto implements ShouldQueue, ShouldBeUniqueUntilProcessing
 {
     use Dispatchable, InteractsWithQueue, Queueable;
 
@@ -31,7 +33,7 @@ class PushProductToBagisto implements ShouldQueue, ShouldBeUnique
     public array $backoff = [10, 30, 60, 300, 900];
 
     /**
-     * Kilidin en kötü senaryoda (job hiç bitmeden worker çökerse) ne kadar
+     * Kilidin en kötü senaryoda (job hiç işlenmeye başlamadan kuyrukta kalırsa) ne kadar
      * asılı kalacağı — tüm backoff basamaklarının toplamı + tampon.
      */
     public int $uniqueFor = 1400;

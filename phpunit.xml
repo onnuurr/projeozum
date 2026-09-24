@@ -28,6 +28,11 @@
         <env name="DB_URL" value=""/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
+        <!-- Canlı Bagisto'ya (.env) gerçek istek atılmasın: sync kuyrukta her ürün/stok/tenant
+             olayı BagistoSyncClient'a gider. Boşken istemci atlar; istemciyi test eden testler
+             config() + Http::fake() ile kendi sahte adreslerini verir. -->
+        <env name="BAGISTO_SYNC_BASE_URL" value=""/>
+        <env name="BAGISTO_SYNC_WEBHOOK_SECRET" value=""/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>

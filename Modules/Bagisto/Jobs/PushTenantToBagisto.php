@@ -3,6 +3,7 @@
 namespace Modules\Bagisto\Jobs;
 
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -17,7 +18,10 @@ use Modules\Tenant\Models\Tenant;
  * Jobs\PushEventToSaas` (Bagisto tarafı) ile parite: aynı tries/backoff.
  *
  * Payload plaintext şifre içerebilir (yalnız activated + şifre bu çağrıda
- * belirlendiyse) — loglanmaz, sadece HTTP gövdesinde taşınır.
+ * belirlendiyse) — loglanmaz, sadece HTTP gövdesinde taşınır. `ShouldBeEncrypted`:
+ * şifre constructor argümanı olduğu için job serileştirilirken kuyruğa (Redis) ve
+ * başarısız olursa `failed_jobs` tablosuna düz metin yazılıyordu; artık APP_KEY ile
+ * şifreli saklanır (2026-09-24).
  *
  * Bilerek `ShouldBeUnique` DEĞİL: `plainPassword` dispatch anında constructor'a
  * alınıyor ve DB'de saklanmıyor (handle() sırasında yeniden okunamaz). Aynı
@@ -26,7 +30,7 @@ use Modules\Tenant\Models\Tenant;
  * PushProductToBagisto/PushStockToBagisto'daki not, onlarda bu risk yok
  * çünkü hiç ekstra dispatch-time state taşımıyorlar.
  */
-class PushTenantToBagisto implements ShouldQueue
+class PushTenantToBagisto implements ShouldQueue, ShouldBeEncrypted
 {
     use Dispatchable, InteractsWithQueue, Queueable;
 

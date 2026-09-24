@@ -8,6 +8,7 @@ use Modules\Bagisto\Listeners\PushStockSync;
 use Modules\Bagisto\Listeners\PushTenantSync;
 use Modules\Product\Events\ProductCreated;
 use Modules\Product\Events\ProductDeleted;
+use Modules\Product\Events\ProductStatusChanged;
 use Modules\Product\Events\ProductUpdated;
 use Modules\Product\Events\StockChanged;
 use Modules\Tenant\Events\TenantActivated;
@@ -29,6 +30,9 @@ class EventServiceProvider extends ServiceProvider
         ProductCreated::class    => [PushProductSync::class],
         ProductUpdated::class    => [PushProductSync::class],
         ProductDeleted::class    => [PushProductSync::class],
+        // Yayına alma/arşivleme/taslağa dönüş Bagisto'daki "status" alanını değiştirir;
+        // bu olmadan arşivlenen ürün mağazada satışta kalıyordu (bkz. ProductStatusChanged).
+        ProductStatusChanged::class => [PushProductSync::class],
         StockChanged::class      => [PushStockSync::class],
         TenantActivated::class   => [PushTenantSync::class],
         TenantDeactivated::class => [PushTenantSync::class],

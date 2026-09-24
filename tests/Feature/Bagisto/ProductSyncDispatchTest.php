@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Bagisto;
 
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Modules\Bagisto\Jobs\PushProductToBagisto;
@@ -9,6 +10,7 @@ use Modules\Product\Events\ProductCreated;
 use Modules\Product\Events\ProductDeleted;
 use Modules\Product\Events\ProductUpdated;
 use Modules\Product\Models\Product;
+use Modules\Product\Services\ProductService;
 use Tests\TestCase;
 
 /**
@@ -60,6 +62,29 @@ class ProductSyncDispatchTest extends TestCase
             return $this->jobProperty($job, 'productId') === $product->id
                 && $this->jobProperty($job, 'event') === 'deleted';
         });
+    }
+
+    /**
+     * Mağazadaki "status" alanı yalnız upsert payload'ında taşınır; eskiden yaşam döngüsü
+     * geçişleri (ProductPublished/ProductArchived, published → draft hiç event'siz)
+     * Bagisto'ya gitmiyordu — arşivlenen ürün mağazada satışta kalıyordu.
+     */
+    public function test_every_status_transition_dispatches_updated_push(): void
+    {
+        $product = Product::factory()->create(['status' => Product::STATUS_DRAFT]);
+        $actor   = User::factory()->create();
+        $service = app(ProductService::class);
+
+        foreach ([Product::STATUS_PUBLISHED, Product::STATUS_DRAFT, Product::STATUS_ARCHIVED, Product::STATUS_PUBLISHED] as $to) {
+            Queue::fake();
+
+            $service->transitionStatus($product->fresh(), $to, $actor);
+
+            Queue::assertPushed(PushProductToBagisto::class, function ($job) use ($product) {
+                return $this->jobProperty($job, 'productId') === $product->id
+                    && $this->jobProperty($job, 'event') === 'updated';
+            });
+        }
     }
 
     private function jobProperty(object $job, string $name): mixed
