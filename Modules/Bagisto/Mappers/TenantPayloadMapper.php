@@ -39,6 +39,9 @@ class TenantPayloadMapper
             'password' => $plainPassword,
             'credit_limit' => (float) $tenant->credit_limit,
             'current_balance' => (float) $tenant->current_balance,
+            // Bagisto bayiyi bu orana ait müşteri grubuna alır; mağazadaki tüm fiyatlar
+            // SaaS satış fiyatı − bu oran olarak görünür (TenantAccessService::priceFor ile aynı).
+            'discount_rate' => (float) $tenant->discount_rate,
         ];
 
         // Bagisto `activated` event'inde bunu zorunlu kılıyor — boşsa hiç

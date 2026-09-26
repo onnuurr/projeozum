@@ -29,7 +29,8 @@ class TenantFactory extends Factory
             'credit_limit'      => $this->faker->randomFloat(2, 1000, 100000),
             'current_balance'   => 0,
             'payment_term_days' => $this->faker->randomElement([0, 7, 15, 30]),
-            'discount_rate'     => $this->faker->randomFloat(2, 0, 25),
+            // Rastgele olmamalı: priceFor() bunu uyguladığı için fiyat testlerini oynatır.
+            'discount_rate'     => 0,
             'is_active'         => true,
             'feed_secret'       => Str::random(64),
         ];

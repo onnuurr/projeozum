@@ -51,6 +51,21 @@ class PushTenantToBagistoJobTest extends TestCase
         });
     }
 
+    public function test_handle_posts_discount_rate(): void
+    {
+        Http::fake(['*' => Http::response(['message' => 'ok'])]);
+
+        $tenant = Tenant::factory()->create(['discount_rate' => 12.5]);
+        $owner = User::factory()->create(['tenant_id' => $tenant->id, 'email' => 'ali@example.com']);
+        $owner->assignRole('tenant');
+
+        (new PushTenantToBagisto($tenant->id, 'activated'))
+            ->handle(app(TenantPayloadMapper::class), app(BagistoSyncClient::class));
+
+        // Bagisto bayiyi bu orana ait müşteri grubuna alır (SaasSync DealerDiscountGroups).
+        Http::assertSent(fn ($request) => $request['discount_rate'] === 12.5);
+    }
+
     public function test_handle_posts_shipping_agreement_fields_when_set(): void
     {
         Http::fake(['*' => Http::response(['message' => 'ok'])]);

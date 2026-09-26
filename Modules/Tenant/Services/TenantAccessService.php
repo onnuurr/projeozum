@@ -52,9 +52,14 @@ class TenantAccessService
      * Tenant için bir ürün/varyantın gösterilecek fiyatı.
      *
      * Karar sırası:
-     *   1) tenant_product_access.custom_price varsa → o
-     *   2) Tenant tipi price_list_type ile eşleşen aktif price_list varsa → o
-     *   3) Aksi halde variant.price (yoksa product.price)
+     *   1) tenant_product_access.custom_price varsa → o (net fiyat, iskonto uygulanmaz)
+     *   2) Tenant tipi price_list_type ile eşleşen aktif price_list varsa → o (net fiyat)
+     *   3) Aksi halde variant.price (yoksa product.price) − tenant.discount_rate %
+     *
+     * SaaS'taki ürün fiyatı satış fiyatıdır; bayi iskontosu onun üzerinden uygulanır.
+     * Bagisto aynı oranı müşteri grubu fiyatı olarak gösterir (bkz. TenantPayloadMapper
+     * `discount_rate`, Bagisto SaasSync DealerDiscountGroups) — 1) ve 2) Bagisto'ya
+     * yansımaz, kullanılırsa mağazada görünen fiyatla çekilen fiyat ayrışır.
      */
     public function priceFor(Tenant $tenant, Product $product, ?ProductVariant $variant = null): float
     {
@@ -82,7 +87,15 @@ class TenantAccessService
             }
         }
 
-        return (float) ($variant?->price ?? $product->price);
+        return $this->applyDiscount($tenant, (float) ($variant?->price ?? $product->price));
+    }
+
+    /** Bayi iskontosunu satış fiyatına uygular (Bagisto'nun customer group "discount" hesabıyla aynı). */
+    public function applyDiscount(Tenant $tenant, float $price): float
+    {
+        $rate = min(max((float) $tenant->discount_rate, 0), 100);
+
+        return round($price - $price * $rate / 100, 2);
     }
 
     /**
