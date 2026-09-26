@@ -2,10 +2,12 @@
 
 namespace Modules\Finance\Providers;
 
+use App\Contracts\OrderInvoiceLookup as OrderInvoiceLookupContract;
 use Modules\Finance\Console\Commands\ExpireProformas;
 use Modules\Finance\Contracts\EInvoiceProviderInterface;
 use Modules\Finance\Services\EInvoice\NullEInvoiceProvider;
 use Modules\Finance\Services\EInvoice\TrendyolEFaturamProvider;
+use Modules\Finance\Services\OrderInvoiceLookup;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 
 class FinanceServiceProvider extends ModuleServiceProvider
@@ -56,5 +58,8 @@ class FinanceServiceProvider extends ModuleServiceProvider
                 ? new TrendyolEFaturamProvider($config)
                 : new NullEInvoiceProvider();
         });
+
+        // Bagisto iade akışı: faturalı siparişte iade faturası şartı (bkz. App\Contracts\OrderInvoiceLookup).
+        $this->app->bind(OrderInvoiceLookupContract::class, OrderInvoiceLookup::class);
     }
 }

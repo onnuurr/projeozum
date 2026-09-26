@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\Bagisto\Http\Controllers\Api\OrderWebhookController;
+use Modules\Bagisto\Http\Controllers\Api\ReturnInvoiceApiController;
 use Modules\Bagisto\Http\Controllers\Api\TenantApplicationApiController;
 use Modules\Bagisto\Http\Middleware\VerifyBagistoInboundToken;
 
@@ -24,4 +25,10 @@ Route::prefix('bagisto/tenant-applications')
         Route::get('/invitations/{token}', 'invitation')->where('token', '[A-Za-z0-9]{64}')->name('invitation');
         Route::post('/invitations/{token}/complete', 'complete')->where('token', '[A-Za-z0-9]{64}')->name('complete');
     });
+
+// Bayi portalı iade sayfası → iade faturası yükleme (bayi e-postasıyla kapsamlanır).
+Route::post('bagisto/returns/{rmaId}/invoice', [ReturnInvoiceApiController::class, 'store'])
+    ->where('rmaId', '[0-9]+')
+    ->middleware([VerifyBagistoInboundToken::class, 'throttle:20,1'])
+    ->name('bagisto.returns.invoice');
 

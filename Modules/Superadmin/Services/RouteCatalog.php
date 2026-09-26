@@ -236,6 +236,7 @@ class RouteCatalog
 
         // Bayi Portalı (Bagisto)
         'bagisto.settings.index'         => 'Bayi Portalı Ayarları',
+        'order-returns.index'            => 'İadeler',
     ];
 
     private const ACTION_SUFFIXES = ['index', 'show', 'list', 'create', 'edit', 'store', 'update', 'destroy'];

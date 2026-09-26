@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, inject } from 'vue'
-import { Head, router, usePage } from '@inertiajs/vue3'
+import { Head, Link, router, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import { OzPageHeader, OzModuleTabs, OzCard, OzTable, OzPill, OzTimeline, OzButton, OzModal, OzField, OzTextarea } from '@/Components/Oz'
 
@@ -11,6 +11,19 @@ const props = defineProps({
 	statuses: { type: Object, default: () => ({}) },
 	allowedTransitions: { type: Array, default: () => [] },
 	ledger: { type: Array, default: () => [] },
+	returns: { type: Array, default: () => [] },
+	returnStatuses: { type: Object, default: () => ({}) },
+	refundedAmount: { type: Number, default: 0 },
+})
+
+const RETURN_TONE = { requested: 'warning', approved: 'info', rejected: 'danger', refunded: 'success', cancelled: 'neutral' }
+
+// Siparişin iade durumu: ödenmiş iadeler toplamı sipariş tutarına ulaştıysa tam, değilse kısmi.
+const returnState = computed(() => {
+	if (props.refundedAmount <= 0) return null
+	return props.refundedAmount >= Number(props.order.total) - 0.009
+		? { label: 'İade Edildi', tone: 'danger' }
+		: { label: 'Kısmi İade', tone: 'warning' }
 })
 
 const showToast = inject('showToast', null)
@@ -105,6 +118,7 @@ function formatMoney(v) {
 		<template #subtitle>{{ order.tenant?.name ?? '—' }} · {{ order.created_at?.slice(0, 10) }}</template>
 		<template #actions>
 			<OzPill :tone="STATUS_TONE[order.status] ?? 'neutral'">{{ statuses[order.status] ?? order.status }}</OzPill>
+			<OzPill v-if="returnState" :tone="returnState.tone">{{ returnState.label }}</OzPill>
 			<template v-if="canManage">
 				<OzButton
 					v-for="to in allowedTransitions"
@@ -179,6 +193,18 @@ function formatMoney(v) {
 				</div>
 			</OzCard>
 
+			<OzCard v-if="returns.length" title="İadeler" :meta="refundedAmount > 0 ? `${formatMoney(refundedAmount)} iade edildi` : ''">
+				<div class="returns">
+					<Link v-for="rt in returns" :key="rt.id" :href="`/order-returns/${rt.id}`" class="return-row">
+						<div>
+							<div class="return-title">Talep #{{ rt.rma_id }} <span class="mono">{{ formatMoney(rt.amount) }}</span></div>
+							<div class="return-sub">{{ rt.created_at?.slice(0, 10) }}<template v-if="rt.reason"> · {{ rt.reason }}</template></div>
+						</div>
+						<OzPill :tone="RETURN_TONE[rt.status] ?? 'neutral'">{{ returnStatuses[rt.status] ?? rt.status }}</OzPill>
+					</Link>
+				</div>
+			</OzCard>
+
 			<OzCard title="Durum Zaman Çizelgesi">
 				<p v-if="!order.histories.length" class="empty">Henüz geçiş yok.</p>
 				<OzTimeline v-else :items="timelineItems" />
@@ -219,6 +245,13 @@ function formatMoney(v) {
 .info-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--oz-muted); margin-bottom: 6px; }
 .info-line { font-size: 13px; color: var(--oz-ink-soft); line-height: 1.5; }
 .info-line.note { white-space: pre-line; }
+
+.returns { display: flex; flex-direction: column; margin: 0 18px 16px; }
+.return-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px dashed var(--oz-border); text-decoration: none; }
+.return-row:last-child { border-bottom: none; }
+.return-row:hover .return-title { color: var(--oz-accent); }
+.return-title { font-size: 13px; font-weight: 600; color: var(--oz-ink-soft); }
+.return-sub { font-size: 11.5px; color: var(--oz-muted); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .modal-text { font-size: 13.5px; color: var(--oz-muted); margin: 0 0 14px; }
 .empty { color: var(--oz-muted); font-style: italic; font-size: 13px; margin: 0 18px 16px; }

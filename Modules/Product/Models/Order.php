@@ -124,6 +124,11 @@ class Order extends Model
         return $this->hasMany(OrderStatusHistory::class);
     }
 
+    public function returns(): HasMany
+    {
+        return $this->hasMany(OrderReturn::class);
+    }
+
     public function scopeDropship(Builder $query): Builder
     {
         return $query->where('order_type', self::TYPE_DROPSHIP);

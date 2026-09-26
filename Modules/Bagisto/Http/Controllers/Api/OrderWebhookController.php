@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Modules\Bagisto\Services\BagistoOrderSyncService;
+use Modules\Bagisto\Services\BagistoReturnService;
 
 /**
  * Bagisto tarafındaki `Webkul\SaasSync\Jobs\PushEventToSaas` job'ının hedefi.
@@ -23,7 +24,10 @@ use Modules\Bagisto\Services\BagistoOrderSyncService;
  */
 class OrderWebhookController extends Controller
 {
-    public function __construct(private BagistoOrderSyncService $sync) {}
+    public function __construct(
+        private BagistoOrderSyncService $sync,
+        private BagistoReturnService $returns,
+    ) {}
 
     public function handle(Request $request): JsonResponse
     {
@@ -33,6 +37,8 @@ class OrderWebhookController extends Controller
         return match ($event) {
             'order.created' => $this->handleCreated($data),
             'order.cancelled' => $this->handleCancelled($data),
+            // Üçü de RMA'nın tam anlık görüntüsünü taşır (Webkul\SaasSync RmaSnapshot); kayıt idempotent.
+            'return.created', 'return.status_updated', 'return.inspection_saved' => $this->handleReturn($data),
             default => response()->json(['message' => 'Desteklenmeyen event: '.$event], 422),
         };
     }
@@ -108,6 +114,36 @@ class OrderWebhookController extends Controller
             'message' => 'Order synced.',
             'data' => ['id' => $order->id, 'order_no' => $order->order_no],
         ], 201);
+    }
+
+    protected function handleReturn(array $data): JsonResponse
+    {
+        $data = Validator::make($data, [
+            'rma_id' => ['required'],
+            'order_id' => ['required'],
+            'customer_email' => ['nullable', 'email'],
+            'status_id' => ['nullable', 'integer'],
+            'status_title' => ['nullable', 'string', 'max:64'],
+            'reason' => ['nullable', 'string', 'max:255'],
+            'resolution' => ['nullable', 'string', 'max:64'],
+            'information' => ['nullable', 'string', 'max:5000'],
+            'cargo_method' => ['nullable', 'string', 'max:32'],
+            'items' => ['nullable', 'array'],
+            'items.*.sku' => ['nullable', 'string'],
+            'items.*.name' => ['nullable', 'string'],
+            'items.*.qty' => ['required_with:items', 'integer', 'min:0'],
+            'images' => ['nullable', 'array', 'max:20'],
+            'images.*' => ['nullable', 'url', 'max:2048'],
+            'inspection' => ['nullable', 'array'],
+            'created_at' => ['nullable', 'date'],
+        ])->validate();
+
+        $return = $this->returns->upsertFromBagisto($data);
+
+        return response()->json([
+            'message' => 'Return synced.',
+            'data' => ['id' => $return->id, 'status' => $return->status],
+        ]);
     }
 
     protected function handleCancelled(array $data): JsonResponse

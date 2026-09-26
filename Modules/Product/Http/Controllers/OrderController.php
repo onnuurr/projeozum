@@ -10,6 +10,7 @@ use Inertia\Response;
 use Modules\Product\Exceptions\InvalidOrderTransitionException;
 use Modules\Product\Http\Requests\UpdateOrderStatusRequest;
 use Modules\Product\Models\Order;
+use Modules\Product\Models\OrderReturn;
 use Modules\Product\Services\OrderService;
 use Modules\Tenant\Models\Tenant;
 use Modules\Tenant\Models\TenantCreditLedger;
@@ -146,6 +147,17 @@ class OrderController extends Controller
             'statuses'           => Order::statuses(),
             'allowedTransitions' => Order::allowedTransitions()[$order->status] ?? [],
             'ledger'             => $ledger,
+            // Bayi iadeleri (Siparişler › İadeler); reddedilen/iptal edilenler de listelenir.
+            'returns'            => $order->returns()->latest('id')->get()->map(fn (OrderReturn $r) => [
+                'id'              => $r->id,
+                'rma_id'          => $r->bagisto_rma_id,
+                'status'          => $r->status,
+                'reason'          => $r->reason,
+                'amount'          => (float) ($r->approved_amount ?? $r->requested_amount),
+                'created_at'      => optional($r->bagisto_created_at ?? $r->created_at)->toIso8601String(),
+            ]),
+            'returnStatuses'     => OrderReturn::statuses(),
+            'refundedAmount'     => (float) $order->returns()->where('status', OrderReturn::STATUS_REFUNDED)->sum('approved_amount'),
         ]);
     }
 
