@@ -422,6 +422,15 @@ function removeVariant(idx) {
 	form.variants.splice(idx, 1)
 }
 
+// Alış fiyatı yazılınca toplu fiyat önerisi: alış × 2,5 (alışın üzerine %150 kâr). Yalnız kullanıcı alış fiyatını
+// değiştirdiğinde çalışır (düzenleme sayfası açılırken değil); sonrasında elle düzeltilebilir.
+const BULK_PRICE_MARKUP_PERCENT = 250
+function suggestBulkPrice() {
+	const purchase = Number(form.purchase_price)
+	if (form.purchase_price === '' || form.purchase_price === null || !Number.isFinite(purchase) || purchase <= 0) return
+	bulkPrice.value = Math.round(purchase * BULK_PRICE_MARKUP_PERCENT) / 100
+}
+
 function applyBulkPrice() {
 	if (!bulkPrice.value) return
 	form.variants.forEach((v) => { v.price = Number(bulkPrice.value) })
@@ -708,21 +717,27 @@ onMounted(() => {
 
 		<!-- ── Fiyat-Kargo ── -->
 		<div v-show="activeTab === 'price'" class="panel" role="tabpanel">
-			<OzCard title="Toplu Fiyatlama" subtitle="Tüm varyantlara tek seferde aynı fiyatı uygula" class="block">
-				<OzEmptyState v-if="!form.variants.length" icon="tag" title="Henüz varyant yok" description="Önce Stok-Varyant sekmesinden varyant oluşturun." compact />
-				<div v-else class="inline-row">
-					<OzInput v-model="bulkPrice" type="number" min="0" step="0.01" suffix="₺" placeholder="Fiyat" class="grow" />
-					<OzButton size="sm" :disabled="!bulkPrice" @click="applyBulkPrice">→ {{ form.variants.length }} varyantın hepsine uygula</OzButton>
+			<OzCard title="Fiyatlandırma" subtitle="Piyasa ve alış fiyatı (opsiyonel)" class="block">
+				<div class="stack">
+					<div class="grid-2">
+						<OzField label="Piyasa Fiyatı" :error="errors.market_price">
+							<OzInput v-model="form.market_price" type="number" min="0" step="0.01" suffix="₺" placeholder="örn. 125.86" />
+						</OzField>
+						<OzField label="Alış Fiyatı" :error="errors.purchase_price" hint="Toplu fiyat alış × 2,5 (%150 kâr) olarak önerilir.">
+							<OzInput v-model="form.purchase_price" type="number" min="0" step="0.01" suffix="₺" placeholder="örn. 89.90" @input="suggestBulkPrice" />
+						</OzField>
+					</div>
 				</div>
 			</OzCard>
 
-			<OzCard title="Fiyatlandırma" subtitle="Piyasa ve alış fiyatı (opsiyonel)" class="block">
-				<div class="grid-2">
-					<OzField label="Piyasa Fiyatı" :error="errors.market_price">
-						<OzInput v-model="form.market_price" type="number" min="0" step="0.01" suffix="₺" placeholder="örn. 125.86" />
-					</OzField>
-					<OzField label="Alış Fiyatı" :error="errors.purchase_price">
-						<OzInput v-model="form.purchase_price" type="number" min="0" step="0.01" suffix="₺" placeholder="örn. 89.90" />
+			<OzCard title="Toplu Fiyatlama" subtitle="Tüm varyantlara tek seferde aynı fiyatı uygula" class="block">
+				<OzEmptyState v-if="!form.variants.length" icon="tag" title="Henüz varyant yok" description="Önce Stok-Varyant sekmesinden varyant oluşturun." compact />
+				<div v-else class="stack">
+					<OzField label="Satış Fiyatı" hint="Alış fiyatı girildiğinde otomatik hesaplanır; gerekirse elle düzeltebilirsiniz.">
+						<div class="inline-row">
+							<OzInput v-model="bulkPrice" type="number" min="0" step="0.01" suffix="₺" placeholder="Fiyat" class="grow" />
+							<OzButton size="sm" :disabled="!bulkPrice" @click="applyBulkPrice">→ {{ form.variants.length }} varyantın hepsine uygula</OzButton>
+						</div>
 					</OzField>
 				</div>
 			</OzCard>
