@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, useAttrs } from 'vue'
 import OzIcon from './OzIcon.vue'
 import { useOzField } from './useOzField'
 import { useOzSplitAttrs } from './useOzSplitAttrs'
@@ -27,7 +27,15 @@ const inputType = computed(() => (props.type === 'password' && revealed.value ? 
 
 const model = defineModel({ type: [String, Number], default: '' })
 const { inputId, invalid, required, describedBy } = useOzField(props)
-const { rootAttrs, inputAttrs } = useOzSplitAttrs()
+const attrs = useAttrs()
+const { rootAttrs, inputAttrs: splitInputAttrs } = useOzSplitAttrs()
+// Dışarıdan gelen @input <input>'a doğrudan bağlanırsa bizim onInput'umuzdan ÖNCE çalışır;
+// v-model henüz güncellenmemiş olur (ör. slug bir karakter geriden gelir). Onu ayırıp
+// model güncellendikten sonra biz çağırıyoruz.
+const inputAttrs = computed(() => {
+  const { onInput: _onInput, ...rest } = splitInputAttrs.value
+  return rest
+})
 
 const inputEl = ref(null)
 defineExpose({ focus: () => inputEl.value?.focus() })
@@ -35,6 +43,7 @@ defineExpose({ focus: () => inputEl.value?.focus() })
 function onInput(e) {
   const v = e.target.value
   model.value = props.type === 'number' && v !== '' ? Number(v) : v
+  ;[attrs.onInput].flat().forEach(fn => typeof fn === 'function' && fn(e))
 }
 </script>
 

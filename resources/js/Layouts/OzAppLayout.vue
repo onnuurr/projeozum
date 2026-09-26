@@ -266,6 +266,7 @@ onScopeDispose(() => { offStart(); offFinish() })
   --oz-page-duration: .45s;
   --oz-page-shift: 16px;
   animation: oz-page-in var(--oz-page-duration) cubic-bezier(.25, .7, .3, 1);
+  padding:10px;
 }
 @keyframes oz-page-in {
   from { opacity: 0; transform: translateY(var(--oz-page-shift)); }

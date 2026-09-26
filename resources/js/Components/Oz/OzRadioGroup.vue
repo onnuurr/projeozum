@@ -36,7 +36,10 @@ const normalized = computed(() =>
 .oz-radio-group.is-inline { flex-direction: row; flex-wrap: wrap; gap: 18px; }
 .oz-radio-group.is-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
 
-.opt { display: inline-flex; align-items: flex-start; gap: 9px; cursor: pointer; user-select: none; }
+/* Gizli input etiketin içinde konumlansın (position: relative). Yoksa en yakın konumlanmış ata
+   OzShell kökü (fixed + overflow: hidden) olur; odaklanınca tarayıcı kabuğu kaydırır, tüm arayüz
+   yukarı kayar ve geri kaydırılamaz. */
+.opt { position: relative; display: inline-flex; align-items: flex-start; gap: 9px; cursor: pointer; user-select: none; }
 input { position: absolute; opacity: 0; width: 0; height: 0; }
 .dot {
   width: 17px; height: 17px; border-radius: 50%; flex-shrink: 0; margin-top: 1px;

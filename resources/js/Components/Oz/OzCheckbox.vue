@@ -27,7 +27,10 @@ const id = `oz-check-${useId()}`
 </template>
 
 <style scoped>
-.oz-check { display: inline-flex; align-items: flex-start; gap: 9px; cursor: pointer; user-select: none; }
+/* Gizli input etiketin içinde konumlansın (position: relative). Yoksa en yakın konumlanmış ata
+   OzShell kökü (fixed + overflow: hidden) olur; odaklanınca tarayıcı kabuğu kaydırır, tüm arayüz
+   yukarı kayar ve geri kaydırılamaz. */
+.oz-check { position: relative; display: inline-flex; align-items: flex-start; gap: 9px; cursor: pointer; user-select: none; }
 .oz-check.disabled { opacity: .5; cursor: not-allowed; }
 input { position: absolute; opacity: 0; width: 0; height: 0; }
 .box {
