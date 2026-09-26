@@ -82,6 +82,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->whereNumber('application')->middleware('can:tenant-application.approve')->name('approve');
         Route::post('/{application}/reject', [TenantApplicationController::class, 'reject'])
             ->whereNumber('application')->middleware('can:tenant-application.approve')->name('reject');
+        Route::post('/{application}/request-documents', [TenantApplicationController::class, 'requestDocuments'])
+            ->whereNumber('application')->middleware('can:tenant-application.approve')->name('request-documents');
+        Route::post('/{application}/open-documents', [TenantApplicationController::class, 'openDocuments'])
+            ->whereNumber('application')->middleware('can:tenant-application.approve')->name('open-documents');
+        // Resmi evrak onayı iş ortağı kaydı da açtığı için tenant.manage de gerekir.
+        Route::post('/{application}/open-account', [TenantApplicationController::class, 'openAccount'])
+            ->whereNumber('application')->middleware(['can:tenant-application.approve', 'can:tenant.manage'])->name('open-account');
+        Route::post('/{application}/resend-invitation', [TenantApplicationController::class, 'resendInvitation'])
+            ->whereNumber('application')->middleware('can:tenant-application.approve')->name('resend-invitation');
         Route::get('/{application}/documents/{document}/download', [TenantApplicationController::class, 'downloadDocument'])
             ->whereNumber('application')->whereNumber('document')
             // KYB belgeleri hassas (vergi levhası, imza sirküleri) → salt görüntüleme yetmez.

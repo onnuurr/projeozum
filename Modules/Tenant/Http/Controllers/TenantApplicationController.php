@@ -6,12 +6,14 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Tenant\Http\Requests\RejectTenantApplicationRequest;
 use Modules\Tenant\Http\Requests\StoreTenantApplicationRequest;
 use Modules\Tenant\Models\TenantApplication;
 use Modules\Tenant\Models\TenantApplicationDocument;
+use Modules\Tenant\Models\TenantType;
 use Modules\Tenant\Services\TenantApplicationService;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -68,6 +70,21 @@ class TenantApplicationController extends Controller
             'message'          => $a->message,
             'status'           => $a->status,
             'rejection_reason' => $a->rejection_reason,
+            'source'           => $a->source,
+            'reference'        => $a->reference,
+            'details'          => $a->details,
+            'missing_documents'=> $a->missing_documents ?? [],
+            'missing_note'     => $a->missing_note,
+            'documentsRequestedAt' => $a->documents_requested_at?->format('Y-m-d H:i'),
+            'documentsSubmittedAt' => $a->documents_submitted_at?->format('Y-m-d H:i'),
+            'invitationSentAt'     => $a->invitation_sent_at?->format('Y-m-d H:i'),
+            'invitationExpiresAt'  => $a->invitation_expires_at?->format('Y-m-d H:i'),
+            'invitationOpen'       => $a->invitationIsOpen(),
+            // Davet e-postası ulaşmazsa admin bağlantıyı kopyalayıp bayiye kendisi iletebilir.
+            'invitationUrl'        => $a->invitationIsOpen() ? $this->storefrontUrl('bayilik-basvurusu/uyelik/'.$a->invitation_token) : null,
+            'statusUrl'            => $a->isFromPortal() && $a->public_token ? $this->storefrontUrl('bayilik-basvurusu/durum/'.$a->public_token) : null,
+            'completedAt'          => $a->completed_at?->format('Y-m-d H:i'),
+            'suggestedCode'        => 'BAYI-'.str_pad((string) $a->id, 4, '0', STR_PAD_LEFT),
             'reviewer'         => $a->reviewer?->name,
             'reviewedAt'       => optional($a->reviewed_at)->format('Y-m-d H:i'),
             'convertedTenantId'=> $a->converted_tenant_id,
@@ -75,12 +92,14 @@ class TenantApplicationController extends Controller
                 'id'   => $d->id,
                 'type' => $d->type,
                 'name' => $d->original_filename,
+                'uploadedAt' => $d->created_at?->format('Y-m-d H:i'),
             ])->values(),
             'createdAt'        => $a->created_at->format('Y-m-d H:i'),
         ]);
 
         return Inertia::render('Tenant::TenantApplications', [
             'applications' => $applications,
+            'tenantTypes'  => TenantType::query()->orderBy('name')->get(['id', 'name']),
             'filters'      => ['status' => $request->query('status', '')],
         ]);
     }
@@ -99,11 +118,68 @@ class TenantApplicationController extends Controller
         return back();
     }
 
+    public function requestDocuments(Request $request, TenantApplication $application): RedirectResponse
+    {
+        $data = $request->validate([
+            'types'   => ['required', 'array', 'min:1'],
+            'types.*' => ['string', Rule::in(TenantApplicationDocument::TYPES)],
+            'note'    => ['required', 'string', 'max:2000'],
+        ], [
+            'types.required' => 'En az bir belge seçin.',
+            'note.required'  => 'Başvuru sahibine gösterilecek açıklama zorunlu.',
+        ]);
+
+        $this->service->requestDocuments($application, $request->user(), $data['types'], $data['note']);
+
+        return back();
+    }
+
+    /** Ön başvuru değerlendirildi + görüşme yapıldı → bayinin resmi belge adımı açılır. */
+    public function openDocuments(Request $request, TenantApplication $application): RedirectResponse
+    {
+        $this->service->openDocumentStage($application, $request->user());
+
+        return back();
+    }
+
+    /** Resmi evrak onayı: iş ortağı pasif açılır, bayiye üyelik tamamlama daveti gider. */
+    public function openAccount(Request $request, TenantApplication $application): RedirectResponse
+    {
+        $data = $request->validate([
+            'code'              => ['required', 'string', 'max:32', 'regex:/^[A-Z0-9_-]+$/', Rule::unique('tenants', 'code')],
+            'tenant_type_id'    => ['nullable', 'integer', 'exists:tenant_types,id'],
+            'credit_limit'      => ['nullable', 'numeric', 'min:0'],
+            'payment_term_days' => ['nullable', 'integer', 'min:0', 'max:365'],
+            'discount_rate'     => ['nullable', 'numeric', 'min:0', 'max:100'],
+        ], [
+            'code.regex'  => 'İş ortağı kodu yalnızca büyük harf, rakam, tire ve alt çizgi içerebilir.',
+            'code.unique' => 'Bu iş ortağı kodu kullanılıyor.',
+        ]);
+
+        $this->service->openAccount($application, $request->user(), $data);
+
+        return back();
+    }
+
+    public function resendInvitation(TenantApplication $application): RedirectResponse
+    {
+        $this->service->resendInvitation($application);
+
+        return back();
+    }
+
     public function downloadDocument(TenantApplication $application, TenantApplicationDocument $document): StreamedResponse
     {
         abort_unless($document->tenant_application_id === $application->id, 404);
         abort_unless(Storage::exists($document->path), 404);
 
         return Storage::download($document->path, $document->original_filename);
+    }
+
+    private function storefrontUrl(string $path): ?string
+    {
+        $base = rtrim((string) config('bagisto.sync.base_url'), '/');
+
+        return $base === '' ? null : $base.'/'.$path;
     }
 }

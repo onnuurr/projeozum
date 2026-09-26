@@ -14,6 +14,20 @@ class TenantApplicationDocument extends Model
     public const TYPE_SIGNATURE_CIRCULAR    = 'imza_sirkuleri';
     public const TYPE_OTHER                 = 'diger';
 
+    public const TYPES = [
+        self::TYPE_TAX_CERTIFICATE,
+        self::TYPE_TRADE_REGISTRY_GAZETTE,
+        self::TYPE_SIGNATURE_CIRCULAR,
+        self::TYPE_OTHER,
+    ];
+
+    public const LABELS = [
+        self::TYPE_TAX_CERTIFICATE        => 'Güncel vergi levhası',
+        self::TYPE_TRADE_REGISTRY_GAZETTE => 'Ticaret sicil gazetesi / esnaf kaydı',
+        self::TYPE_SIGNATURE_CIRCULAR     => 'İmza sirküleri / beyannamesi',
+        self::TYPE_OTHER                  => 'Mağaza / vitrin görseli',
+    ];
+
     protected $fillable = [
         'tenant_application_id',
         'type',

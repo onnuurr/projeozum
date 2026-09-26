@@ -5,6 +5,7 @@ namespace Modules\Bagisto\Providers;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 use Modules\Bagisto\Listeners\PushProductSync;
 use Modules\Bagisto\Listeners\PushStockSync;
+use Modules\Bagisto\Listeners\PushTenantApplicationStage;
 use Modules\Bagisto\Listeners\PushTenantSync;
 use Modules\Product\Events\ProductCreated;
 use Modules\Product\Events\ProductDeleted;
@@ -13,6 +14,7 @@ use Modules\Product\Events\ProductStatusChanged;
 use Modules\Product\Events\ProductUpdated;
 use Modules\Product\Events\StockChanged;
 use Modules\Tenant\Events\TenantActivated;
+use Modules\Tenant\Events\TenantApplicationStageChanged;
 use Modules\Tenant\Events\TenantDeactivated;
 
 /**
@@ -40,6 +42,8 @@ class EventServiceProvider extends ServiceProvider
         StockChanged::class      => [PushStockSync::class],
         TenantActivated::class   => [PushTenantSync::class],
         TenantDeactivated::class => [PushTenantSync::class],
+        // Bayi portalı başvurusu: belge aşaması açıldı / eksik evrak / hesap açıldı / red → bayiye e-posta (mağaza gönderir).
+        TenantApplicationStageChanged::class => [PushTenantApplicationStage::class],
     ];
 
     protected static $shouldDiscoverEvents = false;

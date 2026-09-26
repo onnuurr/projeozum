@@ -14,6 +14,18 @@ class TenantApplication extends Model
     public const STATUS_PENDING  = 'pending';
     public const STATUS_APPROVED = 'approved';
     public const STATUS_REJECTED = 'rejected';
+    // Bayi portalı akışı: ön başvuru (pending) → görüşme sonrası resmi belge aşaması açılır →
+    // belgeler yüklenince resmi evrak incelemesi → onayda hesap açılır (approved + davet).
+    public const STATUS_DOCUMENTS_REQUESTED = 'documents_requested';
+    public const STATUS_DOCUMENTS_REVIEW = 'documents_review';
+    // Resmi evrak incelemesinde admin "Eksik evrak iste" dedi; belgeler yüklenince documents_review'a döner.
+    public const STATUS_MISSING_DOCUMENTS = 'missing_documents';
+
+    /** Üyelik tamamlama bağlantısının geçerlilik süresi (gün). */
+    public const INVITATION_TTL_DAYS = 14;
+
+    public const SOURCE_WEB = 'web';
+    public const SOURCE_BAGISTO = 'bagisto';
 
     protected $fillable = [
         'name',
@@ -35,11 +47,56 @@ class TenantApplication extends Model
         'reviewed_at',
         'converted_tenant_id',
         'ip_address',
+        'public_token',
+        'source',
+        'details',
+        'missing_documents',
+        'missing_note',
+        'missing_requested_at',
+        'documents_requested_at',
+        'documents_submitted_at',
+        'invitation_token',
+        'invitation_sent_at',
+        'invitation_expires_at',
+        'completed_at',
+    ];
+
+    protected $hidden = [
+        'public_token',
+        'invitation_token',
     ];
 
     protected $casts = [
         'reviewed_at' => 'datetime',
+        'details' => 'array',
+        'missing_documents' => 'array',
+        'missing_requested_at' => 'datetime',
+        'documents_requested_at' => 'datetime',
+        'documents_submitted_at' => 'datetime',
+        'invitation_sent_at' => 'datetime',
+        'invitation_expires_at' => 'datetime',
+        'completed_at' => 'datetime',
     ];
+
+    public function isFromPortal(): bool
+    {
+        return $this->source === self::SOURCE_BAGISTO;
+    }
+
+    /** Davet bağlantısı hâlâ kullanılabilir mi (onaylı, tamamlanmamış, süresi dolmamış). */
+    public function invitationIsOpen(): bool
+    {
+        return $this->status === self::STATUS_APPROVED
+            && $this->invitation_token !== null
+            && $this->completed_at === null
+            && (bool) $this->invitation_expires_at?->isFuture();
+    }
+
+    /** Kullanıcıya gösterilen referans kodu (Stitch: #OZ-BAYI-2026-8419). */
+    public function getReferenceAttribute(): string
+    {
+        return 'OZ-BAYI-'.$this->created_at?->format('Y').'-'.str_pad((string) $this->id, 4, '0', STR_PAD_LEFT);
+    }
 
     public function documents(): HasMany
     {

@@ -37,4 +37,24 @@ return [
     'inbound' => [
         'token' => env('BAGISTO_INBOUND_TOKEN'),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Bayi üyelik daveti e-postası (Stitch "Saf E-Posta Şablonu")
+    |--------------------------------------------------------------------------
+    |
+    | Resmi evrak onayında (TenantApplicationService::openAccount / resendInvitation)
+    | SaaS gönderir; bağlantı mağazanın /bayilik-basvurusu/uyelik/{token} sayfasına gider.
+    | advisor.name boşsa genel destek kartı gösterilir.
+    |
+    */
+    'invitation_mail' => [
+        'support_email' => env('BAYI_SUPPORT_EMAIL'),
+        'advisor' => [
+            'name' => env('BAYI_ADVISOR_NAME'),
+            'title' => env('BAYI_ADVISOR_TITLE', 'B2B Portföy Yöneticisi'),
+            'phone' => env('BAYI_ADVISOR_PHONE'),
+            'whatsapp' => env('BAYI_ADVISOR_WHATSAPP'), // 905xxxxxxxxx
+        ],
+    ],
 ];
