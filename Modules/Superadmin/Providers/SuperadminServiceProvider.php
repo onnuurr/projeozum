@@ -2,12 +2,14 @@
 
 namespace Modules\Superadmin\Providers;
 
+use App\Contracts\PlatformSettings;
 use Illuminate\Support\Facades\Schema;
 use Modules\Superadmin\Console\Commands\BackupRunCommand;
 use Modules\Superadmin\Contracts\ArchitectureDoctorFixerRunner;
 use Modules\Superadmin\Models\Setting;
 use Modules\Superadmin\Services\ArchitectureDoctorFixer\ClaudeCliFixerRunner;
 use Modules\Superadmin\Services\ArchitectureDoctorFixer\MockFixerRunner;
+use Modules\Superadmin\Services\PlatformSettingsStore;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 use Throwable;
 
@@ -45,6 +47,9 @@ class SuperadminServiceProvider extends ModuleServiceProvider
     public function register(): void
     {
         parent::register();
+
+        // Superadmin'e bağımlı olamayan modüllerin (Bagisto) ayar erişimi — bkz. App\Contracts\PlatformSettings.
+        $this->app->bind(PlatformSettings::class, PlatformSettingsStore::class);
 
         // enabled + gerçek sürücü isteniyorsa Claude CLI, aksi halde (varsayılan)
         // hiçbir şeye dokunmayan Mock — Modules/Creative'deki Gemini/Mock

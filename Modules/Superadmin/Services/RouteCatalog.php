@@ -140,6 +140,7 @@ class RouteCatalog
     /** Modül grup başlıkları (katalogda). */
     private const MODULE_LABELS = [
         'Atelier'       => 'Atölye',
+        'Bagisto'       => 'Bayi Portalı (Bagisto)',
         'Creative'      => 'Creative Studio',
         'Finance'       => 'Finans',
         'Genel'         => 'Genel',
@@ -232,6 +233,9 @@ class RouteCatalog
         'tenants.types.index'            => 'İş Ortağı Tipleri',
         'tenant-applications.index'      => 'İş Ortağı Başvuruları',
         'tenant-applications.create'     => 'Başvuru Formu (herkese açık)',
+
+        // Bayi Portalı (Bagisto)
+        'bagisto.settings.index'         => 'Bayi Portalı Ayarları',
     ];
 
     private const ACTION_SUFFIXES = ['index', 'show', 'list', 'create', 'edit', 'store', 'update', 'destroy'];
