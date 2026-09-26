@@ -100,4 +100,39 @@ class ProfileTest extends TestCase
 
         $this->assertNotNull($user->fresh());
     }
+
+    public function test_profile_phone_is_normalized_to_masked_format(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->patch('/profile', ['name' => $user->name, 'email' => $user->email, 'phone' => '+90 532 123 45 67'])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame('0 (532) 123 45 67', $user->refresh()->phone);
+    }
+
+    public function test_profile_phone_can_be_cleared_and_is_kept_when_omitted(): void
+    {
+        $user = User::factory()->create(['phone' => '0 (532) 123 45 67']);
+
+        $this->actingAs($user)
+            ->patch('/profile', ['name' => $user->name, 'email' => $user->email])
+            ->assertSessionHasNoErrors();
+        $this->assertSame('0 (532) 123 45 67', $user->refresh()->phone);
+
+        $this->actingAs($user)
+            ->patch('/profile', ['name' => $user->name, 'email' => $user->email, 'phone' => ''])
+            ->assertSessionHasNoErrors();
+        $this->assertNull($user->refresh()->phone);
+    }
+
+    public function test_invalid_profile_phone_is_rejected(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->patch('/profile', ['name' => $user->name, 'email' => $user->email, 'phone' => '12345'])
+            ->assertSessionHasErrors('phone');
+    }
 }
