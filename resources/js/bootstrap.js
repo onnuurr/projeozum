@@ -10,6 +10,11 @@ window.axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 // Bunun yerine axios'un yerleşik mekanizması kullanılır: her yanıtta tazelenen
 // XSRF-TOKEN cookie'sini okuyup X-XSRF-TOKEN header'ı olarak gönderir.
 // (API route'ları Bearer token kullanır; CSRF'e tabi değildir, bu header gereksizdi.)
+//
+// Cookie adı varsayılan "XSRF-TOKEN" DEĞİL: üst domaindeki (.ozumserver.com.tr) başka uygulamalar da
+// XSRF-TOKEN yazıyor; iki aynı adlı cookie'de axios yabancı olanı okuyup 419'a yol açıyordu.
+// Backend eşi: App\Http\Middleware\ValidateCsrfToken::COOKIE_NAME — ikisi aynı olmalı.
+window.axios.defaults.xsrfCookieName = 'OZUM-XSRF-TOKEN';
 
 import Echo from 'laravel-echo';
 import Pusher from 'pusher-js';
