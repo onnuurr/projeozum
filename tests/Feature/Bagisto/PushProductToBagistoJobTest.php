@@ -57,7 +57,9 @@ class PushProductToBagistoJobTest extends TestCase
         (new PushProductToBagisto($product->id, 'updated'))
             ->handle(app(ProductPayloadMapper::class), app(BagistoSyncClient::class));
 
-        Http::assertSent(fn ($request) => str_ends_with($request['images'][0], 'products/x/cover.png'));
+        // Ürün fabrikası kategori de açar; kategori senkronu (senkron kuyrukta) ayrı bir istek atar.
+        Http::assertSent(fn ($request) => str_ends_with($request->url(), 'api/saas-sync/products')
+            && str_ends_with($request['images'][0], 'products/x/cover.png'));
     }
 
     public function test_handle_posts_minimal_payload_for_deleted_product(): void

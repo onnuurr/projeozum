@@ -23,6 +23,7 @@ class ProductPayloadMapper
         return [
             'event'                 => $event,
             'sku'                   => $product->sku,
+            'attribute_family_code' => config('bagisto.sync.attribute_family_code'),
             'name'                  => $product->name,
             'weight'                => $product->weight !== null ? (float) $product->weight : null,
             'short_description'     => $product->public_description,

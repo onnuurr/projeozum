@@ -15,9 +15,13 @@ return [
     |
     */
     'sync' => [
-        'base_url'       => env('BAGISTO_SYNC_BASE_URL'),
+        'base_url' => env('BAGISTO_SYNC_BASE_URL'),
         'webhook_secret' => env('BAGISTO_SYNC_WEBHOOK_SECRET'),
-        'timeout'        => (int) env('BAGISTO_SYNC_TIMEOUT', 15),
+        'timeout' => (int) env('BAGISTO_SYNC_TIMEOUT', 15),
+        // Bagisto'da yeni ürünün açılacağı öznitelik ailesi (attribute_families.code). Her ürün
+        // push'unda açıkça gönderilir; gönderilmezse Bagisto SAAS_SYNC_DEFAULT_ATTRIBUTE_FAMILY'ye
+        // düşer (2026-09-26: orada 'default' yazıyordu ama o aile silinmiş, tüm ürünler 500 alıyordu).
+        'attribute_family_code' => env('BAGISTO_SYNC_ATTRIBUTE_FAMILY', 'kids'),
     ],
 
     /*
