@@ -19,6 +19,12 @@ class StorefrontFeatureService
 
     public const STATUS_GROUP = 'bagisto_sync';
 
+    /**
+     * Bu sayfada değil, Süper Admin › Ayarlar › Genel › "Yeni kayıt açık" (general.allowSignup) ile
+     * yönetilen ama mağazaya aynı kanaldan giden anahtar: kapalıyken bayilik başvuru formu kapanır.
+     */
+    public const DEALER_APPLICATIONS = 'dealer_applications';
+
     public function __construct(private PlatformSettings $settings) {}
 
     /**
@@ -49,6 +55,8 @@ class StorefrontFeatureService
     }
 
     /**
+     * Mağazaya gidecek değerlerin tamamı (katalog + yeni başvuru anahtarı).
+     *
      * @return array<string, bool>
      */
     public function values(): array
@@ -57,7 +65,14 @@ class StorefrontFeatureService
 
         return collect($this->catalog())
             ->map(fn (array $feature, string $key) => (bool) ($stored[$key] ?? $feature['default']))
+            ->put(self::DEALER_APPLICATIONS, $this->applicationsOpen())
             ->all();
+    }
+
+    /** Süper admin "Yeni kayıt açık" ayarı. */
+    public function applicationsOpen(): bool
+    {
+        return $this->settings->allowsSignup();
     }
 
     /**

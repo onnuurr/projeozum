@@ -9,7 +9,8 @@ namespace App\Contracts;
  * (SuperadminServiceProvider::register()).
  *
  * Başka bir modülün kendi ayarlarını sakladığı gruplar (ör. Bagisto'nun 'bagisto_features')
- * group()/putGroup() ile okunur/yazılır.
+ * group()/putGroup() ile okunur/yazılır. Süper admin sayfasının kendi anahtarlarının adı ve
+ * varsayılanı dışarı sızmasın diye onlar için ayrı, amaca özel metotlar vardır (allowsSignup()).
  */
 interface PlatformSettings
 {
@@ -26,4 +27,7 @@ interface PlatformSettings
      * @param  array<string, mixed>  $values
      */
     public function putGroup(string $group, array $values): void;
+
+    /** Süper Admin › Ayarlar › Genel › "Yeni kayıt açık": yeni firma/bayi kaydı alınıyor mu? */
+    public function allowsSignup(): bool;
 }

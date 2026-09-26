@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\File;
 use Modules\Bagisto\Mappers\TenantPayloadMapper;
+use Modules\Bagisto\Services\StorefrontFeatureService;
 use Modules\Product\Models\Carrier;
 use Modules\Tenant\Models\TenantApplication;
 use Modules\Tenant\Models\TenantApplicationDocument;
@@ -28,11 +29,22 @@ use Modules\Tenant\Services\TenantApplicationService;
  */
 class TenantApplicationApiController extends Controller
 {
-    public function __construct(private TenantApplicationService $service) {}
+    public function __construct(
+        private TenantApplicationService $service,
+        private StorefrontFeatureService $features,
+    ) {}
 
-    /** Ön başvuru: firma/yetkili + satış modeli ve kanallar. Belge istenmez. */
+    /**
+     * Ön başvuru: firma/yetkili + satış modeli ve kanallar. Belge istenmez.
+     * Süper admin "Yeni kayıt açık" kapalıyken yeni başvuru alınmaz (403); süren başvurular
+     * (durum, belgeler, üyelik tamamlama) etkilenmez. Mağaza formu da aynı anahtarla gizlenir.
+     */
     public function store(Request $request): JsonResponse
     {
+        if (! $this->features->applicationsOpen()) {
+            return response()->json(['message' => 'Bayilik başvuruları şu anda kapalıdır.', 'code' => 'applications_closed'], 403);
+        }
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:191'],
             'legal_name' => ['nullable', 'string', 'max:255'],

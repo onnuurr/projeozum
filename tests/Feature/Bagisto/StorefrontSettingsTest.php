@@ -81,7 +81,7 @@ class StorefrontSettingsTest extends TestCase
         (new PushStorefrontFeaturesToBagisto)->handle(app(StorefrontFeatureService::class), app(BagistoSyncClient::class));
 
         Http::assertSent(fn ($request) => $request->url() === 'https://store.test/api/saas-sync/features'
-            && $request['features'] === ['bulk_order_excel' => true, 'cari_account' => false, 'hide_prices_for_guests' => true]
+            && $request['features'] === ['bulk_order_excel' => true, 'cari_account' => false, 'hide_prices_for_guests' => true, 'dealer_applications' => true]
             && $request->hasHeader('X-Saas-Signature'));
 
         $status = app(StorefrontFeatureService::class)->syncStatus();

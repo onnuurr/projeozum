@@ -2,6 +2,7 @@
 
 namespace Modules\Superadmin\Http\Controllers;
 
+use App\Events\SignupAvailabilityChanged;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -14,6 +15,7 @@ use Inertia\Response;
 use Modules\Superadmin\Models\BackupRun;
 use Modules\Superadmin\Models\Setting;
 use Modules\Superadmin\Services\CloudflarePurgeService;
+use Modules\Superadmin\Services\PlatformSettingsStore;
 use Modules\Superadmin\Services\SystemInfoService;
 use RuntimeException;
 use Spatie\Permission\Models\Permission;
@@ -131,7 +133,14 @@ class SettingsController extends Controller
                 }
             }
 
+            $signupWasOpen = $group === 'general' ? app(PlatformSettingsStore::class)->allowsSignup() : null;
+
             Setting::setGroup($group, $values);
+
+            // Bayi portalı başvuru formu bu ayarı izler (Modules\Bagisto\Listeners\PushDealerApplicationsSwitch).
+            if ($group === 'general' && array_key_exists('allowSignup', $values) && (bool) $values['allowSignup'] !== $signupWasOpen) {
+                SignupAvailabilityChanged::dispatch((bool) $values['allowSignup']);
+            }
         }
 
         // Not: burada flash mesajı basılmıyor — Settings.vue'nin save() metodu
@@ -435,7 +444,7 @@ class SettingsController extends Controller
                 'defaultTimezone'    => 'Europe/Istanbul',
                 'dateFormat'         => 'd.m.Y',
                 'defaultCurrency'    => 'TRY',
-                'allowSignup'        => true,
+                'allowSignup'        => PlatformSettingsStore::ALLOW_SIGNUP_DEFAULT,
                 'maintenanceMode'    => false,
                 'maintenanceMessage' => '',
             ],

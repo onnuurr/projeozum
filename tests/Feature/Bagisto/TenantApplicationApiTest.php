@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Bagisto;
 
+use App\Contracts\PlatformSettings;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -10,10 +11,13 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Modules\Bagisto\Jobs\PushStorefrontFeaturesToBagisto;
 use Modules\Bagisto\Jobs\PushTenantApplicationStageToBagisto;
 use Modules\Bagisto\Jobs\PushTenantToBagisto;
 use Modules\Bagisto\Mail\DealerInvitationMail;
 use Modules\Bagisto\Services\BagistoSyncClient;
+use Modules\Bagisto\Services\StorefrontFeatureService;
+use Modules\Superadmin\Models\Setting;
 use Modules\Tenant\Models\Tenant;
 use Modules\Tenant\Models\TenantApplication;
 use Modules\Tenant\Notifications\TenantApplicationActivityNotification;
@@ -162,6 +166,63 @@ class TenantApplicationApiTest extends TestCase
         $this->api()->post('/api/bagisto/tenant-applications', $this->preApplication([
             'details' => ['consents' => ['declaration' => '0']],
         ]))->assertStatus(422)->assertJsonValidationErrors(['details.consents.declaration']);
+    }
+
+    public function test_pre_application_is_refused_when_signup_is_closed(): void
+    {
+        Setting::setGroup('general', ['allowSignup' => false]);
+
+        $this->api()->post('/api/bagisto/tenant-applications', $this->preApplication())
+            ->assertStatus(403)
+            ->assertJsonPath('code', 'applications_closed');
+
+        $this->assertSame(0, TenantApplication::count());
+    }
+
+    public function test_signup_gate_reads_platform_settings_contract_not_superadmin(): void
+    {
+        $this->app->instance(PlatformSettings::class, new class implements PlatformSettings
+        {
+            public function group(string $group): array
+            {
+                return [];
+            }
+
+            public function putGroup(string $group, array $values): void {}
+
+            public function allowsSignup(): bool
+            {
+                return false;
+            }
+        });
+
+        $this->api()->post('/api/bagisto/tenant-applications', $this->preApplication())->assertStatus(403);
+        $this->assertFalse(app(StorefrontFeatureService::class)->values()['dealer_applications']);
+    }
+
+    public function test_ongoing_application_continues_when_signup_is_closed(): void
+    {
+        $token = $this->api()->post('/api/bagisto/tenant-applications', $this->preApplication())->assertCreated()->json('data.token');
+
+        Setting::setGroup('general', ['allowSignup' => false]);
+
+        $this->api()->get("/api/bagisto/tenant-applications/{$token}")->assertOk();
+    }
+
+    public function test_toggling_signup_pushes_dealer_applications_switch_to_store(): void
+    {
+        Permission::firstOrCreate(['name' => 'settings.manage', 'guard_name' => 'web']);
+        $this->staff->givePermissionTo('settings.manage');
+
+        $this->actingAs($this->staff)->post('/superadmin/settings', ['general' => ['allowSignup' => false]])->assertRedirect();
+
+        Queue::assertPushed(PushStorefrontFeaturesToBagisto::class);
+        $this->assertFalse(app(StorefrontFeatureService::class)->values()['dealer_applications']);
+
+        Queue::fake();
+        $this->actingAs($this->staff)->post('/superadmin/settings', ['general' => ['allowSignup' => false]])->assertRedirect();
+
+        Queue::assertNotPushed(PushStorefrontFeaturesToBagisto::class);
     }
 
     public function test_official_step_is_closed_until_staff_opens_it(): void

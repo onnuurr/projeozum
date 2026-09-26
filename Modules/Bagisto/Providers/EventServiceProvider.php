@@ -2,7 +2,9 @@
 
 namespace Modules\Bagisto\Providers;
 
+use App\Events\SignupAvailabilityChanged;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
+use Modules\Bagisto\Listeners\PushDealerApplicationsSwitch;
 use Modules\Bagisto\Listeners\PushProductSync;
 use Modules\Bagisto\Listeners\PushStockSync;
 use Modules\Bagisto\Listeners\PushTenantApplicationStage;
@@ -44,6 +46,8 @@ class EventServiceProvider extends ServiceProvider
         TenantDeactivated::class => [PushTenantSync::class],
         // Bayi portalı başvurusu: belge aşaması açıldı / eksik evrak / hesap açıldı / red → bayiye e-posta (mağaza gönderir).
         TenantApplicationStageChanged::class => [PushTenantApplicationStage::class],
+        // Süper admin "Yeni kayıt açık" → bayi portalı başvuru formu açık/kapalı.
+        SignupAvailabilityChanged::class => [PushDealerApplicationsSwitch::class],
     ];
 
     protected static $shouldDiscoverEvents = false;

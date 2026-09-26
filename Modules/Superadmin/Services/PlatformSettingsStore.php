@@ -10,6 +10,9 @@ use Modules\Superadmin\Models\Setting;
  */
 class PlatformSettingsStore implements PlatformSettings
 {
+    /** "Yeni kayıt açık" hiç kaydedilmediyse geçerli değer (SettingsController varsayılanı da bu). */
+    public const ALLOW_SIGNUP_DEFAULT = true;
+
     public function group(string $group): array
     {
         return Setting::getGroup($group);
@@ -18,5 +21,10 @@ class PlatformSettingsStore implements PlatformSettings
     public function putGroup(string $group, array $values): void
     {
         Setting::setGroup($group, $values);
+    }
+
+    public function allowsSignup(): bool
+    {
+        return (bool) (Setting::allGrouped()['general']['allowSignup'] ?? self::ALLOW_SIGNUP_DEFAULT);
     }
 }
