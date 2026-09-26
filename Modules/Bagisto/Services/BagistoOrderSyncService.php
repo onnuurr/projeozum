@@ -63,8 +63,11 @@ class BagistoOrderSyncService
                 'shipping_info' => [
                     'source' => 'bagisto',
                     'shipping_method' => 'cargo',
-                    'address' => $data['shipping_address'] ?? null,
+                    // Dropship son alıcı varsa kargo ona gider; yoksa Bagisto teslimat adresi (bayinin kendisi).
+                    'address' => $this->dropshipAddress($data['dropship'] ?? null) ?? ($data['shipping_address'] ?? null),
+                    'dropship' => $data['dropship'] ?? null,
                 ],
+                'payment_method' => $this->paymentMethod($data['payment_method'] ?? null),
                 'note' => 'Bagisto sipariş #'.($data['increment_id'] ?? $bagistoOrderId),
                 'subtotal' => $subtotal,
                 'shipping_fee' => 0,
@@ -92,24 +95,69 @@ class BagistoOrderSyncService
                 ]);
             }
 
-            try {
-                $this->credit->charge(
-                    tenant: $tenant,
-                    amount: (float) $subtotal,
-                    reason: 'bagisto_order',
-                    orderId: $order->id,
-                    byUserId: $actorUserId,
-                );
-            } catch (InsufficientCreditException $e) {
-                Log::warning('Bagisto order webhook: kredi çekimi başarısız, sipariş yine de kaydedildi.', [
-                    'order_id' => $order->id,
-                    'bagisto_order_id' => $bagistoOrderId,
-                    'error' => $e->getMessage(),
-                ]);
+            // Kartla peşin ödenen sipariş cari hesaba yazılmaz (bkz. Bagisto credit-limit.exempt_payment_methods).
+            if (($data['charge_credit'] ?? true) !== false) {
+                try {
+                    $this->credit->charge(
+                        tenant: $tenant,
+                        amount: (float) $subtotal,
+                        reason: 'bagisto_order',
+                        orderId: $order->id,
+                        byUserId: $actorUserId,
+                    );
+                } catch (InsufficientCreditException $e) {
+                    Log::warning('Bagisto order webhook: kredi çekimi başarısız, sipariş yine de kaydedildi.', [
+                        'order_id' => $order->id,
+                        'bagisto_order_id' => $bagistoOrderId,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             }
 
             return $order;
         });
+    }
+
+    /**
+     * Bagisto'nun "dropship" bloğunu, shipping_address ile aynı anahtarlara sahip adres dizisine çevirir
+     * (sipariş ekranları ve kargo entegrasyonu mevcut adres şemasını okumaya devam eder).
+     */
+    private function dropshipAddress(?array $dropship): ?array
+    {
+        if (empty($dropship['recipient_name'])) {
+            return null;
+        }
+
+        $name = preg_split('/\s+/', trim($dropship['recipient_name']));
+        $lastName = count($name) > 1 ? array_pop($name) : '';
+
+        return [
+            'first_name' => implode(' ', $name),
+            'last_name' => $lastName,
+            'company_name' => null,
+            'address' => $dropship['address'] ?? null,
+            'city' => $dropship['city'] ?? null,
+            'state' => $dropship['district'] ?? null,
+            'country' => 'TR',
+            'postcode' => $dropship['postcode'] ?? null,
+            'phone' => $dropship['recipient_phone'] ?? null,
+        ];
+    }
+
+    /**
+     * Bagisto ödeme yöntemi kodunu SaaS sipariş ekranındaki etiket anahtarına çevirir
+     * (OrderDetail.vue PAYMENT_METHODS). Bilinmeyen kod olduğu gibi saklanır.
+     */
+    private function paymentMethod(?string $method): ?string
+    {
+        return match ($method) {
+            null, '' => null,
+            'iyzico' => 'card',
+            'cari_hesap' => 'cari',
+            'moneytransfer' => 'bank',
+            'cashondelivery' => 'cod',
+            default => mb_substr($method, 0, 32),
+        };
     }
 
     /** Sipariş yoksa null döner (çağıran '404 değil, no-op' olarak ele alır). */

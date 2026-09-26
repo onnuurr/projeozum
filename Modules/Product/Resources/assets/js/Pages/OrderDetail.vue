@@ -36,7 +36,7 @@ const ledgerColumns = [
 ]
 
 const ORDER_TYPES = { b2c: 'B2C', dropship: 'Dropship' }
-const PAYMENT_METHODS = { card: 'Kredi Kartı', bank: 'Havale / EFT', cod: 'Kapıda Ödeme' }
+const PAYMENT_METHODS = { card: 'Kredi Kartı', cari: 'Cari Hesap', bank: 'Havale / EFT', cod: 'Kapıda Ödeme' }
 const SHIPPING_METHODS = { cargo: 'Kargo' }
 const SOURCES = { bagisto: 'Bayi Mağazası (Bagisto)' }
 

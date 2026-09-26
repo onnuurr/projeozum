@@ -85,6 +85,20 @@ class TenantCreditService
         });
     }
 
+    /**
+     * Bir sipariş için cariden net çekilen tutar (borç − iade). Kartla peşin ödenen ya da
+     * kredi yetersizliğinden çekilemeyen siparişte 0 döner; iptal iadesi buna göre yapılır.
+     */
+    public function netChargedForOrder(Tenant $tenant, int $orderId): float
+    {
+        $ledger = TenantCreditLedger::where('tenant_id', $tenant->id)->where('order_id', $orderId);
+
+        $debits = (float) (clone $ledger)->where('type', TenantCreditLedger::TYPE_DEBIT)->sum('amount');
+        $credits = (float) (clone $ledger)->where('type', TenantCreditLedger::TYPE_CREDIT)->sum('amount');
+
+        return round($debits - $credits, 2);
+    }
+
     public function availableCreditFor(Tenant $tenant): float
     {
         $fresh = $tenant->fresh();

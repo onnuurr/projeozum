@@ -53,10 +53,14 @@ class OrderService
             if ($to === Order::STATUS_CANCELLED) {
                 $this->stock->restockForOrder($order);
 
-                if ($order->tenant) {
+                // Yalnızca bu sipariş için cariden gerçekten çekilen (net) tutar iade edilir: kartla
+                // peşin ödenen ya da kredi yetersizliğinden çekilemeyen siparişte iade yapılmaz.
+                $charged = $order->tenant ? $this->credit->netChargedForOrder($order->tenant, $order->id) : 0.0;
+
+                if ($charged > 0) {
                     $this->credit->credit(
                         tenant: $order->tenant,
-                        amount: (float) $order->total,
+                        amount: $charged,
                         reason: 'order_cancelled',
                         orderId: $order->id,
                     );

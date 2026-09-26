@@ -48,6 +48,28 @@ class OrderWebhookController extends Controller
             'items.*.qty' => ['required', 'integer', 'min:1'],
             'items.*.price' => ['nullable', 'numeric'],
             'shipping_address' => ['nullable', 'array'],
+            // Bagisto ödeme yöntemi (iyzico = kart, cari_hesap = cari). charge_credit=false ise
+            // (kartla peşin tahsil) sipariş cari hesaba borç yazılmaz. Alan yoksa eski davranış: borç yazılır.
+            'payment_method' => ['nullable', 'string', 'max:32'],
+            'charge_credit' => ['nullable', 'boolean'],
+            // Bayi portalı (ozmbayi) checkout'undaki "Dropship siparişi" kartı: son alıcı.
+            // Varsa sipariş bu adrese gönderilir; bayinin kendi adresi değişmez.
+            'dropship' => ['nullable', 'array'],
+            // Tek ekran checkout (2026-09): dropship'te son alıcı yerine kargo firması + barkod no gelir;
+            // alıcı alanları yalnızca eski kayıtlarda dolu. Alıcı yoksa bayinin adresi kullanılır.
+            'dropship.carrier' => ['nullable', 'string', 'max:32'],
+            'dropship.carrier_label' => ['nullable', 'string', 'max:64'],
+            'dropship.tracking_number' => ['nullable', 'string', 'max:100'],
+            'dropship.recipient_name' => ['nullable', 'string', 'max:191'],
+            'dropship.recipient_phone' => ['required_with:dropship.recipient_name', 'nullable', 'string', 'max:32'],
+            'dropship.address' => ['required_with:dropship.recipient_name', 'nullable', 'string', 'max:1000'],
+            'dropship.district' => ['nullable', 'string', 'max:100'],
+            'dropship.city' => ['required_with:dropship.recipient_name', 'nullable', 'string', 'max:100'],
+            'dropship.postcode' => ['nullable', 'string', 'max:16'],
+            'dropship.channel' => ['nullable', 'string', 'max:32'],
+            'dropship.channel_ref' => ['nullable', 'string', 'max:100'],
+            'dropship.packing_note' => ['nullable', 'string', 'max:500'],
+            'dropship.label_url' => ['nullable', 'url', 'max:2048'],
         ])->validate();
 
         $bagistoOrderId = (string) $data['order_id'];

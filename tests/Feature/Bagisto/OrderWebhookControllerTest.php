@@ -100,6 +100,161 @@ class OrderWebhookControllerTest extends TestCase
         $this->assertEquals(160.0, (float) $tenant->fresh()->current_balance);
     }
 
+    public function test_order_created_charges_sales_price_minus_tenant_discount(): void
+    {
+        $tenant = $this->tenantWithUser(['email' => 'magaza@example.com', 'current_balance' => 0, 'discount_rate' => 30]);
+        $product = Product::factory()->create(['price' => 100]);
+        ProductVariant::factory()->create(['product_id' => $product->id, 'sku' => 'VAR-1', 'price' => 80]);
+
+        $this->postWebhook([
+            'event' => 'order.created',
+            'data' => [
+                'order_id' => 556,
+                'increment_id' => '1000000556',
+                'customer_email' => 'magaza@example.com',
+                'grand_total' => 112,
+                // Bagisto bayiye müşteri grubu fiyatını (80 − %30 = 56) gösterir.
+                'items' => [['sku' => 'VAR-1', 'qty' => 2, 'price' => 56]],
+            ],
+        ])->assertStatus(201);
+
+        $order = Order::where('bagisto_order_id', '556')->firstOrFail();
+        $this->assertEquals(56.0, (float) $order->items()->first()->unit_price);
+        $this->assertEquals(112.0, (float) $order->total);
+        $this->assertEquals(112.0, (float) $tenant->fresh()->current_balance);
+    }
+
+    public function test_order_created_ships_to_dropship_recipient_when_present(): void
+    {
+        $this->tenantWithUser(['email' => 'magaza@example.com']);
+        $product = Product::factory()->create(['price' => 100]);
+        ProductVariant::factory()->create(['product_id' => $product->id, 'sku' => 'VAR-1', 'price' => 80]);
+
+        $response = $this->postWebhook([
+            'event' => 'order.created',
+            'data' => [
+                'order_id' => 777,
+                'customer_email' => 'magaza@example.com',
+                'items' => [['sku' => 'VAR-1', 'qty' => 1, 'price' => 80]],
+                // Bayinin kendi (fatura) adresi — dropship varsa kargo buraya GİTMEMELİ.
+                'shipping_address' => ['first_name' => 'Bayi', 'last_name' => 'Mağaza', 'city' => 'Ankara'],
+                'dropship' => [
+                    'recipient_name' => 'Zeynep Nur Kaya',
+                    'recipient_phone' => '0532 555 44 33',
+                    'address' => 'Lale Sok. No:14 D:5',
+                    'district' => 'Kadıköy',
+                    'city' => 'İstanbul',
+                    'channel' => 'trendyol',
+                    'channel_ref' => 'TY-948102941',
+                    'label_url' => 'https://magaza.example.com/bayi/dropship-etiket/1?signature=abc',
+                ],
+            ],
+        ]);
+
+        $response->assertStatus(201);
+
+        $info = Order::where('bagisto_order_id', '777')->first()->shipping_info;
+
+        $this->assertSame('Zeynep Nur', $info['address']['first_name']);
+        $this->assertSame('Kaya', $info['address']['last_name']);
+        $this->assertSame('İstanbul', $info['address']['city']);
+        $this->assertSame('Kadıköy', $info['address']['state']);
+        $this->assertSame('0532 555 44 33', $info['address']['phone']);
+        $this->assertSame('TY-948102941', $info['dropship']['channel_ref']);
+    }
+
+    public function test_order_created_accepts_cargo_only_dropship_and_keeps_dealer_address(): void
+    {
+        $this->tenantWithUser(['email' => 'magaza@example.com']);
+        ProductVariant::factory()->create(['sku' => 'VAR-1', 'price' => 80]);
+
+        $this->postWebhook([
+            'event' => 'order.created',
+            'data' => [
+                'order_id' => 779,
+                'customer_email' => 'magaza@example.com',
+                'items' => [['sku' => 'VAR-1', 'qty' => 1, 'price' => 80]],
+                'shipping_address' => ['first_name' => 'Bayi', 'last_name' => 'Mağaza', 'city' => 'Ankara'],
+                // Tek ekran checkout: son alıcı yok, yalnızca kargo firması + barkod no (+ isteğe bağlı PDF).
+                'dropship' => [
+                    'carrier' => 'yurtici',
+                    'carrier_label' => 'Yurtiçi Kargo',
+                    'tracking_number' => 'YK-1234567890',
+                    'recipient_name' => null,
+                    'label_url' => null,
+                ],
+            ],
+        ])->assertStatus(201);
+
+        $info = Order::where('bagisto_order_id', '779')->first()->shipping_info;
+
+        $this->assertSame('Ankara', $info['address']['city']);
+        $this->assertSame('yurtici', $info['dropship']['carrier']);
+        $this->assertSame('YK-1234567890', $info['dropship']['tracking_number']);
+    }
+
+    public function test_card_paid_order_is_not_charged_to_credit_and_cancel_does_not_refund(): void
+    {
+        $tenant = $this->tenantWithUser(['email' => 'magaza@example.com', 'current_balance' => 0]);
+        ProductVariant::factory()->create(['sku' => 'VAR-1', 'price' => 80]);
+
+        $this->postWebhook([
+            'event' => 'order.created',
+            'data' => [
+                'order_id' => 780,
+                'customer_email' => 'magaza@example.com',
+                'items' => [['sku' => 'VAR-1', 'qty' => 2, 'price' => 80]],
+                'payment_method' => 'iyzico',
+                'charge_credit' => false,
+            ],
+        ])->assertStatus(201);
+
+        $order = Order::where('bagisto_order_id', '780')->first();
+
+        $this->assertSame('card', $order->payment_method);
+        $this->assertEquals(0.0, (float) $tenant->fresh()->current_balance);
+
+        $this->postWebhook(['event' => 'order.cancelled', 'data' => ['order_id' => 780]])->assertSuccessful();
+
+        $this->assertSame(Order::STATUS_CANCELLED, $order->fresh()->status);
+        $this->assertEquals(0.0, (float) $tenant->fresh()->current_balance);
+    }
+
+    public function test_cari_paid_order_is_charged_and_labelled(): void
+    {
+        $tenant = $this->tenantWithUser(['email' => 'magaza@example.com', 'current_balance' => 0]);
+        ProductVariant::factory()->create(['sku' => 'VAR-1', 'price' => 80]);
+
+        $this->postWebhook([
+            'event' => 'order.created',
+            'data' => [
+                'order_id' => 781,
+                'customer_email' => 'magaza@example.com',
+                'items' => [['sku' => 'VAR-1', 'qty' => 2, 'price' => 80]],
+                'payment_method' => 'cari_hesap',
+                'charge_credit' => true,
+            ],
+        ])->assertStatus(201);
+
+        $this->assertSame('cari', Order::where('bagisto_order_id', '781')->first()->payment_method);
+        $this->assertGreaterThan(0.0, (float) $tenant->fresh()->current_balance);
+    }
+
+    public function test_order_created_rejects_incomplete_dropship_block(): void
+    {
+        $this->tenantWithUser(['email' => 'magaza@example.com']);
+
+        $this->postWebhook([
+            'event' => 'order.created',
+            'data' => [
+                'order_id' => 778,
+                'customer_email' => 'magaza@example.com',
+                'items' => [['sku' => 'VAR-1', 'qty' => 1]],
+                'dropship' => ['recipient_name' => 'Eksik Adres'],
+            ],
+        ])->assertStatus(422);
+    }
+
     public function test_order_created_is_idempotent_on_retry(): void
     {
         $tenant = $this->tenantWithUser(['email' => 'magaza@example.com']);
