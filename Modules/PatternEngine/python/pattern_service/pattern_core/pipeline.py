@@ -5,15 +5,16 @@
 """
 from __future__ import annotations
 
+from .engine.blocks.pantolon import build_pantolon_back, build_pantolon_front, build_pantolon_waistband
 from .engine.blocks.tshirt import build_tshirt_back, build_tshirt_front, build_tshirt_sleeve
 from .engine.grading import grade
 from .engine.resolver import resolve
 from .engine.spec import load_profile
 from .engine.validation.report import ValidationReport
-from .engine.validation.rules import validate
+from .engine.validation.rules import RULES_BY_GARMENT, SPRINT_2_RULES, validate
 from .models import DesignParams, GradedPattern, Pattern
 
-SUPPORTED_GARMENTS: tuple[str, ...] = ("tshirt",)
+SUPPORTED_GARMENTS: tuple[str, ...] = ("tshirt", "pantolon")
 
 
 class UnsupportedGarmentError(Exception):
@@ -30,11 +31,18 @@ def _build_pattern(garment: str, size: str, profile: str, design_params: DesignP
     spec = load_profile(profile)
     measurements = resolve(spec, size)
 
-    pieces = (
-        build_tshirt_front(measurements, design_params),
-        build_tshirt_back(measurements, design_params),
-        build_tshirt_sleeve(measurements, design_params),
-    )
+    if garment == "pantolon":
+        pieces = (
+            build_pantolon_front(measurements, design_params),
+            build_pantolon_back(measurements, design_params),
+            build_pantolon_waistband(measurements, design_params),
+        )
+    else:
+        pieces = (
+            build_tshirt_front(measurements, design_params),
+            build_tshirt_back(measurements, design_params),
+            build_tshirt_sleeve(measurements, design_params),
+        )
 
     return Pattern(garment=garment, size=size, pieces=pieces, profile=profile, design_params=design_params)
 
@@ -42,7 +50,7 @@ def _build_pattern(garment: str, size: str, profile: str, design_params: DesignP
 def generate(garment: str, size: str, profile: str, design_params: DesignParams) -> tuple[Pattern, ValidationReport]:
     spec = load_profile(profile)
     pattern = _build_pattern(garment, size, profile, design_params)
-    report = validate(pattern, spec)
+    report = validate(pattern, spec, rules=RULES_BY_GARMENT.get(garment, SPRINT_2_RULES))
     return pattern, report
 
 
@@ -61,5 +69,6 @@ def generate_graded(
     base_pattern = _build_pattern(garment, base_size, profile, design_params)
     graded = grade(base_pattern, target_sizes, spec)
 
-    reports = {pattern.size: validate(pattern, spec) for pattern in graded.patterns}
+    rules = RULES_BY_GARMENT.get(garment, SPRINT_2_RULES)
+    reports = {pattern.size: validate(pattern, spec, rules=rules) for pattern in graded.patterns}
     return graded, reports

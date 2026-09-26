@@ -158,6 +158,81 @@ SPRINT_2_RULES: tuple[Rule, ...] = SPRINT_1_RULES + (
 ALL_RULES: tuple[Rule, ...] = SPRINT_2_RULES
 
 
+def _leg_inseam_length(piece_name: str) -> Callable[[Pattern], float]:
+    """`crotch_point -> inseam_knee -> inseam_hem` zincirinin toplam uzunluğu (mm)."""
+    return lambda pattern: (
+        _edge(pattern, piece_name, "crotch_point", "inseam_knee")
+        + _edge(pattern, piece_name, "inseam_knee", "inseam_hem")
+    )
+
+
+def _leg_side_length(piece_name: str, waist_point: str) -> Callable[[Pattern], float]:
+    """`waist_point -> hip_side -> outseam_knee -> outseam_hem` zincirinin toplam uzunluğu (mm)."""
+    return lambda pattern: (
+        _edge(pattern, piece_name, waist_point, "hip_side")
+        + _edge(pattern, piece_name, "hip_side", "outseam_knee")
+        + _edge(pattern, piece_name, "outseam_knee", "outseam_hem")
+    )
+
+
+def _waistband_length(pattern: Pattern) -> float:
+    return _edge(pattern, "waistband", "top_left", "top_right")
+
+
+def _front_back_waist_sum(pattern: Pattern) -> float:
+    """Her parça (ön/arka) bir bacak için kesilir, iki bacak için ×2 kesilir — kemer
+    tüm beden çevresini sardığı için karşılaştırma da tam çevre üzerinden yapılır.
+    """
+    return 2.0 * (
+        _edge(pattern, "front_leg", "waist_side", "waist_front")
+        + _edge(pattern, "back_leg", "waist_side", "waist_center")
+    )
+
+
+PANTS_INSEAM_MATCH = Rule(
+    id="pants_inseam_match",
+    description="Ön iç paça uzunluğu = arka iç paça uzunluğu",
+    measure_fn=_leg_inseam_length("front_leg"),
+    expected_fn=lambda pattern, spec: _leg_inseam_length("back_leg")(pattern),
+    tolerance=0.0,
+    severity="error",
+    tolerance_key="seam_match",
+)
+
+PANTS_SIDE_SEAM_MATCH = Rule(
+    id="pants_side_seam_match",
+    description="Ön dış paça/yan dikiş uzunluğu = arka dış paça/yan dikiş uzunluğu",
+    measure_fn=_leg_side_length("front_leg", "waist_side"),
+    expected_fn=lambda pattern, spec: _leg_side_length("back_leg", "waist_side")(pattern),
+    tolerance=0.0,
+    severity="error",
+    tolerance_key="seam_match",
+)
+
+PANTS_WAISTBAND_MATCH = Rule(
+    id="pants_waistband_match",
+    description="Kemer uzunluğu ≈ ön bel + arka bel toplamı",
+    measure_fn=_waistband_length,
+    expected_fn=lambda pattern, spec: _front_back_waist_sum(pattern),
+    tolerance=0.0,
+    severity="warning",
+    tolerance_key="waistband_match",
+)
+
+PANTOLON_RULES: tuple[Rule, ...] = SPRINT_1_RULES + (
+    PANTS_INSEAM_MATCH,
+    PANTS_SIDE_SEAM_MATCH,
+    PANTS_WAISTBAND_MATCH,
+)
+
+# Giysi tipi -> doğrulama kural seti. Yeni bir giysi tipi eklenince (bkz.
+# `engine/blocks/`, `engine/grading.py::_BUILDERS`) buraya da bir anahtar açılır.
+RULES_BY_GARMENT: dict[str, tuple[Rule, ...]] = {
+    "tshirt": SPRINT_2_RULES,
+    "pantolon": PANTOLON_RULES,
+}
+
+
 def _run_rule(rule: Rule, pattern: Pattern, spec: Spec) -> Finding:
     measured = rule.measure_fn(pattern)
     expected = rule.expected_fn(pattern, spec)

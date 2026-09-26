@@ -1,0 +1,26 @@
+profile: pants_default
+unit: mm
+measurement_type: body        # body | garment — karıştırılırsa bolluk iki kez eklenir
+
+# TEK bir beden (2 Yaş) — kullanıcının internette bulduğu ev dikişi tarifinden
+# (bkz. provenance.note). Diğer bedenler (4Y, 6Y...) eklenmeden gradasyon
+# talebi UnknownSizeError verir — bu kasıtlı, bedeni olmayan bir sonuç icat
+# edilmez (§P4).
+sizes:
+  "2Y":
+    bel_circ:            540   # bel çevresi
+    basen_circ:           600   # basen (kalça) çevresi
+    boy:                 550   # pantolon boyu (bel-paça)
+
+provenance:
+  source: user_supplied_internet_tutorial
+  verified_by_modelist: false
+  verified_at: null
+  note: >
+    Kullanıcının paylaştığı bir "kutu tekniği" ev dikişi tarifinden (2 Yaş,
+    bolluk verilmemiş ölçüler) alınmıştır. Tarif tek bedenlik sabit cm
+    değerleri veriyordu, formül vermiyordu — bel/basen/boy'a oranlı olduğu
+    düşünülen değerler (rules.yaml/derived) bu TEK veri noktasından geriye
+    doğru çıkarıldı (bkz. rules.yaml başındaki not). Üretime geçmeden önce
+    bir modelist tarafından doğrulanmalı; diğer bedenler eklenmeden gradasyon
+    güvenilir değildir.

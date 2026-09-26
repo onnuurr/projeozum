@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from typing import Callable
 
+from .blocks.pantolon import build_pantolon_back, build_pantolon_front, build_pantolon_waistband
 from .blocks.tshirt import build_tshirt_back, build_tshirt_front, build_tshirt_sleeve
 from .resolver import resolve
 from .spec import Spec
@@ -20,6 +21,7 @@ from ..models import DesignParams, GradedPattern, Pattern, Piece
 # eklenince (Sprint 5+ kapsamı) yalnızca burada yeni bir anahtar açılır.
 _BUILDERS: dict[str, tuple[Callable[[dict[str, float], DesignParams], Piece], ...]] = {
     "tshirt": (build_tshirt_front, build_tshirt_back, build_tshirt_sleeve),
+    "pantolon": (build_pantolon_front, build_pantolon_back, build_pantolon_waistband),
 }
 
 

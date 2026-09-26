@@ -1,0 +1,106 @@
+garment: pantolon
+unit: mm
+
+# DOĞRULANMAMIŞ — bkz. sizes.yaml provenance notu. Kullanıcının paylaştığı
+# "kutu tekniği" tarifi TEK bir beden (2Y: bel=540, basen=600, boy=550) için
+# sabit cm veriyordu, formül vermiyordu. Aşağıdaki `ease` sabitleri ve
+# `derived` formülleri, o tek veri noktasından geriye doğru çıkarılan bir
+# TAHMİNDİR (tişörtte kanıtlanmış "çeyrek beden + pay" tekniğiyle örtüşüyor
+# olması cesaret verici ama kanıt değil). Bir modelist onayı gelene kadar
+# yalnızca bu tek beden (2Y) için "muhtemelen doğru" sayılmalı — 4Y/6Y/8Y
+# eklendiğinde bu formüllerin gerçekten ölçeklendiğini teyit etmek gerekir.
+#
+# Yalnızca dört değer doğrudan üç ölçüden (bel_circ/basen_circ/boy) türetildi
+# (aşağıdaki karşılaştırma tarifteki sabit sayılarla tam örtüşüyor):
+#   - kemer uzunluğu   = bel_circ + 70mm        (540+70=610 ⇒ tarifte "61 cm")
+#   - arka bel yarısı  = bel_circ/4 + 15mm       (135+15=150 ⇒ tarifte "15 cm")
+#   - kutu eni         = basen_circ/4 + 5mm      (150+5=155 ⇒ tarifte "15,5 cm")
+#   - kutu boyu        = basen_circ/4            (150 ⇒ tarifte "15 cm")
+# Geri kalan tüm ölçüler (ağ payı, paça/diz genişlikleri, bel yükseltmeleri...)
+# tarifte tek bir sabit cm olarak verildiği ve başka bedenle karşılaştırma
+# imkânı olmadığı için ölçüden BAĞIMSIZ (sabit mm) `ease` kabul edildi —
+# tişört profilindeki `ease.chest` gibi sabit paylarla aynı yaklaşım.
+
+ease:
+  hip_box:              5     # kutu eni payı (basen/4'e eklenir)
+  front_crotch_ext:    35     # ön ağ noktası kutu kenarından dışa uzatma
+  front_hem_half:      65     # ön paça yarı genişliği (toplam 13cm/2)
+  side_waist_in:       10     # ön yan bel, basen kenarından içe girme
+  knee_depth:          300    # diz noktasının bel hattından aşağı mesafesi
+  back_crease_offset:  105    # arka ütü çizgisinin kutu sol kenarından uzaklığı
+  back_hem_half:       80     # arka paça yarı genişliği
+  back_knee_half:      90     # arka diz yarı genişliği
+  back_crotch_ext:     70     # arka ağ noktasının kutu sol kenarından sağa mesafesi
+  back_center_raise:   15     # arka orta bel noktasının bel hattından yukarı çıkma payı
+  back_waist_pay:      15     # arka bel yarısı payı (bel_circ/4'e eklenir)
+  waistband_height:    60     # kemer eni (yükseklik)
+  waistband_ease:      70     # kemer uzunluğu payı (bel_circ'e eklenir)
+
+derived:
+  hip_box_width:
+    formula: "basen_circ / 4 + ease.hip_box"
+    depends: [basen_circ]
+
+  hip_box_height:
+    formula: "basen_circ / 4"
+    depends: [basen_circ]
+
+  body_length:
+    formula: "boy"
+    depends: [boy]
+
+  front_crotch_ext:
+    formula: "ease.front_crotch_ext"
+    depends: []
+
+  front_hem_half:
+    formula: "ease.front_hem_half"
+    depends: []
+
+  side_waist_in:
+    formula: "ease.side_waist_in"
+    depends: []
+
+  knee_depth:
+    formula: "ease.knee_depth"
+    depends: []
+
+  front_knee_half:
+    # Tarifte ön diz genişliği sayı olarak verilmemiş ("iki tarafına eşit
+    # dağıtın" deniyor, cm belirtilmiyor) — kutu kenarı (basen hizası) ile
+    # paça arasında düz enterpolasyon varsayıldı (tarifin kendisi de
+    # "paça-diz arasını düz cetvelle çizin" diyor, yani zaten doğrusal).
+    formula: "hip_box_width / 2 + (front_hem_half - hip_box_width / 2) * (knee_depth - hip_box_height) / (body_length - hip_box_height)"
+    depends: [hip_box_width, hip_box_height, front_hem_half, body_length, knee_depth]
+
+  back_crease_offset:
+    formula: "ease.back_crease_offset"
+    depends: []
+
+  back_hem_half:
+    formula: "ease.back_hem_half"
+    depends: []
+
+  back_knee_half:
+    formula: "ease.back_knee_half"
+    depends: []
+
+  back_crotch_ext:
+    formula: "ease.back_crotch_ext"
+    depends: []
+
+  back_center_raise:
+    formula: "ease.back_center_raise"
+    depends: []
+
+  back_waist_half:
+    formula: "bel_circ / 4 + ease.back_waist_pay"
+    depends: [bel_circ]
+
+  waistband_height:
+    formula: "ease.waistband_height"
+    depends: []
+
+  waistband_length:
+    formula: "bel_circ + ease.waistband_ease"
+    depends: [bel_circ]

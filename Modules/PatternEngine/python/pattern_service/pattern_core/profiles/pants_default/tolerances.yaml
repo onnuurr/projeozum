@@ -1,0 +1,6 @@
+tolerances:
+  seam_match:          5     # eşleşmesi gereken dikiş uzunlukları (mm) — iç paça / yan dikiş
+  waistband_match:     15    # kemer uzunluğu ↔ ön+arka bel toplamı (mm) — pens/toplama payı için geniş tolerans
+  reference_pattern:   3     # modelist referansına karşı regresyon (mm) — modelist onayı bekliyor
+  symmetry:            1     # mm
+  closed_contour_gap:  0.01  # mm — kontur kapanma toleransı (kayan nokta epsilon'u)
