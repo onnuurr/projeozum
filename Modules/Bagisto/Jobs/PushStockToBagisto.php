@@ -3,7 +3,7 @@
 namespace Modules\Bagisto\Jobs;
 
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldBeUnique;
+use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -17,12 +17,15 @@ use Modules\Product\Models\ProductVariant;
  * eder. Bagisto tek bir `inventory_source_id` kullandığı için (MVP), SaaS'taki
  * çoklu-depo dağılımı buraya yansımaz — sadece toplam.
  *
- * `ShouldBeUnique`: aynı varyant için art arda dispatch'ler tek job'a
- * sıkıştırılır; `handle()` her zaman DB'den GÜNCEL stoğu okuduğu için hangi
- * kopyanın çalıştığı önemli değil, sadece sırayı bozan gereksiz tekrarları
- * engeller.
+ * `ShouldBeUniqueUntilProcessing`: aynı varyant için kuyrukta BEKLEYEN
+ * dispatch'ler tek job'a sıkıştırılır; kilit job işlenmeye başladığında kalkar.
+ * (Eskiden `ShouldBeUnique` idi: kilit job BİTENE kadar tutulduğu için, çalışan
+ * bir job stoğu okuduktan sonra gelen ikinci sipariş düşümünün dispatch'i
+ * düşüyor ve mağaza bir önceki stokta kalıyordu — bkz. PushProductToBagisto.)
+ * `handle()` her zaman DB'den GÜNCEL stoğu okuduğu için en son çalışan kopya
+ * en güncel toplamı gönderir.
  */
-class PushStockToBagisto implements ShouldQueue, ShouldBeUnique
+class PushStockToBagisto implements ShouldQueue, ShouldBeUniqueUntilProcessing
 {
     use Dispatchable, InteractsWithQueue, Queueable;
 

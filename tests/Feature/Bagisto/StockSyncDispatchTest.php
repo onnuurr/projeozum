@@ -40,4 +40,17 @@ class StockSyncDispatchTest extends TestCase
             return $property->getValue($job) === $variant->id;
         });
     }
+
+    /**
+     * Regresyon: `ShouldBeUnique` kilidi job BİTENE kadar tutuyordu; çalışan push stoğu
+     * okuduktan sonra gelen ikinci sipariş düşümünün dispatch'i düşüyor, mağaza eski
+     * stokta kalıyordu. Kilit işleme başlarken kalkmalı.
+     */
+    public function test_stock_push_lock_is_released_when_processing_starts(): void
+    {
+        $this->assertInstanceOf(
+            \Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing::class,
+            new PushStockToBagisto(1),
+        );
+    }
 }
