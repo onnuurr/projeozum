@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use Modules\Bagisto\Http\Controllers\Api\OrderWebhookController;
 use Modules\Bagisto\Http\Controllers\Api\ReturnInvoiceApiController;
+use Modules\Bagisto\Http\Controllers\Api\TenantAccountApiController;
 use Modules\Bagisto\Http\Controllers\Api\TenantApplicationApiController;
 use Modules\Bagisto\Http\Middleware\VerifyBagistoInboundToken;
 
@@ -32,3 +33,7 @@ Route::post('bagisto/returns/{rmaId}/invoice', [ReturnInvoiceApiController::clas
     ->middleware([VerifyBagistoInboundToken::class, 'throttle:20,1'])
     ->name('bagisto.returns.invoice');
 
+// Bayi portalı "Cari Hesap" ekranı: limit/bakiye, açık faturalar, cari hareketleri (bayi e-postasıyla).
+Route::get('bagisto/tenant-accounts/statement', [TenantAccountApiController::class, 'statement'])
+    ->middleware([VerifyBagistoInboundToken::class, 'throttle:60,1'])
+    ->name('bagisto.tenant-accounts.statement');
