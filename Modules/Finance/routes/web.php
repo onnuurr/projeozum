@@ -20,6 +20,7 @@ Route::middleware(['auth', 'verified', 'can:finance.view'])->prefix('finance')->
     Route::get('/product-costs', [ProductCostReportController::class, 'index'])->name('product-costs');
     Route::get('/sales', [SalesHistoryReportController::class, 'index'])->name('sales');
     Route::get('/tenant-purchases', [TenantPurchaseReportController::class, 'index'])->name('tenant-purchases');
+    Route::get('/tenant-purchases/export', [TenantPurchaseReportController::class, 'export'])->name('tenant-purchases.export');
 
     // Alınan faturalar (tedarikçi/gider faturaları)
     Route::prefix('supplier-invoices')->name('supplier-invoices.')->group(function () {
