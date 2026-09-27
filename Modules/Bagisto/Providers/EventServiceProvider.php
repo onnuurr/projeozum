@@ -18,6 +18,9 @@ use Modules\Product\Events\StockChanged;
 use Modules\Tenant\Events\TenantActivated;
 use Modules\Tenant\Events\TenantApplicationStageChanged;
 use Modules\Tenant\Events\TenantDeactivated;
+use Modules\Tenant\Events\TenantDeleted;
+use Modules\Tenant\Events\TenantOwnerDetached;
+use Modules\Tenant\Events\TenantOwnerEmailChanged;
 
 /**
  * Product/Tenant modüllerinin domain event'lerine, o modülleri hiç değiştirmeden
@@ -44,6 +47,9 @@ class EventServiceProvider extends ServiceProvider
         StockChanged::class      => [PushStockSync::class],
         TenantActivated::class   => [PushTenantSync::class],
         TenantDeactivated::class => [PushTenantSync::class],
+        TenantDeleted::class     => [PushTenantSync::class],
+        TenantOwnerDetached::class => [PushTenantSync::class],
+        TenantOwnerEmailChanged::class => [PushTenantSync::class],
         // Bayi portalı başvurusu: belge aşaması açıldı / eksik evrak / hesap açıldı / red → bayiye e-posta (mağaza gönderir).
         TenantApplicationStageChanged::class => [PushTenantApplicationStage::class],
         // Süper admin "Yeni kayıt açık" → bayi portalı başvuru formu açık/kapalı.

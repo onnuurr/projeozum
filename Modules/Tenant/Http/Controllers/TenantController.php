@@ -155,7 +155,7 @@ class TenantController extends Controller
             ]);
         }
 
-        $tenant->delete();
+        $this->service->delete($tenant);
 
         return redirect()->route('tenants.index');
     }

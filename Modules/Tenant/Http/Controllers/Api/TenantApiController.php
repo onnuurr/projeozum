@@ -57,7 +57,7 @@ class TenantApiController extends Controller
             ], 422);
         }
 
-        $tenant->delete();
+        $this->service->delete($tenant);
 
         return response()->json(null, 204);
     }

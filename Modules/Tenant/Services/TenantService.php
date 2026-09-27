@@ -2,11 +2,13 @@
 
 namespace Modules\Tenant\Services;
 
+use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Modules\Tenant\Events\TenantActivated;
 use Modules\Tenant\Events\TenantDeactivated;
+use Modules\Tenant\Events\TenantDeleted;
 use Modules\Tenant\Models\Tenant;
 use Modules\Tenant\Models\TenantInvoice;
 use Modules\Tenant\Models\TenantPriceList;
@@ -99,6 +101,23 @@ class TenantService
         ]);
 
         TenantDeactivated::dispatch($tenant->fresh());
+    }
+
+    /**
+     * Çağıran bağlı kullanıcı kalmadığını doğrulamış olmalı (controller guard'ı).
+     * Owner bu yüzden genelde soft-deleted'dır; Bagisto hesabının e-postası
+     * silmeden önce withTrashed ile yakalanır (bkz. TenantDeleted).
+     */
+    public function delete(Tenant $tenant): void
+    {
+        $ownerEmail = User::withTrashed()
+            ->where('tenant_id', $tenant->id)
+            ->oldest('id')
+            ->value('email');
+
+        $tenant->delete();
+
+        TenantDeleted::dispatch($tenant, $ownerEmail);
     }
 
     public function activate(Tenant $tenant): void

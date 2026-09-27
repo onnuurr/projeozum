@@ -2,8 +2,10 @@
 
 namespace Modules\Tenant\Providers;
 
+use App\Models\User;
 use Illuminate\Support\Facades\Gate;
 use Modules\Tenant\Models\TenantInvoice;
+use Modules\Tenant\Observers\TenantOwnerObserver;
 use Modules\Tenant\Policies\TenantInvoicePolicy;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 
@@ -23,6 +25,8 @@ class TenantServiceProvider extends ModuleServiceProvider
         parent::boot();
 
         Gate::policy(TenantInvoice::class, TenantInvoicePolicy::class);
+
+        User::observe(TenantOwnerObserver::class);
 
         // Inertia testing view-finder'a "Tenant::" namespace hint'i tanıt ki
         // assertInertia(component('Tenant::Tenants')) gibi çağrılar modül
