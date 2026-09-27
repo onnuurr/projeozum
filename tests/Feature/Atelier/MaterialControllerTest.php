@@ -36,6 +36,35 @@ class MaterialControllerTest extends TestCase
         $this->assertDatabaseHas('materials', ['code' => 'KUM-001', 'name' => 'Pamuk Kumaş']);
     }
 
+    public function test_store_with_initial_quantity_records_purchase_movement(): void
+    {
+        $this->actingAs($this->admin)
+            ->post('/atelier/materials', [
+                'code' => 'KUM-010', 'name' => 'Keten', 'type' => 'kumas',
+                'unit' => 'metre', 'unit_cost' => 40, 'initial_quantity' => 120.5,
+            ])
+            ->assertRedirect();
+
+        $material = Material::where('code', 'KUM-010')->firstOrFail();
+        $this->assertSame('120.500', $material->current_stock);
+        $this->assertDatabaseHas('material_movements', [
+            'material_id' => $material->id, 'type' => 'in', 'reason' => 'purchase',
+        ]);
+    }
+
+    public function test_store_without_initial_quantity_leaves_stock_empty(): void
+    {
+        $this->actingAs($this->admin)
+            ->post('/atelier/materials', [
+                'code' => 'KUM-011', 'name' => 'Saten', 'type' => 'kumas', 'unit' => 'metre', 'unit_cost' => 30,
+            ])
+            ->assertRedirect();
+
+        $material = Material::where('code', 'KUM-011')->firstOrFail();
+        $this->assertEquals(0, (float) $material->current_stock);
+        $this->assertDatabaseMissing('material_movements', ['material_id' => $material->id]);
+    }
+
     public function test_movement_increases_stock(): void
     {
         $material = Material::create([
@@ -46,11 +75,12 @@ class MaterialControllerTest extends TestCase
         $this->actingAs($this->admin)
             ->post('/atelier/materials/movement', [
                 'material_id' => $material->id, 'type' => 'in',
-                'quantity' => 50, 'reason' => 'purchase',
+                'quantity' => 50, 'reason' => 'purchase', 'unit_cost' => 22.5,
             ])
             ->assertRedirect();
 
         $this->assertSame('50.000', $material->fresh()->current_stock);
+        $this->assertDatabaseHas('material_movements', ['material_id' => $material->id, 'unit_cost' => 22.5]);
     }
 
     public function test_requires_permission(): void

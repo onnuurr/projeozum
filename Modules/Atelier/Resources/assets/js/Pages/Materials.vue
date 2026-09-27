@@ -69,7 +69,7 @@ function onAction(key, m) {
 }
 
 /* ── ekle / düzenle ── */
-const emptyForm = () => ({ id: null, code: '', name: '', type: 'kumas', unit: 'metre', unit_cost: 0, is_active: true })
+const emptyForm = () => ({ id: null, code: '', name: '', type: 'kumas', unit: 'metre', unit_cost: 0, initial_quantity: 0, is_active: true })
 const form = useForm(emptyForm())
 const editing = ref(false)
 const formOpen = ref(false)
@@ -93,6 +93,17 @@ function openEdit(m) {
 	formOpen.value = true
 }
 
+/* Alınan miktar × birim maliyet = toplam tutar. Toplam elle girilirse birim maliyet ondan hesaplanır. */
+const QTY_LABELS = { metre: 'Alınan Kumaş (metre)', adet: 'Alınan Miktar (adet)', kg: 'Alınan Miktar (kg)' }
+const round2 = (n) => Math.round(n * 100) / 100
+const purchaseTotal = computed({
+	get: () => round2((Number(form.initial_quantity) || 0) * (Number(form.unit_cost) || 0)),
+	set: (total) => {
+		const qty = Number(form.initial_quantity) || 0
+		if (qty > 0) form.unit_cost = round2((Number(total) || 0) / qty)
+	},
+})
+
 function submit() {
 	if (form.processing) return
 	const opts = {
@@ -111,16 +122,25 @@ async function remove(m) {
 /* ── stok hareketi ── */
 const moveOpen = ref(false)
 const moveMaterial = ref(null)
-const move = useForm({ material_id: null, type: 'in', quantity: 0, reason: 'purchase', note: '' })
+const move = useForm({ material_id: null, type: 'in', quantity: 0, reason: 'purchase', unit_cost: 0, note: '' })
 function openMove(m) {
 	moveMaterial.value = m
 	move.clearErrors()
-	Object.assign(move, { material_id: m.id, type: 'in', quantity: 0, reason: 'purchase', note: '' })
+	Object.assign(move, { material_id: m.id, type: 'in', quantity: 0, reason: 'purchase', unit_cost: m.unitCost, note: '' })
 	moveOpen.value = true
 }
+// Birim maliyet / toplam tutar yalnızca satın alma girişinde anlamlı.
+const isPurchase = computed(() => move.type === 'in' && move.reason === 'purchase')
+const moveTotal = computed({
+	get: () => round2((Number(move.quantity) || 0) * (Number(move.unit_cost) || 0)),
+	set: (total) => {
+		const qty = Number(move.quantity) || 0
+		if (qty > 0) move.unit_cost = round2((Number(total) || 0) / qty)
+	},
+})
 function submitMove() {
 	if (move.processing) return
-	move.post('/atelier/materials/movement', {
+	move.transform((d) => ({ ...d, unit_cost: isPurchase.value ? d.unit_cost : null })).post('/atelier/materials/movement', {
 		preserveScroll: true,
 		onSuccess: () => { moveOpen.value = false },
 		onError: (errs) => showToast?.({ type: 'error', title: 'Hareket kaydedilemedi', message: Object.values(errs)[0] || 'Doğrulama hatası.' }),
@@ -211,6 +231,14 @@ async function submitSpecs() {
 					<OzSwitch v-model="form.is_active" label="Aktif" />
 				</OzField>
 			</div>
+			<div v-if="!editing" class="row-2">
+				<OzField :label="QTY_LABELS[form.unit] ?? 'Alınan Miktar'" :error="form.errors.initial_quantity" hint="Girilirse stoğa satın alma olarak işlenir.">
+					<OzInput v-model.number="form.initial_quantity" type="number" min="0" step="0.001" :suffix="UNITS[form.unit] ?? form.unit" placeholder="0" />
+				</OzField>
+				<OzField label="Toplam Tutar" :hint="form.initial_quantity > 0 ? 'Değiştirirseniz birim maliyet yeniden hesaplanır.' : 'Önce alınan miktarı girin.'">
+					<OzInput v-model.number="purchaseTotal" type="number" min="0" step="0.01" suffix="₺" :disabled="!(form.initial_quantity > 0)" />
+				</OzField>
+			</div>
 			<button type="submit" hidden />
 		</form>
 		<template #footer>
@@ -231,6 +259,14 @@ async function submitSpecs() {
 			<OzField label="Sebep" required :error="move.errors.reason">
 				<OzSelect v-model="move.reason" :options="MOVE_REASONS" />
 			</OzField>
+			<div v-if="isPurchase" class="row-2">
+				<OzField label="Birim Maliyet" :error="move.errors.unit_cost">
+					<OzInput v-model.number="move.unit_cost" type="number" min="0" step="0.01" suffix="₺" />
+				</OzField>
+				<OzField label="Toplam Tutar" :hint="move.quantity > 0 ? 'Değiştirirseniz birim maliyet yeniden hesaplanır.' : 'Önce miktarı girin.'">
+					<OzInput v-model.number="moveTotal" type="number" min="0" step="0.01" suffix="₺" :disabled="!(move.quantity > 0)" />
+				</OzField>
+			</div>
 			<OzField label="Not" :error="move.errors.note">
 				<OzTextarea v-model="move.note" :rows="2" placeholder="İrsaliye no, açıklama…" />
 			</OzField>

@@ -5,6 +5,7 @@ namespace Modules\Atelier\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -53,7 +54,23 @@ class MaterialController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        Material::create($this->validateMaterial($request));
+        $data = $this->validateMaterial($request);
+        $initial = (float) ($request->validate([
+            'initial_quantity' => ['nullable', 'numeric', 'min:0'],
+        ])['initial_quantity'] ?? 0);
+
+        // Alınan miktar girildiyse açılış stoğu satın alma hareketi olarak yazılır
+        // (current_stock doğrudan set edilmez; hareket geçmişi eksiksiz kalsın).
+        DB::transaction(function () use ($data, $initial) {
+            $material = Material::create($data);
+
+            if ($initial > 0) {
+                $this->stock->record($material, MaterialMovement::TYPE_IN, $initial, 'purchase', [
+                    'unit_cost' => $data['unit_cost'],
+                    'note'      => 'İlk alım (hammadde kaydı)',
+                ]);
+            }
+        });
 
         return redirect()->route('atelier.materials.index')->with('success', 'Hammadde eklendi.');
     }
