@@ -76,6 +76,7 @@ const formOpen = ref(false)
 
 function resetForm() {
 	editing.value = false
+	purchaseTotal.value = null
 	form.defaults(emptyForm())
 	form.reset()
 	form.clearErrors()
@@ -93,15 +94,16 @@ function openEdit(m) {
 	formOpen.value = true
 }
 
-/* Alınan miktar × birim maliyet = toplam tutar. Toplam elle girilirse birim maliyet ondan hesaplanır. */
+/* Alınan miktar + toplam tutar girilir, birim maliyet = toplam ÷ miktar olarak hesaplanır. */
 const QTY_LABELS = { metre: 'Alınan Kumaş (metre)', adet: 'Alınan Miktar (adet)', kg: 'Alınan Miktar (kg)' }
 const round2 = (n) => Math.round(n * 100) / 100
-const purchaseTotal = computed({
-	get: () => round2((Number(form.initial_quantity) || 0) * (Number(form.unit_cost) || 0)),
-	set: (total) => {
-		const qty = Number(form.initial_quantity) || 0
-		if (qty > 0) form.unit_cost = round2((Number(total) || 0) / qty)
-	},
+const unitFrom = (total, qty) => ((Number(qty) || 0) > 0 && (Number(total) || 0) > 0 ? round2(Number(total) / Number(qty)) : null)
+
+const purchaseTotal = ref(null)
+const formUnitComputed = computed(() => !editing.value && unitFrom(purchaseTotal.value, form.initial_quantity) !== null)
+watch([purchaseTotal, () => form.initial_quantity], ([total, qty]) => {
+	const unit = unitFrom(total, qty)
+	if (unit !== null) form.unit_cost = unit
 })
 
 function submit() {
@@ -127,16 +129,15 @@ function openMove(m) {
 	moveMaterial.value = m
 	move.clearErrors()
 	Object.assign(move, { material_id: m.id, type: 'in', quantity: 0, reason: 'purchase', unit_cost: m.unitCost, note: '' })
+	moveTotal.value = null
 	moveOpen.value = true
 }
 // Birim maliyet / toplam tutar yalnızca satın alma girişinde anlamlı.
 const isPurchase = computed(() => move.type === 'in' && move.reason === 'purchase')
-const moveTotal = computed({
-	get: () => round2((Number(move.quantity) || 0) * (Number(move.unit_cost) || 0)),
-	set: (total) => {
-		const qty = Number(move.quantity) || 0
-		if (qty > 0) move.unit_cost = round2((Number(total) || 0) / qty)
-	},
+const moveTotal = ref(null)
+// Toplam girilmezse hammaddenin kayıtlı birim maliyeti kullanılır.
+watch([moveTotal, () => move.quantity], ([total, qty]) => {
+	move.unit_cost = unitFrom(total, qty) ?? moveMaterial.value?.unitCost ?? 0
 })
 function submitMove() {
 	if (move.processing) return
@@ -223,20 +224,20 @@ async function submitSpecs() {
 					<OzSelect v-model="form.unit" :options="unitOptions" />
 				</OzField>
 			</div>
-			<div class="row-2">
-				<OzField label="Birim Maliyet" :error="form.errors.unit_cost">
-					<OzInput v-model.number="form.unit_cost" type="number" min="0" step="0.01" suffix="₺" placeholder="0,00" />
-				</OzField>
-				<OzField label="Durum">
-					<OzSwitch v-model="form.is_active" label="Aktif" />
-				</OzField>
-			</div>
 			<div v-if="!editing" class="row-2">
 				<OzField :label="QTY_LABELS[form.unit] ?? 'Alınan Miktar'" :error="form.errors.initial_quantity" hint="Girilirse stoğa satın alma olarak işlenir.">
 					<OzInput v-model.number="form.initial_quantity" type="number" min="0" step="0.001" :suffix="UNITS[form.unit] ?? form.unit" placeholder="0" />
 				</OzField>
-				<OzField label="Toplam Tutar" :hint="form.initial_quantity > 0 ? 'Değiştirirseniz birim maliyet yeniden hesaplanır.' : 'Önce alınan miktarı girin.'">
-					<OzInput v-model.number="purchaseTotal" type="number" min="0" step="0.01" suffix="₺" :disabled="!(form.initial_quantity > 0)" />
+				<OzField label="Toplam Tutar" hint="Faturadaki toplam tutar.">
+					<OzInput v-model.number="purchaseTotal" type="number" min="0" step="0.01" suffix="₺" placeholder="0,00" />
+				</OzField>
+			</div>
+			<div class="row-2">
+				<OzField label="Birim Maliyet" :error="form.errors.unit_cost" :hint="formUnitComputed ? `Toplam ÷ ${UNITS[form.unit] ?? form.unit} olarak hesaplandı.` : ''">
+					<OzInput v-model.number="form.unit_cost" type="number" min="0" step="0.01" suffix="₺" placeholder="0,00" :disabled="formUnitComputed" />
+				</OzField>
+				<OzField label="Durum">
+					<OzSwitch v-model="form.is_active" label="Aktif" />
 				</OzField>
 			</div>
 			<button type="submit" hidden />
@@ -260,11 +261,11 @@ async function submitSpecs() {
 				<OzSelect v-model="move.reason" :options="MOVE_REASONS" />
 			</OzField>
 			<div v-if="isPurchase" class="row-2">
-				<OzField label="Birim Maliyet" :error="move.errors.unit_cost">
-					<OzInput v-model.number="move.unit_cost" type="number" min="0" step="0.01" suffix="₺" />
+				<OzField label="Toplam Tutar" hint="Faturadaki toplam tutar.">
+					<OzInput v-model.number="moveTotal" type="number" min="0" step="0.01" suffix="₺" placeholder="0,00" />
 				</OzField>
-				<OzField label="Toplam Tutar" :hint="move.quantity > 0 ? 'Değiştirirseniz birim maliyet yeniden hesaplanır.' : 'Önce miktarı girin.'">
-					<OzInput v-model.number="moveTotal" type="number" min="0" step="0.01" suffix="₺" :disabled="!(move.quantity > 0)" />
+				<OzField label="Birim Maliyet" :error="move.errors.unit_cost" :hint="unitFrom(moveTotal, move.quantity) !== null ? 'Toplam ÷ miktar' : 'Kayıtlı maliyet'">
+					<OzInput :model-value="move.unit_cost" type="number" suffix="₺" disabled />
 				</OzField>
 			</div>
 			<OzField label="Not" :error="move.errors.note">
