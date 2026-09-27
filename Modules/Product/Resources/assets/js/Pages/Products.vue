@@ -6,7 +6,7 @@ import { Shirt, Palette, Store } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import {
 	OzPageHeader, OzModuleTabs, OzStatTile, OzButton, OzField, OzInput, OzSelect, OzPill,
-	OzDropdown, OzEmptyState, OzPagination, useOzConfirm,
+	OzDropdown, OzEmptyState, OzPagination, OzModal, OzIcon, useOzConfirm,
 } from '@/Components/Oz'
 import MarketplaceListingDrawer from '../Components/MarketplaceListingDrawer.vue'
 
@@ -287,14 +287,20 @@ function openNewProduct() {
 }
 
 // İki tür yeni ürün: hazır (alınan) ürün doğrudan kart açar; üretilecek ürün önce Atölye'de
-// reçete + maliyetle geçici kart açar, ilk iş emri tamamlanınca ürüne döner.
-const newProductItems = [
-	{ key: 'purchased', label: 'Hazır Ürün', icon: 'package' },
-	{ key: 'manufactured', label: 'Üretilecek Ürün (Reçeteli)', icon: 'factory' },
+// reçete + maliyetle geçici stok kartı açar, ilk iş emri tamamlanınca ürüne döner.
+// Üretilecek ürün yetkisi yoksa seçim modalı atlanır, doğrudan ürün formuna gidilir.
+const newProductOpen = ref(false)
+const newProductChoices = [
+	{ key: 'stock-card', title: 'Yeni Stok Kartı Aç', desc: 'Üretilecek ürün: reçete ve maliyetle geçici stok kartı açılır, ilk iş emri tamamlanınca ürüne dönüşür.', icon: 'factory', href: '/atelier/new-product' },
+	{ key: 'product', title: 'Yeni Ürün Ekle', desc: 'Hazır (satın alınan) ürün: ürün kartı doğrudan açılır.', icon: 'package', href: '/products/create' },
 ]
-function onNewProduct(key) {
-	if (key === 'manufactured') router.visit('/atelier/new-product')
+function onNewProductClick() {
+	if (props.canAddManufactured) newProductOpen.value = true
 	else openNewProduct()
+}
+function chooseNewProduct(choice) {
+	newProductOpen.value = false
+	router.visit(choice.href)
 }
 
 function editProduct(product) {
@@ -382,12 +388,7 @@ async function bulkDelete() {
 			<OzPill v-if="activeFilterCount > 0" tone="accent">{{ activeFilterCount }} filtre aktif</OzPill>
 		</template>
 		<template #actions>
-			<OzDropdown v-if="canAdd && canAddManufactured" :items="newProductItems" label="Yeni ürün türü" @select="onNewProduct">
-				<template #trigger="{ toggle, attrs, open }">
-					<OzButton variant="primary" icon="plus" v-bind="attrs" :class="{ 'is-open': open }" @click.stop="toggle">Yeni Ürün</OzButton>
-				</template>
-			</OzDropdown>
-			<OzButton v-else-if="canAdd" variant="primary" icon="plus" @click="openNewProduct">Yeni Ürün</OzButton>
+			<OzButton v-if="canAdd" variant="primary" icon="plus" @click="onNewProductClick">Yeni Ürün</OzButton>
 		</template>
 	</OzPageHeader>
 	<OzModuleTabs />
@@ -598,9 +599,41 @@ async function bulkDelete() {
 		@close="listingOpen = false"
 		@saved="onListingSaved"
 	/>
+
+	<OzModal v-model:open="newProductOpen" title="Yeni Ürün" subtitle="Ne eklemek istiyorsunuz?" icon="plus" size="md">
+		<div class="choice-list">
+			<button v-for="c in newProductChoices" :key="c.key" type="button" class="choice" @click="chooseNewProduct(c)">
+				<span class="choice-ico"><OzIcon :name="c.icon" :size="20" /></span>
+				<span class="choice-text">
+					<b>{{ c.title }}</b>
+					<small>{{ c.desc }}</small>
+				</span>
+				<OzIcon name="chevron-right" :size="16" class="choice-arrow" />
+			</button>
+		</div>
+	</OzModal>
 </template>
 
 <style scoped>
+/* ── Yeni ürün seçim modalı ── */
+.choice-list { display: flex; flex-direction: column; gap: 10px; }
+.choice {
+	display: flex; align-items: center; gap: 14px; width: 100%; padding: 14px 16px;
+	text-align: left; background: var(--oz-surface); color: var(--oz-ink);
+	border: 1px solid var(--oz-border); border-radius: 12px; cursor: pointer;
+	transition: border-color .15s, background .15s;
+}
+.choice:hover, .choice:focus-visible { border-color: var(--oz-accent); background: var(--oz-accent-soft); outline: none; }
+.choice-ico {
+	flex: none; display: inline-flex; align-items: center; justify-content: center;
+	width: 40px; height: 40px; border-radius: 10px; background: var(--oz-accent-soft); color: var(--oz-accent);
+}
+.choice-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.choice-text b { font-size: 14px; font-weight: 600; }
+.choice-text small { font-size: 12.5px; color: var(--oz-muted); line-height: 1.4; }
+.choice-arrow { flex: none; color: var(--oz-muted); }
+.choice:hover .choice-arrow { color: var(--oz-accent); }
+
 .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
 @media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
