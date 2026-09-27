@@ -6,7 +6,7 @@ import AppLayout from '@/Layouts/AppLayout.vue'
 import {
 	OzPageHeader, OzModuleTabs, OzBreadcrumbs, OzCard, OzStatTile, OzTabs, OzTable,
 	OzPill, OzButton, OzDrawer, OzField, OzInput, OzTextarea, OzSelect, OzCombobox,
-	OzSwitch, OzEmptyState, useOzConfirm,
+	OzSwitch, OzEmptyState, OzAlert, useOzConfirm,
 } from '@/Components/Oz'
 import MarketplaceListingDrawer from '../Components/MarketplaceListingDrawer.vue'
 
@@ -42,7 +42,7 @@ const tabs = [
 	{ key: 'pazaryeri', label: 'Pazaryeri', icon: 'store' },
 ]
 
-const statuses = { draft: ['Taslak', 'neutral'], published: ['Yayında', 'success'], archived: ['Arşivlendi', 'danger'] }
+const statuses = { draft: ['Taslak', 'neutral'], published: ['Yayında', 'success'], archived: ['Arşivlendi', 'danger'], development: ['Geçici Kart', 'warning'] }
 const statusLabel = computed(() => statuses[props.product.status]?.[0] ?? props.product.status)
 const statusColor = computed(() => statuses[props.product.status]?.[1] ?? 'neutral')
 
@@ -271,6 +271,11 @@ function openListing(mp) {
 		</template>
 	</OzPageHeader>
 	<OzModuleTabs />
+
+	<OzAlert v-if="product.status === 'development'" tone="warning" title="Geçici stok kartı — üretim bekleniyor" class="block">
+		Bu kart üretilecek bir ürün için reçeteyle açıldı; mağazaya gönderilmez ve bayilere görünmez.
+		İlk iş emri tamamlanınca üretilen adet stoğa girer, gerçek birim maliyet alış fiyatına yazılır ve ürün Taslak durumuna geçer.
+	</OzAlert>
 
 	<OzTabs v-model="activeTab" :tabs="tabs" aria-label="Ürün kartı bölümleri" class="block" />
 

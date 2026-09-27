@@ -162,6 +162,7 @@ class RouteCatalog
         'atelier.boms.index'                     => 'Reçeteler',
         'atelier.fason-suppliers.index'          => 'Fasoncular',
         'atelier.production-orders.index'        => 'İş Emirleri',
+        'atelier.development-products.create'    => 'Üretilecek Ürün Ekle',
 
         // Kalıp Motoru (Atölye menüsündeki kalıp sayfaları)
         'atelier.assignments.index'   => 'Atölye İşleri',

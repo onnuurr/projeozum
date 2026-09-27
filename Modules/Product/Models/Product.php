@@ -27,6 +27,14 @@ class Product extends Model
     public const STATUS_DRAFT     = 'draft';
     public const STATUS_PUBLISHED = 'published';
     public const STATUS_ARCHIVED  = 'archived';
+    // Üretilecek ürünün geçici kartı: Atölye'de reçeteyle açılır, ilk iş emri
+    // tamamlanınca sistem tarafından draft'a çevrilir (ProductService::promoteFromDevelopment).
+    // Bagisto'ya gönderilmez, bayi kataloğunda görünmez.
+    public const STATUS_DEVELOPMENT = 'development';
+
+    // Tedarik kaynağı: hazır alınan vs bizim ürettiğimiz.
+    public const SOURCING_PURCHASED    = 'purchased';
+    public const SOURCING_MANUFACTURED = 'manufactured';
 
     /**
      * Durum sabiti → TR etiket haritası.
@@ -39,6 +47,7 @@ class Product extends Model
             self::STATUS_DRAFT     => 'Taslak',
             self::STATUS_PUBLISHED => 'Yayında',
             self::STATUS_ARCHIVED  => 'Arşivlendi',
+            self::STATUS_DEVELOPMENT => 'Geçici Kart',
         ];
     }
 
@@ -54,6 +63,8 @@ class Product extends Model
             self::STATUS_DRAFT     => [self::STATUS_PUBLISHED, self::STATUS_ARCHIVED],
             self::STATUS_PUBLISHED => [self::STATUS_DRAFT, self::STATUS_ARCHIVED],
             self::STATUS_ARCHIVED  => [self::STATUS_DRAFT, self::STATUS_PUBLISHED],
+            // Geçici karttan elle yalnız arşive çıkılır; ürüne dönüşüm üretimle olur.
+            self::STATUS_DEVELOPMENT => [self::STATUS_ARCHIVED],
         ];
     }
 
@@ -65,6 +76,7 @@ class Product extends Model
         'name',
         'slug',
         'status',
+        'sourcing',
         'sku',
         'gender',
         'price',
@@ -167,6 +179,12 @@ class Product extends Model
         return 'slug';
     }
 
+    /** Üretimi henüz tamamlanmamış geçici kartları (status=development) dışarıda bırakır. */
+    public function scopeNotInDevelopment(Builder $query): Builder
+    {
+        return $query->where('products.status', '!=', self::STATUS_DEVELOPMENT);
+    }
+
     /**
      * Tenant'a görünür ürünleri döndürür (blacklist mode).
      *
@@ -182,6 +200,8 @@ class Product extends Model
         }
 
         return $query
+            // Geçici kart (üretimi bitmemiş) bayiye hiçbir koşulda görünmez.
+            ->notInDevelopment()
             // is_blocked override = true ise hariç tut
             ->whereNotExists(function ($q) use ($tenantId) {
                 $q->select(\DB::raw(1))

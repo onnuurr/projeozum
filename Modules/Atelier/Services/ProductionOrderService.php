@@ -7,6 +7,7 @@ use InvalidArgumentException;
 use Modules\Atelier\Models\Material;
 use Modules\Atelier\Models\MaterialMovement;
 use Modules\Atelier\Models\ProductionOrder;
+use Modules\Product\Services\ProductService;
 
 class ProductionOrderService
 {
@@ -14,6 +15,7 @@ class ProductionOrderService
         private BomService $bom,
         private MaterialStockService $materialStock,
         private FinishedGoodsService $finishedGoods,
+        private ProductService $products,
     ) {}
 
     /**
@@ -72,7 +74,7 @@ class ProductionOrderService
         }
 
         return DB::transaction(function () use ($order) {
-            $order->loadMissing('steps', 'items');
+            $order->loadMissing('steps', 'items', 'product');
 
             $fasonCost = (float) $order->steps->where('location_type', 'fason')->sum('step_cost');
             $laborCost = (float) $order->steps->where('location_type', 'in_house')->sum('step_cost');
@@ -94,6 +96,17 @@ class ProductionOrderService
                 'unit_cost'  => $unitCost,
                 'status'     => ProductionOrder::STATUS_COMPLETED,
             ]);
+
+            // Üretilecek ürünün geçici kartı ilk tamamlanan iş emriyle ürüne döner
+            // (development → draft, alış fiyatı = gerçek birim maliyet). Değilse no-op.
+            if ($producedQty > 0) {
+                $this->products->promoteFromDevelopment(
+                    $order->product,
+                    $unitCost,
+                    auth()->user(),
+                    "Üretim tamamlandı: {$order->code}",
+                );
+            }
 
             return $order;
         });

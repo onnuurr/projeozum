@@ -17,6 +17,7 @@ const props = defineProps({
 	categories: { type: Array, default: () => [] },
 	brands: { type: Array, default: () => [] },
 	marketplaces: { type: Array, default: () => [] },
+	canAddManufactured: { type: Boolean, default: false },
 })
 
 const showToast = inject('showToast')
@@ -113,6 +114,13 @@ const searchQuery = ref('')
 const searchField = ref('name')
 const selectedCategory = ref('')
 const selectedBrand = ref('')
+const selectedKind = ref('')
+const kindOptions = [
+	{ value: '', label: 'Tümü' },
+	{ value: 'purchased', label: 'Hazır ürün' },
+	{ value: 'manufactured', label: 'Üretim ürünü' },
+	{ value: 'development', label: 'Geçici kart (üretim bekliyor)' },
+]
 const stockMin = ref(null)
 const stockMax = ref(null)
 const priceMin = ref(null)
@@ -211,6 +219,8 @@ const filtered = computed(() => {
 		}
 		if (selectedCategory.value && p.categorySlug !== selectedCategory.value) return false
 		if (selectedBrand.value && p.brand !== selectedBrand.value) return false
+		if (selectedKind.value === 'development' && p.status !== 'development') return false
+		if (['purchased', 'manufactured'].includes(selectedKind.value) && p.sourcing !== selectedKind.value) return false
 		if (stockMin.value != null && p.stock < stockMin.value) return false
 		if (stockMax.value != null && p.stock > stockMax.value) return false
 		if (priceMin.value != null && p.price < priceMin.value) return false
@@ -240,7 +250,7 @@ const paginated = computed(() => {
 
 // Filtre değişince sayfa 1'e dön
 watch(
-	[searchQuery, searchField, selectedCategory, selectedBrand, stockMin, stockMax, priceMin, priceMax, desiMin, desiMax, sortField, sortDir],
+	[searchQuery, searchField, selectedCategory, selectedBrand, selectedKind, stockMin, stockMax, priceMin, priceMax, desiMin, desiMax, sortField, sortDir],
 	() => { currentPage.value = 1 },
 )
 
@@ -250,6 +260,7 @@ const activeFilterCount = computed(() => {
 	if (searchQuery.value.trim()) n++
 	if (selectedCategory.value) n++
 	if (selectedBrand.value) n++
+	if (selectedKind.value) n++
 	if (stockMin.value != null || stockMax.value != null) n++
 	if (priceMin.value != null || priceMax.value != null) n++
 	if (desiMin.value != null || desiMax.value != null) n++
@@ -261,6 +272,7 @@ function clearFilters() {
 	searchField.value = 'name'
 	selectedCategory.value = ''
 	selectedBrand.value = ''
+	selectedKind.value = ''
 	stockMin.value = null
 	stockMax.value = null
 	priceMin.value = null
@@ -272,6 +284,17 @@ function clearFilters() {
 /* ── Ürün formu (tam sayfa) ── */
 function openNewProduct() {
 	router.visit('/products/create')
+}
+
+// İki tür yeni ürün: hazır (alınan) ürün doğrudan kart açar; üretilecek ürün önce Atölye'de
+// reçete + maliyetle geçici kart açar, ilk iş emri tamamlanınca ürüne döner.
+const newProductItems = [
+	{ key: 'purchased', label: 'Hazır Ürün', icon: 'package' },
+	{ key: 'manufactured', label: 'Üretilecek Ürün (Reçeteli)', icon: 'factory' },
+]
+function onNewProduct(key) {
+	if (key === 'manufactured') router.visit('/atelier/new-product')
+	else openNewProduct()
 }
 
 function editProduct(product) {
@@ -359,7 +382,12 @@ async function bulkDelete() {
 			<OzPill v-if="activeFilterCount > 0" tone="accent">{{ activeFilterCount }} filtre aktif</OzPill>
 		</template>
 		<template #actions>
-			<OzButton v-if="canAdd" variant="primary" icon="plus" @click="openNewProduct">Yeni Ürün</OzButton>
+			<OzDropdown v-if="canAdd && canAddManufactured" :items="newProductItems" label="Yeni ürün türü" @select="onNewProduct">
+				<template #trigger="{ toggle, attrs, open }">
+					<OzButton variant="primary" icon="plus" v-bind="attrs" :class="{ 'is-open': open }" @click.stop="toggle">Yeni Ürün</OzButton>
+				</template>
+			</OzDropdown>
+			<OzButton v-else-if="canAdd" variant="primary" icon="plus" @click="openNewProduct">Yeni Ürün</OzButton>
 		</template>
 	</OzPageHeader>
 	<OzModuleTabs />
@@ -401,6 +429,10 @@ async function bulkDelete() {
 
 				<OzField label="Marka">
 					<OzSelect v-model="selectedBrand" :options="brandOptions" />
+				</OzField>
+
+				<OzField label="Ürün Türü">
+					<OzSelect v-model="selectedKind" :options="kindOptions" />
 				</OzField>
 
 				<OzField label="Stok Miktarı">
@@ -475,7 +507,10 @@ async function bulkDelete() {
 						</td>
 						<td class="col-name">
 							<div class="name-cell">
-								<span class="name-text">{{ p.name }}</span>
+								<span class="name-text">
+									{{ p.name }}
+									<OzPill v-if="p.status === 'development'" tone="warning" title="Üretimi tamamlanınca ürüne dönüşür">Geçici Kart</OzPill>
+								</span>
 								<span class="name-line">Kategori: <b>{{ p.category || '—' }}</b></span>
 								<span class="name-line">Kodu: <b>{{ p.sku || '—' }}</b></span>
 								<span class="name-line">Barkod: <b>{{ p.barcode || '—' }}</b></span>
@@ -658,7 +693,7 @@ async function bulkDelete() {
 .thumb img { width: 100%; height: 100%; object-fit: cover; }
 
 .name-cell { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.name-text { font-weight: 700; color: var(--oz-ink-soft); font-size: 13px; }
+.name-text { font-weight: 700; color: var(--oz-ink-soft); font-size: 13px; display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .name-line { font-size: 11.5px; color: var(--oz-muted); }
 .name-line b { color: var(--oz-ink); font-weight: 600; }
 

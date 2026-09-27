@@ -11,9 +11,9 @@ class ProductBom extends Model
 {
     protected $table = 'product_boms';
 
-    protected $fillable = ['product_id', 'name', 'is_active'];
+    protected $fillable = ['product_id', 'name', 'extra_cost_per_unit', 'is_active'];
 
-    protected $casts = ['is_active' => 'boolean'];
+    protected $casts = ['is_active' => 'boolean', 'extra_cost_per_unit' => 'decimal:2'];
 
     public function product(): BelongsTo
     {

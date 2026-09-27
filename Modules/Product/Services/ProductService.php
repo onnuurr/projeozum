@@ -46,11 +46,18 @@ class ProductService
      *
      * @param  array<string, mixed>       $data    Doğrulanmış form verisi.
      * @param  array<int, UploadedFile>   $images  Yüklenen görsel dosyaları (opsiyonel).
+     * @param  string                     $status  Başlangıç durumu; Atölye'nin "Üretilecek Ürün"
+     *                                             akışı STATUS_DEVELOPMENT (geçici kart) geçirir.
+     * @param  string                     $sourcing  SOURCING_PURCHASED | SOURCING_MANUFACTURED.
      */
-    public function create(array $data, array $images = []): Product
-    {
-        $product = DB::transaction(function () use ($data) {
-            $attributes = $this->attributesFrom($data);
+    public function create(
+        array $data,
+        array $images = [],
+        string $status = Product::STATUS_PUBLISHED,
+        string $sourcing = Product::SOURCING_PURCHASED,
+    ): Product {
+        $product = DB::transaction(function () use ($data, $status, $sourcing) {
+            $attributes = $this->attributesFrom($data) + ['status' => $status, 'sourcing' => $sourcing];
 
             if (empty($attributes['barcode'])) {
                 try {
@@ -131,22 +138,50 @@ class ProductService
      */
     public function transitionStatus(Product $product, string $to, User $actor, ?string $note = null): Product
     {
+        $allowed = Product::allowedTransitions()[$product->status] ?? [];
+
+        if (! in_array($to, $allowed, true)) {
+            throw new InvalidProductTransitionException($product->status, $to);
+        }
+
+        return $this->applyStatus($product, $to, $actor, $note);
+    }
+
+    /**
+     * Geçici kartı (status=development) ürüne çevirir: gerçek üretim birim maliyetini
+     * alış fiyatı olarak yazar ve ürünü Taslak'a alır. Elle geçiş haritasında
+     * development → draft yoktur; bu geçişi yalnız üretim tamamlanması (Atölye
+     * ProductionOrderService::complete) tetikler. Ürün zaten geçici kart değilse no-op.
+     */
+    public function promoteFromDevelopment(Product $product, float $unitCost, ?User $actor, ?string $note = null): Product
+    {
+        if ($product->status !== Product::STATUS_DEVELOPMENT) {
+            return $product;
+        }
+
+        return $this->applyStatus($product, Product::STATUS_DRAFT, $actor, $note, [
+            'purchase_price' => round($unitCost, 2),
+        ]);
+    }
+
+    /**
+     * Durum güncellemesi + denetim satırı tek transaction içinde; event dispatch
+     * transaction commit'inden SONRA (rollback olursa event hiç ateşlenmez, bkz. Faz 1 ilkesi).
+     *
+     * @param  array<string, mixed>  $extra  Durumla birlikte yazılacak ek kolonlar.
+     */
+    private function applyStatus(Product $product, string $to, ?User $actor, ?string $note, array $extra = []): Product
+    {
         $from = $product->status;
 
-        $product = DB::transaction(function () use ($product, $from, $to, $actor, $note) {
-            $allowed = Product::allowedTransitions()[$from] ?? [];
-
-            if (! in_array($to, $allowed, true)) {
-                throw new InvalidProductTransitionException($from, $to);
-            }
-
-            $product->forceFill(['status' => $to])->save();
+        $product = DB::transaction(function () use ($product, $from, $to, $actor, $note, $extra) {
+            $product->forceFill(['status' => $to] + $extra)->save();
 
             ProductStatusHistory::create([
                 'product_id'  => $product->id,
                 'from_status' => $from,
                 'to_status'   => $to,
-                'user_id'     => $actor->id,
+                'user_id'     => $actor?->id,
                 'note'        => $note,
             ]);
 

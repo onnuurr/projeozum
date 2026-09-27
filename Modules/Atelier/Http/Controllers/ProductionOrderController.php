@@ -25,7 +25,7 @@ class ProductionOrderController extends Controller
         private BomService $bom,
     ) {}
 
-    public function index(): Response
+    public function index(Request $request): Response
     {
         $orders = ProductionOrder::query()
             ->with(['product:id,name'])
@@ -47,6 +47,8 @@ class ProductionOrderController extends Controller
             'products'   => Product::query()->orderBy('name')->get(['id', 'name', 'sku']),
             'warehouses' => Warehouse::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'code']),
             'operations' => Operation::query()->orderBy('sort_order')->get(['id', 'name', 'code', 'default_location', 'default_unit_cost']),
+            // "Üretilecek Ürün" kaydından gelindiyse sihirbaz bu ürünle açılır.
+            'preselectProductId' => $request->integer('product_id') ?: null,
         ]);
     }
 

@@ -83,6 +83,8 @@ class ProductCatalogPresenter
             'name'              => $p->name,
             'slug'              => $p->slug,
             'sku'               => $p->sku,
+            'status'            => $p->status,
+            'sourcing'          => $p->sourcing,
             'image'             => optional($p->images->first())->url,
             'images'            => $p->images->map(fn ($img) => [
                 'id'       => $img->id,

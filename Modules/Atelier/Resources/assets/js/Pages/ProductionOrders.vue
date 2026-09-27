@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, inject, watch } from 'vue'
+import { ref, computed, inject, watch, onMounted } from 'vue'
 import { Head, Link, useForm } from '@inertiajs/vue3'
 import axios from 'axios'
 import { useDebounceFn } from '@vueuse/core'
@@ -18,6 +18,7 @@ const props = defineProps({
 	products: { type: Array, default: () => [] },
 	warehouses: { type: Array, default: () => [] },
 	operations: { type: Array, default: () => [] },
+	preselectProductId: { type: Number, default: null },
 })
 
 const { can } = useCan()
@@ -75,6 +76,14 @@ function openWizard() {
 	resetForm()
 	wizardOpen.value = true
 }
+
+// "Üretilecek Ürün" kaydından yönlendirildiyse sihirbazı o ürünle aç
+onMounted(() => {
+	if (props.preselectProductId && canManage.value) {
+		openWizard()
+		form.product_id = props.preselectProductId
+	}
+})
 
 // Ürün ya da adet değişince varyantlar + BOM malzeme gereksinimi sunucudan önizlenir
 let previewSeq = 0

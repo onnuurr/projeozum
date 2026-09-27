@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Product\Exceptions\InvalidProductTransitionException;
@@ -75,6 +76,11 @@ class ProductController extends Controller
             'categories'   => $categories,
             'brands'       => $brands,
             'marketplaces' => $marketplaces,
+            // "Üretilecek Ürün" akışı Atölye'dedir (Product → Atelier bağımlılığı yasak);
+            // yalnız route adı + yetkiyle kontrol edilir, kod bağımlılığı kurulmaz.
+            'canAddManufactured' => Route::has('atelier.development-products.create')
+                && $user->can('product.add')
+                && $user->can('atelier.bom.manage'),
         ]);
     }
 

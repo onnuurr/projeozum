@@ -36,6 +36,12 @@ Route::middleware(['auth', 'verified'])
         Route::delete('boms/{bom}', [\Modules\Atelier\Http\Controllers\BomController::class, 'destroy'])
             ->middleware('can:atelier.bom.manage')->name('boms.destroy');
 
+        // Üretilecek ürün: reçete + ön maliyetle geçici stok kartı (ilk iş emri tamamlanınca ürüne döner)
+        Route::get('new-product', [\Modules\Atelier\Http\Controllers\DevelopmentProductController::class, 'create'])
+            ->middleware(['can:product.add', 'can:atelier.bom.manage'])->name('development-products.create');
+        Route::post('new-product', [\Modules\Atelier\Http\Controllers\DevelopmentProductController::class, 'store'])
+            ->middleware(['can:product.add', 'can:atelier.bom.manage'])->name('development-products.store');
+
         // Operasyonlar
         Route::get('operations', [\Modules\Atelier\Http\Controllers\OperationController::class, 'index'])
             ->middleware('can:atelier.view')->name('operations.index');
