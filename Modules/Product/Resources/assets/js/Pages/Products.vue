@@ -1,13 +1,14 @@
 <script setup>
-import { ref, computed, watch, inject, reactive } from 'vue'
-import { Head, Link, router, usePage } from '@inertiajs/vue3'
-import { useMotion, useReducedMotion } from '@vueuse/motion'
+import { ref, computed, inject, reactive } from 'vue'
+import { Head, router, usePage } from '@inertiajs/vue3'
 import { Shirt, Palette, Store } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import {
-	OzPageHeader, OzModuleTabs, OzStatTile, OzButton, OzField, OzInput, OzSelect, OzPill,
-	OzDropdown, OzEmptyState, OzPagination, OzModal, OzIcon, useOzConfirm,
+	OzPageHeader, OzModuleTabs, OzStatTile, OzButton, OzPill, OzTable,
+	OzDropdown, OzEmptyState, OzCard, OzCheckbox, OzModal, OzIcon, useOzConfirm,
 } from '@/Components/Oz'
+import { ozFold } from '@/Components/Oz/ozText'
+import { isFilterActive, matchesFilter } from '@/Components/Oz/ozTableFilter'
 import MarketplaceListingDrawer from '../Components/MarketplaceListingDrawer.vue'
 
 defineOptions({ layout: AppLayout })
@@ -30,36 +31,6 @@ const canDelete = computed(() => can('product.delete'))
 // Listeleme drawer'ı GET ucu product.card.view ister; kaydetme product.add.
 const canListing = computed(() => canAdd.value && can('product.card.view'))
 
-/* ── Sözlükler ── */
-const searchFieldOptions = [
-	{ value: 'name', label: 'Ürün Adı' },
-	{ value: 'sku',  label: 'Ürün No (SKU)' },
-	{ value: 'id',   label: 'Ürün ID' },
-]
-
-const sortFieldOptions = [
-	{ value: 'default', label: 'Varsayılan' },
-	{ value: 'name',    label: 'Ürün Adı' },
-	{ value: 'price',   label: 'Satış Fiyatı' },
-	{ value: 'stock',   label: 'Stok' },
-	{ value: 'new',     label: 'Eklenme' },
-]
-
-const sortDirOptions = [
-	{ value: 'desc', label: 'Azalan (Z → A)' },
-	{ value: 'asc',  label: 'Artan (A → Z)' },
-]
-
-const categoryOptions = computed(() => [
-	{ value: '', label: 'Kategori Seçilmedi' },
-	...props.categories.map((c) => ({ value: c.slug, label: c.label })),
-])
-
-const brandOptions = computed(() => [
-	{ value: '', label: 'Marka Seçilmedi' },
-	...props.brands.map((b) => ({ value: b.slug, label: b.label })),
-])
-
 /* ── İstatistikler ── */
 const stats = computed(() => {
 	const inStock = props.products.filter((p) => p.stock > 0).length
@@ -72,65 +43,44 @@ const stats = computed(() => {
 	]
 })
 
-/* ── Filtre state ── */
-const filtersOpen = ref(false)
+/* ── Tablo (OzTable: arama, sütun filtreleri, sıralama, sayfalama) ── */
+const kindLabel = (p) => {
+	if (p.status === 'development') return 'Geçici kart'
+	return p.sourcing === 'manufactured' ? 'Üretim ürünü' : 'Hazır ürün'
+}
+const columns = computed(() => [
+	...(canDelete.value ? [{ key: 'select', label: '', width: '44px', searchable: false }] : []),
+	{ key: 'id', label: 'ID', sortable: true, class: 'oz-cell-id', width: '64px', searchValue: (p) => `#${p.id}` },
+	{ key: 'image', label: 'Görsel', width: '60px', searchable: false },
+	{
+		key: 'name', label: 'Ürün', sortable: true, class: 'oz-cell-strong',
+		searchValue: (p) => [p.name, p.sku, p.barcode].filter(Boolean).join(' '),
+		filterValue: kindLabel,
+		filter: { type: 'select', label: 'Ürün Türü', options: ['Hazır ürün', 'Üretim ürünü', 'Geçici kart'] },
+	},
+	{ key: 'category', label: 'Kategori', sortable: true, filter: { type: 'select', placeholder: 'Tüm kategoriler' } },
+	{ key: 'brandLabel', label: 'Marka', sortable: true, filter: { type: 'select', placeholder: 'Tüm markalar' } },
+	{ key: 'price', label: 'Site Fiyatı', align: 'right', sortable: true, class: 'oz-cell-amount', filter: { type: 'range', suffix: '₺', format: (n) => formatPrice(n) } },
+	{ key: 'marketplaces', label: 'Pazaryeri', searchable: false },
+	{ key: 'stock', label: 'Stok', align: 'right', sortable: true, filter: { type: 'range' } },
+	{ key: 'desi', label: 'Desi', align: 'right', sortable: true, searchable: false, filter: { type: 'range' } },
+	{ key: 'readiness', label: 'Hazırlık', searchable: false },
+	{ key: 'actions', label: '', align: 'right', width: '48px', searchable: false },
+])
 
-// Filtre paneli aç/kapa animasyonu (@vueuse/motion): dış sarmalayıcı yükseklik+opaklık,
-// iç panel hafif dikey kayma. Açılış bitince yükseklik `auto` + overflow görünür yapılır ki
-// pencere yeniden boyutlanınca / açılır menüler panel dışına taşınca kırpılmasın.
-const filterWrap = ref(null)
-const filterPanel = ref(null)
-const reducedMotion = useReducedMotion()
-const { apply: animateWrap, set: setWrap } = useMotion(filterWrap, { initial: { height: 0, opacity: 0 } })
-const { apply: animatePanel, set: setPanel } = useMotion(filterPanel, { initial: { y: -10 } })
-let filterAnimSeq = 0
-
-watch(filtersOpen, async (open) => {
-	const wrap = filterWrap.value
-	const panel = filterPanel.value
-	if (!wrap || !panel) return
-	const seq = ++filterAnimSeq
-	wrap.style.overflow = 'hidden'
-	if (!open) setWrap({ height: wrap.offsetHeight })
-	const height = open ? panel.offsetHeight + parseFloat(getComputedStyle(panel).marginBottom) : 0
-
-	if (reducedMotion.value) {
-		setWrap({ height, opacity: open ? 1 : 0 })
-		setPanel({ y: 0 })
-	} else {
-		const ease = { duration: 260, ease: 'easeOut' }
-		await Promise.all([
-			animateWrap({ height, opacity: open ? 1 : 0, transition: ease }),
-			animatePanel({ y: open ? 0 : -10, transition: { type: 'spring', stiffness: 380, damping: 32 } }),
-		])
-	}
-
-	if (open && seq === filterAnimSeq) {
-		wrap.style.height = 'auto'
-		wrap.style.overflow = 'visible'
-	}
+// Tablo durumu dışarıda tutulur: "filtrelenenlerin tümünü seç" OzTable'ın gördüğü satırları bilmeli.
+const tableSearch = ref('')
+const tableFilters = ref({})
+const filterCols = computed(() => columns.value.filter((c) => c.filter))
+const filteredProducts = computed(() => {
+	const q = ozFold(tableSearch.value.trim())
+	const searchCols = columns.value.filter((c) => c.searchable !== false)
+	return props.products.filter((p) =>
+		(!q || ozFold(searchCols.map((c) => (c.searchValue ? c.searchValue(p) : p[c.key])).filter((v) => v != null).join(' ')).includes(q))
+		&& filterCols.value.every((c) => !isFilterActive(c.filter, tableFilters.value[c.key])
+			|| matchesFilter(c.filter, tableFilters.value[c.key], c.filterValue ? c.filterValue(p) : p[c.key])))
 })
-const searchQuery = ref('')
-const searchField = ref('name')
-const selectedCategory = ref('')
-const selectedBrand = ref('')
-const selectedKind = ref('')
-const kindOptions = [
-	{ value: '', label: 'Tümü' },
-	{ value: 'purchased', label: 'Hazır ürün' },
-	{ value: 'manufactured', label: 'Üretim ürünü' },
-	{ value: 'development', label: 'Geçici kart (üretim bekliyor)' },
-]
-const stockMin = ref(null)
-const stockMax = ref(null)
-const priceMin = ref(null)
-const priceMax = ref(null)
-const desiMin = ref(null)
-const desiMax = ref(null)
-const sortField = ref('default')
-const sortDir = ref('desc')
-const currentPage = ref(1)
-const itemsPerPage = 15
+const isFiltering = computed(() => filteredProducts.value.length !== props.products.length)
 
 /* ── Yardımcılar ── */
 function formatPrice(value) {
@@ -205,100 +155,19 @@ function platformPrice(p, mp) {
 	return formatPrice((p.price ?? 0) * factor)
 }
 
-/* ── Filtre işlemi ── */
-const filtered = computed(() => {
-	const q = searchQuery.value.trim().toLowerCase()
-
-	let list = props.products.filter((p) => {
-		if (q) {
-			let hay
-			if (searchField.value === 'sku') hay = (p.sku || '').toLowerCase()
-			else if (searchField.value === 'id') hay = String(p.id)
-			else hay = (p.name || '').toLowerCase()
-			if (!hay.includes(q)) return false
-		}
-		if (selectedCategory.value && p.categorySlug !== selectedCategory.value) return false
-		if (selectedBrand.value && p.brand !== selectedBrand.value) return false
-		if (selectedKind.value === 'development' && p.status !== 'development') return false
-		if (['purchased', 'manufactured'].includes(selectedKind.value) && p.sourcing !== selectedKind.value) return false
-		if (stockMin.value != null && p.stock < stockMin.value) return false
-		if (stockMax.value != null && p.stock > stockMax.value) return false
-		if (priceMin.value != null && p.price < priceMin.value) return false
-		if (priceMax.value != null && p.price > priceMax.value) return false
-		if (desiMin.value != null && (p.desi ?? 0) < desiMin.value) return false
-		if (desiMax.value != null && (p.desi ?? 0) > desiMax.value) return false
-		return true
-	})
-
-	const dir = sortDir.value === 'asc' ? 1 : -1
-	switch (sortField.value) {
-		case 'name':  list = [...list].sort((a, b) => dir * a.name.localeCompare(b.name, 'tr')); break
-		case 'price': list = [...list].sort((a, b) => dir * (a.price - b.price)); break
-		case 'stock': list = [...list].sort((a, b) => dir * (a.stock - b.stock)); break
-		case 'new':   list = [...list].sort((a, b) => dir * ((a.isNew ? 1 : 0) - (b.isNew ? 1 : 0) || a.id - b.id)); break
-		case 'default':
-		default:      list = [...list].sort((a, b) => dir * (a.id - b.id))
-	}
-
-	return list
-})
-
-const paginated = computed(() => {
-	const start = (currentPage.value - 1) * itemsPerPage
-	return filtered.value.slice(start, start + itemsPerPage)
-})
-
-// Filtre değişince sayfa 1'e dön
-watch(
-	[searchQuery, searchField, selectedCategory, selectedBrand, selectedKind, stockMin, stockMax, priceMin, priceMax, desiMin, desiMax, sortField, sortDir],
-	() => { currentPage.value = 1 },
-)
-
-/* ── Aktif filtre sayısı ── */
-const activeFilterCount = computed(() => {
-	let n = 0
-	if (searchQuery.value.trim()) n++
-	if (selectedCategory.value) n++
-	if (selectedBrand.value) n++
-	if (selectedKind.value) n++
-	if (stockMin.value != null || stockMax.value != null) n++
-	if (priceMin.value != null || priceMax.value != null) n++
-	if (desiMin.value != null || desiMax.value != null) n++
-	return n
-})
-
-function clearFilters() {
-	searchQuery.value = ''
-	searchField.value = 'name'
-	selectedCategory.value = ''
-	selectedBrand.value = ''
-	selectedKind.value = ''
-	stockMin.value = null
-	stockMax.value = null
-	priceMin.value = null
-	priceMax.value = null
-	desiMin.value = null
-	desiMax.value = null
-}
-
-/* ── Ürün formu (tam sayfa) ── */
-function openNewProduct() {
-	router.visit('/products/create')
-}
-
 // İki tür yeni ürün: hazır (alınan) ürün doğrudan kart açar; üretilecek ürün önce Atölye'de
 // reçete + maliyetle geçici stok kartı açar, ilk iş emri tamamlanınca ürüne döner.
-// Üretilecek ürün yetkisi yoksa seçim modalı atlanır, doğrudan ürün formuna gidilir.
+// Yeni Ürün butonu her zaman seçim modalını açar; üretilecek ürün yetkisi yoksa o seçenek pasif görünür.
 const newProductOpen = ref(false)
-const newProductChoices = [
-	{ key: 'stock-card', title: 'Yeni Stok Kartı Aç', desc: 'Üretilecek ürün: reçete ve maliyetle geçici stok kartı açılır, ilk iş emri tamamlanınca ürüne dönüşür.', icon: 'factory', href: '/atelier/new-product' },
-	{ key: 'product', title: 'Yeni Ürün Ekle', desc: 'Hazır (satın alınan) ürün: ürün kartı doğrudan açılır.', icon: 'package', href: '/products/create' },
-]
+const newProductChoices = computed(() => [
+	{ key: 'product', title: 'Yeni Ürün', desc: 'Hazır (satın alınan) ürün kartı', icon: 'package', href: '/products/create', disabled: false },
+	{ key: 'manufactured', title: 'Üretilecek Ürün', desc: 'Reçeteli geçici stok kartı', icon: 'factory', href: '/atelier/new-product', disabled: !props.canAddManufactured },
+])
 function onNewProductClick() {
-	if (props.canAddManufactured) newProductOpen.value = true
-	else openNewProduct()
+	newProductOpen.value = true
 }
 function chooseNewProduct(choice) {
+	if (choice.disabled) return
 	newProductOpen.value = false
 	router.visit(choice.href)
 }
@@ -345,13 +214,13 @@ function toggleRow(id) {
 	next.has(id) ? next.delete(id) : next.add(id)
 	selected.value = next
 }
-const allVisibleSelected = computed(() =>
-	paginated.value.length > 0 && paginated.value.every((p) => selected.value.has(p.id)),
+const allFilteredSelected = computed(() =>
+	filteredProducts.value.length > 0 && filteredProducts.value.every((p) => selected.value.has(p.id)),
 )
-function toggleSelectAllVisible() {
-	const ids = paginated.value.map((p) => p.id)
+function toggleSelectAllFiltered() {
+	const ids = filteredProducts.value.map((p) => p.id)
 	const next = new Set(selected.value)
-	if (allVisibleSelected.value) ids.forEach((id) => next.delete(id))
+	if (allFilteredSelected.value) ids.forEach((id) => next.delete(id))
 	else ids.forEach((id) => next.add(id))
 	selected.value = next
 }
@@ -384,8 +253,8 @@ async function bulkDelete() {
 
 	<OzPageHeader title="Ürün Kataloğu">
 		<template #subtitle>
-			<b>{{ filtered.length }}</b> ürün listeleniyor
-			<OzPill v-if="activeFilterCount > 0" tone="accent">{{ activeFilterCount }} filtre aktif</OzPill>
+			<b>{{ filteredProducts.length }}</b> ürün listeleniyor
+			<span v-if="isFiltering" class="dim"> / {{ products.length }}</span>
 		</template>
 		<template #actions>
 			<OzButton v-if="canAdd" variant="primary" icon="plus" @click="onNewProductClick">Yeni Ürün</OzButton>
@@ -397,187 +266,109 @@ async function bulkDelete() {
 		<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" />
 	</div>
 
-	<!-- Üst bar: Filtreler toggle + hızlı arama -->
-	<div class="toolbar">
-		<OzButton :class="{ 'is-open': filtersOpen }" icon="sliders" @click="filtersOpen = !filtersOpen">
-			Filtreler
-			<span v-if="activeFilterCount > 0" class="filter-badge">{{ activeFilterCount }}</span>
-		</OzButton>
-		<OzInput v-model="searchQuery" icon="search" placeholder="Hızlı ara…" class="search-box" />
-	</div>
+	<OzCard title="Ürün Listesi">
+		<OzEmptyState v-if="!products.length" icon="package" title="Henüz ürün yok" description="Kataloğa ilk ürününüzü ekleyerek başlayın.">
+			<template v-if="canAdd" #actions><OzButton size="sm" variant="primary" icon="plus" @click="onNewProductClick">Yeni Ürün</OzButton></template>
+		</OzEmptyState>
 
-	<!-- Açılır filtre paneli -->
-	<div ref="filterWrap" class="filter-collapse" :inert="!filtersOpen" :aria-hidden="!filtersOpen">
-		<div ref="filterPanel" class="filter-panel">
-			<div class="filter-grid">
-				<OzField label="Arama Terimi">
-					<div class="search-with-select">
-						<OzInput v-model="searchQuery" placeholder="Ara…" />
-						<OzSelect v-model="searchField" :options="searchFieldOptions" />
-					</div>
-				</OzField>
+		<OzTable
+			v-else
+			v-model:search="tableSearch"
+			v-model:filters="tableFilters"
+			:columns="columns"
+			:rows="products"
+			:page-size="15"
+			:default-sort="{ key: 'id', dir: 'desc' }"
+			searchable
+			search-placeholder="Ürün adı, SKU ya da barkod ara…"
+			min-width="1240px"
+		>
+			<template v-if="canDelete" #toolbar>
+				<OzCheckbox
+					:model-value="allFilteredSelected"
+					:label="isFiltering ? `Filtrelenenleri seç (${filteredProducts.length})` : `Tümünü seç (${products.length})`"
+					@update:model-value="toggleSelectAllFiltered"
+				/>
+			</template>
 
-				<OzField label="Sıralama">
-					<div class="sort-row">
-						<OzSelect v-model="sortField" :options="sortFieldOptions" />
-						<OzSelect v-model="sortDir" :options="sortDirOptions" />
-					</div>
-				</OzField>
-
-				<OzField label="Kategori">
-					<OzSelect v-model="selectedCategory" :options="categoryOptions" />
-				</OzField>
-
-				<OzField label="Marka">
-					<OzSelect v-model="selectedBrand" :options="brandOptions" />
-				</OzField>
-
-				<OzField label="Ürün Türü">
-					<OzSelect v-model="selectedKind" :options="kindOptions" />
-				</OzField>
-
-				<OzField label="Stok Miktarı">
-					<div class="range-row">
-						<OzInput v-model.number="stockMin" type="number" min="0" placeholder="0" />
-						<span class="range-sep">ile</span>
-						<OzInput v-model.number="stockMax" type="number" min="0" placeholder="0" />
-					</div>
-				</OzField>
-
-				<OzField label="Satış Fiyatı">
-					<div class="range-row">
-						<OzInput v-model.number="priceMin" type="number" min="0" placeholder="0.00" />
-						<span class="range-sep">ile</span>
-						<OzInput v-model.number="priceMax" type="number" min="0" placeholder="0.00" />
-					</div>
-				</OzField>
-
-				<OzField label="Desi">
-					<div class="range-row">
-						<OzInput v-model.number="desiMin" type="number" min="0" placeholder="0.00" />
-						<span class="range-sep">ile</span>
-						<OzInput v-model.number="desiMax" type="number" min="0" placeholder="0.00" />
-					</div>
-				</OzField>
-			</div>
-
-			<div class="filter-actions">
-				<OzButton size="sm" @click="clearFilters">Temizle</OzButton>
-			</div>
-		</div>
-	</div>
-
-	<!-- Boş durum -->
-	<OzEmptyState v-if="!paginated.length" icon="search" title="Eşleşen ürün bulunamadı" description="Filtreleri gevşeterek tekrar deneyebilirsiniz.">
-		<template #actions><OzButton size="sm" icon="x" @click="clearFilters">Filtreleri Temizle</OzButton></template>
-	</OzEmptyState>
-
-	<!-- Tablo -->
-	<div v-else class="table-wrap">
-		<div class="table-scroll">
-			<table class="product-table">
-				<thead>
-					<tr>
-						<th v-if="canDelete" class="col-check">
-							<input type="checkbox" :checked="allVisibleSelected" aria-label="Tümünü seç" @change="toggleSelectAllVisible">
-						</th>
-						<th class="col-id">ID</th>
-						<th class="col-img">Görsel</th>
-						<th class="col-name">Ürün Adı</th>
-						<th class="col-price">Site Fiyatı</th>
-						<th class="col-mp">Pazaryeri</th>
-						<th class="col-stock">Stok</th>
-						<th class="col-readiness">Hazırlık</th>
-						<th class="col-actions"></th>
-					</tr>
-				</thead>
-				<tbody>
-					<tr
-						v-for="p in paginated"
-						:key="p.id"
-						:class="{ 'row-selected': isSelected(p.id), 'row-out': p.stock === 0 }"
+			<template #cell-select="{ row }">
+				<OzCheckbox :model-value="isSelected(row.id)" :aria-label="`${row.name} seç`" @update:model-value="toggleRow(row.id)" />
+			</template>
+			<template #cell-id="{ value }">#{{ value }}</template>
+			<template #cell-image="{ row }">
+				<div class="thumb">
+					<img :src="row.image || '/images/product-placeholder.svg'" :alt="row.name" loading="lazy">
+				</div>
+			</template>
+			<template #cell-name="{ row }">
+				<div class="name-cell">
+					<span class="name-text">
+						{{ row.name }}
+						<OzPill v-if="row.status === 'development'" tone="warning" title="Üretimi tamamlanınca ürüne dönüşür">Geçici Kart</OzPill>
+					</span>
+					<div class="oz-cell-sub mono">{{ row.sku || '—' }}<template v-if="row.barcode"> · {{ row.barcode }}</template></div>
+				</div>
+			</template>
+			<template #cell-category="{ value }">{{ value || '—' }}</template>
+			<template #cell-brandLabel="{ value }">{{ value || '—' }}</template>
+			<template #cell-price="{ row }">
+				{{ formatPrice(row.price) }}
+				<div v-if="row.marketPrice != null || row.purchasePrice != null" class="oz-cell-sub">
+					<template v-if="row.marketPrice != null">P: {{ formatPrice(row.marketPrice) }}</template>
+					<template v-if="row.marketPrice != null && row.purchasePrice != null"> · </template>
+					<template v-if="row.purchasePrice != null">A: {{ formatPrice(row.purchasePrice) }}</template>
+				</div>
+			</template>
+			<template #cell-marketplaces="{ row }">
+				<div v-if="marketplacesFor(row).length" class="mp-list">
+					<button
+						v-for="mp in marketplacesFor(row)"
+						:key="mp.key"
+						type="button"
+						class="mp-item"
+						:class="{ sent: listingSummary(row, mp)?.isSent }"
+						:title="mp.name"
+						:disabled="!canListing"
+						@click="canListing && openListing(row, mp)"
 					>
-						<td v-if="canDelete" class="col-check">
-							<input type="checkbox" :checked="isSelected(p.id)" :aria-label="`${p.name} seç`" @change="toggleRow(p.id)">
-						</td>
-						<td class="col-id mono">#{{ p.id }}</td>
-						<td class="col-img">
-							<div class="thumb">
-								<img :src="p.image || '/images/product-placeholder.svg'" :alt="p.name" loading="lazy">
-							</div>
-						</td>
-						<td class="col-name">
-							<div class="name-cell">
-								<span class="name-text">
-									{{ p.name }}
-									<OzPill v-if="p.status === 'development'" tone="warning" title="Üretimi tamamlanınca ürüne dönüşür">Geçici Kart</OzPill>
-								</span>
-								<span class="name-line">Kategori: <b>{{ p.category || '—' }}</b></span>
-								<span class="name-line">Kodu: <b>{{ p.sku || '—' }}</b></span>
-								<span class="name-line">Barkod: <b>{{ p.barcode || '—' }}</b></span>
-							</div>
-						</td>
-						<td class="col-price">
-							<div class="price-cell">
-								<span class="price-val">{{ formatPrice(p.price) }}</span>
-								<span v-if="p.marketPrice != null" class="price-pa">P: {{ formatPrice(p.marketPrice) }}</span>
-								<span v-if="p.purchasePrice != null" class="price-pa">A: {{ formatPrice(p.purchasePrice) }}</span>
-							</div>
-						</td>
-						<td class="col-mp">
-							<div v-if="marketplacesFor(p).length" class="mp-list">
-								<button
-									v-for="mp in marketplacesFor(p)"
-									:key="mp.key"
-									type="button"
-									class="mp-item"
-									:class="{ sent: listingSummary(p, mp)?.isSent }"
-									:title="mp.name"
-									:disabled="!canListing"
-									@click="canListing && openListing(p, mp)"
-								>
-									<img
-										v-if="!logoFailed[mp.key]"
-										class="mp-logo-img"
-										:src="`/images/marketplaces/${mp.key}.svg`"
-										:alt="mp.name"
-										@error="onLogoError(mp.key)"
-									>
-									<span v-else class="mp-badge" :style="{ background: mp.color || '#888' }">{{ mp.logoText }}</span>
-									<span class="mp-price">{{ mpPrice(p, mp) }}</span>
-								</button>
-							</div>
-							<span v-else class="mp-empty">—</span>
-						</td>
-						<td class="col-stock">
-							<OzPill v-if="p.stock === 0" tone="danger">Tükendi</OzPill>
-							<OzPill v-else-if="p.stock < 20" tone="warning">{{ p.stock }}</OzPill>
-							<OzPill v-else tone="success">{{ p.stock }}</OzPill>
-						</td>
-						<td class="col-readiness">
-							<div class="readiness-badges">
-								<span
-									v-for="cap in readinessCapabilities"
-									:key="cap.key"
-									class="readiness-dot"
-									:class="{ ready: p.readiness?.[cap.key]?.ready }"
-									:title="readinessTooltip(p, cap)"
-								><component :is="cap.icon" :size="12" /></span>
-							</div>
-						</td>
-						<td class="col-actions" @click.stop>
-							<OzDropdown :items="rowActions(p)" :label="`${p.name} işlemleri`" @select="(k) => onRowAction(k, p)" />
-						</td>
-					</tr>
-				</tbody>
-			</table>
-		</div>
-	</div>
-
-	<!-- Sayfalama -->
-	<div v-if="filtered.length > itemsPerPage" class="pagination-wrap">
-		<OzPagination v-model="currentPage" :total="filtered.length" :page-size="itemsPerPage" />
-	</div>
+						<img
+							v-if="!logoFailed[mp.key]"
+							class="mp-logo-img"
+							:src="`/images/marketplaces/${mp.key}.svg`"
+							:alt="mp.name"
+							@error="onLogoError(mp.key)"
+						>
+						<span v-else class="mp-badge" :style="{ background: mp.color || '#888' }">{{ mp.logoText }}</span>
+						<span class="mp-price">{{ mpPrice(row, mp) }}</span>
+					</button>
+				</div>
+				<span v-else class="dim">—</span>
+			</template>
+			<template #cell-stock="{ value }">
+				<OzPill v-if="value === 0" tone="danger">Tükendi</OzPill>
+				<OzPill v-else-if="value < 20" tone="warning">{{ value }}</OzPill>
+				<OzPill v-else tone="success">{{ value }}</OzPill>
+			</template>
+			<template #cell-desi="{ value }">
+				<span v-if="value != null" class="mono">{{ Number(value).toLocaleString('tr-TR', { maximumFractionDigits: 2 }) }}</span>
+				<span v-else class="dim">—</span>
+			</template>
+			<template #cell-readiness="{ row }">
+				<div class="readiness-badges">
+					<span
+						v-for="cap in readinessCapabilities"
+						:key="cap.key"
+						class="readiness-dot"
+						:class="{ ready: row.readiness?.[cap.key]?.ready }"
+						:title="readinessTooltip(row, cap)"
+					><component :is="cap.icon" :size="12" /></span>
+				</div>
+			</template>
+			<template #cell-actions="{ row }">
+				<OzDropdown :items="rowActions(row)" :label="`${row.name} işlemleri`" @select="(k) => onRowAction(k, row)" />
+			</template>
+		</OzTable>
+	</OzCard>
 
 	<!-- Toplu seçim çubuğu (yüzen) -->
 	<div class="bulk-dock" :class="{ 'is-active': canDelete && selectedCount > 0 }">
@@ -600,15 +391,16 @@ async function bulkDelete() {
 		@saved="onListingSaved"
 	/>
 
-	<OzModal v-model:open="newProductOpen" title="Yeni Ürün" subtitle="Ne eklemek istiyorsunuz?" icon="plus" size="md">
-		<div class="choice-list">
-			<button v-for="c in newProductChoices" :key="c.key" type="button" class="choice" @click="chooseNewProduct(c)">
-				<span class="choice-ico"><OzIcon :name="c.icon" :size="20" /></span>
-				<span class="choice-text">
-					<b>{{ c.title }}</b>
-					<small>{{ c.desc }}</small>
-				</span>
-				<OzIcon name="chevron-right" :size="16" class="choice-arrow" />
+	<OzModal v-model:open="newProductOpen" title="Yeni Ürün" subtitle="Hangi türde ürün eklemek istiyorsunuz?" icon="plus" size="md">
+		<div class="choice-grid">
+			<button
+				v-for="c in newProductChoices" :key="c.key" type="button" class="choice"
+				:disabled="c.disabled" :title="c.disabled ? 'Bu seçenek için yetkiniz yok' : undefined"
+				@click="chooseNewProduct(c)"
+			>
+				<span class="choice-ico"><OzIcon :name="c.icon" :size="26" /></span>
+				<b>{{ c.title }}</b>
+				<small>{{ c.desc }}</small>
 			</button>
 		</div>
 	</OzModal>
@@ -616,60 +408,25 @@ async function bulkDelete() {
 
 <style scoped>
 /* ── Yeni ürün seçim modalı ── */
-.choice-list { display: flex; flex-direction: column; gap: 10px; }
+.choice-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 480px) { .choice-grid { grid-template-columns: 1fr; } }
 .choice {
-	display: flex; align-items: center; gap: 14px; width: 100%; padding: 14px 16px;
-	text-align: left; background: var(--oz-surface); color: var(--oz-ink);
-	border: 1px solid var(--oz-border); border-radius: 12px; cursor: pointer;
-	transition: border-color .15s, background .15s;
+	display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+	padding: 26px 16px; text-align: center; background: var(--oz-surface); color: var(--oz-ink);
+	border: 1px solid var(--oz-border); border-radius: 14px; cursor: pointer;
+	transition: border-color .15s, background .15s, transform .15s;
 }
-.choice:hover, .choice:focus-visible { border-color: var(--oz-accent); background: var(--oz-accent-soft); outline: none; }
+.choice:hover:not(:disabled), .choice:focus-visible { border-color: var(--oz-accent); background: var(--oz-accent-soft); outline: none; transform: translateY(-1px); }
+.choice:disabled { opacity: .5; cursor: not-allowed; }
 .choice-ico {
-	flex: none; display: inline-flex; align-items: center; justify-content: center;
-	width: 40px; height: 40px; border-radius: 10px; background: var(--oz-accent-soft); color: var(--oz-accent);
+	display: inline-flex; align-items: center; justify-content: center;
+	width: 56px; height: 56px; border-radius: 14px; background: var(--oz-accent-soft); color: var(--oz-accent);
 }
-.choice-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-.choice-text b { font-size: 14px; font-weight: 600; }
-.choice-text small { font-size: 12.5px; color: var(--oz-muted); line-height: 1.4; }
-.choice-arrow { flex: none; color: var(--oz-muted); }
-.choice:hover .choice-arrow { color: var(--oz-accent); }
+.choice b { font-size: 15px; font-weight: 600; }
+.choice small { font-size: 12.5px; color: var(--oz-muted); line-height: 1.4; }
 
 .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
 @media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-
-/* ── Üst araç çubuğu ── */
-.toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
-.toolbar :deep(.is-open) { border-color: var(--oz-accent); color: var(--oz-accent); background: var(--oz-accent-soft); }
-.filter-badge {
-	display: inline-flex; align-items: center; justify-content: center;
-	min-width: 18px; height: 18px; padding: 0 5px; margin-left: 2px;
-	background: var(--oz-accent); color: #fff;
-	font-size: 11px; font-weight: 700; border-radius: 999px;
-}
-.search-box { flex: 1; min-width: 240px; max-width: 360px; }
-
-/* ── Filtre paneli ── */
-/* Yükseklik/opaklık @vueuse/motion ile animasyonlu; başlangıç kapalı (JS gelmeden de gizli). */
-.filter-collapse { height: 0; opacity: 0; overflow: hidden; }
-.filter-panel {
-	background: var(--oz-surface);
-	border: 1px solid var(--oz-border);
-	border-radius: var(--oz-radius);
-	padding: 18px 20px;
-	margin-bottom: 16px;
-	box-shadow: var(--oz-shadow-sm);
-}
-.filter-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px 18px; }
-@media (max-width: 1100px) { .filter-grid { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 620px)  { .filter-grid { grid-template-columns: 1fr; } }
-
-.search-with-select { display: grid; grid-template-columns: 1fr 130px; gap: 6px; }
-.sort-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-.range-row { display: flex; align-items: center; gap: 8px; }
-.range-row > * { flex: 1; min-width: 0; }
-.range-sep { font-size: 12px; color: var(--oz-muted); flex-shrink: 0; }
-
-.filter-actions { display: flex; align-items: center; gap: 14px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--oz-border-soft); }
 
 /* ── Toplu seçim çubuğu ── */
 /* Toplu seçim çubuğu: akışta yer kaplamaz (tabloyu itmez), kaydırma alanının altında yüzer.
@@ -691,51 +448,21 @@ async function bulkDelete() {
 	.bulk-bar { bottom: 10px; gap: 10px; padding-left: 14px; }
 }
 
-/* ── Tablo ── */
-.table-wrap { background: var(--oz-surface); border: 1px solid var(--oz-border); border-radius: var(--oz-radius); overflow: hidden; box-shadow: var(--oz-shadow-sm); }
-.table-scroll { overflow-x: auto; }
-.product-table { width: 100%; border-collapse: collapse; }
-.product-table thead th.col-price { text-align: center; }
-.product-table thead th {
-	text-align: left; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
-	color: var(--oz-muted); background: var(--oz-th-bg); padding: 12px 14px; border-bottom: 1px solid var(--oz-border); white-space: nowrap;
-}
-.product-table tbody td { padding: 11px 14px; border-top: 1px solid var(--oz-border-soft); font-size: 12.5px; color: var(--oz-ink); vertical-align: middle; }
-.product-table tbody tr { transition: background .12s; }
-.product-table tbody tr:hover td { background: var(--oz-surface-2); }
-.product-table tbody tr.row-selected td { background: var(--oz-accent-soft); }
-.product-table tbody tr.row-out { opacity: .7; }
+/* ── Tablo hücreleri ── */
+.dim { color: var(--oz-muted); font-weight: 400; }
+.mono { font-family: ui-monospace, monospace; }
 
-.col-check { width: 44px; }
-.col-id { width: 64px; }
-.col-img { width: 60px; }
-.col-name { width: 180px; }
-.col-price { width: 120px; }
-.col-mp { width: 360px; }
-.col-stock { width: 80px; }
-.col-readiness { width: 90px; }
-.col-actions { width: 48px; }
+.thumb { width: 44px; height: 44px; border-radius: 8px; overflow: hidden; background: var(--oz-surface-2); flex-shrink: 0; }
+.thumb img { width: 100%; height: 100%; object-fit: cover; }
+
+.name-cell { display: flex; flex-direction: column; min-width: 0; }
+.name-text { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 
 .readiness-badges { display: flex; gap: 4px; }
 .readiness-dot { width: 22px; height: 22px; border-radius: 7px; display: inline-flex; align-items: center; justify-content: center; color: var(--oz-muted); background: var(--oz-surface-2); cursor: default; }
 .readiness-dot.ready { background: var(--oz-success-soft); color: var(--oz-success); }
 
-.mono { font-family: ui-monospace, monospace; color: var(--oz-muted); font-size: 12px; }
-
-.thumb { width: 44px; height: 44px; border-radius: 8px; overflow: hidden; background: var(--oz-surface-2); flex-shrink: 0; }
-.thumb img { width: 100%; height: 100%; object-fit: cover; }
-
-.name-cell { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.name-text { font-weight: 700; color: var(--oz-ink-soft); font-size: 13px; display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.name-line { font-size: 11.5px; color: var(--oz-muted); }
-.name-line b { color: var(--oz-ink); font-weight: 600; }
-
-.col-price { white-space: nowrap; text-align: center; }
-.price-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.price-val { font-weight: 800; color: var(--oz-ink-soft); font-size: 13px; }
-.price-pa { font-size: 11px; color: var(--oz-muted); }
-
-.mp-list { display: flex; flex-wrap: nowrap; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
+.mp-list { display: flex; flex-wrap: nowrap; gap: 8px; overflow-x: auto; padding-bottom: 2px; max-width: 340px; }
 .mp-item { display: flex; flex-direction: column; align-items: center; gap: 3px; flex: 0 0 auto; background: none; border: none; cursor: pointer; padding: 2px; opacity: .55; transition: opacity .12s; }
 .mp-item:hover { opacity: 1; }
 .mp-item.sent { opacity: 1; }
@@ -743,11 +470,4 @@ async function bulkDelete() {
 .mp-badge { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; color: #fff; font-size: 10px; font-weight: 800; border-radius: 7px; letter-spacing: 0.02em; }
 .mp-logo-img { width: 26px; height: 26px; display: block; border-radius: 7px; }
 .mp-price { font-size: 11px; font-weight: 600; color: var(--oz-muted); white-space: nowrap; }
-.mp-empty { color: var(--oz-muted-2, var(--oz-muted)); }
-
-.pagination-wrap { padding: 14px 4px 4px; }
-
-@media (max-width: 760px) {
-	.col-mp, .col-id, .col-readiness { display: none; }
-}
 </style>
