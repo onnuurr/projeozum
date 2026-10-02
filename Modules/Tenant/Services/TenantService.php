@@ -36,6 +36,10 @@ class TenantService
         $data['created_by']  = $data['created_by']  ?? auth()->id();
         // Phase 4 XML feed token; rotate edilebilir.
         $data['feed_secret'] = $data['feed_secret'] ?? Str::random(64);
+        // İskonto girilmediyse standart bayi iskontosu (DB varsayılanı 0 yerine).
+        if (! isset($data['discount_rate']) || $data['discount_rate'] === '') {
+            $data['discount_rate'] = Tenant::DEFAULT_DISCOUNT_RATE;
+        }
 
         $tenant = DB::transaction(function () use ($data, $ownerName, $ownerEmail, $ownerPassword) {
             $tenant = Tenant::create($data);

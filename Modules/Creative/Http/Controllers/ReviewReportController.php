@@ -37,7 +37,7 @@ class ReviewReportController extends Controller
 
         if (! File::exists($path)) {
             return redirect()->route('creative.review-reports.index')
-                ->with('error', 'Rapor bulunamadı: ' . $file);
+                ->with('error', __('creative::messages.report_not_found', ['file' => $file]));
         }
 
         return Inertia::render('Creative::CreativeReviewReportShow', [

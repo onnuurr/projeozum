@@ -18,6 +18,10 @@ class SystemInfoService
     private const CACHE_TTL_STATIC = 300;  // statik (versiyon/sayım/disk) — saniye
     private const CACHE_TTL_REVERB = 10;   // reverb TCP probe — saniye
 
+    public function __construct(
+        private VersionCheckService $versionCheck,
+    ) {}
+
     /**
      * Tam payload — CPU/RAM/uptime için Windows'ta 3 PowerShell process
      * spawn eder (cold start nedeniyle 4-6 sn). Sadece polling endpoint'i
@@ -39,10 +43,27 @@ class SystemInfoService
         return Cache::remember(self::CACHE_KEY_STATIC, self::CACHE_TTL_STATIC, fn () => $this->buildPayload(live: false));
     }
 
+    /** Cache'lenmiş payload'ları düşürür (ör. sürüm yayın verisi yenilenince panel hemen görsün). */
+    public function flush(): void
+    {
+        Cache::forget(self::CACHE_KEY);
+        Cache::forget(self::CACHE_KEY_STATIC);
+    }
+
     private function buildPayload(bool $live): array
     {
         [$memUsedMB, $memTotalMB]   = $live ? $this->memory() : [0, 0];
         [$diskUsedGB, $diskTotalGB] = $this->disk();
+
+        $versions = [
+            'php'       => PHP_VERSION,
+            'laravel'   => app()->version(),
+            'inertia'   => $this->composerPackageVersion('inertiajs/inertia-laravel') ?? '—',
+            'vue'       => $this->npmPackageVersion('vue') ?? '—',
+            'database'  => $this->mysqlVersion(),
+            'redis'     => $this->redisVersion(),
+            'webServer' => $_SERVER['SERVER_SOFTWARE'] ?? '—',
+        ];
 
         return [
             'cpuUsagePct'      => $live ? $this->cpuUsage() : 0,
@@ -51,13 +72,14 @@ class SystemInfoService
             'diskUsageGB'      => $diskUsedGB,
             'diskTotalGB'      => $diskTotalGB,
             'uptime'           => $live ? $this->uptime() : '—',
-            'phpVersion'       => PHP_VERSION,
-            'laravelVersion'   => app()->version(),
-            'inertiaVersion'   => $this->composerPackageVersion('inertiajs/inertia-laravel') ?? '—',
-            'vueVersion'       => $this->npmPackageVersion('vue') ?? '—',
-            'mysqlVersion'     => $this->mysqlVersion(),
-            'redisVersion'     => $this->redisVersion(),
-            'webServer'        => $_SERVER['SERVER_SOFTWARE'] ?? '—',
+            'phpVersion'       => $versions['php'],
+            'laravelVersion'   => $versions['laravel'],
+            'inertiaVersion'   => $versions['inertia'],
+            'vueVersion'       => $versions['vue'],
+            'mysqlVersion'     => $versions['database'],
+            'redisVersion'     => $versions['redis'],
+            'webServer'        => $versions['webServer'],
+            'versionChecks'    => $this->versionCheck->check($versions),
             'serverOs'         => $this->osLabel(),
             'totalTenants'     => $this->safeCount('tenants', Tenant::class),
             'totalUsers'       => $this->safeCount('users', User::class),

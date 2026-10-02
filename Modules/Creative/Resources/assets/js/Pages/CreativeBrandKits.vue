@@ -140,7 +140,7 @@
 						</div>
 						<div v-for="(row, i) in form.spacing" :key="'s' + i" class="token-row">
 							<input v-model="row.key" class="token-key" type="text" placeholder="md" />
-							<input v-model.number="row.value" class="token-num" type="number" min="0" placeholder="16" />
+							<input v-model.number="row.value" class="token-num" type="number" inputmode="numeric" min="0" placeholder="16" />
 							<button class="row-del" @click="form.spacing.splice(i, 1)"><X :size="12" /></button>
 						</div>
 					</div>

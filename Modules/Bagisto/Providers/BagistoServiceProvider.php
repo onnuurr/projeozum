@@ -2,9 +2,11 @@
 
 namespace Modules\Bagisto\Providers;
 
+use App\Contracts\TranslationSource;
 use Modules\Bagisto\Console\SyncCategoriesCommand;
 use Modules\Bagisto\Console\SyncExistingProductsCommand;
 use Modules\Bagisto\Jobs\PushCategoryToBagisto;
+use Modules\Bagisto\Services\BagistoTranslationSource;
 use Modules\Product\Models\Category;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 
@@ -26,6 +28,14 @@ class BagistoServiceProvider extends ModuleServiceProvider
 
     /** Bagisto'ya giden kategori alanları; yalnız bunlar değişince push edilir (deleted_at: geri yükleme yeniden aktifleştirir). */
     private const SYNCED_CATEGORY_FIELDS = ['name', 'slug', 'parent_id', 'status', 'sort_order', 'deleted_at'];
+
+    public function register(): void
+    {
+        parent::register();
+
+        // Süper Admin › Dil Dosyaları'na Bagisto dil dosyalarını kaynak olarak ekler (bkz. App\Contracts\TranslationSource).
+        $this->app->tag([BagistoTranslationSource::class], TranslationSource::TAG);
+    }
 
     public function boot(): void
     {

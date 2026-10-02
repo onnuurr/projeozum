@@ -84,7 +84,6 @@ class TenantController extends Controller
                     'code' => $t->carrier->code,
                     'name' => $t->carrier->name,
                 ] : null,
-                'payment_term_days' => $t->payment_term_days,
                 'discount_rate' => (float) $t->discount_rate,
                 'is_active' => $t->is_active,
                 'notes' => $t->notes,
@@ -114,6 +113,7 @@ class TenantController extends Controller
                 'active' => $active ?? '',
             ],
             'prefillApplication' => $this->applications->prefillFor($request->query('from_application')),
+            'defaultDiscountRate' => Tenant::DEFAULT_DISCOUNT_RATE,
         ]);
     }
 

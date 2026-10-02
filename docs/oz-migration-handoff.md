@@ -23,10 +23,12 @@ yapılacağını anlatır. Yeni oturum buradan devam etmeli.
 | Product · Sipariş Detay (`/orders/{id}`) | 🟡 Kaynak taşındı + "Teslimat & Ödeme" kartı eklendi (§8.3), kullanıcı build/onay bekliyor |
 | Product · Kategoriler (`/products/categories`) | 🟡 Kaynak taşındı (sayfa + 4 bağımlı drawer/modal) + `.stats` grid CSS standarda çekildi, kullanıcı build/onay bekliyor → §8 |
 | Product · Ürün Kataloğu (`/products`) | 🟡 Kaynak taşındı (sayfa + paylaşılan `MarketplaceListingDrawer.vue`), kullanıcı build/onay bekliyor → §8.2 |
-| Product · kalanlar (ProductCard, ProductDetail, ProductForm) | ⏳ Sırada |
+| Product · Ürün Detay (`/products/{slug}`) | 🟡 2026-09-29 yeniden inşa edildi (§8.6), yalnız statik doğrulama, build/onay bekliyor |
+| Product · kalanlar (ProductCard, ProductForm) | ⏳ Sırada |
 | Atelier · 7 sayfa (Panel, İş Emirleri + Detay, Hammaddeler, Reçeteler, Operasyonlar, Fasoncular) | 🟡 2026-09-23 yeniden inşa edildi (§11), harness'te test edildi, kullanıcı build/onay bekliyor |
 | Atölye · PatternEngine sayfaları (Sayısallaştırma, Kalıp Kütüphanesi + İzleyici, Konsept Stüdyosu, Atölye İşleri) | 🟡 2026-09-23 kullanıcı onayıyla yeniden inşa edildi (§11.1), harness'te test edildi, build/onay bekliyor |
 | Ana sayfa · Genel Bakış (`/dashboard`) | 🟡 2026-09-23 gerçek veriyle yeniden yazıldı (§15), harness + feature test, build/onay bekliyor |
+| Giriş (`/login`, `Auth/Login.vue`) | 🟡 2026-09-28 iki panelli Oz düzeniyle yeniden yazıldı (kabuksuz; token'lar için `import '@/Components/Oz/OzShell.vue'`). Ölü OTP adımı (rotası yok), sosyal giriş, dil seçici ve sahte istatistikler kaldırıldı; `status` artık `OzAlert` ile görünüyor. `Components/Auth/BrandPanel.vue` artık kullanılmıyor. Harness'te test edildi, build/onay bekliyor. Eskisi scratchpad `Login.old.vue` + git |
 | Kalan Superadmin sayfaları | ⏳ Sırada: Başarısız İşler, Ret Seçim Maddeleri |
 | Diğer modüller | ⏳ Planlı taşınacak (kullanıcı sırayı belirler) |
 
@@ -330,6 +332,22 @@ durur. Kit'e bileşen eklenmedi (kural 8) — ileride başka sayfada toplu seçi
 `overflow:visible` (yeniden boyutlanma/açılır menü kırpılmasın). Kapalıyken `inert` (Tab odağı
 girmez), `useReducedMotion` açıksa animasyonsuz. Hızlı çift tıklama sıra sayacıyla korunuyor.
 Scratchpad'de ayrı Vite derlemesiyle Chromium'da ölçüldü (public/'e dokunulmadı).
+
+## 8.6 ProductDetail.vue (2026-09-29)
+
+Arka uca dokunulmadı; prop'lar aynı (`product`, `similar`). Eskisi scratchpad `ProductDetail.old.vue` + git.
+- İskelet: `OzPageHeader` (alt başlıkta Katalog linki · kategori · marka · SKU; aksiyonlar: Kataloğa Dön,
+  Bağlantıyı Kopyala, Ürün Kartı [`product.card.view`], Düzenle [`product.add`]) → `OzModuleTabs` → 2 sütun
+  (galeri `OzCard` | "Fiyat & Stok" + "Varyant Seçimi" kartları) → "Varyantlar" `OzTable` → `OzTabs`
+  (Açıklama / Özellikler / Değerlendirmeler, boşlarda `OzEmptyState`) → "Benzer Ürünler" kart ızgarası.
+  Tekil kayıt sayfası olduğu için `.stats` satırı yok (§8.1).
+- Kaldırılanlar (sahte/ölü): "3 taksit" satırı, sabit "Ücretsiz Kargo / 14 Gün İade / 2 Yıl Garanti" kutuları
+  (yerine gerçek `freeShipping` pill'i), adet seçici (sepet 34f2221'de kaldırılmıştı), "Beden tablosu yakında"
+  linki, eski `Breadcrumb` (`/workflow`'a gidiyordu).
+- Eklenen: varyant tablosu (renk/beden/SKU/fiyat/stok; bedene tıklayınca üstteki seçim o varyanta geçer),
+  beden seçimi tekrar tıklanınca kaldırılır.
+- `resources/js/Components/ProductCard.vue` artık hiçbir yerde kullanılmıyor (içinde kaldırılmış favori
+  özelliği kalıntısı da var) — silinmedi, kullanıcı karar verecek.
 
 ## 11. Atelier modülü (2026-09-23)
 

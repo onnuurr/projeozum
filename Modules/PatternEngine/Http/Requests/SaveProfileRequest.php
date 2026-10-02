@@ -29,12 +29,12 @@ class SaveProfileRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'name.required'      => 'Profil adı zorunludur.',
-            'name.regex'         => 'Profil adı yalnızca küçük harf, rakam, "_" ve "-" içerebilir (ilk karakter harf/rakam).',
-            'name.not_in'        => "'ts_default' referans profildir, bu adla kaydedilemez.",
-            'sizes.required'     => 'En az bir beden girilmelidir.',
-            'sizes.min'          => 'En az bir beden girilmelidir.',
-            'provenance.source.required' => 'Ölçü tablosunun kaynağı zorunludur.',
+            'name.required'      => __('patternengine::messages.validation.profile_name_required'),
+            'name.regex'         => __('patternengine::messages.validation.profile_name_format'),
+            'name.not_in'        => __('patternengine::messages.validation.profile_name_reserved'),
+            'sizes.required'     => __('patternengine::messages.validation.sizes_required'),
+            'sizes.min'          => __('patternengine::messages.validation.sizes_required'),
+            'provenance.source.required' => __('patternengine::messages.validation.provenance_source_required'),
         ];
     }
 }

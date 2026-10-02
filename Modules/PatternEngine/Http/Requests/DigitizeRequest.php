@@ -24,12 +24,12 @@ class DigitizeRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'image.required' => 'Bir teknik çizim/görsel seçilmelidir.',
-            'image.image'    => 'Yalnızca görsel dosyaları kabul edilir.',
-            'image.mimes'    => 'Görsel PNG veya JPEG formatında olmalıdır.',
-            'image.max'      => 'Görsel en fazla 5 MB olabilir.',
-            'garment.required' => 'Giysi tipi zorunludur.',
-            'size.required'     => 'Beden zorunludur.',
+            'image.required' => __('patternengine::messages.validation.image_required'),
+            'image.image'    => __('patternengine::messages.validation.image_type'),
+            'image.mimes'    => __('patternengine::messages.validation.image_mimes'),
+            'image.max'      => __('patternengine::messages.validation.image_max'),
+            'garment.required' => __('patternengine::messages.validation.garment_required'),
+            'size.required'     => __('patternengine::messages.validation.size_required'),
         ];
     }
 }

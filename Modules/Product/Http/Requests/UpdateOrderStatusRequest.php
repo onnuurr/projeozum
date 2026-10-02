@@ -24,8 +24,8 @@ class UpdateOrderStatusRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'status.required' => 'Durum zorunludur.',
-            'status.in'       => 'Geçersiz sipariş durumu.',
+            'status.required' => __('product::messages.validation.status_required'),
+            'status.in'       => __('product::messages.validation.order_status_invalid'),
         ];
     }
 }

@@ -45,7 +45,7 @@ class SaveTracedPatternRequest extends FormRequest
                 }
             }
             if (! $hasClosedCut) {
-                $v->errors()->add('pieces', 'En az bir kesim konturu (cut) ≥3 nokta içermeli.');
+                $v->errors()->add('pieces', __('patternengine::messages.validation.cut_contour_required'));
             }
         });
     }

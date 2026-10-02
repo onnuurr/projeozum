@@ -1,5 +1,6 @@
 <script setup>
 import { onMounted, ref } from 'vue';
+import { isTouchPrimary } from '@/Components/Oz/ozTouch';
 
 const model = defineModel({
     type: String,
@@ -9,7 +10,8 @@ const model = defineModel({
 const input = ref(null);
 
 onMounted(() => {
-    if (input.value.hasAttribute('autofocus')) {
+    // Dokunmatikte otomatik odak sanal klavyeyi açıp ekranı kapatır (bkz. ozTouch.js).
+    if (input.value.hasAttribute('autofocus') && !isTouchPrimary()) {
         input.value.focus();
     }
 });

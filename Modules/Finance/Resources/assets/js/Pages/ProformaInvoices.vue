@@ -95,7 +95,7 @@
 					</div>
 					<div v-for="(item, idx) in form.items" :key="idx" class="item-row">
 						<input v-model="item.description" type="text" class="form-input" placeholder="Açıklama" style="flex: 3" />
-						<input v-model.number="item.qty" type="number" min="1" class="form-input" placeholder="Adet" style="flex: 1" @input="recalcItem(idx)" />
+						<input v-model.number="item.qty" type="number" inputmode="numeric" min="1" class="form-input" placeholder="Adet" style="flex: 1" @input="recalcItem(idx)" />
 						<input v-model.number="item.unit_price" type="number" step="0.01" min="0" class="form-input" placeholder="Birim Fiyat" style="flex: 1" @input="recalcItem(idx)" />
 						<input v-model.number="item.total_price" type="number" step="0.01" min="0" class="form-input" placeholder="Toplam" style="flex: 1" />
 						<button type="button" class="table-action-btn danger" @click="removeItem(idx)"><Trash2 :size="14" /></button>

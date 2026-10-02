@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Modules\Bagisto\Http\Controllers\Api\DealerAgreementApiController;
 use Modules\Bagisto\Http\Controllers\Api\OrderWebhookController;
 use Modules\Bagisto\Http\Controllers\Api\ReturnInvoiceApiController;
 use Modules\Bagisto\Http\Controllers\Api\TenantAccountApiController;
@@ -37,3 +38,16 @@ Route::post('bagisto/returns/{rmaId}/invoice', [ReturnInvoiceApiController::clas
 Route::get('bagisto/tenant-accounts/statement', [TenantAccountApiController::class, 'statement'])
     ->middleware([VerifyBagistoInboundToken::class, 'throttle:60,1'])
     ->name('bagisto.tenant-accounts.statement');
+
+// Bayi portalı → güncel bayi sözleşmesi metinleri (Bayi Sözleşmeleri sayfasında yayımlanan sürümler).
+Route::get('bagisto/dealer-agreements', [DealerAgreementApiController::class, 'index'])
+    ->middleware([VerifyBagistoInboundToken::class, 'throttle:60,1'])
+    ->name('bagisto.dealer-agreements.index');
+
+// Bayi portalına girişte zorunlu yeniden onay: bekleyen sözleşmeler (bayi e-postasıyla) ve onay kaydı.
+Route::get('bagisto/dealer-agreements/pending', [DealerAgreementApiController::class, 'pending'])
+    ->middleware([VerifyBagistoInboundToken::class, 'throttle:120,1'])
+    ->name('bagisto.dealer-agreements.pending');
+Route::post('bagisto/dealer-agreements/accept', [DealerAgreementApiController::class, 'accept'])
+    ->middleware([VerifyBagistoInboundToken::class, 'throttle:30,1'])
+    ->name('bagisto.dealer-agreements.accept');

@@ -5,12 +5,18 @@ import OzIcon from './OzIcon.vue'
 import { useOzField } from './useOzField'
 import { useOzAnchor } from './useOzAnchor'
 import { ozFold as fold } from './ozText'
+import { isTouchPrimary, shouldShowSelectSearch } from './ozTouch'
 
 // Aranabilir seçim kutusu; multiple ile çoklu seçim (etiketli).
 // options: ['A', 'B'] veya [{ value, label, description?, disabled? }]
 // v-model: tekli → değer ('' = boş), çoklu → değer dizisi
 //   <OzCombobox v-model="partner" :options="partners" placeholder="İş ortağı seçin" />
 //   <OzCombobox v-model="tags" :options="tags" multiple />
+// create: seçenekler veritabanından geliyorsa, aramada birebir eşleşme yoksa listenin
+// altında "“x” ekle" satırı çıkar. Fonksiyon aranan metni alır, kaydı oluşturup
+// { value, label } döner (hata olursa kendi bildirimini yapıp null/undefined döner);
+// dönen seçenek otomatik seçilir. Seçeneği options'a eklemek çağıranın işidir.
+//   <OzCombobox v-model="form.brand_id" :options="brandOptions" :create="createBrand" />
 const props = defineProps({
   options: { type: Array, required: true },
   multiple: { type: Boolean, default: false },
@@ -24,6 +30,8 @@ const props = defineProps({
   invalid: { type: Boolean, default: false },
   required: { type: Boolean, default: false },
   id: { type: String, default: '' },
+  create: { type: Function, default: null },
+  createText: { type: String, default: 'ekle' },
 })
 
 const model = defineModel({ type: [String, Number, Array], default: '' })
@@ -42,11 +50,17 @@ const query = ref('')
 const active = ref(-1)
 const { style: anchorStyle, update } = useOzAnchor({ placement: 'bottom-start' })
 const popWidth = ref(0)
+// Dokunmatikte kısa listede arama kutusu gizlenir (bkz. ozTouch.js); açılışta hesaplanır
+const showSearch = ref(true)
 const popStyle = computed(() => ({ ...anchorStyle.value, width: `${popWidth.value}px` }))
 
-const normalized = computed(() =>
-  props.options.map((o) => (typeof o === 'object' ? o : { value: o, label: String(o) })),
-)
+// create ile eklenenler, çağıran options'ı güncelleyene kadar etiketleriyle görünsün diye
+const created = ref([])
+const normalized = computed(() => {
+  const list = props.options.map((o) => (typeof o === 'object' ? o : { value: o, label: String(o) }))
+  const extra = created.value.filter((c) => !list.some((o) => o.value === c.value))
+  return extra.length ? [...list, ...extra] : list
+})
 const selectedValues = computed(() => {
   if (props.multiple) return Array.isArray(model.value) ? model.value : []
   return model.value === '' || model.value == null ? [] : [model.value]
@@ -62,13 +76,23 @@ const filtered = computed(() => {
   return normalized.value.filter((o) => fold(o.label).includes(q) || (o.description && fold(o.description).includes(q)))
 })
 
-watch(filtered, () => { active.value = firstEnabled() })
+const creating = ref(false)
+const canCreate = computed(() => {
+  const q = fold(query.value.trim())
+  return !!props.create && !!q && !normalized.value.some((o) => fold(o.label) === q)
+})
+// Oluştur satırı klavyede listenin son öğesi gibi davranır (indeks = filtered.length)
+const createIndex = computed(() => (canCreate.value ? filtered.value.length : -1))
+const itemCount = computed(() => filtered.value.length + (canCreate.value ? 1 : 0))
+const isItemDisabled = (i) => i < filtered.value.length && filtered.value[i].disabled
+
+watch([filtered, canCreate], () => { active.value = firstEnabled() })
 
 function firstEnabled(from = 0, dir = 1) {
-  const list = filtered.value
-  for (let n = 0; n < list.length; n++) {
-    const i = (((from + n * dir) % list.length) + list.length) % list.length
-    if (!list[i].disabled) return i
+  const count = itemCount.value
+  for (let n = 0; n < count; n++) {
+    const i = (((from + n * dir) % count) + count) % count
+    if (!isItemDisabled(i)) return i
   }
   return -1
 }
@@ -77,11 +101,13 @@ async function show() {
   if (props.disabled || open.value) return
   open.value = true
   query.value = ''
+  showSearch.value = shouldShowSelectSearch(normalized.value.length, !!props.create)
   popWidth.value = Math.max(triggerEl.value.offsetWidth, 220)
   const sel = filtered.value.findIndex(isSelected)
   active.value = sel !== -1 ? sel : firstEnabled()
   await update(triggerEl.value, () => popEl.value)
-  searchEl.value?.focus()
+  // Dokunmatikte arama kutusuna odaklanma: klavye açılıp listeyi örtüyor; aramak isteyen kutuya dokunur
+  if (!isTouchPrimary()) searchEl.value?.focus()
   scrollActive()
 }
 
@@ -111,6 +137,27 @@ function choose(o) {
   }
 }
 
+async function createFromQuery() {
+  const label = query.value.trim()
+  if (!canCreate.value || creating.value) return
+  creating.value = true
+  try {
+    const o = await props.create(label)
+    if (!o || o.value == null) return
+    const opt = { value: o.value, label: o.label ?? label }
+    if (!normalized.value.some((x) => x.value === opt.value)) created.value.push(opt)
+    query.value = ''
+    choose(opt)
+  } finally {
+    creating.value = false
+  }
+}
+
+function activate(i) {
+  if (i === createIndex.value) createFromQuery()
+  else choose(filtered.value[i])
+}
+
 function removeValue(v) {
   model.value = props.multiple ? selectedValues.value.filter((x) => x !== v) : ''
 }
@@ -126,12 +173,12 @@ async function scrollActive() {
 }
 
 function move(dir) {
-  const list = filtered.value
-  if (!list.length) return
+  const count = itemCount.value
+  if (!count) return
   let i = active.value
-  for (let n = 0; n < list.length; n++) {
-    i = (i + dir + list.length) % list.length
-    if (!list[i].disabled) break
+  for (let n = 0; n < count; n++) {
+    i = (i + dir + count) % count
+    if (!isItemDisabled(i)) break
   }
   active.value = i
   scrollActive()
@@ -150,8 +197,8 @@ function onSearchKey(e) {
   if (e.key === 'ArrowDown') { e.preventDefault(); move(1) }
   else if (e.key === 'ArrowUp') { e.preventDefault(); move(-1) }
   else if (e.key === 'Home') { e.preventDefault(); active.value = firstEnabled(); scrollActive() }
-  else if (e.key === 'End') { e.preventDefault(); active.value = firstEnabled(filtered.value.length - 1, -1); scrollActive() }
-  else if (e.key === 'Enter') { e.preventDefault(); choose(filtered.value[active.value]) }
+  else if (e.key === 'End') { e.preventDefault(); active.value = firstEnabled(itemCount.value - 1, -1); scrollActive() }
+  else if (e.key === 'Enter') { e.preventDefault(); activate(active.value) }
   else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); hide(true) }
   else if (e.key === 'Tab') hide()
 }
@@ -201,7 +248,7 @@ const hiddenCount = computed(() => Math.max(selectedOptions.value.length - props
     <Teleport to=".oz-root" defer>
       <Transition name="oz-pop">
         <div v-if="open" ref="popEl" class="oz-cb-pop" :style="popStyle">
-          <div class="search">
+          <div v-if="showSearch" class="search">
             <OzIcon name="search" :size="13" />
             <input
               ref="searchEl"
@@ -235,7 +282,22 @@ const hiddenCount = computed(() => Math.max(selectedOptions.value.length - props
               </span>
               <OzIcon v-if="!multiple && isSelected(o)" name="check" :size="14" :stroke-width="2.5" class="tick" />
             </li>
-            <li v-if="!filtered.length" class="empty" role="presentation">{{ emptyText }}</li>
+            <li v-if="!filtered.length && !canCreate" class="empty" role="presentation">{{ emptyText }}</li>
+            <li
+              v-if="canCreate"
+              :id="optId(createIndex)"
+              role="option"
+              class="opt create"
+              :class="{ active: active === createIndex, busy: creating }"
+              :aria-selected="false"
+              :aria-busy="creating || undefined"
+              @mousedown.prevent
+              @click="createFromQuery"
+              @mousemove="active = createIndex"
+            >
+              <OzIcon :name="creating ? 'refresh' : 'plus'" :size="13" :stroke-width="2.5" :class="{ spin: creating }" />
+              <span class="opt-text"><span class="opt-label">“{{ query.trim() }}” {{ createText }}</span></span>
+            </li>
           </ul>
           <div v-if="multiple && selectedValues.length" class="foot">
             <span>{{ selectedValues.length }} seçili</span>
@@ -306,6 +368,11 @@ const hiddenCount = computed(() => Math.max(selectedOptions.value.length - props
   display: flex; align-items: center; justify-content: center; color: transparent;
 }
 .opt.selected .box { background: var(--oz-accent); border-color: var(--oz-accent); color: #fff; }
+.opt.create { color: var(--oz-accent); font-weight: 600; }
+.list > .opt:not(:first-child).create { margin-top: 3px; border-top: 1px solid var(--oz-border-soft); border-radius: 0 0 7px 7px; }
+.opt.create.busy { cursor: progress; opacity: .7; }
+.spin { animation: oz-cb-spin .8s linear infinite; }
+@keyframes oz-cb-spin { to { transform: rotate(360deg); } }
 .empty { padding: 14px 10px; text-align: center; font-size: 12px; color: var(--oz-muted); }
 .foot { display: flex; align-items: center; justify-content: space-between; padding: 7px 12px; border-top: 1px solid var(--oz-border-soft); background: var(--oz-surface-2); font-size: 11px; color: var(--oz-muted); }
 .foot button { border: none; background: none; font: inherit; font-weight: 600; color: var(--oz-accent); cursor: pointer; padding: 2px 4px; border-radius: 5px; }

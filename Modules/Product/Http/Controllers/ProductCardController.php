@@ -4,6 +4,7 @@ namespace Modules\Product\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Product\Models\Product;
@@ -175,6 +176,13 @@ class ProductCardController extends Controller
             'totals'     => $totals,
             'marketplaces' => $marketplaces,
             'listings'     => $listings,
+            // Üretilecek ürünün iş emri Atölye'de verilir (Product → Atelier bağımlılığı yasak);
+            // yalnız route adı + yetkiyle bağlanır, kod bağımlılığı kurulmaz.
+            'productionOrderUrl' => $product->sourcing === Product::SOURCING_MANUFACTURED
+                && Route::has('atelier.production-orders.index')
+                && $request->user()?->can('atelier.production.manage')
+                    ? route('atelier.production-orders.index', ['product_id' => $product->id], false)
+                    : null,
         ]);
     }
 }

@@ -120,7 +120,7 @@ class CreativeStudioController extends Controller
         }
 
         return redirect()->route('creative.gallery')
-            ->with('success', count($productIds) . ' görsel üretim kuyruğuna alındı.');
+            ->with('success', __('creative::messages.studio.queued', ['count' => count($productIds)]));
     }
 
     public function gallery(): Response
@@ -233,7 +233,7 @@ class CreativeStudioController extends Controller
             ->get();
 
         if ($assets->isEmpty()) {
-            return back()->with('warning', 'İndirilecek onaylı görsel yok.');
+            return back()->with('warning', __('creative::messages.studio.nothing_to_download'));
         }
 
         $disk = Storage::disk(config('creative.disk', 'public'));
@@ -241,7 +241,7 @@ class CreativeStudioController extends Controller
 
         $zip = new \ZipArchive();
         if ($zip->open($tmp, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
-            return back()->with('error', 'ZIP oluşturulamadı.');
+            return back()->with('error', __('creative::messages.studio.zip_failed'));
         }
 
         foreach ($assets as $asset) {
@@ -279,7 +279,7 @@ class CreativeStudioController extends Controller
         $this->guardNotOwnWork($asset);
 
         if ($asset->review_status !== CreativeAsset::REVIEW_PENDING) {
-            return back()->with('error', 'Bu görsel onay bekliyor durumda değil.');
+            return back()->with('error', __('creative::messages.studio.not_pending'));
         }
 
         // regenerate() review_status'u PENDING'de bırakıp status'u QUEUED yapar —
@@ -287,7 +287,7 @@ class CreativeStudioController extends Controller
         // görsel olur. status kontrolü olmadan bu onay CreativeRenderService::generate()
         // tarafından sessizce REVIEW_PENDING'e geri döndürülür.
         if ($asset->status !== CreativeAsset::STATUS_DONE) {
-            return back()->with('error', 'Görsel yeniden üretiliyor, işlem tamamlanana kadar onaylanamaz.');
+            return back()->with('error', __('creative::messages.studio.regenerating_cannot_approve'));
         }
 
         $asset->update([
@@ -298,7 +298,7 @@ class CreativeStudioController extends Controller
 
         $notifier->notifyDecision($asset, true);
 
-        return back()->with('success', 'Görsel onaylandı.');
+        return back()->with('success', __('creative::messages.studio.approved'));
     }
 
     public function reject(CreativeAsset $asset, Request $request, ReviewNotifier $notifier): RedirectResponse
@@ -306,11 +306,11 @@ class CreativeStudioController extends Controller
         $this->guardNotOwnWork($asset);
 
         if ($asset->review_status !== CreativeAsset::REVIEW_PENDING) {
-            return back()->with('error', 'Bu görsel onay bekliyor durumda değil.');
+            return back()->with('error', __('creative::messages.studio.not_pending'));
         }
 
         if ($asset->status !== CreativeAsset::STATUS_DONE) {
-            return back()->with('error', 'Görsel yeniden üretiliyor, işlem tamamlanana kadar reddedilemez.');
+            return back()->with('error', __('creative::messages.studio.regenerating_cannot_reject'));
         }
 
         $review = $this->validatedReview($request);
@@ -325,7 +325,7 @@ class CreativeStudioController extends Controller
 
         $notifier->notifyDecision($asset, false);
 
-        return back()->with('success', 'Görsel reddedildi.');
+        return back()->with('success', __('creative::messages.studio.rejected'));
     }
 
     public function regenerate(CreativeAsset $asset): RedirectResponse
@@ -346,7 +346,7 @@ class CreativeStudioController extends Controller
 
         GenerateCreativeJob::dispatch($asset->id, $asset->generation_token);
 
-        return back()->with('success', 'Görsel yeniden üretim kuyruğuna alındı.');
+        return back()->with('success', __('creative::messages.studio.regenerate_queued'));
     }
 
     public function updateCaption(CreativeAsset $asset): RedirectResponse
@@ -364,7 +364,7 @@ class CreativeStudioController extends Controller
             ]),
         ]);
 
-        return back()->with('success', 'Caption güncellendi.');
+        return back()->with('success', __('creative::messages.studio.caption_updated'));
     }
 
     private function url(?string $path): ?string

@@ -46,21 +46,21 @@ class PartnerBrandKitController extends Controller
     {
         PartnerBrandKit::create($this->payload($request));
 
-        return back()->with('success', 'İş ortağı kreatif profili oluşturuldu.');
+        return back()->with('success', __('creative::messages.partner_brand_kit.created'));
     }
 
     public function update(StorePartnerBrandKitRequest $request, PartnerBrandKit $partnerBrandKit): RedirectResponse
     {
         $partnerBrandKit->update($this->payload($request));
 
-        return back()->with('success', 'İş ortağı kreatif profili güncellendi.');
+        return back()->with('success', __('creative::messages.partner_brand_kit.updated'));
     }
 
     public function destroy(PartnerBrandKit $partnerBrandKit): RedirectResponse
     {
         $partnerBrandKit->delete();
 
-        return back()->with('success', 'İş ortağı kreatif profili silindi.');
+        return back()->with('success', __('creative::messages.partner_brand_kit.deleted'));
     }
 
     /**

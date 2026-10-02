@@ -122,29 +122,29 @@ class ProductOnModelService
         $pose      = $result->pose;
 
         if (! $product) {
-            throw new RuntimeException('Giydirme için ürün bulunamadı.');
+            throw new RuntimeException(__('creative::messages.tryon.product_not_found'));
         }
         if (! $mannequin || $mannequin->status !== Mannequin::STATUS_READY || ! $mannequin->reference_image_path) {
-            throw new RuntimeException('Manken hazır değil; önce manken kimlik görseli üretilmeli.');
+            throw new RuntimeException(__('creative::messages.tryon.mannequin_not_ready'));
         }
         if (! $pose || $pose->status !== Pose::STATUS_READY) {
-            throw new RuntimeException('Seçili poz hazır değil.');
+            throw new RuntimeException(__('creative::messages.tryon.pose_not_ready'));
         }
 
         $refPath = Media::localPath($mannequin->reference_image_path);
         if (! $refPath) {
-            throw new RuntimeException('Manken referans görseli diskte bulunamadı.');
+            throw new RuntimeException(__('creative::messages.tryon.mannequin_reference_missing'));
         }
 
         // Ekrandan ayrıca bir giysi görseli yüklendiyse (ürünün fotoğrafı yoksa ya da
         // kullanıcı farklı bir görsel istediyse) o öncelikli; yoksa ürünün kendi fotoğrafı.
         $garmentSrc = $result->garment_image_path ?: $this->pickGarmentSrc($product);
         if (! $garmentSrc) {
-            throw new RuntimeException('Ürünün giydirilecek bir görseli yok.');
+            throw new RuntimeException(__('creative::messages.tryon.product_has_no_image'));
         }
         $garmentPath = $this->resolver->toLocalPath($garmentSrc);
         if (! $garmentPath) {
-            throw new RuntimeException('Ürün görseli yerel yola çözülemedi.');
+            throw new RuntimeException(__('creative::messages.tryon.product_image_unresolvable'));
         }
 
         // Python (Pillow) ile EXIF düzeltme + düz arka plan kırpma + boyut sınırlama.
@@ -320,13 +320,13 @@ class ProductOnModelService
     public function publish(TryonResult $result): TryonResult
     {
         if (! $result->staged_image_path) {
-            throw new RuntimeException('Onaylanacak bir görsel yok; önce üretim tamamlanmalı.');
+            throw new RuntimeException(__('creative::messages.tryon.nothing_to_approve'));
         }
 
         $product = $result->product;
         $pose    = $result->pose;
         if (! $product) {
-            throw new RuntimeException('Giydirme için ürün bulunamadı.');
+            throw new RuntimeException(__('creative::messages.tryon.product_not_found'));
         }
 
         $oldImageId = $result->product_image_id;
@@ -412,7 +412,7 @@ class ProductOnModelService
     {
         $bytes = @file_get_contents($sourcePath);
         if ($bytes === false || $bytes === '') {
-            throw new RuntimeException('Giydirme çıktısı okunamadı.');
+            throw new RuntimeException(__('creative::messages.tryon.output_unreadable'));
         }
 
         $encoded = ImageFile::encode(
@@ -437,7 +437,7 @@ class ProductOnModelService
         // kök neden: storage/app altında root sahipli kalıntı dosyalar). Artık açıkça
         // kontrol ediliyor.
         if ($disk->put($rel, $encoded['bytes']) === false) {
-            throw new RuntimeException("Giydirme çıktısı diske yazılamadı: {$rel} (izin sorunu olabilir).");
+            throw new RuntimeException(__('creative::messages.tryon.output_write_failed', ['path' => $rel]));
         }
 
         return $rel;

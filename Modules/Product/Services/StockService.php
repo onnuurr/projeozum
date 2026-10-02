@@ -63,7 +63,7 @@ class StockService
 
             $after = $before + $signed;
             if ($after < 0) {
-                abort(422, 'Stok negatife düşemez.');
+                abort(422, __('product::messages.stock_negative'));
             }
 
             $stock->update(['quantity' => $after]);
@@ -185,7 +185,7 @@ class StockService
                 type: StockMovement::TYPE_OUT,
                 qty: $take,
                 reference: $order,
-                note: 'Sipariş kesimi',
+                note: __('product::messages.stock_notes.order_deduction'),
             );
 
             $remaining -= $take;
@@ -222,7 +222,7 @@ class StockService
                     type: StockMovement::TYPE_IN,
                     qty: abs($out->quantity),
                     reference: $order,
-                    note: 'Sipariş iptali - stok iadesi',
+                    note: __('product::messages.stock_notes.order_cancel_return'),
                 );
             }
         });

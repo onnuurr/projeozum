@@ -14,10 +14,6 @@ class InvalidOrderTransitionException extends RuntimeException
         public readonly string $from,
         public readonly string $to,
     ) {
-        parent::__construct(sprintf(
-            '"%s" durumundan "%s" durumuna geçiş yapılamaz.',
-            $from,
-            $to,
-        ));
+        parent::__construct(__('product::messages.invalid_transition', ['from' => $from, 'to' => $to]));
     }
 }

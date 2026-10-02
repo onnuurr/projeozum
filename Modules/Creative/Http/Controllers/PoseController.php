@@ -50,7 +50,7 @@ class PoseController extends Controller
             GeneratePosePreviewJob::dispatch($pose->id);
         }
 
-        return back()->with('success', $seeded->count() . ' poz önizlemesi üretim kuyruğuna alındı.');
+        return back()->with('success', __('creative::messages.pose.previews_queued', ['count' => $seeded->count()]));
     }
 
     /**
@@ -70,7 +70,7 @@ class PoseController extends Controller
 
         GeneratePosePreviewJob::dispatch($pose->id);
 
-        return back()->with('success', 'Poz eklendi, önizleme kuyruğa alındı.');
+        return back()->with('success', __('creative::messages.pose.created'));
     }
 
     public function regenerate(Pose $pose): RedirectResponse
@@ -79,7 +79,7 @@ class PoseController extends Controller
 
         GeneratePosePreviewJob::dispatch($pose->id);
 
-        return back()->with('success', 'Poz önizlemesi yeniden üretim kuyruğuna alındı.');
+        return back()->with('success', __('creative::messages.pose.regenerate_queued'));
     }
 
     public function destroy(Pose $pose): RedirectResponse
@@ -90,7 +90,7 @@ class PoseController extends Controller
 
         $pose->delete();
 
-        return back()->with('success', 'Poz silindi.');
+        return back()->with('success', __('creative::messages.pose.deleted'));
     }
 
     private function uniqueKey(string $label): string

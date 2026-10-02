@@ -118,11 +118,11 @@ class PatternController extends Controller
         }
 
         $parts = [];
-        if ($imported > 0) { $parts[] = "{$imported} PDF incelemeye alındı"; }
-        if (! empty($skipped)) { $parts[] = 'atlandı (boş/geçersiz): ' . implode(', ', $skipped); }
+        if ($imported > 0) { $parts[] = __('patternengine::messages.pattern.pdf_queued_part', ['count' => $imported]); }
+        if (! empty($skipped)) { $parts[] = __('patternengine::messages.pattern.skipped_part', ['files' => implode(', ', $skipped)]); }
 
         if ($imported === 0) {
-            return back()->with('error', 'Hiçbir PDF işlenemedi. ' . implode('; ', $parts));
+            return back()->with('error', __('patternengine::messages.pattern.no_pdf_processed', ['details' => implode('; ', $parts)]));
         }
 
         return redirect()->route('atelier.patterns.index')->with('success', implode('; ', $parts) . '.');
@@ -152,7 +152,7 @@ class PatternController extends Controller
         $count = count($request->file('files'));
 
         return redirect()->route('atelier.patterns.index')
-            ->with('success', "{$count} fotoğraf incelemeye alındı.");
+            ->with('success', __('patternengine::messages.pattern.photos_queued', ['count' => $count]));
     }
 
     /**
@@ -167,10 +167,10 @@ class PatternController extends Controller
         } catch (\Throwable $e) {
             report($e);
 
-            return back()->withErrors(['url' => 'İçe aktarılamadı: ' . $e->getMessage()]);
+            return back()->withErrors(['url' => __('patternengine::messages.pattern.import_failed', ['error' => $e->getMessage()])]);
         }
 
-        return redirect()->route('atelier.patterns.index')->with('success', 'Linkten kalıp içe aktarıldı, inceleniyor.');
+        return redirect()->route('atelier.patterns.index')->with('success', __('patternengine::messages.pattern.imported_from_link'));
     }
 
     /**
@@ -179,7 +179,7 @@ class PatternController extends Controller
     public function retryExtraction(Pattern $pattern): RedirectResponse
     {
         if ($pattern->extraction_status !== Pattern::EXTRACTION_FAILED || ! $pattern->pdf_path) {
-            return back()->withErrors(['extraction' => 'Yalnızca çıkarımı başarısız taslaklar yeniden denenebilir.']);
+            return back()->withErrors(['extraction' => __('patternengine::messages.pattern.only_failed_retry')]);
         }
 
         $pattern->update([
@@ -188,7 +188,7 @@ class PatternController extends Controller
         ]);
         ExtractPatternFromPdfJob::dispatch($pattern->id);
 
-        return redirect()->route('atelier.patterns.index')->with('success', 'Çıkarım yeniden başlatıldı.');
+        return redirect()->route('atelier.patterns.index')->with('success', __('patternengine::messages.pattern.extraction_restarted'));
     }
 
     /**
@@ -226,7 +226,7 @@ class PatternController extends Controller
         try {
             $png = $this->converter->renderPage($abs, $page, $dpi);
         } catch (\Throwable $e) {
-            abort(502, 'Sayfa render edilemedi: ' . $e->getMessage());
+            abort(502, __('patternengine::messages.pattern.page_render_failed', ['error' => $e->getMessage()]));
         }
 
         return response($png, 200)->header('Content-Type', 'image/png');
@@ -262,7 +262,7 @@ class PatternController extends Controller
         try {
             $dxf = $this->converter->buildDxf($polylines);
         } catch (\Throwable $e) {
-            return back()->withErrors(['trace' => 'DXF üretilemedi: ' . $e->getMessage()]);
+            return back()->withErrors(['trace' => __('patternengine::messages.pattern.dxf_failed', ['error' => $e->getMessage()])]);
         }
 
         $this->library->applyTracedDxf($pattern, $dxf, [
@@ -271,7 +271,7 @@ class PatternController extends Controller
             'size_range'   => $v['size_range'] ?? null,
         ], $parts);
 
-        return redirect()->route('atelier.patterns.index')->with('success', 'Kalıp sayısallaştırıldı.');
+        return redirect()->route('atelier.patterns.index')->with('success', __('patternengine::messages.pattern.digitized'));
     }
 
     public function store(Request $request): RedirectResponse
@@ -280,7 +280,7 @@ class PatternController extends Controller
 
         $this->library->create($data, $files, $parts, $tags, $request->user()?->id);
 
-        return redirect()->route('atelier.patterns.index')->with('success', 'Kalıp eklendi.');
+        return redirect()->route('atelier.patterns.index')->with('success', __('patternengine::messages.pattern.created'));
     }
 
     public function update(Request $request, Pattern $pattern): RedirectResponse
@@ -289,14 +289,14 @@ class PatternController extends Controller
 
         $this->library->update($pattern, $data, $files, $parts, $tags);
 
-        return redirect()->route('atelier.patterns.index')->with('success', 'Kalıp güncellendi.');
+        return redirect()->route('atelier.patterns.index')->with('success', __('patternengine::messages.pattern.updated'));
     }
 
     public function destroy(Pattern $pattern): RedirectResponse
     {
         $this->library->delete($pattern);
 
-        return redirect()->route('atelier.patterns.index')->with('success', 'Kalıp silindi.');
+        return redirect()->route('atelier.patterns.index')->with('success', __('patternengine::messages.pattern.deleted'));
     }
 
     /**

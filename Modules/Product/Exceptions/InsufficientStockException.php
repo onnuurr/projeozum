@@ -15,11 +15,10 @@ class InsufficientStockException extends RuntimeException
         public readonly int $requested,
         public readonly int $available,
     ) {
-        parent::__construct(sprintf(
-            'Varyant #%d için yeterli stok yok (istenen: %d, mevcut: %d).',
-            $variantId,
-            $requested,
-            $available,
-        ));
+        parent::__construct(__('product::messages.insufficient_stock', [
+            'variant' => $variantId,
+            'requested' => $requested,
+            'available' => $available,
+        ]));
     }
 }

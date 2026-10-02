@@ -16,11 +16,11 @@ class BarcodeGenerationException extends RuntimeException
 {
     public static function misconfigured(string $reason): self
     {
-        return new self("Barkod ayarları hatalı: {$reason}");
+        return new self(__('product::messages.barcode_misconfigured', ['reason' => $reason]));
     }
 
     public static function rangeExhausted(int $min, int $max): self
     {
-        return new self("Belirlenen barkod aralığında ({$min}-{$max}) boş seri numarası kalmadı.");
+        return new self(__('product::messages.barcode_range_exhausted', ['min' => $min, 'max' => $max]));
     }
 }

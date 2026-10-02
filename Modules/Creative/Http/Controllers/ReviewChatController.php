@@ -55,7 +55,7 @@ class ReviewChatController extends Controller
         return $this->renderChatPage(
             subjectType: 'tryon',
             subjectId: $result->id,
-            title: $result->product?->name ?? 'Ürün',
+            title: $result->product?->name ?? __('creative::labels.product_fallback'),
             imageUrl: Media::url($result->staged_image_path),
             reviewNote: $result->review_note,
             reviewTags: $result->review_tags ?? [],
@@ -73,7 +73,7 @@ class ReviewChatController extends Controller
         return $this->renderChatPage(
             subjectType: 'asset',
             subjectId: $asset->id,
-            title: $asset->product?->name ?? 'Ürün',
+            title: $asset->product?->name ?? __('creative::labels.product_fallback'),
             imageUrl: Media::url($asset->image_path),
             reviewNote: $asset->review_note,
             reviewTags: $asset->review_tags ?? [],
@@ -119,7 +119,7 @@ class ReviewChatController extends Controller
 
         $chat->converse($mannequin, auth()->user(), $this->validatedMessage($request));
 
-        return back()->with('success', 'Mesaj gönderildi.');
+        return back()->with('success', __('creative::messages.review_chat.sent'));
     }
 
     public function sendTryon(TryonResult $result, Request $request, ReviewChatService $chat): RedirectResponse
@@ -128,7 +128,7 @@ class ReviewChatController extends Controller
 
         $chat->converse($result, auth()->user(), $this->validatedMessage($request));
 
-        return back()->with('success', 'Mesaj gönderildi.');
+        return back()->with('success', __('creative::messages.review_chat.sent'));
     }
 
     public function sendAsset(CreativeAsset $asset, Request $request, ReviewChatService $chat): RedirectResponse
@@ -137,7 +137,7 @@ class ReviewChatController extends Controller
 
         $chat->converse($asset, auth()->user(), $this->validatedMessage($request));
 
-        return back()->with('success', 'Mesaj gönderildi.');
+        return back()->with('success', __('creative::messages.review_chat.sent'));
     }
 
     /**
@@ -150,7 +150,7 @@ class ReviewChatController extends Controller
 
         $suggestion = $chat->latestSuggestion($mannequin);
         if (! $suggestion) {
-            return back()->with('error', 'Henüz uygulanabilir bir düzeltme talimatı yok; sohbete devam edin.');
+            return back()->with('error', __('creative::messages.review_chat.no_instruction'));
         }
 
         $mannequin->update([
@@ -166,7 +166,7 @@ class ReviewChatController extends Controller
 
         GenerateMannequinJob::dispatch($mannequin->id);
 
-        return redirect('/creative/mannequins')->with('success', 'Talimat uygulandı, manken yeniden üretim kuyruğuna alındı.');
+        return redirect('/creative/mannequins')->with('success', __('creative::messages.review_chat.applied_mannequin'));
     }
 
     /**
@@ -179,7 +179,7 @@ class ReviewChatController extends Controller
 
         $suggestion = $chat->latestSuggestion($result);
         if (! $suggestion) {
-            return back()->with('error', 'Henüz uygulanabilir bir düzeltme talimatı yok; sohbete devam edin.');
+            return back()->with('error', __('creative::messages.review_chat.no_instruction'));
         }
 
         // Yeni bir generation_token: ProductOnModelService::queue() ile aynı korumaya
@@ -199,7 +199,7 @@ class ReviewChatController extends Controller
 
         GenerateOnModelJob::dispatch($result->id, $result->generation_token);
 
-        return redirect('/creative/tryon')->with('success', 'Talimat uygulandı, görsel yeniden üretim kuyruğuna alındı.');
+        return redirect('/creative/tryon')->with('success', __('creative::messages.review_chat.applied_image'));
     }
 
     /**
@@ -212,7 +212,7 @@ class ReviewChatController extends Controller
 
         $suggestion = $chat->latestSuggestion($asset);
         if (! $suggestion) {
-            return back()->with('error', 'Henüz uygulanabilir bir düzeltme talimatı yok; sohbete devam edin.');
+            return back()->with('error', __('creative::messages.review_chat.no_instruction'));
         }
 
         // Yeni bir generation_token: ProductOnModelService::queue() ile aynı korumaya
@@ -232,7 +232,7 @@ class ReviewChatController extends Controller
 
         GenerateCreativeJob::dispatch($asset->id, $asset->generation_token);
 
-        return redirect('/creative/gallery')->with('success', 'Talimat uygulandı, görsel yeniden üretim kuyruğuna alındı.');
+        return redirect('/creative/gallery')->with('success', __('creative::messages.review_chat.applied_image'));
     }
 
     private function authorizeChat(Mannequin|TryonResult|CreativeAsset $subject): void
@@ -241,7 +241,7 @@ class ReviewChatController extends Controller
         $isCreator  = $subject->created_by !== null && $subject->created_by === $user->id;
         $isReviewer = $user->can('creative.approve');
 
-        abort_unless($isCreator || $isReviewer, 403, 'Bu sohbete erişim yetkiniz yok.');
+        abort_unless($isCreator || $isReviewer, 403, __('creative::messages.review_chat.forbidden'));
 
         if ($subject->review_status !== $subject::REVIEW_REJECTED) {
             $back = match (true) {
@@ -249,7 +249,7 @@ class ReviewChatController extends Controller
                 $subject instanceof CreativeAsset => '/creative/gallery',
                 default => '/creative/tryon',
             };
-            abort(redirect($back)->with('error', 'Görselin durumu değiştiği için sohbet kullanılamıyor.'));
+            abort(redirect($back)->with('error', __('creative::messages.review_chat.status_changed')));
         }
     }
 

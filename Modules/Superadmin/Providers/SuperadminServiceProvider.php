@@ -3,13 +3,17 @@
 namespace Modules\Superadmin\Providers;
 
 use App\Contracts\PlatformSettings;
+use App\Contracts\TranslationSource;
 use Illuminate\Support\Facades\Schema;
 use Modules\Superadmin\Console\Commands\BackupRunCommand;
+use Modules\Superadmin\Console\Commands\CheckVersionsCommand;
 use Modules\Superadmin\Contracts\ArchitectureDoctorFixerRunner;
 use Modules\Superadmin\Models\Setting;
 use Modules\Superadmin\Services\ArchitectureDoctorFixer\ClaudeCliFixerRunner;
 use Modules\Superadmin\Services\ArchitectureDoctorFixer\MockFixerRunner;
 use Modules\Superadmin\Services\PlatformSettingsStore;
+use Modules\Superadmin\Services\Translations\SaasTranslationSource;
+use Modules\Superadmin\Services\Translations\TranslationService;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 use Throwable;
 
@@ -32,6 +36,7 @@ class SuperadminServiceProvider extends ModuleServiceProvider
      */
     protected array $commands = [
         BackupRunCommand::class,
+        CheckVersionsCommand::class,
     ];
 
     /**
@@ -50,6 +55,10 @@ class SuperadminServiceProvider extends ModuleServiceProvider
 
         // Superadmin'e bağımlı olamayan modüllerin (Bagisto) ayar erişimi — bkz. App\Contracts\PlatformSettings.
         $this->app->bind(PlatformSettings::class, PlatformSettingsStore::class);
+
+        // Dil Dosyaları editörünün kaynakları etiketle toplanır (Bagisto kendi kaynağını ekler).
+        $this->app->tag([SaasTranslationSource::class], TranslationSource::TAG);
+        $this->app->bind(TranslationService::class, fn ($app) => new TranslationService($app->tagged(TranslationSource::TAG)));
 
         // enabled + gerçek sürücü isteniyorsa Claude CLI, aksi halde (varsayılan)
         // hiçbir şeye dokunmayan Mock — Modules/Creative'deki Gemini/Mock

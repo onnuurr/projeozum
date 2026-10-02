@@ -35,7 +35,7 @@ class UpdateCarrierRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'code.regex' => 'Kod yalnızca büyük harf, rakam, tire ve alt çizgi içerebilir.',
+            'code.regex' => __('product::messages.validation.code_format'),
         ];
     }
 }

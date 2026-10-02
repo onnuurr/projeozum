@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, inject, onMounted, onBeforeUnmount } from 'vue'
 import { Head, Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import {
@@ -44,15 +44,35 @@ const reverb = computed(() => ({
 	port: liveSystem.value.reverb?.port ?? 8080,
 }))
 
+// Her satırın durumu VersionCheckService'ten (config: superadmin.version_policy) gelir.
+const VERSION_TONE = { ok: 'success', warning: 'warning', critical: 'danger', unknown: 'neutral' }
+const VERSION_LABEL = { ok: 'Güncel', warning: 'Dikkat', critical: 'Kritik', unknown: 'Bilinmiyor' }
+const versionCheck = (key) => liveSystem.value.versionChecks?.components?.[key] ?? null
 const versions = computed(() => [
-	['PHP', liveSystem.value.phpVersion],
-	['Laravel', liveSystem.value.laravelVersion],
-	['Inertia.js', liveSystem.value.inertiaVersion],
-	['Vue.js', liveSystem.value.vueVersion],
-	['Veritabanı', liveSystem.value.mysqlVersion],
-	['Redis', liveSystem.value.redisVersion],
-	['Web sunucu', liveSystem.value.webServer],
-])
+	['php', 'PHP', liveSystem.value.phpVersion],
+	['laravel', 'Laravel', liveSystem.value.laravelVersion],
+	['inertia', 'Inertia.js', liveSystem.value.inertiaVersion],
+	['vue', 'Vue.js', liveSystem.value.vueVersion],
+	['database', 'Veritabanı', liveSystem.value.mysqlVersion],
+	['redis', 'Redis', liveSystem.value.redisVersion],
+	['webServer', 'Web sunucu', liveSystem.value.webServer],
+].map(([key, label, value]) => ({ key, label, value, check: versionCheck(key) })))
+const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('tr-TR') : null)
+const showToast = inject('showToast', null)
+// Komut sadece panoya kopyalanır; panel hiçbir güncellemeyi kendisi çalıştırmaz.
+function copyCommand(cmd) {
+	navigator.clipboard?.writeText(cmd)
+	showToast?.({ type: 'success', title: 'Kopyalandı', message: 'Komut panoya kopyalandı; sunucuda çalıştırabilirsiniz.' })
+}
+const aptListsUpdatedAt = computed(() => fmtDate(liveSystem.value.versionChecks?.aptListsUpdatedAt))
+const versionSummary = computed(() => {
+	const st = liveSystem.value.versionChecks?.status
+	if (!st) return null
+	const label = st === 'ok' ? 'Tümü güncel' : st === 'critical' ? 'Kritik güncelleme var' : st === 'warning' ? 'Güncelleme önerilir' : 'Bazı sürümler bilinmiyor'
+	// Yayın verisi arka planda (superadmin:check-versions, haftalık) yenilenir; yoksa statik politikaya göre değerlendirilir.
+	const at = liveSystem.value.versionChecks?.releasesCheckedAt
+	return { tone: VERSION_TONE[st], label: at ? `${label} · son kontrol ${new Date(at).toLocaleDateString('tr-TR')}` : label }
+})
 
 const failed = computed(() => Number(liveSystem.value.queueJobsFailed) || 0)
 const stats = computed(() => [
@@ -144,13 +164,32 @@ const quickLinks = [
 			</div>
 		</OzCard>
 
-		<OzCard title="Yazılım sürümleri">
-			<dl class="versions">
-				<template v-for="[k, v] in versions" :key="k">
-					<dt>{{ k }}</dt>
-					<dd>{{ v || '—' }}</dd>
-				</template>
-			</dl>
+		<OzCard title="Yazılım sürümleri" :subtitle="versionSummary?.label">
+			<ul class="versions">
+				<li v-for="v in versions" :key="v.key" class="version-row">
+					<div class="version-head">
+						<span class="version-name">{{ v.label }}</span>
+						<span class="version-value">
+							{{ v.value || '—' }}
+							<template v-if="v.check?.updateAvailable"> → <b>{{ v.check.latest }}</b></template>
+						</span>
+						<OzPill v-if="v.check" :tone="VERSION_TONE[v.check.status]">{{ VERSION_LABEL[v.check.status] }}</OzPill>
+					</div>
+					<p v-if="v.check" class="version-note">
+						<span v-if="v.check.packageSource" class="version-source">{{ v.check.packageSource }} · </span>{{ v.check.message }}
+						<span v-if="v.check.eol && v.check.status === 'ok'"> Destek bitişi: {{ fmtDate(v.check.eol) }}.</span>
+					</p>
+					<div v-if="v.check?.updateCommand || v.check?.updateNote" class="version-howto">
+						<span class="version-howto-title">Nasıl güncellenir</span>
+						<div v-if="v.check.updateCommand" class="version-cmd">
+							<code>{{ v.check.updateCommand }}</code>
+							<OzButton size="sm" icon="copy" :aria-label="`${v.label} güncelleme komutunu kopyala`" @click="copyCommand(v.check.updateCommand)" />
+						</div>
+						<p v-if="v.check.updateNote" class="version-howto-note">{{ v.check.updateNote }}</p>
+					</div>
+				</li>
+			</ul>
+			<p v-if="aptListsUpdatedAt" class="version-foot">Sistem paketleri apt deposuna göre değerlendirilir · paket listeleri son yenilenme: {{ aptListsUpdatedAt }}</p>
 		</OzCard>
 	</div>
 
@@ -179,11 +218,21 @@ const quickLinks = [
 .uptime .k { font-size: 12px; font-weight: 600; color: var(--oz-ink-soft); }
 .uptime b { font-size: 15px; font-weight: 800; color: var(--oz-ink-soft); }
 
-.versions { display: grid; grid-template-columns: auto 1fr; margin: 0; padding: 0 18px 12px; }
-.versions dt, .versions dd { padding: 9px 0; border-top: 1px solid var(--oz-border-soft); font-size: 12.5px; }
-.versions dt:first-of-type, .versions dd:first-of-type { border-top: none; }
-.versions dt { color: var(--oz-muted); }
-.versions dd { margin: 0; text-align: right; font-family: ui-monospace, monospace; font-size: 12px; color: var(--oz-ink-soft); }
+.versions { list-style: none; margin: 0; padding: 0 18px 12px; }
+.version-row { padding: 9px 0; border-top: 1px solid var(--oz-border-soft); }
+.version-row:first-child { border-top: none; }
+.version-head { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
+.version-name { color: var(--oz-muted); }
+.version-value { margin-left: auto; font-family: ui-monospace, monospace; font-size: 12px; color: var(--oz-ink-soft); text-align: right; }
+.version-value b { font-weight: 700; color: var(--oz-ink); }
+.version-note { margin: 4px 0 0; font-size: 11px; line-height: 1.4; color: var(--oz-muted); }
+.version-howto { margin-top: 6px; padding: 8px 10px; border-radius: 10px; background: var(--oz-surface-2); border: 1px solid var(--oz-border-soft); }
+.version-howto-title { display: block; margin-bottom: 4px; font-size: 10.5px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; color: var(--oz-muted); }
+.version-cmd { display: flex; align-items: center; gap: 6px; }
+.version-cmd code { flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; font-family: ui-monospace, monospace; font-size: 11px; color: var(--oz-ink-soft); }
+.version-howto-note { margin: 4px 0 0; font-size: 11px; line-height: 1.4; color: var(--oz-muted); }
+.version-source { font-weight: 600; color: var(--oz-ink-soft); }
+.version-foot { margin: 0; padding: 0 18px 14px; font-size: 11px; color: var(--oz-muted); }
 
 .quick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 0 18px 18px; }
 

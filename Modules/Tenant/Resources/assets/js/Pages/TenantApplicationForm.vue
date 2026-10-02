@@ -91,7 +91,7 @@ function submit() {
 					<div class="section">Firma</div>
 					<div class="grid-2">
 						<OzField label="Firma / marka adı" required :error="form.errors.name">
-							<OzInput v-model="form.name" maxlength="191" autocomplete="organization" autofocus />
+							<OzInput v-model="form.name" v-autofocus maxlength="191" autocomplete="organization" />
 						</OzField>
 						<OzField label="Yasal unvan" :error="form.errors.legal_name">
 							<OzInput v-model="form.legal_name" maxlength="255" />

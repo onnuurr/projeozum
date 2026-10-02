@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, watch, nextTick, onMounted } from 'vue';
+import { isTouchPrimary } from '@/Components/Oz/ozTouch';
 
 const props = defineProps({
     modelValue: { type: String, default: '' },
@@ -105,7 +106,8 @@ function focus() {
 defineExpose({ focus });
 
 onMounted(() => {
-    if (props.autofocus) focus();
+    // Dokunmatikte otomatik odak sanal klavyeyi açıp ekranı kapatır (bkz. ozTouch.js).
+    if (props.autofocus && !isTouchPrimary()) focus();
 });
 </script>
 

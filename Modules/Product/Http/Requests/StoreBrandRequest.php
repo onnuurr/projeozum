@@ -31,7 +31,7 @@ class StoreBrandRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'slug.regex' => 'Slug yalnızca küçük harf, rakam ve tire içerebilir.',
+            'slug.regex' => __('product::messages.validation.slug_format'),
         ];
     }
 

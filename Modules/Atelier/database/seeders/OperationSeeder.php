@@ -10,7 +10,7 @@ class OperationSeeder extends Seeder
     public function run(): void
     {
         $operations = [
-            ['code' => 'kesim',  'name' => 'Kesim',          'default_location' => 'in_house', 'sort_order' => 10],
+            ['code' => 'kesim',  'name' => 'Kesim',          'default_location' => 'in_house', 'consumes_materials' => true, 'sort_order' => 10],
             ['code' => 'dikim',  'name' => 'Dikim',          'default_location' => 'fason',    'sort_order' => 20],
             ['code' => 'baski',  'name' => 'Baskı',          'default_location' => 'fason',    'sort_order' => 30],
             ['code' => 'nakis',  'name' => 'Nakış',          'default_location' => 'fason',    'sort_order' => 40],

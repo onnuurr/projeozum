@@ -68,19 +68,19 @@
 					</label>
 					<label class="field">
 						<span class="field-label">Boy (cm)</span>
-						<input v-model.number="form.height_cm" type="number" min="30" max="260" placeholder="örn. 175" />
+						<input v-model.number="form.height_cm" type="number" inputmode="numeric" min="30" max="260" placeholder="örn. 175" />
 					</label>
 					<label class="field">
 						<span class="field-label">Göğüs (cm)</span>
-						<input v-model.number="form.bust_cm" type="number" min="20" max="200" placeholder="örn. 90" />
+						<input v-model.number="form.bust_cm" type="number" inputmode="numeric" min="20" max="200" placeholder="örn. 90" />
 					</label>
 					<label class="field">
 						<span class="field-label">Bel (cm)</span>
-						<input v-model.number="form.waist_cm" type="number" min="20" max="200" placeholder="örn. 62" />
+						<input v-model.number="form.waist_cm" type="number" inputmode="numeric" min="20" max="200" placeholder="örn. 62" />
 					</label>
 					<label class="field">
 						<span class="field-label">Kalça (cm)</span>
-						<input v-model.number="form.hips_cm" type="number" min="20" max="200" placeholder="örn. 92" />
+						<input v-model.number="form.hips_cm" type="number" inputmode="numeric" min="20" max="200" placeholder="örn. 92" />
 					</label>
 					<label class="field field-wide">
 						<span class="field-label">Ek tarif (opsiyonel)</span>

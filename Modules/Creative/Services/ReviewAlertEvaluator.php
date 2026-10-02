@@ -21,40 +21,35 @@ use Illuminate\Support\Arr;
 class ReviewAlertEvaluator
 {
     /**
-     * @var array<int,array{subject:string,label:string,rate_path:array<int,string>,sample_path:array<int,string>,threshold_key:string}>
+     * @var array<int,array{subject:string,rate_path:array<int,string>,sample_path:array<int,string>,threshold_key:string}>
      */
     private const SCALAR_METRICS = [
         [
             'subject'       => 'tryon_results',
-            'label'         => 'Giydirme',
             'rate_path'     => ['tryon_results', 'rejection_rate'],
             'sample_path'   => ['tryon_results', 'total_reviewed'],
             'threshold_key' => 'rejection_rate',
         ],
         [
             'subject'       => 'mannequins',
-            'label'         => 'Manken',
             'rate_path'     => ['mannequins', 'rejection_rate'],
             'sample_path'   => ['mannequins', 'total_reviewed'],
             'threshold_key' => 'rejection_rate',
         ],
         [
             'subject'       => 'creative_assets',
-            'label'         => 'Creative Studio',
             'rate_path'     => ['creative_assets', 'rejection_rate'],
             'sample_path'   => ['creative_assets', 'total_reviewed'],
             'threshold_key' => 'rejection_rate',
         ],
         [
             'subject'       => 'detection_summary',
-            'label'         => 'Giysi parça tespiti',
             'rate_path'     => ['detection_summary', 'zero_detection_rate'],
             'sample_path'   => ['detection_summary', 'total_scans'],
             'threshold_key' => 'zero_detection_rate',
         ],
         [
             'subject'       => 'color_audit_summary',
-            'label'         => 'Renk sadakati',
             'rate_path'     => ['color_audit_summary', 'over_warn_rate'],
             'sample_path'   => ['color_audit_summary', 'high_confidence'],
             'threshold_key' => 'color_over_warn_rate',
@@ -62,12 +57,12 @@ class ReviewAlertEvaluator
     ];
 
     /**
-     * @var array<int,array{subject:string,label:string}>
+     * @var array<int,array{subject:string}>
      */
     private const TAG_SUBJECTS = [
-        ['subject' => 'tryon_results', 'label' => 'Giydirme'],
-        ['subject' => 'mannequins', 'label' => 'Manken'],
-        ['subject' => 'creative_assets', 'label' => 'Creative Studio'],
+        ['subject' => 'tryon_results'],
+        ['subject' => 'mannequins'],
+        ['subject' => 'creative_assets'],
     ];
 
     /**
@@ -103,7 +98,7 @@ class ReviewAlertEvaluator
             if ($hit !== null) {
                 $alerts[] = [
                     'subject'       => $metric['subject'],
-                    'subject_label' => $metric['label'],
+                    'subject_label' => __('creative::labels.review_subjects.'.$metric['subject']),
                     'type'          => $metric['threshold_key'],
                     'label'         => $this->scalarLabel($metric['threshold_key']),
                     'rate'          => $hit['rate'],
@@ -142,9 +137,9 @@ class ReviewAlertEvaluator
                 if ($hit !== null) {
                     $alerts[] = [
                         'subject'       => $tagSubject['subject'],
-                        'subject_label' => $tagSubject['label'],
+                        'subject_label' => __('creative::labels.review_subjects.'.$tagSubject['subject']),
                         'type'          => 'tag_rejection_rate',
-                        'label'         => "Ret etiketi: {$tag}",
+                        'label'         => __('creative::labels.review_metrics.tag', ['tag' => $tag]),
                         'rate'          => $hit['rate'],
                         'threshold'     => $threshold,
                         'streak'        => $needed,
@@ -192,10 +187,8 @@ class ReviewAlertEvaluator
     private function scalarLabel(string $thresholdKey): string
     {
         return match ($thresholdKey) {
-            'rejection_rate'       => 'Genel ret oranı',
-            'zero_detection_rate'  => 'Sıfır tespit oranı',
-            'color_over_warn_rate' => 'Delta E eşik üstü oranı',
-            default                => $thresholdKey,
+            'rejection_rate', 'zero_detection_rate', 'color_over_warn_rate' => __('creative::labels.review_metrics.'.$thresholdKey),
+            default => $thresholdKey,
         };
     }
 }

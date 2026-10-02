@@ -97,6 +97,26 @@ class MenuSeeder extends Seeder
             ],
         );
 
+        // SaaS + Bagisto dil dosyaları editörü (bkz. TranslationController).
+        // Yalnız translations.manage iznine sahip hesaplar (superadmin) görür. "Süper Admin Paneli"
+        // kökü (superadmin.index) Menüler ekranından oluşturulmuş olabilir; yoksa kök menü kalabalığı
+        // yapmamak için atlanır (canlı DB'ye 2026_09_28_220000 migration'ı ekledi).
+        $superadminRoot = Menu::where('route_name', 'superadmin.index')->value('id');
+        if ($superadminRoot) {
+            Menu::firstOrCreate(
+                ['route_name' => 'superadmin.translations.index'],
+                [
+                    'parent_id'  => $superadminRoot,
+                    'label'      => 'Dil Dosyaları',
+                    'icon'       => null,
+                    'url'        => null,
+                    'permission' => 'translations.manage',
+                    'sort_order' => 7,
+                    'is_active'  => true,
+                ],
+            );
+        }
+
         // Creative ret ekranındaki "düzeltilmesi gereken alan" seçim maddelerinin
         // yönetimi. Yalnız creative.rejection-reasons.manage izni (superadmin) görür.
         Menu::firstOrCreate(

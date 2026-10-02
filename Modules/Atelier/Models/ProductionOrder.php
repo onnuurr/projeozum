@@ -23,14 +23,14 @@ class ProductionOrder extends Model
     protected $table = 'production_orders';
 
     protected $fillable = [
-        'code', 'product_id', 'warehouse_id', 'status', 'planned_qty', 'produced_qty',
+        'code', 'product_id', 'warehouse_id', 'status', 'planned_qty', 'received_qty',
         'planned_start', 'due_date', 'material_cost', 'fason_cost', 'labor_cost',
-        'total_cost', 'unit_cost', 'notes', 'created_by',
+        'total_cost', 'unit_cost', 'closed_at', 'closed_by', 'notes', 'created_by',
     ];
 
     protected $casts = [
         'planned_qty'   => 'integer',
-        'produced_qty'  => 'integer',
+        'received_qty'  => 'integer',
         'planned_start' => 'date',
         'due_date'      => 'date',
         'material_cost' => 'decimal:2',
@@ -38,6 +38,7 @@ class ProductionOrder extends Model
         'labor_cost'    => 'decimal:2',
         'total_cost'    => 'decimal:2',
         'unit_cost'     => 'decimal:2',
+        'closed_at'     => 'datetime',
     ];
 
     public function product(): BelongsTo
@@ -58,6 +59,16 @@ class ProductionOrder extends Model
     public function steps(): HasMany
     {
         return $this->hasMany(ProductionOrderStep::class)->orderBy('sequence');
+    }
+
+    public function materials(): HasMany
+    {
+        return $this->hasMany(ProductionOrderMaterial::class);
+    }
+
+    public function isOpen(): bool
+    {
+        return in_array($this->status, [self::STATUS_DRAFT, self::STATUS_PLANNED, self::STATUS_IN_PROGRESS], true);
     }
 
     public function creator(): BelongsTo

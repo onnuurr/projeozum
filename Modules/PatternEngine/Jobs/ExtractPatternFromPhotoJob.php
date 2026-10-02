@@ -56,7 +56,7 @@ class ExtractPatternFromPhotoJob implements ShouldQueue
         try {
             $abs = Media::localPath($pattern->photo_path);
             if (! $abs) {
-                throw new \RuntimeException('Kalıp fotoğrafı diskte bulunamadı: ' . $pattern->photo_path);
+                throw new \RuntimeException(__('patternengine::messages.pattern.photo_missing_on_disk', ['path' => $pattern->photo_path]));
             }
             $result = $converter->convertPhoto($abs, $this->markerMm);
             $library->applyExtraction($pattern, $result);

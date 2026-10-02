@@ -126,7 +126,7 @@ class PatternLibraryService
 
             $msg = ! empty($result->errors)
                 ? implode(' ', $result->errors)
-                : 'Vektör kalıp çıkarılamadı (taranmış/desteklenmeyen format olabilir).';
+                : __('patternengine::messages.pattern.vector_extraction_failed');
             $this->markExtractionFailed($pattern, $msg);
 
             return $pattern->fresh();
@@ -310,6 +310,6 @@ class PatternLibraryService
     {
         $base = pathinfo($filename, PATHINFO_FILENAME);
 
-        return trim($base) !== '' ? $base : 'Kalıp';
+        return trim($base) !== '' ? $base : __('patternengine::labels.default_pattern_name');
     }
 }

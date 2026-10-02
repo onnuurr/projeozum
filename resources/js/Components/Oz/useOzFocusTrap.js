@@ -1,5 +1,6 @@
 import { ref, watch, nextTick, onBeforeUnmount } from 'vue'
 import { useEventListener } from '@vueuse/core'
+import { isTouchPrimary } from './ozTouch'
 
 // Modal/drawer gibi diyaloglar için ortak klavye ve odak davranışı:
 // açılınca ilk form alanına (yoksa alttaki ilk butona) odaklanır, Tab'ı içeride tutar,
@@ -41,7 +42,8 @@ export function useOzFocusTrap(openRef, containerRef, { onEscape, footerSelector
       layer.value = BASE_LAYER + stack.length * 2
       await nextTick()
       const el = containerRef.value
-      if (initialFocus === 'container') { el?.focus({ preventScroll: true }); return }
+      // Dokunmatikte ilk forma odaklanmak klavyeyi açar ve diyaloğu örter → diyaloğun kendisine odaklan
+      if (initialFocus === 'container' || isTouchPrimary()) { el?.focus({ preventScroll: true }); return }
       const target = el?.querySelector('input:not([type=hidden]), select, textarea')
         || el?.querySelector(`${footerSelector} button:not([disabled])`)
         || el?.querySelector(FOCUSABLE)

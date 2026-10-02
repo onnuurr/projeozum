@@ -81,14 +81,14 @@ class CreativeTemplateController extends Controller
         }
 
         if ($created === 0) {
-            return back()->with('error', 'Şablon üretilemedi (Python/resvg kurulu mu?).');
+            return back()->with('error', __('creative::messages.template.generate_failed'));
         }
 
         if ($failed > 0) {
-            return back()->with('warning', sprintf('%d şablon üretildi, %d format başarısız oldu.', $created, $failed));
+            return back()->with('warning', __('creative::messages.template.generated_partial', ['created' => $created, 'failed' => $failed]));
         }
 
-        return back()->with('success', sprintf('%d şablon üretildi.', $created));
+        return back()->with('success', __('creative::messages.template.generated', ['created' => $created]));
     }
 
     public function store(StoreTemplateRequest $request): RedirectResponse
@@ -112,10 +112,10 @@ class CreativeTemplateController extends Controller
         } catch (Throwable $e) {
             Log::warning('Şablon incelenemedi', ['template_id' => $template->id, 'error' => $e->getMessage()]);
 
-            return back()->with('warning', 'Şablon yüklendi ancak slotlar çıkarılamadı (Python/resvg kurulu mu?): ' . $e->getMessage());
+            return back()->with('warning', __('creative::messages.template.uploaded_slots_failed', ['error' => $e->getMessage()]));
         }
 
-        return back()->with('success', 'Şablon yüklendi ve slotlar çıkarıldı.');
+        return back()->with('success', __('creative::messages.template.uploaded'));
     }
 
     public function update(Request $request, CreativeTemplate $template): RedirectResponse
@@ -128,7 +128,7 @@ class CreativeTemplateController extends Controller
 
         $template->update($data);
 
-        return back()->with('success', 'Şablon güncellendi.');
+        return back()->with('success', __('creative::messages.template.updated'));
     }
 
     /**
@@ -157,10 +157,10 @@ class CreativeTemplateController extends Controller
         } catch (Throwable $e) {
             Log::warning('Şablon slotları uygulanamadı', ['template_id' => $template->id, 'error' => $e->getMessage()]);
 
-            return back()->with('error', 'Slotlar kaydedilemedi (Python kurulu mu?): ' . $e->getMessage());
+            return back()->with('error', __('creative::messages.template.slots_save_failed', ['error' => $e->getMessage()]));
         }
 
-        return back()->with('success', 'Şablon slotları kaydedildi.');
+        return back()->with('success', __('creative::messages.template.slots_saved'));
     }
 
     public function destroy(CreativeTemplate $template): RedirectResponse
@@ -171,7 +171,7 @@ class CreativeTemplateController extends Controller
 
         $template->delete();
 
-        return back()->with('success', 'Şablon silindi.');
+        return back()->with('success', __('creative::messages.template.deleted'));
     }
 
     private function url(?string $path): ?string

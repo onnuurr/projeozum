@@ -7,7 +7,9 @@ use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Atelier\Http\Requests\StoreDevelopmentProductRequest;
+use Modules\Atelier\Models\FasonSupplier;
 use Modules\Atelier\Models\Material;
+use Modules\Atelier\Models\Operation;
 use Modules\Atelier\Services\DevelopmentProductService;
 use Modules\Product\Models\Brand;
 use Modules\Product\Models\Category;
@@ -39,6 +41,9 @@ class DevelopmentProductController extends Controller
                     'unit'     => $m->unit,
                     'unitCost' => (float) $m->unit_cost,
                 ]),
+            // Opsiyonel üretim rotası: operasyonlar sort_order sırasıyla önerilir.
+            'operations'     => Operation::query()->orderBy('sort_order')->get(['id', 'name', 'code', 'default_location', 'default_unit_cost']),
+            'fasonSuppliers' => FasonSupplier::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
         ]);
     }
 

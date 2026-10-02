@@ -51,7 +51,7 @@ class PatternUrlImportService
 
         $pdfUrl = $this->extractPdfUrl($html, $sourceUrl);
         if ($pdfUrl === null) {
-            throw new \RuntimeException('Sayfada PDF eki bulunamadı.');
+            throw new \RuntimeException(__('patternengine::messages.url_import.no_pdf_on_page'));
         }
 
         $pdfTmp = null;
@@ -60,7 +60,7 @@ class PatternUrlImportService
         try {
             [$pdfBytes, $suggestedName] = $this->resolvePdfBytes($pdfUrl);
             if (! str_starts_with($pdfBytes, '%PDF-')) {
-                throw new \RuntimeException('İndirilen dosya geçerli bir PDF değil.');
+                throw new \RuntimeException(__('patternengine::messages.url_import.not_a_pdf'));
             }
 
             [$pdfFile, $pdfTmp] = $this->asUploadedFile(
@@ -71,7 +71,7 @@ class PatternUrlImportService
 
             $probe = $this->converter->probe($pdfFile->getRealPath());
             if (in_array($probe['kind'] ?? null, ['empty', 'invalid'], true)) {
-                throw new \RuntimeException('İndirilen PDF boş veya okunamıyor (taranmış/geçersiz olabilir).');
+                throw new \RuntimeException(__('patternengine::messages.url_import.pdf_empty'));
             }
 
             $pattern = $this->library->createPdfDraft($pdfFile, $createdBy);
@@ -165,16 +165,16 @@ class PatternUrlImportService
             if (! is_array($json) || ($json['ok'] ?? false) !== true) {
                 $error = is_array($json) ? ($json['error'] ?? null) : null;
                 throw new \RuntimeException(
-                    'VK belgesi çözülemedi: ' . ($error ?? trim((string) $result->errorOutput()) ?: 'bilinmeyen hata'),
+                    __('patternengine::messages.url_import.vk_unresolved', ['error' => $error ?? trim((string) $result->errorOutput()) ?: __('patternengine::messages.url_import.vk_unknown_error')]),
                 );
             }
 
             $bytes = is_file($outPath) ? file_get_contents($outPath) : false;
             if ($bytes === false || $bytes === '') {
-                throw new \RuntimeException('VK belgesi indirildi ama okunamadı.');
+                throw new \RuntimeException(__('patternengine::messages.url_import.vk_unreadable'));
             }
             if (strlen($bytes) > self::MAX_PDF_BYTES) {
-                throw new \RuntimeException('VK belgesi izin verilen boyutu aşıyor.');
+                throw new \RuntimeException(__('patternengine::messages.url_import.vk_too_large'));
             }
 
             return [$bytes, is_string($json['filename'] ?? null) ? $json['filename'] : null];
@@ -196,12 +196,12 @@ class PatternUrlImportService
             ->get($url);
 
         if (! $response->successful()) {
-            throw new \RuntimeException("İçerik indirilemedi (HTTP {$response->status()}): {$url}");
+            throw new \RuntimeException(__('patternengine::messages.url_import.download_failed', ['status' => $response->status(), 'url' => $url]));
         }
 
         $body = $response->body();
         if (strlen($body) > $maxBytes) {
-            throw new \RuntimeException("İndirilen dosya izin verilen boyutu aşıyor: {$url}");
+            throw new \RuntimeException(__('patternengine::messages.url_import.too_large', ['url' => $url]));
         }
 
         return $body;
@@ -214,7 +214,7 @@ class PatternUrlImportService
         $allowed = (array) config('patternengine.pattern_import.allowed_hosts', []);
 
         if ($scheme !== 'https' || $host === null || ! ImportPatternFromUrlRequest::hostAllowed($host, $allowed)) {
-            throw new \RuntimeException("İzinli olmayan kaynak: {$url}");
+            throw new \RuntimeException(__('patternengine::messages.url_import.source_not_allowed', ['url' => $url]));
         }
     }
 

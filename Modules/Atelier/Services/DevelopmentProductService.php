@@ -12,13 +12,14 @@ use Modules\Product\Services\ProductService;
  * Geçici kart ayrı bir tablo değil, status=development / sourcing=manufactured bir
  * Product'tır — reçete (product_boms) ve iş emri (production_orders) product/varyant
  * id'lerine bağlı olduğu için dönüşümde veri taşınmaz, yalnız durum değişir. Dönüşüm:
- * ProductionOrderService::complete() → ProductService::promoteFromDevelopment().
+ * ProductionOrderService::receive() (ilk stok girişi) → ProductService::promoteFromDevelopment().
  */
 class DevelopmentProductService
 {
     public function __construct(
         private ProductService $products,
         private BomService $boms,
+        private ProductRouteService $routes,
     ) {}
 
     /**
@@ -60,6 +61,10 @@ class DevelopmentProductService
                 $data['lines'],
                 $extra,
             );
+
+            if (! empty($data['route'])) {
+                $this->routes->replace($product->id, $data['route']);
+            }
 
             return $product;
         });

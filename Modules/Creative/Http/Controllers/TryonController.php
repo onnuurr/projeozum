@@ -241,7 +241,7 @@ class TryonController extends Controller
             $garment = $product->images->firstWhere('is_cover', true) ?? $product->images->first();
             if (! $garment) {
                 throw ValidationException::withMessages([
-                    'garment_image' => 'Bu ürünün giydirilecek bir fotoğrafı yok. Önce ürüne fotoğraf ekleyin ya da burada bir görsel yükleyin.',
+                    'garment_image' => __('creative::messages.tryon.no_garment_image'),
                 ]);
             }
         }
@@ -267,14 +267,14 @@ class TryonController extends Controller
         $queued = $service->queue($product, $mannequin, $request->validated('pose_ids'), auth()->id(), $garmentImagePath, $garmentExtras);
 
         if ($queued->isEmpty()) {
-            return back()->with('error', 'Seçili pozların hiçbiri hazır değil.');
+            return back()->with('error', __('creative::messages.tryon.no_pose_ready'));
         }
 
         foreach ($queued as $result) {
             GenerateOnModelJob::dispatch($result->id, $result->generation_token);
         }
 
-        return back()->with('success', $queued->count() . ' görsel giydirme kuyruğuna alındı.');
+        return back()->with('success', __('creative::messages.tryon.queued', ['count' => $queued->count()]));
     }
 
     /**
@@ -361,7 +361,7 @@ class TryonController extends Controller
     public function approve(TryonResult $result, ProductOnModelService $service, ReviewNotifier $notifier): RedirectResponse
     {
         if ($result->review_status !== TryonResult::REVIEW_PENDING) {
-            return back()->with('error', 'Bu sonuç onay bekliyor durumda değil.');
+            return back()->with('error', __('creative::messages.tryon.not_pending'));
         }
 
         $service->publish($result);
@@ -384,13 +384,13 @@ class TryonController extends Controller
 
         $notifier->notifyDecision($result, true);
 
-        return back()->with('success', 'Giydirme görseli onaylandı ve ürüne eklendi.');
+        return back()->with('success', __('creative::messages.tryon.approved'));
     }
 
     public function reject(TryonResult $result, Request $request, ReviewNotifier $notifier): RedirectResponse
     {
         if ($result->review_status !== TryonResult::REVIEW_PENDING) {
-            return back()->with('error', 'Bu sonuç onay bekliyor durumda değil.');
+            return back()->with('error', __('creative::messages.tryon.not_pending'));
         }
 
         $review = $this->validatedReview($request);
@@ -415,7 +415,7 @@ class TryonController extends Controller
 
         $notifier->notifyDecision($result, false);
 
-        return back()->with('success', 'Giydirme görseli reddedildi.');
+        return back()->with('success', __('creative::messages.tryon.rejected'));
     }
 
     /**
@@ -427,7 +427,7 @@ class TryonController extends Controller
         $image = $result->productImage;
 
         if ($result->status !== TryonResult::STATUS_DONE || ! $image) {
-            return back()->with('error', 'Bu sonuç henüz kapak yapılamaz.');
+            return back()->with('error', __('creative::messages.tryon.cannot_be_cover'));
         }
 
         DB::transaction(function () use ($image) {
@@ -439,7 +439,7 @@ class TryonController extends Controller
             $image->update(['is_cover' => true]);
         });
 
-        return back()->with('success', 'Ürün kapağı güncellendi.');
+        return back()->with('success', __('creative::messages.tryon.cover_updated'));
     }
 
     /**
@@ -450,7 +450,7 @@ class TryonController extends Controller
     {
         $service->destroy($result);
 
-        return back()->with('success', 'Giydirme sonucu silindi.');
+        return back()->with('success', __('creative::messages.tryon.deleted'));
     }
 
     /**

@@ -18,25 +18,35 @@
         </include>
     </source>
     <php>
-        <env name="APP_ENV" value="testing"/>
-        <env name="APP_MAINTENANCE_DRIVER" value="file"/>
-        <env name="BCRYPT_ROUNDS" value="4"/>
-        <env name="BROADCAST_CONNECTION" value="null"/>
-        <env name="CACHE_STORE" value="array"/>
-        <env name="DB_CONNECTION" value="sqlite"/>
-        <env name="DB_DATABASE" value=":memory:"/>
-        <env name="DB_URL" value=""/>
-        <env name="MAIL_MAILER" value="array"/>
-        <env name="QUEUE_CONNECTION" value="sync"/>
+        <!-- force="true" ZORUNLU: force olmadan PHPUnit, ortamda zaten tanımlı bir değişkeni ezmez.
+             Testler başka bir artisan sürecinden başlatılınca o süreç canlı .env'yi putenv() ile
+             ortama yazmış olur (DB_CONNECTION=pgsql) ve RefreshDatabase canlı veritabanında
+             migrate:fresh çalıştırır — 2026-09-26'da tüm veritabanı bu yüzden silindi.
+             Laravel env'i önce $_SERVER'dan okur ve süreç ortamından gelen değişken $_SERVER'da
+             olduğundan <env force> tek başına yetmez; DB ayarları <server force> ile de ezilir.
+             Ek güvence: tests/TestCase.php sqlite dışı bağlantıda testi hiç başlatmaz. -->
+        <server name="DB_CONNECTION" value="sqlite" force="true"/>
+        <server name="DB_DATABASE" value=":memory:" force="true"/>
+        <server name="DB_URL" value="" force="true"/>
+        <env name="APP_ENV" value="testing" force="true"/>
+        <env name="APP_MAINTENANCE_DRIVER" value="file" force="true"/>
+        <env name="BCRYPT_ROUNDS" value="4" force="true"/>
+        <env name="BROADCAST_CONNECTION" value="null" force="true"/>
+        <env name="CACHE_STORE" value="array" force="true"/>
+        <env name="DB_CONNECTION" value="sqlite" force="true"/>
+        <env name="DB_DATABASE" value=":memory:" force="true"/>
+        <env name="DB_URL" value="" force="true"/>
+        <env name="MAIL_MAILER" value="array" force="true"/>
+        <env name="QUEUE_CONNECTION" value="sync" force="true"/>
         <!-- Canlı Bagisto'ya (.env) gerçek istek atılmasın: sync kuyrukta her ürün/stok/tenant
              olayı BagistoSyncClient'a gider. Boşken istemci atlar; istemciyi test eden testler
              config() + Http::fake() ile kendi sahte adreslerini verir. -->
-        <env name="BAGISTO_SYNC_BASE_URL" value=""/>
-        <env name="BAGISTO_SYNC_WEBHOOK_SECRET" value=""/>
-        <env name="SESSION_DRIVER" value="array"/>
-        <env name="PULSE_ENABLED" value="false"/>
-        <env name="TELESCOPE_ENABLED" value="false"/>
-        <env name="NIGHTWATCH_ENABLED" value="false"/>
-        <env name="PORTAL_DOMAIN" value="bizimsite.test"/>
+        <env name="BAGISTO_SYNC_BASE_URL" value="" force="true"/>
+        <env name="BAGISTO_SYNC_WEBHOOK_SECRET" value="" force="true"/>
+        <env name="SESSION_DRIVER" value="array" force="true"/>
+        <env name="PULSE_ENABLED" value="false" force="true"/>
+        <env name="TELESCOPE_ENABLED" value="false" force="true"/>
+        <env name="NIGHTWATCH_ENABLED" value="false" force="true"/>
+        <env name="PORTAL_DOMAIN" value="bizimsite.test" force="true"/>
     </php>
 </phpunit>

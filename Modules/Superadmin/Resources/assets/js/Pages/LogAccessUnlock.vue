@@ -43,7 +43,7 @@ function submit() {
 							revealable
 							autocomplete="current-password"
 							placeholder="Log erişim şifresi"
-							autofocus
+							v-autofocus
 						/>
 					</OzField>
 					<OzButton type="submit" variant="primary" icon="key" :loading="form.processing" :disabled="!form.password" class="go">Kilidi aç</OzButton>

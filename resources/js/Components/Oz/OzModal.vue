@@ -47,6 +47,7 @@ const { layer } = useOzFocusTrap(open, dialogEl, { onEscape: close })
           :class="`size-${size}`"
           role="dialog"
           aria-modal="true"
+          tabindex="-1"
           :aria-labelledby="title || $slots.header ? titleId : undefined"
         >
           <header v-if="title || $slots.header" class="head">
@@ -74,13 +75,16 @@ const { layer } = useOzFocusTrap(open, dialogEl, { onEscape: close })
 <style scoped>
 .oz-modal-backdrop {
   position: fixed; inset: 0; z-index: 100;
+  /* --oz-kb: iOS'ta sanal klavyenin yüksekliği (bkz. ozKeyboard.js) — katman klavyenin üstünde biter */
+  bottom: var(--oz-kb, 0px);
   background: rgba(15, 23, 42, .45);
   backdrop-filter: blur(2px);
   display: flex; align-items: center; justify-content: center;
   padding: 16px;
 }
+.oz-modal:focus { outline: none; }
 .oz-modal {
-  width: 100%; max-height: calc(100dvh - 32px);
+  width: 100%; max-height: calc(100dvh - 32px - var(--oz-kb, 0px));
   display: flex; flex-direction: column;
   background: var(--oz-surface); color: var(--oz-ink);
   border: 1px solid var(--oz-border); border-radius: 16px;
@@ -123,6 +127,6 @@ h3 { margin: 0; font-size: 15px; font-weight: 700; color: var(--oz-ink-soft); le
 
 @media (max-width: 640px) {
   .oz-modal-backdrop { align-items: flex-end; padding: 0; }
-  .oz-modal { max-width: none; border-radius: 16px 16px 0 0; max-height: 92dvh; }
+  .oz-modal { max-width: none; border-radius: 16px 16px 0 0; max-height: min(92dvh, calc(100dvh - var(--oz-kb, 0px))); }
 }
 </style>

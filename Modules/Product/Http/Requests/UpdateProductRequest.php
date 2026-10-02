@@ -20,7 +20,7 @@ class UpdateProductRequest extends StoreProductRequest
         if ($product instanceof Product) {
             $rules['sku'][] = function (string $attribute, mixed $value, \Closure $fail) use ($product): void {
                 if ((string) $value !== $product->sku) {
-                    $fail('Ürün SKU\'su oluşturulduktan sonra değiştirilemez.');
+                    $fail(__('product::messages.sku_locked'));
                 }
             };
         }

@@ -7,7 +7,7 @@ use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvi
 use Modules\Bagisto\Listeners\PushDealerApplicationsSwitch;
 use Modules\Bagisto\Listeners\PushProductSync;
 use Modules\Bagisto\Listeners\PushStockSync;
-use Modules\Bagisto\Listeners\PushTenantApplicationStage;
+use Modules\Bagisto\Listeners\SendTenantApplicationStageMail;
 use Modules\Bagisto\Listeners\PushTenantSync;
 use Modules\Product\Events\ProductCreated;
 use Modules\Product\Events\ProductDeleted;
@@ -51,7 +51,7 @@ class EventServiceProvider extends ServiceProvider
         TenantOwnerDetached::class => [PushTenantSync::class],
         TenantOwnerEmailChanged::class => [PushTenantSync::class],
         // Bayi portalı başvurusu: belge aşaması açıldı / eksik evrak / hesap açıldı / red → bayiye e-posta (mağaza gönderir).
-        TenantApplicationStageChanged::class => [PushTenantApplicationStage::class],
+        TenantApplicationStageChanged::class => [SendTenantApplicationStageMail::class],
         // Süper admin "Yeni kayıt açık" → bayi portalı başvuru formu açık/kapalı.
         SignupAvailabilityChanged::class => [PushDealerApplicationsSwitch::class],
     ];

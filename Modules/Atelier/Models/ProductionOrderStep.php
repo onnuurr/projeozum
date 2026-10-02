@@ -4,6 +4,7 @@ namespace Modules\Atelier\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ProductionOrderStep extends Model
 {
@@ -43,5 +44,15 @@ class ProductionOrderStep extends Model
     public function fasonSupplier(): BelongsTo
     {
         return $this->belongsTo(FasonSupplier::class);
+    }
+
+    public function batches(): HasMany
+    {
+        return $this->hasMany(ProductionStepBatch::class)->orderByDesc('id');
+    }
+
+    public function decisions(): HasMany
+    {
+        return $this->hasMany(ProductionStepDecision::class)->orderByDesc('id');
     }
 }

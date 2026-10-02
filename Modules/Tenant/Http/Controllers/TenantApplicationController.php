@@ -3,6 +3,7 @@
 namespace Modules\Tenant\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -11,6 +12,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Tenant\Http\Requests\RejectTenantApplicationRequest;
 use Modules\Tenant\Http\Requests\StoreTenantApplicationRequest;
+use Modules\Tenant\Models\Tenant;
 use Modules\Tenant\Models\TenantApplication;
 use Modules\Tenant\Models\TenantApplicationDocument;
 use Modules\Tenant\Models\TenantType;
@@ -19,6 +21,14 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class TenantApplicationController extends Controller
 {
+    /** Sayfa içinde önizlenebilen belge türleri: saklanan dosya uzantısı => MIME. */
+    public const PREVIEW_TYPES = [
+        'pdf' => 'application/pdf',
+        'jpg' => 'image/jpeg',
+        'jpeg' => 'image/jpeg',
+        'png' => 'image/png',
+    ];
+
     public function __construct(private TenantApplicationService $service) {}
 
     public function create(): Response
@@ -76,6 +86,7 @@ class TenantApplicationController extends Controller
             'missing_documents'=> $a->missing_documents ?? [],
             'missing_note'     => $a->missing_note,
             'documentsRequestedAt' => $a->documents_requested_at?->format('Y-m-d H:i'),
+            'documentsRemindedAt'  => $a->documents_reminded_at?->format('Y-m-d H:i'),
             'documentsSubmittedAt' => $a->documents_submitted_at?->format('Y-m-d H:i'),
             'invitationSentAt'     => $a->invitation_sent_at?->format('Y-m-d H:i'),
             'invitationExpiresAt'  => $a->invitation_expires_at?->format('Y-m-d H:i'),
@@ -84,7 +95,8 @@ class TenantApplicationController extends Controller
             'invitationUrl'        => $a->invitationIsOpen() ? $this->storefrontUrl('bayilik-basvurusu/uyelik/'.$a->invitation_token) : null,
             'statusUrl'            => $a->isFromPortal() && $a->public_token ? $this->storefrontUrl('bayilik-basvurusu/durum/'.$a->public_token) : null,
             'completedAt'          => $a->completed_at?->format('Y-m-d H:i'),
-            'suggestedCode'        => 'BAYI-'.str_pad((string) $a->id, 4, '0', STR_PAD_LEFT),
+            // Yalnızca hesap açılışını bekleyenler için (her satırda sorgu atmamak adına).
+            'suggestedCode'        => $a->status === TenantApplication::STATUS_DOCUMENTS_REVIEW && $a->isFromPortal() ? $this->service->suggestCode($a) : null,
             'reviewer'         => $a->reviewer?->name,
             'reviewedAt'       => optional($a->reviewed_at)->format('Y-m-d H:i'),
             'convertedTenantId'=> $a->converted_tenant_id,
@@ -92,6 +104,13 @@ class TenantApplicationController extends Controller
                 'id'   => $d->id,
                 'type' => $d->type,
                 'name' => $d->original_filename,
+                // pdf | image | null (önizlenemez → yalnızca indirme)
+                'kind' => match (self::PREVIEW_TYPES[strtolower(pathinfo($d->path, PATHINFO_EXTENSION))] ?? null) {
+                    'application/pdf' => 'pdf',
+                    'image/jpeg', 'image/png' => 'image',
+                    default => null,
+                },
+                'size' => $d->size,
                 'uploadedAt' => $d->created_at?->format('Y-m-d H:i'),
             ])->values(),
             'createdAt'        => $a->created_at->format('Y-m-d H:i'),
@@ -100,6 +119,8 @@ class TenantApplicationController extends Controller
         return Inertia::render('Tenant::TenantApplications', [
             'applications' => $applications,
             'tenantTypes'  => TenantType::query()->orderBy('name')->get(['id', 'name']),
+            'cariEnabled'  => $this->service->cariAccountEnabled(),
+            'defaultDiscountRate' => Tenant::DEFAULT_DISCOUNT_RATE,
             'filters'      => ['status' => $request->query('status', '')],
         ]);
     }
@@ -142,6 +163,14 @@ class TenantApplicationController extends Controller
         return back();
     }
 
+    /** Resmi belge adımında bekleyen bayiye hatırlatma e-postası. */
+    public function remindDocuments(TenantApplication $application): RedirectResponse
+    {
+        $this->service->remindDocuments($application);
+
+        return back();
+    }
+
     /** Resmi evrak onayı: iş ortağı pasif açılır, bayiye üyelik tamamlama daveti gider. */
     public function openAccount(Request $request, TenantApplication $application): RedirectResponse
     {
@@ -149,7 +178,6 @@ class TenantApplicationController extends Controller
             'code'              => ['required', 'string', 'max:32', 'regex:/^[A-Z0-9_-]+$/', Rule::unique('tenants', 'code')],
             'tenant_type_id'    => ['nullable', 'integer', 'exists:tenant_types,id'],
             'credit_limit'      => ['nullable', 'numeric', 'min:0'],
-            'payment_term_days' => ['nullable', 'integer', 'min:0', 'max:365'],
             'discount_rate'     => ['nullable', 'numeric', 'min:0', 'max:100'],
         ], [
             'code.regex'  => 'İş ortağı kodu yalnızca büyük harf, rakam, tire ve alt çizgi içerebilir.',
@@ -166,6 +194,37 @@ class TenantApplicationController extends Controller
         $this->service->resendInvitation($application);
 
         return back();
+    }
+
+    /**
+     * Belgeyi sayfa içinde önizlemek için inline sunar. Yalnızca PDF ve görsel (başvuru formları
+     * zaten pdf/jpg/png kabul ediyor); tür, istemcinin bildirdiği MIME yerine saklanan dosyanın
+     * uzantısından belirlenir, nosniff ile tarayıcının başka türe yorumlaması engellenir.
+     */
+    public function previewDocument(TenantApplication $application, TenantApplicationDocument $document): StreamedResponse
+    {
+        abort_unless($document->tenant_application_id === $application->id, 404);
+        abort_unless(Storage::exists($document->path), 404);
+
+        $mime = self::PREVIEW_TYPES[strtolower(pathinfo($document->path, PATHINFO_EXTENSION))] ?? null;
+        abort_unless($mime !== null, 415);
+
+        return Storage::response($document->path, $document->original_filename, [
+            'Content-Type' => $mime,
+            'X-Content-Type-Options' => 'nosniff',
+            'Cache-Control' => 'private, no-store',
+        ], 'inline');
+    }
+
+    /** Başvurunun tüm ayrıntılarını içeren, dosyalamaya uygun yazdırılabilir sayfa. */
+    public function print(TenantApplication $application): View
+    {
+        $application->load(['documents', 'reviewer:id,name', 'convertedTenant.type', 'convertedTenant.carrier']);
+
+        return view('tenant::applications.print', [
+            'application' => $application,
+            'previewTypes' => self::PREVIEW_TYPES,
+        ]);
     }
 
     public function downloadDocument(TenantApplication $application, TenantApplicationDocument $document): StreamedResponse

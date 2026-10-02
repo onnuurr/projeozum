@@ -70,28 +70,28 @@ class ConversionController extends Controller
         $n = count($request->file('files'));
 
         return redirect()->route('atelier.conversions.index')
-            ->with('success', "{$n} PDF dönüştürme kuyruğuna alındı.");
+            ->with('success', __('patternengine::messages.conversion.queued', ['count' => $n]));
     }
 
     public function approve(Request $request, ConversionJob $job): RedirectResponse
     {
         if (! in_array($job->status, [ConversionJob::STATUS_NEEDS_REVIEW, ConversionJob::STATUS_FAILED], true)) {
-            return back()->withErrors(['status' => 'Yalnızca incelemedeki işler onaylanabilir.']);
+            return back()->withErrors(['status' => __('patternengine::messages.conversion.only_review_approvable')]);
         }
         if (! $job->output_dxf_path) {
-            return back()->withErrors(['status' => 'DXF üretilemediği için onaylanamaz; reddedin veya yeniden işleyin.']);
+            return back()->withErrors(['status' => __('patternengine::messages.conversion.no_dxf_cannot_approve')]);
         }
 
         $this->pipeline->approve($job, $request->user()?->id);
 
-        return redirect()->route('atelier.conversions.index')->with('success', 'Kalıp kütüphaneye eklendi.');
+        return redirect()->route('atelier.conversions.index')->with('success', __('patternengine::messages.conversion.added_to_library'));
     }
 
     public function reject(Request $request, ConversionJob $job): RedirectResponse
     {
         $this->pipeline->reject($job, $request->user()?->id);
 
-        return redirect()->route('atelier.conversions.index')->with('success', 'İş reddedildi.');
+        return redirect()->route('atelier.conversions.index')->with('success', __('patternengine::messages.conversion.rejected'));
     }
 
     public function retry(ConversionJob $job): RedirectResponse
@@ -99,6 +99,6 @@ class ConversionController extends Controller
         $job->update(['status' => ConversionJob::STATUS_PENDING]);
         ProcessConversionJob::dispatch($job->id);
 
-        return redirect()->route('atelier.conversions.index')->with('success', 'İş yeniden kuyruğa alındı.');
+        return redirect()->route('atelier.conversions.index')->with('success', __('patternengine::messages.conversion.requeued'));
     }
 }

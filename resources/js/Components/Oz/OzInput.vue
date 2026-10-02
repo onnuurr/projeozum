@@ -3,6 +3,7 @@ import { ref, computed, useAttrs } from 'vue'
 import OzIcon from './OzIcon.vue'
 import { useOzField } from './useOzField'
 import { useOzSplitAttrs } from './useOzSplitAttrs'
+import { numberInputMode } from './ozTouch'
 
 defineOptions({ inheritAttrs: false })
 
@@ -37,6 +38,9 @@ const inputAttrs = computed(() => {
   return rest
 })
 
+// Tam sayı alanlarında mobilde rakam tuş takımı (bkz. ozTouch.js numberInputMode)
+const inputMode = computed(() => numberInputMode(props.type, attrs))
+
 const inputEl = ref(null)
 defineExpose({ focus: () => inputEl.value?.focus() })
 
@@ -55,6 +59,7 @@ function onInput(e) {
       ref="inputEl"
       v-bind="inputAttrs"
       :type="inputType"
+      :inputmode="inputMode"
       :value="model"
       :placeholder="placeholder"
       :disabled="disabled"

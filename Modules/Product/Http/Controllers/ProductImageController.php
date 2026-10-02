@@ -43,7 +43,7 @@ class ProductImageController extends Controller
             ]);
         });
 
-        return back()->with('success', 'Görsel yüklendi.');
+        return back()->with('success', __('product::messages.image_uploaded'));
     }
 
     public function update(Request $request, ProductImage $image): RedirectResponse

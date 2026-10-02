@@ -106,6 +106,8 @@ onBeforeUnmount(() => {
 <style>
 .modal-overlay {
 	position: fixed; inset: 0; z-index: 9000;
+	/* --oz-kb: iOS'ta sanal klavyenin yüksekliği (bkz. ozKeyboard.js) — katman klavyenin üstünde biter */
+	bottom: var(--oz-kb, 0px);
 	background: rgba(30, 30, 50, .35);
 	backdrop-filter: blur(6px);
 	-webkit-backdrop-filter: blur(6px);
@@ -124,7 +126,7 @@ onBeforeUnmount(() => {
 	/* Overlay’in 20px dolgusuna göre viewport’a sığdır — aksi halde uzun formlar
 	   (ör. Kalıp ekle/düzenle) modal’ı ekranın dışına taşırır, alt kısım/kaydet
 	   butonu görünmez olur ve kaydırma imkânı olmazdı. */
-	max-height: calc(100vh - 40px);
+	max-height: calc(100dvh - 40px - var(--oz-kb, 0px));
 	display: flex; flex-direction: column;
 	overflow: hidden;
 }
@@ -134,8 +136,8 @@ onBeforeUnmount(() => {
 .modal.modal-lg {
 	width: 60vw;
 	max-width: 60vw;
-	height: 80vh;
-	max-height: 80vh;
+	height: 80dvh;
+	max-height: min(80dvh, calc(100dvh - 40px - var(--oz-kb, 0px)));
 }
 
 @media (max-width: 900px) {
@@ -143,12 +145,12 @@ onBeforeUnmount(() => {
 		width: 100%;
 		max-width: calc(100vw - 40px);
 		height: 100%;
-		max-height: calc(100vh - 40px);
+		max-height: calc(100dvh - 40px - var(--oz-kb, 0px));
 	}
 }
 
 @media (max-width: 900px) {
-	.modal.modal-lg { width: 92vw; max-width: 92vw; height: 86vh; max-height: 86vh; }
+	.modal.modal-lg { width: 92vw; max-width: 92vw; height: 86dvh; max-height: min(86dvh, calc(100dvh - 40px - var(--oz-kb, 0px))); }
 }
 
 .modal-header {

@@ -8,15 +8,14 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
-use Modules\Bagisto\Mail\ReturnStatusMail;
+use Modules\Bagisto\Services\ReturnMailTemplateService;
 use Modules\Product\Models\OrderReturn;
 use Modules\Tenant\Models\Tenant;
 use Throwable;
 
 /**
  * Bayiye iade kararı / fatura reddi / para iadesi bildirimi: e-posta (bayi portalı giriş
- * e-postası) + SMS (yetkili telefonu). Biri başarısız olursa diğeri yine gider; SMS hatası
+ * e-postası; metinler Bayi E-postaları › İade, bkz. ReturnMailTemplateService) + SMS (yetkili telefonu). Biri başarısız olursa diğeri yine gider; SMS hatası
  * job'ı tekrar denetmez (e-posta iki kez gitmesin).
  */
 class NotifyTenantOfReturn implements ShouldQueue
@@ -37,7 +36,7 @@ class NotifyTenantOfReturn implements ShouldQueue
         protected string $event,
     ) {}
 
-    public function handle(SmsProviderInterface $sms): void
+    public function handle(SmsProviderInterface $sms, ReturnMailTemplateService $mails): void
     {
         $return = OrderReturn::with('order')->find($this->orderReturnId);
         $tenant = $return?->tenant_id ? Tenant::find($return->tenant_id) : null;
@@ -48,7 +47,8 @@ class NotifyTenantOfReturn implements ShouldQueue
 
         $email = $tenant->users()->value('email') ?: $tenant->email;
         if ($email) {
-            Mail::to($email)->send(new ReturnStatusMail($return, $this->event, $tenant->contact_person ?: $tenant->name));
+            // Adım Bayi E-postaları › İade'de kapatıldıysa e-posta gitmez; SMS yine gider.
+            $mails->send($return, $tenant, $this->event, $email);
         }
 
         $phone = $tenant->contact_phone ?: $tenant->phone;

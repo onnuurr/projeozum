@@ -53,7 +53,7 @@
 				<div class="form-group">
 					<label class="form-label">Miktar</label>
 					<div style="display: flex; gap: 6px">
-						<input v-model="form.miktar" class="form-input" type="number" placeholder="0" min="0" style="flex: 1" />
+						<input v-model="form.miktar" class="form-input" type="number" inputmode="numeric" placeholder="0" min="0" style="flex: 1" />
 						<CustomSelect
 							v-model="form.birim"
 							:options="birimOptions"

@@ -48,6 +48,9 @@ description: Use BEFORE writing or editing any controller action, route, Form Re
 | Tenant | `tenant-access.manage` | İş ortağı ürün erişim kuralları |
 | Tenant | `tenant.product.customize` | İş ortağına özel ürün metni (erişim ekranında) |
 | Tenant | `tenant-application.approve` | Başvuru onay/red + KYB belgesi indirme (2026-09-24) |
+| Bagisto | `tenant-application-mail.manage` | Bayi E-postaları › Başvuru grubu: bayi başvuru e-posta metinleri + önizleme/test (2026-09-27, migration ile seed'li) |
+| Bagisto | `order-return-mail.manage` | Bayi E-postaları › İade grubu: iade e-posta metinleri + önizleme/test (2026-09-27, migration ile seed'li; grup yetkisi controller'da) |
+| Bagisto | `dealer-agreement.manage` | Bayi Sözleşmeleri: bayi portalı sözleşme/onay metinleri, sürümlü yayın + önizleme (2026-10-02, migration ile seed'li; yalnız superadmin) |
 | Product | `product.view` | Katalog okuma: ürün listesi/detay (tenant rolünde de var) |
 | Product | `warehouse.view` | Depolar sayfası (tenant'a verilmez) |
 | Product | `brand.view` | Markalar sayfası (tenant'a verilmez) |

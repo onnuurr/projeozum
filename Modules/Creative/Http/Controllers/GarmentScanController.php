@@ -60,7 +60,7 @@ class GarmentScanController extends Controller
 
         $service->addManualAnnotation($scan, $validated['bbox'], $validated['label']);
 
-        return back()->with('success', 'Parça eklendi.');
+        return back()->with('success', __('creative::messages.garment.part_added'));
     }
 
     public function updateAnnotation(Request $request, GarmentScan $scan, string $annotation, GarmentScanService $service): RedirectResponse
@@ -69,17 +69,17 @@ class GarmentScanController extends Controller
 
         $updated = $service->updateAnnotation($scan, $annotation, $validated['bbox'], $validated['label']);
         if ($updated === null) {
-            return back()->with('error', 'Güncellenecek parça bulunamadı.');
+            return back()->with('error', __('creative::messages.garment.part_not_found'));
         }
 
-        return back()->with('success', 'Parça güncellendi.');
+        return back()->with('success', __('creative::messages.garment.part_updated'));
     }
 
     public function destroyAnnotation(GarmentScan $scan, string $annotation, GarmentScanService $service): RedirectResponse
     {
         $service->removeAnnotation($scan, $annotation);
 
-        return back()->with('success', 'Parça silindi.');
+        return back()->with('success', __('creative::messages.garment.part_deleted'));
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace Modules\Tenant\Services;
 
+use App\Contracts\PlatformSettings;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -27,7 +28,35 @@ class TenantApplicationService
     public function __construct(
         private TenantService $tenants,
         private TenantUserService $users,
+        private PlatformSettings $settings,
     ) {}
+
+    /**
+     * Bayi portalında "Cari hesap ve bakiyeden ödeme" açık mı? Ayar Bagisto modülünün
+     * 'bagisto_features' grubunda (StorefrontFeatureService); Tenant, Bagisto'ya bağımlı olmadığı
+     * için kernel PlatformSettings üzerinden okunur. Varsayılan kapalı (Bagisto kataloğuyla aynı).
+     */
+    public function cariAccountEnabled(): bool
+    {
+        return (bool) ($this->settings->group('bagisto_features')['cari_account'] ?? false);
+    }
+
+    /**
+     * Hesap açılışında önerilen iş ortağı kodu: BAYI-<başvuru no>. Elle açılmış bir iş ortağı aynı
+     * kodu almışsa sonraki boş sonek önerilir (BAYI-0007-2 …); kesin tekillik unique kuralıyla korunur.
+     */
+    public function suggestCode(TenantApplication $application): string
+    {
+        $base = 'BAYI-'.str_pad((string) $application->id, 4, '0', STR_PAD_LEFT);
+        $taken = Tenant::withTrashed()->where('code', 'like', $base.'%')->pluck('code')->all();
+
+        $code = $base;
+        for ($i = 2; in_array($code, $taken, true); $i++) {
+            $code = "{$base}-{$i}";
+        }
+
+        return $code;
+    }
 
     /**
      * @param  array<string, mixed>  $data
@@ -50,6 +79,10 @@ class TenantApplicationService
         });
 
         $this->notifyReviewers($application, TenantApplicationActivityNotification::NEW_APPLICATION);
+
+        if ($application->isFromPortal()) {
+            TenantApplicationStageChanged::dispatch($application, TenantApplicationStageChanged::RECEIVED);
+        }
 
         return $application;
     }
@@ -96,6 +129,25 @@ class TenantApplicationService
         ]);
 
         TenantApplicationStageChanged::dispatch($application, TenantApplicationStageChanged::DOCUMENTS_REQUESTED);
+    }
+
+    /**
+     * Resmi belge adımı açık ama bayi belgeleri henüz göndermedi: hatırlatma e-postası gider.
+     * Yanlışlıkla art arda gönderimi önlemek için REMINDER_COOLDOWN_MINUTES içinde ikincisi reddedilir.
+     */
+    public function remindDocuments(TenantApplication $application): void
+    {
+        if (! $application->isFromPortal() || $application->status !== TenantApplication::STATUS_DOCUMENTS_REQUESTED) {
+            throw ValidationException::withMessages(['application' => 'Bu başvuru resmi belge beklemiyor.']);
+        }
+
+        if ($application->documents_reminded_at?->gt(now()->subMinutes(TenantApplication::REMINDER_COOLDOWN_MINUTES))) {
+            throw ValidationException::withMessages(['application' => 'Hatırlatma az önce gönderildi; biraz sonra tekrar deneyin.']);
+        }
+
+        $application->update(['documents_reminded_at' => now()]);
+
+        TenantApplicationStageChanged::dispatch($application, TenantApplicationStageChanged::DOCUMENTS_REMINDER);
     }
 
     /**
@@ -223,7 +275,7 @@ class TenantApplicationService
      * kullanıcısı PASİF açılır — Bagisto müşterisi, bayi davet bağlantısıyla parolasını ve eksik
      * bilgilerini (kargo anlaşması vb.) girince completeInvitation'da aktifleşir.
      *
-     * @param  array{code: string, tenant_type_id?: int|null, credit_limit?: float|null, payment_term_days?: int|null, discount_rate?: float|null}  $account
+     * @param  array{code: string, tenant_type_id?: int|null, credit_limit?: float|null, discount_rate?: float|null}  $account
      */
     public function openAccount(TenantApplication $application, User $reviewer, array $account): Tenant
     {
@@ -238,9 +290,13 @@ class TenantApplicationService
         $tenant = DB::transaction(function () use ($application, $reviewer, $account) {
             // Boş bırakılan ticari koşullar gönderilmez → kolonların DB varsayılanları geçerli olur.
             $terms = array_filter(
-                collect($account)->only(['tenant_type_id', 'credit_limit', 'payment_term_days', 'discount_rate'])->all(),
+                collect($account)->only(['tenant_type_id', 'credit_limit', 'discount_rate'])->all(),
                 fn ($value) => $value !== null && $value !== '',
             );
+            // Cari hesap kapalıyken kredi limiti anlamsız; formda da gösterilmiyor.
+            if (! $this->cariAccountEnabled()) {
+                unset($terms['credit_limit']);
+            }
 
             $tenant = $this->tenants->create([
                 ...$terms,
@@ -322,7 +378,7 @@ class TenantApplicationService
      * tenant'a yazılır, tenant aktifleşir (TenantActivated → Bagisto müşteri senkronu).
      * Parola burada işlenmez; Bagisto tarafında belirlenir.
      *
-     * @param  array{contact_person: string, contact_phone: string, address: string, city: string, district: string, postal_code: string, shipping_agreement_type: string, carrier_id?: int|null, contract_version?: string|null}  $data
+     * @param  array{contact_person: string, contact_phone: string, address: string, city: string, district: string, postal_code: string, shipping_agreement_type: string, carrier_id?: int|null, contract_version?: string|null, contract_annexes?: array<string, string>, shipping_terms_version?: string|null}  $data
      */
     public function completeInvitation(TenantApplication $application, array $data): Tenant
     {
@@ -350,6 +406,8 @@ class TenantApplicationService
 
             $details = $application->details ?? [];
             $details['consents']['membership_contract_version'] = $data['contract_version'] ?? null;
+            $details['consents']['membership_contract_annex_versions'] = $data['contract_annexes'] ?? [];
+            $details['consents']['shipping_terms_version'] = $platform ? ($data['shipping_terms_version'] ?? null) : null;
             $details['consents']['membership_accepted_at'] = now()->toIso8601String();
 
             $application->update([

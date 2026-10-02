@@ -94,11 +94,11 @@ class OrderReturn extends Model
     public static function statuses(): array
     {
         return [
-            self::STATUS_REQUESTED => 'Karar Bekliyor',
-            self::STATUS_APPROVED  => 'Onaylandı',
-            self::STATUS_REJECTED  => 'Reddedildi',
-            self::STATUS_REFUNDED  => 'İade Edildi',
-            self::STATUS_CANCELLED => 'İptal Edildi',
+            self::STATUS_REQUESTED => __('product::labels.return_status.requested'),
+            self::STATUS_APPROVED  => __('product::labels.return_status.approved'),
+            self::STATUS_REJECTED  => __('product::labels.return_status.rejected'),
+            self::STATUS_REFUNDED  => __('product::labels.return_status.refunded'),
+            self::STATUS_CANCELLED => __('product::labels.return_status.cancelled'),
         ];
     }
 

@@ -50,32 +50,34 @@ class AssignmentNotification extends Notification
     {
         $a        = $this->assignment;
         $title    = $a->title;
-        $assigner = $a->assigner?->name ?? 'Bir koordinatör';
-        $assignee = $a->assignee?->name ?? 'Atanan kişi';
+        $assigner = $a->assigner?->name ?? __('patternengine::notifications.assignment.assigner_fallback');
+        $assignee = $a->assignee?->name ?? __('patternengine::notifications.assignment.assignee_fallback');
 
         $payload = match (true) {
             $this->kind === self::KIND_ASSIGNED => [
                 'icon' => '📋', 'iconType' => 'info',
-                'title' => 'Yeni iş atandı',
-                'desc'  => "{$assigner} sana “{$title}” işini atadı.",
+                'title' => __('patternengine::notifications.assignment.assigned_title'),
+                'desc'  => __('patternengine::notifications.assignment.assigned', ['assigner' => $assigner, 'title' => $title]),
                 'link'  => '/atelier/assignments?mine=1',
             ],
             $this->kind === self::KIND_DELIVERED => [
                 'icon' => '📦', 'iconType' => 'info',
-                'title' => 'İş teslim edildi',
-                'desc'  => "{$assignee} “{$title}” işini teslim etti.",
+                'title' => __('patternengine::notifications.assignment.delivered_title'),
+                'desc'  => __('patternengine::notifications.assignment.delivered', ['assignee' => $assignee, 'title' => $title]),
                 'link'  => '/atelier/assignments?status=delivered',
             ],
             $this->kind === self::KIND_REVIEWED && $this->accepted => [
                 'icon' => '✅', 'iconType' => 'success',
-                'title' => 'İşin kabul edildi',
-                'desc'  => "“{$title}” işin kabul edildi.",
+                'title' => __('patternengine::notifications.assignment.accepted_title'),
+                'desc'  => __('patternengine::notifications.assignment.accepted', ['title' => $title]),
                 'link'  => '/atelier/assignments?mine=1',
             ],
             default => [
                 'icon' => '↩️', 'iconType' => 'warning',
-                'title' => 'İş geri gönderildi',
-                'desc'  => "“{$title}” reddedildi" . ($a->review_note ? ": {$a->review_note}" : '.'),
+                'title' => __('patternengine::notifications.assignment.rejected_title'),
+                'desc'  => $a->review_note
+                    ? __('patternengine::notifications.assignment.rejected_with_note', ['title' => $title, 'note' => $a->review_note])
+                    : __('patternengine::notifications.assignment.rejected', ['title' => $title]),
                 'link'  => '/atelier/assignments?mine=1',
             ],
         };

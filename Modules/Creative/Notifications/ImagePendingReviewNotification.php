@@ -36,22 +36,18 @@ class ImagePendingReviewNotification extends Notification implements ShouldBroad
         };
         $label = $this->subject instanceof Mannequin
             ? $this->subject->name
-            : ($this->subject->product?->name ?? 'Ürün');
+            : ($this->subject->product?->name ?? __('creative::labels.product_fallback'));
         $link = match ($subjectType) {
             'mannequin' => '/creative/mannequins',
             'asset'     => '/creative/gallery',
             default     => '/creative/tryon',
         };
-        $desc = match ($subjectType) {
-            'mannequin' => "\"{$label}\" mankeni onayınızı bekliyor.",
-            'asset'     => "\"{$label}\" için üretilen sosyal medya tasarımı onayınızı bekliyor.",
-            default     => "\"{$label}\" için üretilen giydirme görseli onayınızı bekliyor.",
-        };
+        $desc = __('creative::notifications.pending_review.'.$subjectType, ['label' => $label]);
 
         return [
             'icon'         => '🕐',
             'iconType'     => 'info',
-            'title'        => 'Onay bekleyen görsel',
+            'title'        => __('creative::notifications.pending_review.title'),
             'desc'         => $desc,
             'link'         => $link,
             'kind'         => 'pending_review',

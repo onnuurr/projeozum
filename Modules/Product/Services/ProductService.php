@@ -148,10 +148,10 @@ class ProductService
     }
 
     /**
-     * Geçici kartı (status=development) ürüne çevirir: gerçek üretim birim maliyetini
-     * alış fiyatı olarak yazar ve ürünü Taslak'a alır. Elle geçiş haritasında
-     * development → draft yoktur; bu geçişi yalnız üretim tamamlanması (Atölye
-     * ProductionOrderService::complete) tetikler. Ürün zaten geçici kart değilse no-op.
+     * Geçici kartı (status=development) ürüne çevirir: verilen birim maliyeti alış fiyatı
+     * olarak yazar ve ürünü Taslak'a alır. Elle geçiş haritasında development → draft yoktur;
+     * bu geçişi yalnız iş emrinin ilk stok girişi (Atölye ProductionOrderService::receive)
+     * tetikler. Ürün zaten geçici kart değilse no-op.
      */
     public function promoteFromDevelopment(Product $product, float $unitCost, ?User $actor, ?string $note = null): Product
     {
@@ -162,6 +162,18 @@ class ProductService
         return $this->applyStatus($product, Product::STATUS_DRAFT, $actor, $note, [
             'purchase_price' => round($unitCost, 2),
         ]);
+    }
+
+    /**
+     * Üretim kapanınca gerçekleşen birim maliyeti alış fiyatı olarak yazar (Atölye
+     * ProductionOrderService::close). Satış tarafına yansımayan iç maliyet alanı olduğu
+     * için ürün event'i ateşlenmez.
+     */
+    public function updatePurchasePrice(Product $product, float $unitCost): Product
+    {
+        $product->forceFill(['purchase_price' => round($unitCost, 2)])->save();
+
+        return $product;
     }
 
     /**
@@ -251,11 +263,11 @@ class ProductService
         $slotWidth  = 12 - $prefixLen;
 
         if ($countryCode === '' || $companyCode === '' || $prefixLen > 11 || ! ctype_digit($prefix)) {
-            throw BarcodeGenerationException::misconfigured('ülke/firma kodu tanımlı değil veya sayısal değil.');
+            throw BarcodeGenerationException::misconfigured(__('product::messages.barcode_reasons.prefix_invalid'));
         }
 
         if ($serialMax < $serialMin || $slotWidth < strlen((string) $serialMax)) {
-            throw BarcodeGenerationException::misconfigured('seri aralığı önekle birlikte 12 haneye sığmıyor.');
+            throw BarcodeGenerationException::misconfigured(__('product::messages.barcode_reasons.range_too_long'));
         }
 
         for ($attempt = 0; $attempt < 20; $attempt++) {
@@ -344,18 +356,18 @@ class ProductService
             ->exists();
 
         if ($hasStock || (int) $variant->stock !== 0) {
-            throw new VariantInUseException($variant->sku, 'depoda stoku var — önce stok hareketiyle sıfırlayın');
+            throw new VariantInUseException($variant->sku, __('product::messages.variant_in_use_reasons.has_stock'));
         }
 
         if (StockMovement::query()->where('product_variant_id', $variant->id)->exists()) {
-            throw new VariantInUseException($variant->sku, 'stok hareket geçmişi var');
+            throw new VariantInUseException($variant->sku, __('product::messages.variant_in_use_reasons.has_movements'));
         }
 
         try {
             DB::transaction(fn () => $variant->delete());
         } catch (QueryException $e) {
             if ($this->isForeignKeyViolation($e)) {
-                throw new VariantInUseException($variant->sku, 'başka bir kayıtta (ör. üretim emri) kullanılıyor');
+                throw new VariantInUseException($variant->sku, __('product::messages.variant_in_use_reasons.referenced'));
             }
 
             throw $e;

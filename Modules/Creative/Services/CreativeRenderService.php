@@ -51,7 +51,7 @@ class CreativeRenderService
     {
         $absolute = Media::localPath($template->svg_path, $this->disk());
         if ($absolute === null) {
-            throw new PermanentRenderException('Şablon SVG bulunamadı: ' . $template->svg_path);
+            throw new PermanentRenderException(__('creative::messages.template.svg_not_found', ['path' => $template->svg_path]));
         }
         $meta = $this->renderer->inspect($absolute);
 
@@ -74,7 +74,7 @@ class CreativeRenderService
     {
         $absolute = Media::localPath($template->svg_path, $this->disk());
         if ($absolute === null) {
-            throw new PermanentRenderException('Şablon SVG bulunamadı: ' . $template->svg_path);
+            throw new PermanentRenderException(__('creative::messages.template.svg_not_found', ['path' => $template->svg_path]));
         }
 
         $this->renderer->applySlots($absolute, $slots);
@@ -107,7 +107,7 @@ class CreativeRenderService
 
         if (! $template || ! $product) {
             // Kalıcı hata: retry anlamsız (asset'in şablonu/ürünü yok).
-            throw new PermanentRenderException('Asset için şablon veya ürün bulunamadı.');
+            throw new PermanentRenderException(__('creative::messages.template.asset_incomplete'));
         }
 
         $brand  = $this->brandTokens->tokens();
@@ -275,8 +275,7 @@ class CreativeRenderService
             // tam-AI render'ı "ham AI çıktısı asla doğrudan kullanılmaz"
             // disiplinini ihlal eder.
             throw new PermanentRenderException(
-                'AI kompozisyon motoru (ai_compose) OCR doğrulaması olmadan çalıştırılamaz. '
-                . 'creative.composition.ocr.enabled=true yapın.',
+                __('creative::messages.template.ai_compose_requires_ocr'),
             );
         }
 

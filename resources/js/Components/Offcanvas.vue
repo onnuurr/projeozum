@@ -23,8 +23,8 @@ const isHorizontal = computed(() => ['left', 'right'].includes(props.position));
 const panelPosition = computed(() => ({
     left: 'left-0 top-0 h-full',
     right: 'right-0 top-0 h-full',
-    top: 'top-0 left-0 right-0 max-h-[60vh]',
-    bottom: 'bottom-0 left-0 right-0 max-h-[70vh] rounded-t-2xl',
+    top: 'top-0 left-0 right-0 max-h-[60dvh]',
+    bottom: 'bottom-0 left-0 right-0 max-h-[70dvh] rounded-t-2xl',
 }[props.position]));
 
 const slideClass = computed(() => ({
@@ -54,7 +54,7 @@ watch(open, (val) => {
             leave-from-class="opacity-100"
             leave-to-class="opacity-0"
         >
-            <div v-if="open" class="fixed inset-0 z-50">
+            <div v-if="open" class="fixed inset-0 z-50" style="bottom: var(--oz-kb, 0px)">
                 <div class="absolute inset-0 bg-black/40" @click="close" />
 
                 <div :class="['absolute flex flex-col bg-white shadow-xl border border-line', panelPosition, isHorizontal ? width : '', slideClass]">

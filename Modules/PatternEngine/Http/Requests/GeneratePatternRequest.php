@@ -35,10 +35,10 @@ class GeneratePatternRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'garment.required'      => 'Giysi tipi zorunludur.',
-            'size.required'         => 'Beden zorunludur.',
-            'grade_sizes.*.different' => 'Ek bedenler taban bedenle aynı olamaz.',
-            'design_params.fit.in'  => 'Uyum yalnızca slim, regular veya loose olabilir.',
+            'garment.required'      => __('patternengine::messages.validation.garment_required'),
+            'size.required'         => __('patternengine::messages.validation.size_required'),
+            'grade_sizes.*.different' => __('patternengine::messages.validation.grade_size_different'),
+            'design_params.fit.in'  => __('patternengine::messages.validation.fit_invalid'),
         ];
     }
 }

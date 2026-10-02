@@ -5,6 +5,7 @@
 <script setup>
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
 import UiIcon from '@/Components/UiIcon.vue';
+import { isTouchPrimary } from '@/Components/Oz/ozTouch';
 
 const props = defineProps({
     modelValue: {
@@ -80,7 +81,8 @@ watch(() => props.modelValue, async (open) => {
         query.value = '';
         activeIndex.value = 0;
         await nextTick();
-        inputRef.value?.focus();
+        // Dokunmatikte klavye kendiliğinden açılmasın; kullanıcı arama kutusuna kendisi dokunur.
+        if (!isTouchPrimary()) inputRef.value?.focus();
     }
 });
 

@@ -33,7 +33,7 @@ class StoreWarehouseRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'code.regex' => 'Depo kodu yalnızca büyük harf, rakam, tire ve alt çizgi içerebilir.',
+            'code.regex' => __('product::messages.validation.warehouse_code_format'),
         ];
     }
 

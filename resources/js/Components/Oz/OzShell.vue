@@ -145,6 +145,8 @@ html:has(.oz-root) #nprogress { display: none; }
      Kaydırma yalnızca .oz-shell-content içinde. */
   position: fixed;
   inset: 0;
+  /* --oz-kb: iOS'ta sanal klavyenin yüksekliği (bkz. ozKeyboard.js) — katman klavyenin üstünde biter */
+  bottom: var(--oz-kb, 0px);
   overflow: hidden;
   background: var(--oz-page-bg);
   color: var(--oz-ink);

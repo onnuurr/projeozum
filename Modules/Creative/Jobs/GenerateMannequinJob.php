@@ -54,7 +54,7 @@ class GenerateMannequinJob implements ShouldQueue
             if ($this->attempts() < $this->tries) {
                 $mannequin->update([
                     'status' => Mannequin::STATUS_GENERATING,
-                    'error'  => sprintf('Deneme %d/%d başarısız: %s', $this->attempts(), $this->tries, $e->getMessage()),
+                    'error'  => __('creative::messages.job_attempt_failed', ['attempt' => $this->attempts(), 'tries' => $this->tries, 'error' => $e->getMessage()]),
                 ]);
 
                 throw $e;

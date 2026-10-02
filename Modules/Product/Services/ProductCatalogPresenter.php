@@ -318,21 +318,21 @@ class ProductCatalogPresenter
         $features = [];
 
         if ($p->free_shipping) {
-            $features[] = 'Ücretsiz kargo';
+            $features[] = __('product::labels.features.free_shipping');
         }
         if ($p->is_new) {
-            $features[] = 'Yeni sezon ürünü';
+            $features[] = __('product::labels.features.new_season');
         }
         if ($p->is_domestic) {
-            $features[] = 'Yerli üretim';
+            $features[] = __('product::labels.features.domestic');
         }
         if (filled($composition)) {
-            $features[] = $composition . ' kumaş';
+            $features[] = __('product::labels.features.fabric', ['composition' => $composition]);
         } elseif (filled($p->material)) {
             $features[] = $p->material;
         }
         if ((int) $p->min_order_qty > 1) {
-            $features[] = 'Minimum ' . (int) $p->min_order_qty . ' adet sipariş';
+            $features[] = __('product::labels.features.min_order', ['qty' => (int) $p->min_order_qty]);
         }
 
         return $features;
@@ -350,20 +350,20 @@ class ProductCatalogPresenter
         $colors = $this->colors($p);
 
         return array_filter([
-            'Marka'        => $p->brand?->name,
-            'Kategori'     => $p->category?->name,
-            'Cinsiyet'     => $p->gender,
-            'SKU'          => $p->sku,
-            'Barkod'       => $p->barcode,
-            'Materyal'     => $p->material,
-            'Kumaş Bileşimi' => $composition,
-            'Menşei'       => $p->origin_country,
-            'Ağırlık'      => $p->weight !== null ? rtrim(rtrim(number_format((float) $p->weight, 3, ',', ''), '0'), ',') . ' kg' : null,
-            'Desi'         => $p->desi !== null ? rtrim(rtrim(number_format((float) $p->desi, 2, ',', ''), '0'), ',') : null,
-            'Bedenler'     => $sizes ? implode(', ', $sizes) : null,
-            'Renkler'      => $colors ? collect($colors)->pluck('name')->implode(', ') : null,
-            'Bakım'        => $p->care_instructions,
-            'Kargo Süresi' => $p->shipping_time,
+            __('product::labels.specs.brand') => $p->brand?->name,
+            __('product::labels.specs.category') => $p->category?->name,
+            __('product::labels.specs.gender') => $p->gender,
+            __('product::labels.specs.sku') => $p->sku,
+            __('product::labels.specs.barcode') => $p->barcode,
+            __('product::labels.specs.material') => $p->material,
+            __('product::labels.specs.composition') => $composition,
+            __('product::labels.specs.origin') => $p->origin_country,
+            __('product::labels.specs.weight') => $p->weight !== null ? rtrim(rtrim(number_format((float) $p->weight, 3, ',', ''), '0'), ',') . ' kg' : null,
+            __('product::labels.specs.desi') => $p->desi !== null ? rtrim(rtrim(number_format((float) $p->desi, 2, ',', ''), '0'), ',') : null,
+            __('product::labels.specs.sizes') => $sizes ? implode(', ', $sizes) : null,
+            __('product::labels.specs.colors') => $colors ? collect($colors)->pluck('name')->implode(', ') : null,
+            __('product::labels.specs.care') => $p->care_instructions,
+            __('product::labels.specs.shipping_time') => $p->shipping_time,
         ], fn ($v) => filled($v));
     }
 }

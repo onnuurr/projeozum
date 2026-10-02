@@ -28,7 +28,7 @@ class ConceptStudioService
         // Akış X: kalıp baştan seçili olmalı ve gerçekten var olmalı.
         if ($request->source === DesignCard::SOURCE_PATTERN_FIRST) {
             if (! $request->patternId || ! Pattern::whereKey($request->patternId)->exists()) {
-                throw new InvalidArgumentException('Akış X (önce kalıp) için geçerli bir kalıp seçilmelidir.');
+                throw new InvalidArgumentException(__('patternengine::messages.concept.flow_x_needs_pattern'));
             }
         }
 

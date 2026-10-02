@@ -39,12 +39,8 @@ class ImageReviewDecisionNotification extends Notification implements ShouldBroa
         };
         $label = $this->subject instanceof Mannequin
             ? $this->subject->name
-            : ($this->subject->product?->name ?? 'Ürün');
-        $type = match ($subjectType) {
-            'mannequin' => 'Manken',
-            'asset'     => 'Sosyal medya tasarımı',
-            default     => 'Giydirme görseli',
-        };
+            : ($this->subject->product?->name ?? __('creative::labels.product_fallback'));
+        $type = __('creative::labels.subject_type.'.$subjectType);
         $link = match ($subjectType) {
             'mannequin' => '/creative/mannequins',
             'asset'     => '/creative/gallery',
@@ -63,16 +59,18 @@ class ImageReviewDecisionNotification extends Notification implements ShouldBroa
             return $payload + [
                 'icon'     => '✅',
                 'iconType' => 'success',
-                'title'    => 'Görsel onaylandı',
-                'desc'     => "{$type} \"{$label}\" onaylandı.",
+                'title'    => __('creative::notifications.review_decision.approved_title'),
+                'desc'     => __('creative::notifications.review_decision.approved', ['type' => $type, 'label' => $label]),
             ];
         }
 
         return $payload + [
             'icon'     => '↩️',
             'iconType' => 'warning',
-            'title'    => 'Görsel reddedildi',
-            'desc'     => "{$type} \"{$label}\" reddedildi" . ($this->subject->review_note ? ": {$this->subject->review_note}" : '.'),
+            'title'    => __('creative::notifications.review_decision.rejected_title'),
+            'desc'     => $this->subject->review_note
+                ? __('creative::notifications.review_decision.rejected_with_note', ['type' => $type, 'label' => $label, 'note' => $this->subject->review_note])
+                : __('creative::notifications.review_decision.rejected', ['type' => $type, 'label' => $label]),
         ];
     }
 }

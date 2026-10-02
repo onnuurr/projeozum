@@ -35,7 +35,7 @@ class StoreRejectionReasonRequest extends FormRequest
         $context  = trim((string) $this->input('context', ''));
 
         $this->merge([
-            'category'  => $category !== '' ? $category : 'Düzeltilmesi gereken alan',
+            'category'  => $category !== '' ? $category : __('creative::messages.review.default_reason_category'),
             'context'   => $context !== '' ? $context : null,
             'is_active' => $this->boolean('is_active', true),
         ]);

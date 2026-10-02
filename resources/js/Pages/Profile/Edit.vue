@@ -3,6 +3,7 @@ import { computed, inject, nextTick, ref } from 'vue'
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3'
 import { vMaska } from 'maska/vue'
 import AppLayout from '@/Layouts/AppLayout.vue'
+import { isTouchPrimary } from '@/Components/Oz/ozTouch'
 import {
 	OzPageHeader, OzCard, OzAvatar, OzPill, OzButton, OzField, OzInput, OzAlert, OzSettingRow, OzModal, OzIcon,
 } from '@/Components/Oz'
@@ -69,7 +70,8 @@ const deleteInput = ref(null)
 const deleteForm = useForm({ password: '' })
 function openDelete() {
 	deleteOpen.value = true
-	nextTick(() => deleteInput.value?.focus())
+	// Dokunmatikte klavye kendiliğinden açılmasın (bkz. ozTouch.js).
+	if (!isTouchPrimary()) nextTick(() => deleteInput.value?.focus())
 }
 function closeDelete() {
 	deleteOpen.value = false

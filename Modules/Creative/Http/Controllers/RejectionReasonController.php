@@ -34,14 +34,14 @@ class RejectionReasonController extends Controller
     {
         RejectionReason::create($request->validated());
 
-        return back()->with('success', 'Ret seçim maddesi eklendi.');
+        return back()->with('success', __('creative::messages.rejection_reason.created'));
     }
 
     public function update(UpdateRejectionReasonRequest $request, RejectionReason $rejectionReason): RedirectResponse
     {
         $rejectionReason->update($request->validated());
 
-        return back()->with('success', 'Ret seçim maddesi güncellendi.');
+        return back()->with('success', __('creative::messages.rejection_reason.updated'));
     }
 
     public function destroy(RejectionReason $rejectionReason): RedirectResponse
@@ -49,6 +49,6 @@ class RejectionReasonController extends Controller
         // SoftDeletes: geçmiş retlerdeki etiket snapshot'ları korunur, işlem geri alınabilir.
         $rejectionReason->delete();
 
-        return back()->with('success', 'Ret seçim maddesi kaldırıldı.');
+        return back()->with('success', __('creative::messages.rejection_reason.deleted'));
     }
 }

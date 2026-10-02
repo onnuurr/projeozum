@@ -94,7 +94,7 @@ class BrandController extends Controller
     {
         if ($brand->products()->exists()) {
             return back()->withErrors([
-                'brand' => 'Bu markaya bağlı ürünler var, önce ürünlerin markasını değiştirin.',
+                'brand' => __('product::messages.brand_has_products'),
             ]);
         }
 

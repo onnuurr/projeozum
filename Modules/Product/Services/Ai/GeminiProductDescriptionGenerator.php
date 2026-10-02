@@ -26,7 +26,7 @@ class GeminiProductDescriptionGenerator implements ProductDescriptionGenerator
             $raw = $this->client->generateText($prompt);
         } catch (Throwable $e) {
             throw new AiGenerationException(
-                'AI çağrısı başarısız: ' . $e->getMessage(),
+                __('product::messages.ai.call_failed', ['error' => $e->getMessage()]),
                 previous: $e,
             );
         }
@@ -38,7 +38,7 @@ class GeminiProductDescriptionGenerator implements ProductDescriptionGenerator
 
         if ($public === '' || $tenantDesc === '') {
             throw new AiGenerationException(
-                'AI cevabı beklenen alanları içermiyor (public_description / tenant_description).',
+                __('product::messages.ai.missing_fields'),
             );
         }
 
@@ -56,7 +56,7 @@ class GeminiProductDescriptionGenerator implements ProductDescriptionGenerator
     {
         $text = trim($raw);
         if ($text === '') {
-            throw new AiGenerationException('AI boş cevap döndürdü.');
+            throw new AiGenerationException(__('product::messages.ai.empty_response'));
         }
 
         // Code fence temizle.
@@ -73,7 +73,7 @@ class GeminiProductDescriptionGenerator implements ProductDescriptionGenerator
 
         $decoded = json_decode($text, true);
         if (! is_array($decoded)) {
-            throw new AiGenerationException('AI cevabı JSON olarak parse edilemedi.');
+            throw new AiGenerationException(__('product::messages.ai.invalid_json'));
         }
 
         return $decoded;

@@ -102,10 +102,10 @@ class StoreProductRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'variants.required'          => 'En az bir varyant eklenmelidir.',
-            'variants.min'               => 'En az bir varyant eklenmelidir.',
-            'variants.*.sku.distinct'    => 'Varyant SKU\'ları benzersiz olmalıdır.',
-            'variants.*.color_hex.regex' => 'Renk kodu #RRGGBB formatında olmalıdır.',
+            'variants.required'          => __('product::messages.validation.variants_required'),
+            'variants.min'               => __('product::messages.validation.variants_required'),
+            'variants.*.sku.distinct'    => __('product::messages.validation.variant_sku_distinct'),
+            'variants.*.color_hex.regex' => __('product::messages.validation.color_hex_format'),
         ];
     }
 

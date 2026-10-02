@@ -12,6 +12,7 @@ use Modules\Superadmin\Http\Controllers\RoleController;
 use Modules\Superadmin\Http\Controllers\SettingsController;
 use Modules\Superadmin\Http\Controllers\SuperadminController;
 use Modules\Superadmin\Http\Controllers\SystemInfoController;
+use Modules\Superadmin\Http\Controllers\TranslationController;
 use Modules\Superadmin\Http\Controllers\UserController;
 
 // Granüler can:* izinleriyle korunur; izinler delege edilebilir (superadmin Gate::before ile geçer).
@@ -52,6 +53,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('can:settings.manage')->name('superadmin.failed-jobs.retry-all');
     Route::post('superadmin/failed-jobs/flush', [FailedJobController::class, 'flush'])
         ->middleware('can:settings.manage')->name('superadmin.failed-jobs.flush');
+
+    // Dil Dosyaları (SaaS lang/ + Modules/*/lang, Bagisto paket/override lang'ları) —
+    // Route::resource('superadmin')'dan ÖNCE tanımlanmalı.
+    Route::get('superadmin/translations', [TranslationController::class, 'index'])
+        ->middleware('can:translations.manage')->name('superadmin.translations.index');
+    Route::put('superadmin/translations', [TranslationController::class, 'update'])
+        ->middleware(['can:translations.manage', 'throttle:30,1'])->name('superadmin.translations.update');
 
     // Menüler — Route::resource('superadmin')'dan ÖNCE tanımlanmalı, aksi halde
     // GET superadmin/menus, resource'un superadmin/{superadmin} (show) route'u

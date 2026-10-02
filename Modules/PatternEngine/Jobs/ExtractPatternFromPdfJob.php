@@ -56,7 +56,7 @@ class ExtractPatternFromPdfJob implements ShouldQueue
         try {
             $abs = Media::localPath($pattern->pdf_path);
             if (! $abs) {
-                throw new \RuntimeException('Kalıp PDF dosyası diskte bulunamadı: ' . $pattern->pdf_path);
+                throw new \RuntimeException(__('patternengine::messages.pattern.pdf_missing_on_disk', ['path' => $pattern->pdf_path]));
             }
             $result = $converter->convert($abs);
             $library->applyExtraction($pattern, $result);

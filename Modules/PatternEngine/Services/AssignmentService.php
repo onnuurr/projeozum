@@ -25,7 +25,7 @@ class AssignmentService
     public function assign(array $data, ?int $assignedBy = null): Assignment
     {
         if (empty($data['design_card_id']) && empty($data['pattern_id'])) {
-            throw new InvalidArgumentException('Atama için en az bir tasarım kartı veya kalıp seçilmelidir.');
+            throw new InvalidArgumentException(__('patternengine::messages.assignment.needs_subject'));
         }
 
         $assignment = Assignment::create([
@@ -117,7 +117,7 @@ class AssignmentService
     {
         if (! in_array($assignment->status, $allowed, true)) {
             throw new InvalidArgumentException(
-                "Bu işlem '{$assignment->status}' durumundaki bir atamada yapılamaz."
+                __('patternengine::messages.assignment.invalid_status', ['status' => $assignment->status])
             );
         }
     }

@@ -86,7 +86,7 @@ class AssignmentController extends Controller
             return back()->withErrors(['pattern_id' => $e->getMessage()]);
         }
 
-        return redirect()->route('atelier.assignments.index')->with('success', 'İş atandı.');
+        return redirect()->route('atelier.assignments.index')->with('success', __('patternengine::messages.assignment.assigned'));
     }
 
     public function start(Request $request, Assignment $assignment): RedirectResponse
@@ -140,6 +140,6 @@ class AssignmentController extends Controller
             return back()->withErrors(['status' => $e->getMessage()]);
         }
 
-        return redirect()->route('atelier.assignments.index')->with('success', 'Atama güncellendi.');
+        return redirect()->route('atelier.assignments.index')->with('success', __('patternengine::messages.assignment.updated'));
     }
 }

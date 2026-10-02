@@ -93,7 +93,7 @@ class MannequinService
     {
         $bytes = @file_get_contents($sourcePath);
         if ($bytes === false || $bytes === '') {
-            throw new RuntimeException('Manken görseli okunamadı.');
+            throw new RuntimeException(__('creative::messages.mannequin.image_unreadable'));
         }
 
         $encoded = ImageFile::encode(

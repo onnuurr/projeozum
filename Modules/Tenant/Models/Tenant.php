@@ -18,6 +18,9 @@ class Tenant extends Model
     /** @use HasFactory<TenantFactory> */
     use HasFactory, SoftDeletes;
 
+    /** Yeni iş ortağına iskonto girilmezse uygulanan oran (%). */
+    public const DEFAULT_DISCOUNT_RATE = 25;
+
     protected static function newFactory(): TenantFactory
     {
         return TenantFactory::new();

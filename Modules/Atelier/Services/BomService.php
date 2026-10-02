@@ -13,7 +13,7 @@ class BomService
      * Verilen ürün ve adet için gereken malzeme listesini hesaplar.
      *
      * @return array<int, array{material_id:int, material_name:string, unit:string,
-     *   required_qty:float, unit_cost:float, line_cost:float}>
+     *   per_unit_qty:float, required_qty:float, unit_cost:float, line_cost:float}>
      */
     public function requirementsFor(Product $product, float $quantity): array
     {
@@ -37,6 +37,7 @@ class BomService
                 'material_id'   => $line->material_id,
                 'material_name' => $line->material->name ?? '',
                 'unit'          => $line->material->unit ?? '',
+                'per_unit_qty'  => round($perUnit, 4),
                 'required_qty'  => round($required, 3),
                 'unit_cost'     => $unitCost,
                 'line_cost'     => round($required * $unitCost, 2),

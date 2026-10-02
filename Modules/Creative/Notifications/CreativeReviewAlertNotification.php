@@ -35,23 +35,22 @@ class CreativeReviewAlertNotification extends Notification implements ShouldBroa
     {
         $top = $this->alerts[0];
 
-        $desc = sprintf(
-            '%s → %s: %%%d, %d gündür eşik (%%%d) üstünde.',
-            $top['subject_label'],
-            $top['label'],
-            round($top['rate'] * 100),
-            $top['streak'],
-            round($top['threshold'] * 100),
-        );
+        $desc = __('creative::notifications.review_alert.summary', [
+            'subject' => $top['subject_label'],
+            'label' => $top['label'],
+            'rate' => round($top['rate'] * 100),
+            'streak' => $top['streak'],
+            'threshold' => round($top['threshold'] * 100),
+        ]);
 
         if (count($this->alerts) > 1) {
-            $desc .= sprintf(' (+%d uyarı daha)', count($this->alerts) - 1);
+            $desc .= __('creative::notifications.review_alert.more', ['count' => count($this->alerts) - 1]);
         }
 
         return [
             'icon'         => '⚠️',
             'iconType'     => 'warning',
-            'title'        => 'Ret analizinde eşik aşıldı',
+            'title'        => __('creative::notifications.review_alert.title'),
             'desc'         => $desc,
             'link'         => '/creative/review-reports/' . basename($this->reportPath),
             'kind'         => 'review_alert',

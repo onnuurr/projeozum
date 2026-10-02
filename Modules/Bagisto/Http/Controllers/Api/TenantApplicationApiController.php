@@ -3,11 +3,15 @@
 namespace Modules\Bagisto\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\File;
 use Modules\Bagisto\Mappers\TenantPayloadMapper;
+use Modules\Bagisto\Models\DealerAgreement;
+use Modules\Bagisto\Models\DealerAgreementAcceptance;
+use Modules\Bagisto\Services\DealerAgreementService;
 use Modules\Bagisto\Services\StorefrontFeatureService;
 use Modules\Product\Models\Carrier;
 use Modules\Tenant\Models\TenantApplication;
@@ -24,6 +28,11 @@ use Modules\Tenant\Services\TenantApplicationService;
  * resmi belgeler (official) → evrak incelemesi (⇄ eksik evrak: documents) → admin hesabı açar →
  * üyelik tamamlama (invitation / complete).
  *
+ * Onay metinleri SaaS › Bayi Sözleşmeleri'nden gelir; bayinin onayladığı sürüm (`*_version`) yayımlanmış
+ * bir sürüm olmalıdır (geçmiş sürümler dahil — mağaza kısa süre önbellekten gösterebilir) ve kayda yazılır.
+ * Onay anında metnin bayi bilgileriyle doldurulmuş kopyası arşive düşer (DealerAgreementService::recordAcceptance);
+ * durum ve üyelik ekranları da sözleşmeyi bayinin bilgileriyle doldurulmuş hâliyle alır (`agreements`).
+ *
  * Auth: VerifyBagistoInboundToken (order webhook'uyla aynı Bearer token).
  * Başvuru sahibi girişsizdir; durum sayfası `public_token`, üyelik tamamlama `invitation_token` ile açılır.
  */
@@ -32,6 +41,7 @@ class TenantApplicationApiController extends Controller
     public function __construct(
         private TenantApplicationService $service,
         private StorefrontFeatureService $features,
+        private DealerAgreementService $agreements,
     ) {}
 
     /**
@@ -67,13 +77,18 @@ class TenantApplicationApiController extends Controller
             'details.channels.*.value' => ['nullable', 'string', 'max:255'],
             'details.monthly_volume' => ['required', 'string', 'max:64'],
             'details.consents.declaration' => ['accepted'],
+            'details.consents.declaration_version' => ['nullable', 'string', 'max:32', $this->agreementVersion('declaration')],
             'details.consents.marketing' => ['nullable', 'boolean'],
+            'details.consents.marketing_version' => ['nullable', 'string', 'max:32', $this->agreementVersion('marketing')],
         ]);
 
         $details = collect($data['details'])->only(['company_type', 'dealer_model', 'channels', 'monthly_volume'])->all();
+        $marketing = (bool) ($data['details']['consents']['marketing'] ?? false);
         $details['consents'] = [
             'declaration' => true,
-            'marketing' => (bool) ($data['details']['consents']['marketing'] ?? false),
+            'declaration_version' => $data['details']['consents']['declaration_version'] ?? null,
+            'marketing' => $marketing,
+            'marketing_version' => $marketing ? ($data['details']['consents']['marketing_version'] ?? null) : null,
             'accepted_at' => now()->toIso8601String(),
         ];
 
@@ -90,6 +105,12 @@ class TenantApplicationApiController extends Controller
             $data['ip_address'] ?? $request->ip(),
             TenantApplication::SOURCE_BAGISTO,
         );
+
+        $ip = $data['ip_address'] ?? null;
+        $this->agreements->recordAcceptance($application, 'declaration', $details['consents']['declaration_version'], DealerAgreementAcceptance::CONTEXT_APPLICATION, $ip);
+        if ($marketing) {
+            $this->agreements->recordAcceptance($application, 'marketing', $details['consents']['marketing_version'], DealerAgreementAcceptance::CONTEXT_APPLICATION, $ip);
+        }
 
         return response()->json(['data' => $this->present($application->fresh('documents'))], 201);
     }
@@ -108,16 +129,21 @@ class TenantApplicationApiController extends Controller
 
         $document = File::default()->max(10 * 1024)->extensions(['pdf', 'jpg', 'jpeg', 'png']);
 
+        // Havale/EFT cari bakiye yalnızca Bayi Portalı › "Cari hesap ve bakiyeden ödeme" açıkken seçilebilir.
+        $payments = ($this->features->values()['cari_account'] ?? false) ? ['kart', 'havale'] : ['kart'];
+
         $data = $request->validate([
             'message' => ['nullable', 'string', 'max:2000'],
             'details' => ['required', 'array'],
             'details.revenue_target' => ['required', 'string', 'max:64'],
-            'details.payment_preference' => ['required', Rule::in(['kart', 'havale'])],
+            'details.payment_preference' => ['required', Rule::in($payments)],
             'details.bank.bank_name' => ['required', 'string', 'max:191'],
             'details.bank.account_holder' => ['required', 'string', 'max:191'],
             'details.bank.iban' => ['required', 'string', 'regex:/^TR\d{24}$/'],
             'details.consents.contract' => ['accepted'],
-            'details.consents.contract_version' => ['nullable', 'string', 'max:32'],
+            'details.consents.contract_version' => ['required', 'string', 'max:32', $this->agreementVersion('framework')],
+            'details.consents.contract_annexes' => ['nullable', 'array', 'max:50', $this->annexVersions('framework')],
+            'ip_address' => ['nullable', 'ip'],
 
             'vergi_levhasi' => ['required', $document],
             'imza_sirkuleri' => ['required', $document],
@@ -125,6 +151,7 @@ class TenantApplicationApiController extends Controller
             'diger' => ['nullable', $document],
         ], [
             'details.bank.iban.regex' => 'IBAN TR ile başlayan 26 karakter olmalı.',
+            'details.payment_preference.in' => 'Havale/EFT cari bakiye ile ödeme şu an sunulmuyor.',
         ]);
 
         $details = [
@@ -134,6 +161,7 @@ class TenantApplicationApiController extends Controller
             'consents' => [
                 'contract' => true,
                 'contract_version' => $data['details']['consents']['contract_version'] ?? null,
+                'contract_annex_versions' => $data['details']['consents']['contract_annexes'] ?? [],
                 'contract_accepted_at' => now()->toIso8601String(),
             ],
         ];
@@ -143,6 +171,11 @@ class TenantApplicationApiController extends Controller
             $details,
             $data['message'] ?? null,
             collect(TenantApplicationDocument::TYPES)->mapWithKeys(fn ($type) => [$type => $request->file($type)])->all(),
+        );
+
+        $this->agreements->recordAcceptance(
+            $application, 'framework', $details['consents']['contract_version'], DealerAgreementAcceptance::CONTEXT_OFFICIAL,
+            $data['ip_address'] ?? null, annexVersions: $details['consents']['contract_annex_versions'],
         );
 
         return response()->json(['data' => $this->present($application)]);
@@ -193,6 +226,8 @@ class TenantApplicationApiController extends Controller
             'dealer_model' => $application->details['dealer_model'] ?? null,
             'expires_at' => $application->invitation_expires_at?->toIso8601String(),
             'carriers' => Carrier::query()->active()->orderBy('sort_order')->orderBy('name')->get(['id', 'name']),
+            // Bayinin bilgileriyle doldurulmuş sözleşme metinleri (üyelik tamamlama ekranı).
+            'agreements' => $this->agreements->forApplication($application, ['framework', 'shipping_terms']),
         ]]);
     }
 
@@ -217,8 +252,11 @@ class TenantApplicationApiController extends Controller
             'shipping_agreement_type' => ['required', Rule::in(['own', 'platform'])],
             'carrier_id' => ['required_if:shipping_agreement_type,own', 'nullable', 'integer', Rule::exists('carriers', 'id')->where('is_active', true)],
             'shipping_terms_accepted' => ['accepted_if:shipping_agreement_type,platform'],
+            'shipping_terms_version' => ['nullable', 'string', 'max:32', $this->agreementVersion('shipping_terms')],
             'contract' => ['accepted'],
-            'contract_version' => ['nullable', 'string', 'max:32'],
+            'contract_version' => ['required', 'string', 'max:32', $this->agreementVersion('framework')],
+            'contract_annexes' => ['nullable', 'array', 'max:50', $this->annexVersions('framework')],
+            'ip_address' => ['nullable', 'ip'],
         ], [
             'postal_code.regex' => 'Posta kodu 5 haneli olmalı.',
             'carrier_id.required_if' => 'Kendi kargo anlaşmanızı kullanıyorsanız kargo firmasını seçin.',
@@ -227,7 +265,43 @@ class TenantApplicationApiController extends Controller
 
         $tenant = $this->service->completeInvitation($application, $data);
 
+        $application->refresh();
+        $this->agreements->recordAcceptance(
+            $application, 'framework', $data['contract_version'], DealerAgreementAcceptance::CONTEXT_MEMBERSHIP,
+            $data['ip_address'] ?? null, annexVersions: $data['contract_annexes'] ?? [],
+        );
+        if ($data['shipping_agreement_type'] === 'platform') {
+            $this->agreements->recordAcceptance($application, 'shipping_terms', $data['shipping_terms_version'] ?? null, DealerAgreementAcceptance::CONTEXT_MEMBERSHIP, $data['ip_address'] ?? null);
+        }
+
         return response()->json(['data' => ['customer' => $mapper->toActivatedPayload($tenant, null)]]);
+    }
+
+    /** Bayinin onayladığını bildirdiği sürüm, ilgili sözleşmenin yayımlanmış bir sürümü olmalı. */
+    private function agreementVersion(string $key): Closure
+    {
+        return function (string $attribute, mixed $value, Closure $fail) use ($key) {
+            if (filled($value) && ! $this->agreements->isPublishedVersion($key, (string) $value)) {
+                $fail(__('bagisto::messages.agreements.invalid_version', [
+                    'title' => DealerAgreement::query()->where('key', $key)->value('title') ?? $key,
+                    'version' => (string) $value,
+                ]));
+            }
+        };
+    }
+
+    /** Bayinin gördüğü ek sürümleri (ek anahtarı → sürüm): her biri sözleşmenin yürürlükteki bir eki ve yayımlanmış olmalı. */
+    private function annexVersions(string $parentKey): Closure
+    {
+        return function (string $attribute, mixed $value, Closure $fail) use ($parentKey) {
+            foreach ((array) $value as $annexKey => $version) {
+                if (! is_string($annexKey) || ! is_string($version) || ! $this->agreements->isPublishedAnnexVersion($parentKey, $annexKey, $version)) {
+                    $fail(__('bagisto::messages.agreements.invalid_annex', ['annex' => (string) $annexKey, 'version' => is_scalar($version) ? (string) $version : '—']));
+
+                    return;
+                }
+            }
+        };
     }
 
     private function find(string $token): TenantApplication
@@ -278,6 +352,10 @@ class TenantApplicationApiController extends Controller
             ])->values(),
             'missing_note' => $application->status === TenantApplication::STATUS_MISSING_DOCUMENTS ? $application->missing_note : null,
             'missing_requested_at' => $application->missing_requested_at?->toIso8601String(),
+            // Resmi belge adımındaki çerçeve sözleşme, bayinin bilgileriyle doldurulmuş hâliyle.
+            'agreements' => $application->status === TenantApplication::STATUS_DOCUMENTS_REQUESTED
+                ? $this->agreements->forApplication($application, ['framework'])
+                : [],
             'documents' => $application->documents->sortBy('created_at')->map(fn (TenantApplicationDocument $document) => [
                 'type' => $document->type,
                 'label' => TenantApplicationDocument::LABELS[$document->type] ?? $document->type,

@@ -11,13 +11,12 @@ class ProductionOrderItem extends Model
     protected $table = 'production_order_items';
 
     protected $fillable = [
-        'production_order_id', 'product_variant_id', 'planned_qty', 'produced_qty', 'scrap_qty',
+        'production_order_id', 'product_variant_id', 'planned_qty', 'received_qty',
     ];
 
     protected $casts = [
         'planned_qty'  => 'integer',
-        'produced_qty' => 'integer',
-        'scrap_qty'    => 'integer',
+        'received_qty' => 'integer',
     ];
 
     public function order(): BelongsTo

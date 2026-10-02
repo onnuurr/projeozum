@@ -52,7 +52,7 @@ class ConversionPipelineService
         try {
             $abs = Media::localPath($job->source_pdf_path, $this->disk());
             if (! $abs) {
-                throw new \RuntimeException('Kaynak PDF diskte bulunamadı: ' . $job->source_pdf_path);
+                throw new \RuntimeException(__('patternengine::messages.conversion.source_missing_on_disk', ['path' => $job->source_pdf_path]));
             }
             $result = $this->converter->convert($abs);
 

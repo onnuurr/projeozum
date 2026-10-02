@@ -36,7 +36,7 @@ class UpdateCategoryAttributeDefinitionRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'key.regex' => 'Anahtar küçük harfle başlamalı, yalnızca küçük harf/rakam/alt çizgi içerebilir.',
+            'key.regex' => __('product::messages.validation.attribute_key_format'),
         ];
     }
 }

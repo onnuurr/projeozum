@@ -29,12 +29,6 @@ use Modules\Creative\Models\CreativeTemplate;
  */
 class TemplateGeneratorService
 {
-    private const PLACEHOLDER_TEXT = [
-        'headline'     => 'Başlık Buraya',
-        'sub_headline' => 'Alt başlık metni',
-        'cta_button'   => 'Şimdi Keşfet',
-    ];
-
     public function __construct(
         private CreativeRenderService $renderService,
         private BrandTokenService $brandTokens,
@@ -61,7 +55,7 @@ class TemplateGeneratorService
         $formats = (array) config('creative.formats', []);
 
         if (! isset($presets[$presetKey]) || ! is_array($presets[$presetKey])) {
-            throw new InvalidArgumentException("Bilinmeyen şablon preset'i: {$presetKey}");
+            throw new InvalidArgumentException(__('creative::messages.template.unknown_preset', ['preset' => $presetKey]));
         }
         if (! isset($formats[$formatKey]) || ! is_array($formats[$formatKey])) {
             throw new InvalidArgumentException("Bilinmeyen sosyal format: {$formatKey}");
@@ -133,7 +127,9 @@ class TemplateGeneratorService
         // Sağ kenara kadar kalan alan: CreativeCopyRuleEngine'in karakter-tavanı
         // denetimi için (bkz. python/_svgcommon.py::iter_slots "data-w").
         $availableW = round(($width - $x) * 0.92, 2);
-        $placeholder = self::PLACEHOLDER_TEXT[$key] ?? $key;
+        // Yer tutucu metinler: creative::labels.template_placeholders (tanımsız slotta anahtarın kendisi).
+        $placeholderKey = 'creative::labels.template_placeholders.'.$key;
+        $placeholder = \Illuminate\Support\Facades\Lang::has($placeholderKey) ? __($placeholderKey) : $key;
 
         return sprintf(
             '<text data-slot="%s" x="%s" y="%s" font-size="%s" text-anchor="%s" font-weight="%s" fill="%s" data-w="%s">%s</text>',

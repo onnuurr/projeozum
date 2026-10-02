@@ -86,11 +86,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->whereNumber('application')->middleware('can:tenant-application.approve')->name('request-documents');
         Route::post('/{application}/open-documents', [TenantApplicationController::class, 'openDocuments'])
             ->whereNumber('application')->middleware('can:tenant-application.approve')->name('open-documents');
+        Route::post('/{application}/remind-documents', [TenantApplicationController::class, 'remindDocuments'])
+            ->whereNumber('application')->middleware('can:tenant-application.approve')->name('remind-documents');
         // Resmi evrak onayı iş ortağı kaydı da açtığı için tenant.manage de gerekir.
         Route::post('/{application}/open-account', [TenantApplicationController::class, 'openAccount'])
             ->whereNumber('application')->middleware(['can:tenant-application.approve', 'can:tenant.manage'])->name('open-account');
         Route::post('/{application}/resend-invitation', [TenantApplicationController::class, 'resendInvitation'])
             ->whereNumber('application')->middleware('can:tenant-application.approve')->name('resend-invitation');
+        Route::get('/{application}/documents/{document}/preview', [TenantApplicationController::class, 'previewDocument'])
+            ->whereNumber('application')->whereNumber('document')
+            ->middleware('can:tenant-application.approve')->name('documents.preview');
+        // Başvuru dosyası (çıktı): belgeler ve banka bilgisi içerdiği için onay yetkisi gerekir.
+        Route::get('/{application}/print', [TenantApplicationController::class, 'print'])
+            ->whereNumber('application')->middleware('can:tenant-application.approve')->name('print');
         Route::get('/{application}/documents/{document}/download', [TenantApplicationController::class, 'downloadDocument'])
             ->whereNumber('application')->whereNumber('document')
             // KYB belgeleri hassas (vergi levhası, imza sirküleri) → salt görüntüleme yetmez.

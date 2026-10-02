@@ -44,6 +44,7 @@
 
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue'
+import { isTouchPrimary } from '@/Components/Oz/ozTouch'
 
 const props = defineProps({
 	modelValue: { type: Boolean, default: false },
@@ -80,7 +81,8 @@ function select(item) {
 watch(
 	() => props.modelValue,
 	(open) => {
-		if (open) nextTick(() => searchInput.value?.focus())
+		// Dokunmatikte klavye kendiliğinden açılmasın; kullanıcı arama kutusuna kendisi dokunur.
+		if (open && !isTouchPrimary()) nextTick(() => searchInput.value?.focus())
 	}
 )
 </script>

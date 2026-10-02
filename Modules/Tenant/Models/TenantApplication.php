@@ -24,6 +24,9 @@ class TenantApplication extends Model
     /** Üyelik tamamlama bağlantısının geçerlilik süresi (gün). */
     public const INVITATION_TTL_DAYS = 14;
 
+    /** Resmi belge hatırlatmaları arasında en az bu kadar dakika olmalı (art arda tıklama koruması). */
+    public const REMINDER_COOLDOWN_MINUTES = 60;
+
     public const SOURCE_WEB = 'web';
     public const SOURCE_BAGISTO = 'bagisto';
 
@@ -54,6 +57,7 @@ class TenantApplication extends Model
         'missing_note',
         'missing_requested_at',
         'documents_requested_at',
+        'documents_reminded_at',
         'documents_submitted_at',
         'invitation_token',
         'invitation_sent_at',
@@ -72,6 +76,7 @@ class TenantApplication extends Model
         'missing_documents' => 'array',
         'missing_requested_at' => 'datetime',
         'documents_requested_at' => 'datetime',
+        'documents_reminded_at' => 'datetime',
         'documents_submitted_at' => 'datetime',
         'invitation_sent_at' => 'datetime',
         'invitation_expires_at' => 'datetime',

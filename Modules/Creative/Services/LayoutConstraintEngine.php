@@ -35,12 +35,12 @@ class LayoutConstraintEngine
 
             $wordCount = count(preg_split('/\s+/', $headline, -1, PREG_SPLIT_NO_EMPTY));
             if ($wordCount > $maxWords) {
-                $violations[] = sprintf('headline kelime sayısı %d, izin verilen azami %d', $wordCount, $maxWords);
+                $violations[] = __('creative::messages.constraints.headline_words', ['count' => $wordCount, 'max' => $maxWords]);
             }
 
             $lineCount = count(explode("\n", $headline));
             if ($lineCount > $maxLines) {
-                $violations[] = sprintf('headline satır sayısı %d, izin verilen azami %d', $lineCount, $maxLines);
+                $violations[] = __('creative::messages.constraints.headline_lines', ['count' => $lineCount, 'max' => $maxLines]);
             }
         }
 
@@ -49,7 +49,7 @@ class LayoutConstraintEngine
             $maxCtaWords = (int) config('creative.composition.constraints.cta_max_words', 3);
             $ctaWordCount = count(preg_split('/\s+/', $cta, -1, PREG_SPLIT_NO_EMPTY));
             if ($ctaWordCount > $maxCtaWords) {
-                $violations[] = sprintf('CTA kelime sayısı %d, izin verilen azami %d', $ctaWordCount, $maxCtaWords);
+                $violations[] = __('creative::messages.constraints.cta_words', ['count' => $ctaWordCount, 'max' => $maxCtaWords]);
             }
         }
 
@@ -74,38 +74,36 @@ class LayoutConstraintEngine
         if ($headline !== '') {
             $match = $this->bestMatch($headline, $ocrWords);
             if ($match === null || $match['similarity'] < $this->minSimilarity()) {
-                $violations[] = sprintf(
-                    'headline OCR uyuşmazlığı ("%s" bulunamadı, benzerlik %.2f < %.2f)',
-                    $headline,
-                    $match['similarity'] ?? 0.0,
-                    $this->minSimilarity(),
-                );
+                $violations[] = __('creative::messages.constraints.headline_ocr_mismatch', [
+                    'text' => $headline,
+                    'similarity' => sprintf('%.2f', $match['similarity'] ?? 0.0),
+                    'min' => sprintf('%.2f', $this->minSimilarity()),
+                ]);
             } elseif (! $this->withinSafeMargin($match['box'], $format)) {
-                $violations[] = 'headline metni safe-margin dışında konumlanmış';
+                $violations[] = __('creative::messages.constraints.headline_outside_margin');
             }
         }
 
         if ($wantCta) {
             $cta = trim((string) ($intendedText['cta_button'] ?? ''));
             if ($cta === '') {
-                $violations[] = 'CTA metni zorunlu ama üretilmedi';
+                $violations[] = __('creative::messages.constraints.cta_missing');
             } else {
                 $match = $this->bestMatch($cta, $ocrWords);
                 if ($match === null || $match['similarity'] < $this->minSimilarity()) {
-                    $violations[] = sprintf(
-                        'CTA OCR uyuşmazlığı ("%s" bulunamadı, benzerlik %.2f < %.2f)',
-                        $cta,
-                        $match['similarity'] ?? 0.0,
-                        $this->minSimilarity(),
-                    );
+                    $violations[] = __('creative::messages.constraints.cta_ocr_mismatch', [
+                        'text' => $cta,
+                        'similarity' => sprintf('%.2f', $match['similarity'] ?? 0.0),
+                        'min' => sprintf('%.2f', $this->minSimilarity()),
+                    ]);
                 } elseif (! $this->withinSafeMargin($match['box'], $format)) {
-                    $violations[] = 'CTA metni safe-margin dışında konumlanmış';
+                    $violations[] = __('creative::messages.constraints.cta_outside_margin');
                 }
             }
         }
 
         if ($ocrWords === []) {
-            $violations[] = 'OCR hiçbir metin bulamadı (üretim/tanıma hatası olabilir)';
+            $violations[] = __('creative::messages.constraints.ocr_empty');
         }
 
         unset($ocrText);
@@ -155,7 +153,7 @@ class LayoutConstraintEngine
 
         foreach ($keyCounts as $key => $count) {
             if ($count > 1) {
-                $violations[] = sprintf('"%s" anahtarı %d kez tekrarlanmış (yinelenen slot)', $key, $count);
+                $violations[] = __('creative::messages.constraints.duplicate_slot', ['key' => $key, 'count' => $count]);
             }
         }
 
@@ -166,11 +164,10 @@ class LayoutConstraintEngine
             $heroCoveragePct = $heroArea / $canvasArea;
             $minHero = (float) config('creative.constraints.layout.hero_coverage_min_pct', 0.30);
             if ($heroCoveragePct < $minHero) {
-                $violations[] = sprintf(
-                    'ürün görseli tuvalin yalnız %%%.1f\'ini kaplıyor (asgari %%%.1f)',
-                    $heroCoveragePct * 100,
-                    $minHero * 100,
-                );
+                $violations[] = __('creative::messages.constraints.hero_coverage', [
+                    'pct' => sprintf('%.1f', $heroCoveragePct * 100),
+                    'min' => sprintf('%.1f', $minHero * 100),
+                ]);
             }
         }
 
@@ -181,11 +178,10 @@ class LayoutConstraintEngine
         $whitespacePct = max(0.0, 1 - ($occupiedArea / $canvasArea));
         $minWhitespace = (float) config('creative.constraints.layout.whitespace_min_pct', 0.08);
         if ($whitespacePct < $minWhitespace) {
-            $violations[] = sprintf(
-                'boşluk oranı %%%.1f (asgari %%%.1f)',
-                $whitespacePct * 100,
-                $minWhitespace * 100,
-            );
+            $violations[] = __('creative::messages.constraints.whitespace', [
+                'pct' => sprintf('%.1f', $whitespacePct * 100),
+                'min' => sprintf('%.1f', $minWhitespace * 100),
+            ]);
         }
 
         $tolerance = (int) config('creative.constraints.layout.overlap_tolerance_px', 4);
@@ -198,7 +194,7 @@ class LayoutConstraintEngine
                     continue;
                 }
                 if ($this->overlapArea($boxes[$a]['overlapBox'], $boxes[$b]['overlapBox']) > ($tolerance * $tolerance)) {
-                    $violations[] = sprintf('"%s" ve "%s" slotları çakışıyor', $boxes[$a]['key'], $boxes[$b]['key']);
+                    $violations[] = __('creative::messages.constraints.slots_overlap', ['a' => $boxes[$a]['key'], 'b' => $boxes[$b]['key']]);
                 }
             }
         }
@@ -206,7 +202,7 @@ class LayoutConstraintEngine
         if ((bool) config('creative.constraints.layout.require_logo_slot', false)) {
             $hasLogo = collect($slots)->contains(fn ($s) => ($s['key'] ?? null) === 'logo');
             if (! $hasLogo) {
-                $violations[] = "'logo' anahtarlı bir slot tanımlanmamış";
+                $violations[] = __('creative::messages.constraints.logo_slot_missing');
             }
         }
 

@@ -61,7 +61,7 @@ class GeneratePatternJob implements ShouldQueue
             if ($this->attempts() < $this->tries) {
                 $job->update([
                     'status' => PatternGenerationJob::STATUS_PROCESSING,
-                    'error'  => sprintf('Deneme %d/%d başarısız: %s', $this->attempts(), $this->tries, $e->getMessage()),
+                    'error'  => __('patternengine::messages.job_attempt_failed', ['attempt' => $this->attempts(), 'tries' => $this->tries, 'error' => $e->getMessage()]),
                 ]);
 
                 throw $e;

@@ -33,18 +33,18 @@ class CreativeReviewReportReadyNotification extends Notification implements Shou
     public function toArray(object $notifiable): array
     {
         $desc = $this->totalReviewedCount === 0
-            ? 'Bu hafta incelenen görsel yok.'
-            : sprintf(
-                '%d/%d görsel reddedildi.%s',
-                $this->rejectedCount,
-                $this->totalReviewedCount,
-                $this->topTag ? " En sık neden: \"{$this->topTag}\" ({$this->topTagCount})." : '',
-            );
+            ? __('creative::notifications.review_report.empty')
+            : __('creative::notifications.review_report.summary', [
+                'rejected' => $this->rejectedCount,
+                'total' => $this->totalReviewedCount,
+            ]) . ($this->topTag
+                ? __('creative::notifications.review_report.top_tag', ['tag' => $this->topTag, 'count' => $this->topTagCount])
+                : '');
 
         return [
             'icon'         => '📊',
             'iconType'     => 'info',
-            'title'        => 'Haftalık giydirme ret raporu hazır',
+            'title'        => __('creative::notifications.review_report.title'),
             'desc'         => $desc,
             'link'         => '/creative/review-reports/' . basename($this->reportPath),
             'kind'         => 'review_report',

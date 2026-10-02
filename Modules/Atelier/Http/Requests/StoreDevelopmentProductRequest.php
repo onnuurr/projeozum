@@ -46,7 +46,12 @@ class StoreDevelopmentProductRequest extends FormRequest
             'extra_cost_per_unit' => ['nullable', 'numeric', 'min:0'],
             'margin_pct'          => ['nullable', 'numeric', 'min:0', 'max:1000'],
             'price'               => ['required', 'numeric', 'min:0'],
-        ];
+        ] + UpdateProductRouteRequest::stepRules('route', required: false);
+    }
+
+    public function messages(): array
+    {
+        return UpdateProductRouteRequest::stepMessages('route');
     }
 
     public function attributes(): array

@@ -70,7 +70,7 @@ class ProductReadinessService
      */
     private function imageChecks(Product $product): array
     {
-        return $product->images->isEmpty() ? ['En az bir ürün görseli gerekli'] : [];
+        return $product->images->isEmpty() ? [__('product::messages.readiness.needs_image')] : [];
     }
 
     /**
@@ -92,6 +92,6 @@ class ProductReadinessService
     {
         $hasMapping = $product->category?->marketplaceMappings?->isNotEmpty() ?? false;
 
-        return $hasMapping ? [] : ['Kategori için pazaryeri eşlemesi tanımlı değil'];
+        return $hasMapping ? [] : [__('product::messages.readiness.needs_marketplace_mapping')];
     }
 }

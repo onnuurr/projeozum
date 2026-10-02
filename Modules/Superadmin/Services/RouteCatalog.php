@@ -228,12 +228,15 @@ class RouteCatalog
         'superadmin.backups.index'             => 'Yedeklemeler',
         'superadmin.failed-jobs.index'         => 'Başarısız Kuyruk İşleri',
         'superadmin.architecture-doctor.index' => 'Mimari Doktor',
+        'superadmin.translations.index'        => 'Dil Dosyaları',
 
         // İş Ortakları
         'tenants.index'                  => 'İş Ortağı Listesi',
         'tenants.types.index'            => 'İş Ortağı Tipleri',
         'tenant-applications.index'      => 'İş Ortağı Başvuruları',
         'tenant-applications.create'     => 'Başvuru Formu (herkese açık)',
+        'dealer-mail-templates.index'    => 'Bayi E-postaları',
+        'dealer-agreements.index'        => 'Bayi Sözleşmeleri',
 
         // Bayi Portalı (Bagisto)
         'bagisto.settings.index'         => 'Bayi Portalı Ayarları',

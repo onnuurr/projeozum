@@ -1,111 +1,119 @@
 {{--
-    Bayi iade bildirimi. Dealer-invitation e-postasının Stitch token'ları + tablo tabanlı, satır içi stil düzeni.
+    Bayi iade bildirimi (onay, red, fatura reddi, para iadesi). Tasarım başvuru e-postalarıyla ortak düzende
+    (bagisto::emails.layouts.dealer); renkler Modules\Bagisto\Mail\DealerMailTheme.
+
+    Düzenlenebilen yalnızca $subject / $intro / $body (Bayi E-postaları › İade); rozet, iade özeti, fatura
+    uyarısı, açıklama kutusu ve buton burada sabittir.
     Değişkenler: Modules\Bagisto\Mail\ReturnStatusMail::content()
 --}}
+@extends('bagisto::emails.layouts.dealer')
+
 @php
-    use Modules\Bagisto\Jobs\NotifyTenantOfReturn;
+    use Modules\Bagisto\Mail\DealerMailTheme;
+    use Modules\Bagisto\Services\ReturnMailTemplateService as Stage;
 
-    $c = [
-        'background' => '#fff8f5',
-        'card' => '#ffffff',
-        'border' => '#c1c8c9',
-        'primary' => '#2d4e55',
-        'surfaceLow' => '#fcf2ed',
-        'outline' => '#71787a',
-        'ink' => '#1f1b18',
-        'inkSoft' => '#41484a',
-        'danger' => '#8c1d18',
-    ];
+    $c = DealerMailTheme::COLORS;
+    $heading = DealerMailTheme::HEADING;
+    $font = DealerMailTheme::FONT;
+    $label = DealerMailTheme::label();
+    $paragraph = DealerMailTheme::paragraph();
 
-    $heading = "font-family:'Plus Jakarta Sans',Inter,Arial,sans-serif;";
-    $body = 'font-family:Inter,Arial,sans-serif;';
-    $amount = number_format((float) $return->approved_amount, 2, ',', '.').' ₺';
-
-    [$title, $lead] = match ($event) {
-        NotifyTenantOfReturn::EVENT_APPROVED => [
-            'İade talebiniz onaylandı',
-            $return->invoice_required
-                ? "İade tutarı {$amount} olarak onaylandı. Sipariş tarafımızca faturalandırıldığı için ödemenin yapılabilmesi adına iade faturanızı bayi portalındaki iade sayfasından yüklemeniz gerekiyor."
-                : "İade tutarı {$amount} olarak onaylandı. Ödemeniz, siparişin ödeme yöntemine en kısa sürede yapılacaktır.",
-        ],
-        NotifyTenantOfReturn::EVENT_REJECTED => [
-            'İade talebiniz reddedildi',
-            'İade talebiniz incelendi ve kabul edilmedi. Gerekçeyi aşağıda bulabilirsiniz.',
-        ],
-        NotifyTenantOfReturn::EVENT_INVOICE_REJECTED => [
-            'İade faturanız kabul edilmedi',
-            'Yüklediğiniz iade faturası kontrol edildi ve kabul edilmedi. Açıklamayı inceleyip bayi portalından düzeltilmiş faturayı yeniden yükleyebilirsiniz.',
-        ],
-        NotifyTenantOfReturn::EVENT_REFUNDED => [
-            'İade ödemeniz yapıldı',
-            "{$amount} tutarındaki iade ödemeniz yapıldı".($refundMethodLabel ? " ({$refundMethodLabel})" : '').'.',
-        ],
-        default => ['İade talebinizde güncelleme', 'İade talebinizin durumu güncellendi.'],
+    // Adım: rozet, rozet tonu (secondary | danger | warning), açıklama kutusu başlığı.
+    [$badge, $tone, $noteTitle] = match ($stage) {
+        Stage::APPROVED, Stage::APPROVED_INVOICE => ['✓ İade Onaylandı', 'secondary', null],
+        Stage::REJECTED => ['İade Reddedildi', 'danger', 'Değerlendirme Notu'],
+        Stage::INVOICE_REJECTED => ['Fatura Kabul Edilmedi', 'warning', 'Fatura Kontrol Notu'],
+        Stage::REFUNDED => ['✓ Ödeme Yapıldı', 'secondary', null],
+        default => ['İade Güncellemesi', 'secondary', null],
     };
 
-    $note = match ($event) {
-        NotifyTenantOfReturn::EVENT_REJECTED => $return->decision_note,
-        NotifyTenantOfReturn::EVENT_INVOICE_REJECTED => $return->invoice_review_note,
-        default => $return->decision_note,
+    [$badgeColor, $badgeBg] = match ($tone) {
+        'danger' => [$c['danger'], $c['dangerBg']],
+        'warning' => [$c['warning'], $c['warningBg']],
+        default => [$c['secondary'], $c['secondaryBg']],
     };
+
+    $rows = array_filter([
+        'Sipariş' => $orderRef,
+        'İade talebi' => '#'.$return->bagisto_rma_id,
+        'Talep edilen tutar' => $stage === Stage::REJECTED ? Stage::money($return->requested_amount) : null,
+        'Onaylanan tutar' => $amount ?: null,
+        'İade yöntemi' => $stage === Stage::REFUNDED ? $refundMethodLabel : null,
+        'İşlem no' => $stage === Stage::REFUNDED && $return->refund_method === 'bank' ? $return->refund_reference : null,
+    ], fn ($value) => filled($value));
+
+    $invoiceNeeded = in_array($stage, [Stage::APPROVED_INVOICE, Stage::INVOICE_REJECTED], true);
+    $actionLabel = $invoiceNeeded ? 'İade Faturasını Yükle' : 'İade Talebini Görüntüle';
+
+    $preheader = $intro;
+    $pill = 'B2B Bayi İadeleri';
 @endphp
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ $title }}</title>
-</head>
-<body style="margin:0;padding:0;background:{{ $c['background'] }};">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:{{ $c['background'] }};">
-    <tr>
-        <td align="center" style="padding:32px 12px;">
-            <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:{{ $c['card'] }};border:1px solid {{ $c['border'] }};border-radius:12px;">
-                <tr>
-                    <td style="padding:32px 40px 8px;">
-                        <p style="{{ $body }}margin:0 0 8px;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:{{ $c['outline'] }};">Ozm Kids · Bayi İadeleri</p>
-                        <h1 style="{{ $heading }}margin:0;font-size:22px;line-height:30px;color:{{ $event === NotifyTenantOfReturn::EVENT_REJECTED ? $c['danger'] : $c['primary'] }};">{{ $title }}</h1>
-                    </td>
-                </tr>
-                <tr>
-                    <td style="padding:16px 40px 0;{{ $body }}font-size:15px;line-height:24px;color:{{ $c['ink'] }};">
-                        <p style="margin:0 0 12px;">Merhaba {{ $tenantName }},</p>
-                        <p style="margin:0 0 16px;">{{ $lead }}</p>
-                    </td>
-                </tr>
-                <tr>
-                    <td style="padding:0 40px;">
-                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:{{ $c['surfaceLow'] }};border-radius:8px;">
-                            <tr>
-                                <td style="padding:14px 16px;{{ $body }}font-size:14px;line-height:22px;color:{{ $c['inkSoft'] }};">
-                                    <strong style="color:{{ $c['ink'] }};">Sipariş:</strong> {{ $orderRef }}<br>
-                                    <strong style="color:{{ $c['ink'] }};">İade talebi:</strong> #{{ $return->bagisto_rma_id }}
-                                    @if ($return->approved_amount !== null)
-                                        <br><strong style="color:{{ $c['ink'] }};">Onaylanan tutar:</strong> {{ $amount }}
-                                    @endif
-                                    @if ($return->refund_reference && $event === NotifyTenantOfReturn::EVENT_REFUNDED && $return->refund_method === 'bank')
-                                        <br><strong style="color:{{ $c['ink'] }};">İşlem no:</strong> {{ $return->refund_reference }}
-                                    @endif
-                                </td>
-                            </tr>
-                        </table>
-                    </td>
-                </tr>
-                @if (filled($note))
+
+@section('content')
+    <span style="display:inline-block;{{ $label }}color:{{ $badgeColor }};background:{{ $badgeBg }};border:1px solid {{ $c['borderSoft'] }};border-radius:999px;padding:4px 14px;">
+        {{ $badge }} • #{{ $return->bagisto_rma_id }}
+    </span>
+
+    <h1 style="margin:14px 0 10px;{{ $heading }}font-size:28px;line-height:36px;font-weight:600;letter-spacing:-0.015em;color:{{ $c['primary'] }};">
+        Sayın {{ $name }},
+    </h1>
+
+    <p style="{{ $paragraph }}">{!! nl2br(e($intro)) !!}</p>
+
+    {{-- İade özeti --}}
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px;border:1px solid {{ $c['border'] }};border-radius:8px;">
+        <tr><td style="padding:16px;">
+            <div style="{{ $label }}color:{{ $c['primary'] }};letter-spacing:0.04em;margin-bottom:10px;">İade Özeti</div>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="{{ $font }}font-size:13px;line-height:22px;">
+                @foreach ($rows as $title => $value)
                     <tr>
-                        <td style="padding:16px 40px 0;{{ $body }}font-size:14px;line-height:22px;color:{{ $c['ink'] }};">
-                            <strong>Açıklama:</strong><br>{!! nl2br(e($note)) !!}
-                        </td>
+                        <td style="color:{{ $c['outline'] }};{{ $loop->first ? '' : 'border-top:1px solid '.$c['borderSoft'].';' }}padding:4px 0;">{{ $title }}</td>
+                        <td align="right" style="color:{{ $c['ink'] }};font-weight:500;{{ $loop->first ? '' : 'border-top:1px solid '.$c['borderSoft'].';' }}padding:4px 0;">{{ $value }}</td>
                     </tr>
-                @endif
-                <tr>
-                    <td style="padding:24px 40px 32px;">
-                        <a href="{{ $portalUrl }}" style="{{ $heading }}display:inline-block;background:{{ $c['primary'] }};color:#ffffff;text-decoration:none;font-size:14px;padding:12px 22px;border-radius:8px;">İade talebini görüntüle</a>
-                    </td>
-                </tr>
+                @endforeach
             </table>
-        </td>
-    </tr>
-</table>
-</body>
-</html>
+        </td></tr>
+    </table>
+
+    {{-- Fatura gerekli: yükleme uyarısı --}}
+    @if ($invoiceNeeded)
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px;background:{{ $c['warningBg'] }};border:1px solid #f0d9a8;border-radius:8px;">
+            <tr><td style="padding:14px 18px;">
+                <div style="{{ $label }}color:{{ $c['warning'] }};letter-spacing:0.04em;margin-bottom:6px;">İade Faturası Bekleniyor</div>
+                <div style="{{ $font }}font-size:13px;line-height:21px;color:{{ $c['ink'] }};">
+                    Ödeme, iade faturanız bayi portalındaki iade sayfasından yüklenip kontrol edildikten sonra yapılır.
+                </div>
+            </td></tr>
+        </table>
+    @endif
+
+    @if ($noteTitle && filled($note))
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px;">
+            <tr><td style="padding:12px 16px;border-left:3px solid {{ $tone === 'danger' ? $c['danger'] : $c['border'] }};background:{{ $c['surfaceLow'] }};{{ $font }}font-size:13px;line-height:21px;color:{{ $c['inkSoft'] }};">
+                <div style="{{ $label }}color:{{ $c['outline'] }};letter-spacing:0.04em;margin-bottom:4px;">{{ $noteTitle }}</div>
+                {!! nl2br(e($note)) !!}
+            </td></tr>
+        </table>
+    @endif
+
+    @if (filled($body))
+        <p style="{{ $paragraph }}margin-top:24px;">{!! nl2br(e($body)) !!}</p>
+    @endif
+
+    {{-- Ana aksiyon --}}
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:28px;">
+        <tr>
+            <td align="center" style="border-radius:8px;background:{{ $c['primary'] }};">
+                <a href="{{ $returnUrl }}" style="display:block;padding:15px 24px;{{ $heading }}font-size:15px;line-height:20px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;">
+                    {{ $actionLabel }} &rarr;
+                </a>
+            </td>
+        </tr>
+    </table>
+@endsection
+
+@section('contact-lead', 'İade talebiniz, iade faturası veya ödemeniz hakkında sorularınız için bize ulaşabilirsiniz.')
+
+@section('footer-note')
+    Bu e-posta, {{ $companyName ? $companyName.' bayi hesabındaki' : 'bayi hesabınızdaki' }} iade talebi kapsamında otomatik olarak gönderilmiştir.
+@endsection

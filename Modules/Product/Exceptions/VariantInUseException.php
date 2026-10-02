@@ -15,6 +15,6 @@ class VariantInUseException extends RuntimeException
         public readonly string $sku,
         string $reason,
     ) {
-        parent::__construct(sprintf('"%s" varyantı silinemez: %s.', $sku, $reason));
+        parent::__construct(__('product::messages.variant_in_use', ['sku' => $sku, 'reason' => $reason]));
     }
 }

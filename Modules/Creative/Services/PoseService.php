@@ -78,7 +78,7 @@ class PoseService
     {
         $bytes = @file_get_contents($sourcePath);
         if ($bytes === false || $bytes === '') {
-            throw new RuntimeException('Poz önizleme görseli okunamadı.');
+            throw new RuntimeException(__('creative::messages.pose.preview_unreadable'));
         }
 
         $disk = config('creative.disk', 'public');

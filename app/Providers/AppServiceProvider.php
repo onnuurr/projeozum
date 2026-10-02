@@ -61,6 +61,17 @@ class AppServiceProvider extends ServiceProvider
 
         Vite::prefetch(concurrency: 3);
 
+        // Modül dil dosyaları (Modules/<Ad>/lang) nwidart tarafından isim alanı OLMADAN global
+        // yüklenir — iki modülde aynı adlı dosya birbirine karışır. Her modül ayrıca kendi
+        // alias'ıyla kaydedilir: __('product::dosya.anahtar'). Klasör henüz yoksa da kayıt
+        // yapılır; Süper Admin › Dil Dosyaları ilk dosyayı oluşturunca yeniden başlatmadan çalışır.
+        foreach (glob(base_path('Modules/*/module.json')) ?: [] as $manifest) {
+            $alias = json_decode((string) file_get_contents($manifest), true)['alias'] ?? null;
+            if (is_string($alias) && $alias !== '') {
+                $this->loadTranslationsFrom(dirname($manifest).'/lang', $alias);
+            }
+        }
+
         // ->toast('success', 'Kaydedildi.') kısayolu — Schema B'yi doğrudan oluşturur.
         RedirectResponse::macro('toast', function (string $type, string $message, ?string $title = null) {
             /** @var RedirectResponse $this */

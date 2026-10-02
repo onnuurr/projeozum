@@ -186,7 +186,7 @@
 									<label class="bold-toggle"><input v-model="active.bold" type="checkbox" /> Kalın (bold)</label>
 									<div class="field">
 										<label>Azami genişlik (AI metin kırpma için, opsiyonel)</label>
-										<input v-model.number="active.w" type="number" min="0" placeholder="örn. 400" />
+										<input v-model.number="active.w" type="number" inputmode="numeric" min="0" placeholder="örn. 400" />
 										<p class="field-hint">Boş/0 bırakılırsa kırpma kontrolü atlanır. Render'ı etkilemez.</p>
 									</div>
 								</template>

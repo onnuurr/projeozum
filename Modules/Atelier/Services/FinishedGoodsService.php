@@ -4,66 +4,37 @@ namespace Modules\Atelier\Services;
 
 use Illuminate\Support\Facades\DB;
 use Modules\Atelier\Models\ProductionOrder;
-use Modules\Atelier\Models\ProductionOrderItem;
-use Modules\Product\Models\ProductVariant;
-use Modules\Product\Models\Stock;
 use Modules\Product\Models\StockMovement;
+use Modules\Product\Services\StockService;
 
 class FinishedGoodsService
 {
-    /**
-     * İş emrinin biten ürünlerini (varyant bazında produced_qty) hedef depoya stok girişi yapar.
-     * StockController@movement deseniyle birebir: Stock upsert + StockMovement + variant denormalize.
-     */
-    public function receiveIntoStock(ProductionOrder $order): void
-    {
-        DB::transaction(function () use ($order) {
-            $order->loadMissing('items');
+    public function __construct(private StockService $stock) {}
 
-            foreach ($order->items as $item) {
-                $qty = (int) $item->produced_qty;
+    /**
+     * Stoğa alınan bitmiş ürünü (varyant id → adet) iş emrinin deposuna giriş yapar.
+     * Tek stok mutasyon noktası Product StockService — StockChanged (Bagisto stok push) oradan ateşlenir.
+     *
+     * @param  array<int, int>  $quantities
+     */
+    public function receiveIntoStock(ProductionOrder $order, array $quantities): void
+    {
+        DB::transaction(function () use ($order, $quantities) {
+            foreach ($quantities as $variantId => $qty) {
                 if ($qty <= 0) {
                     continue;
                 }
 
-                $this->addStock($order, $item, $qty);
+                $this->stock->move(
+                    (int) $variantId,
+                    $order->warehouse_id,
+                    StockMovement::TYPE_IN,
+                    (int) $qty,
+                    $order,
+                    "Üretim emri {$order->code} girişi",
+                    auth()->id(),
+                );
             }
         });
-    }
-
-    private function addStock(ProductionOrder $order, ProductionOrderItem $item, int $qty): void
-    {
-        Stock::firstOrCreate(
-            ['product_variant_id' => $item->product_variant_id, 'warehouse_id' => $order->warehouse_id],
-            ['quantity' => 0],
-        );
-
-        $stock = Stock::query()
-            ->where('product_variant_id', $item->product_variant_id)
-            ->where('warehouse_id', $order->warehouse_id)
-            ->lockForUpdate()
-            ->firstOrFail();
-
-        $before = (int) $stock->quantity;
-        $after = $before + $qty;
-        $stock->update(['quantity' => $after]);
-
-        StockMovement::create([
-            'product_variant_id' => $item->product_variant_id,
-            'warehouse_id'       => $order->warehouse_id,
-            'type'               => StockMovement::TYPE_IN,
-            'quantity'           => $qty,
-            'before_quantity'    => $before,
-            'after_quantity'     => $after,
-            'reference_type'     => ProductionOrder::class,
-            'reference_id'       => $order->id,
-            'note'               => "Üretim emri {$order->code} girişi",
-            'user_id'            => auth()->id(),
-        ]);
-
-        $variant = ProductVariant::find($item->product_variant_id);
-        $variant?->update([
-            'stock' => (int) Stock::where('product_variant_id', $variant->id)->sum('quantity'),
-        ]);
     }
 }

@@ -44,10 +44,10 @@ class Product extends Model
     public static function statuses(): array
     {
         return [
-            self::STATUS_DRAFT     => 'Taslak',
-            self::STATUS_PUBLISHED => 'Yayında',
-            self::STATUS_ARCHIVED  => 'Arşivlendi',
-            self::STATUS_DEVELOPMENT => 'Geçici Kart',
+            self::STATUS_DRAFT     => __('product::labels.product_status.draft'),
+            self::STATUS_PUBLISHED => __('product::labels.product_status.published'),
+            self::STATUS_ARCHIVED  => __('product::labels.product_status.archived'),
+            self::STATUS_DEVELOPMENT => __('product::labels.product_status.development'),
         ];
     }
 

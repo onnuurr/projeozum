@@ -8,9 +8,15 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use InvalidArgumentException;
+use Modules\Atelier\Http\Requests\UpdateProductRouteRequest;
+use Modules\Atelier\Models\FasonSupplier;
 use Modules\Atelier\Models\Material;
+use Modules\Atelier\Models\Operation;
 use Modules\Atelier\Models\ProductBom;
+use Modules\Atelier\Models\ProductRouteStep;
 use Modules\Atelier\Services\BomService;
+use Modules\Atelier\Services\ProductRouteService;
 use Modules\Product\Models\Product;
 
 class BomController extends Controller
@@ -36,11 +42,43 @@ class BomController extends Controller
                 ]),
             ]);
 
+        // Ürün id → rota adımları (reçete kartında özet + düzenleme)
+        $routes = ProductRouteStep::query()
+            ->with(['operation:id,name', 'fasonSupplier:id,name'])
+            ->whereIn('product_id', $boms->pluck('productId'))
+            ->orderBy('sequence')
+            ->get()
+            ->groupBy('product_id')
+            ->map(fn ($steps) => $steps->map(fn (ProductRouteStep $s) => [
+                'operation_id'      => $s->operation_id,
+                'operationName'     => $s->operation?->name,
+                'sequence'          => $s->sequence,
+                'location_type'     => $s->location_type,
+                'fason_supplier_id' => $s->fason_supplier_id,
+                'fasonSupplierName' => $s->fasonSupplier?->name,
+                'unit_cost'         => (float) $s->unit_cost,
+            ])->values());
+
         return Inertia::render('Atelier::Boms', [
-            'boms'      => $boms,
-            'products'  => Product::query()->orderBy('name')->get(['id', 'name', 'sku']),
-            'materials' => Material::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'unit']),
+            'boms'           => $boms,
+            'routes'         => $routes,
+            'operations'     => Operation::query()->orderBy('sort_order')->get(['id', 'name', 'code', 'default_location', 'default_unit_cost']),
+            'fasonSuppliers' => FasonSupplier::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'products'       => Product::query()->orderBy('name')->get(['id', 'name', 'sku']),
+            'materials'      => Material::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'unit']),
         ]);
+    }
+
+    /** Ürün rotasını (üretim aşamaları + varsayılan iç/fason kararı) yazar. */
+    public function updateRoute(UpdateProductRouteRequest $request, Product $product, ProductRouteService $routes): RedirectResponse
+    {
+        try {
+            $routes->replace($product->id, $request->validated()['steps']);
+        } catch (InvalidArgumentException $e) {
+            return back()->withErrors(['steps' => $e->getMessage()]);
+        }
+
+        return back()->with('success', 'Üretim rotası kaydedildi.');
     }
 
     public function store(Request $request, BomService $boms): RedirectResponse

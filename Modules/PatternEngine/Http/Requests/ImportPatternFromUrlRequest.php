@@ -40,7 +40,7 @@ class ImportPatternFromUrlRequest extends FormRequest
             if ($scheme !== 'https' || $host === null || $host === '' || ! self::hostAllowed($host, $allowed)) {
                 $v->errors()->add(
                     'url',
-                    'Bu adresten içe aktarım desteklenmiyor. İzinli kaynaklar: ' . implode(', ', $allowed) . '.',
+                    __('patternengine::messages.url_import.host_not_allowed', ['hosts' => implode(', ', $allowed)]),
                 );
             }
         });

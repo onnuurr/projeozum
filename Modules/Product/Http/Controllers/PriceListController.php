@@ -28,14 +28,14 @@ class PriceListController extends Controller
             ],
         );
 
-        return back()->with('success', 'Fiyat listesi güncellendi.');
+        return back()->with('success', __('product::messages.price_list_saved'));
     }
 
     public function update(UpdatePriceListRequest $request, PriceList $priceList): RedirectResponse
     {
         $priceList->update($request->validated());
 
-        return back()->with('success', 'Fiyat güncellendi.');
+        return back()->with('success', __('product::messages.price_updated'));
     }
 
     public function destroy(PriceList $priceList): RedirectResponse
@@ -43,6 +43,6 @@ class PriceListController extends Controller
         // Karar: deaktivasyon yerine kalıcı sil — unique constraint serbest kalsın.
         $priceList->forceDelete();
 
-        return back()->with('success', 'Fiyat listesi silindi.');
+        return back()->with('success', __('product::messages.price_list_deleted'));
     }
 }

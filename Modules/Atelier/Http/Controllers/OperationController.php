@@ -21,6 +21,7 @@ class OperationController extends Controller
                 'name'            => $o->name,
                 'defaultLocation' => $o->default_location,
                 'defaultUnitCost' => (float) $o->default_unit_cost,
+                'consumesMaterials' => $o->consumes_materials,
                 'sortOrder'       => $o->sort_order,
             ]),
         ]);
@@ -54,6 +55,7 @@ class OperationController extends Controller
             'name'              => ['required', 'string', 'max:191'],
             'default_location'  => ['required', Rule::in(['in_house', 'fason'])],
             'default_unit_cost' => ['required', 'numeric', 'min:0'],
+            'consumes_materials' => ['boolean'],
             'sort_order'        => ['nullable', 'integer', 'min:0'],
         ]);
     }

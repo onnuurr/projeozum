@@ -9,6 +9,11 @@ import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 // Components/ kiti (StatWidget, AppBadge, QuickActionWidget vb.) <UiIcon name="..."> kullanıyor,
 // global registration bekliyor — yoksa "failed to resolve component" ile sessizce hiç render olmuyor.
 import UiIcon from './Components/UiIcon.vue';
+import { vOzAutofocus } from './Components/Oz/vOzAutofocus';
+import { installKeyboardAvoidance } from './Components/Oz/ozKeyboard';
+
+// Dokunmatikte klavye açılınca odaktaki alanı görünür bölgeye kaydırır.
+installKeyboardAvoidance();
 
 const fallbackAppName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
@@ -48,6 +53,7 @@ createInertiaApp({
             .use(ZiggyVue)
             .use(MotionPlugin)
             .component('UiIcon', UiIcon)
+            .directive('autofocus', vOzAutofocus)
             .mount(el);
     },
     progress: {

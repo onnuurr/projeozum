@@ -55,7 +55,7 @@ class WarehouseController extends Controller
     {
         if ($warehouse->stocks()->where('quantity', '>', 0)->exists()) {
             return back()->withErrors([
-                'warehouse' => 'Bu depoda stok var, önce stokları başka depoya transfer edin.',
+                'warehouse' => __('product::messages.warehouse_has_stock'),
             ]);
         }
 

@@ -6,6 +6,9 @@ import {
 	OzPageHeader, OzCard, OzButton, OzField, OzInput, OzSelect, OzCombobox, OzAlert, OzStatTile,
 } from '@/Components/Oz'
 import { formatMoney, formatNumber } from '../atelierNav'
+import RouteStepsEditor from '../Components/RouteStepsEditor.vue'
+import axios from 'axios'
+import { useCan } from '@/composables/useCan'
 
 defineOptions({ layout: AppLayout })
 
@@ -13,12 +16,36 @@ const props = defineProps({
 	categories: { type: Array, default: () => [] },
 	brands: { type: Array, default: () => [] },
 	materials: { type: Array, default: () => [] },
+	operations: { type: Array, default: () => [] },
+	fasonSuppliers: { type: Array, default: () => [] },
 })
 
 const showToast = inject('showToast', null)
 
-const categoryOptions = computed(() => props.categories.map((c) => ({ value: c.id, label: c.name })))
-const brandOptions = computed(() => [{ value: '', label: 'Markasız' }, ...props.brands.map((b) => ({ value: b.id, label: b.name }))])
+const { can } = useCan()
+
+// Yerel kopyalar: aramadan hızlı eklenen kategori/marka sayfa yenilenmeden listede görünsün.
+const localCategories = ref([...props.categories])
+const localBrands = ref([...props.brands])
+const categoryOptions = computed(() => localCategories.value.map((c) => ({ value: c.id, label: c.name })))
+const brandOptions = computed(() => localBrands.value.map((b) => ({ value: b.id, label: b.name })))
+
+// OzCombobox "ekle" satırı: aranan isimle kaydı oluşturur, dönen seçenek otomatik seçilir.
+function quickCreate(url, list, noun) {
+	return async (name) => {
+		try {
+			const { data } = await axios.post(url, { name })
+			if (!list.value.some((x) => x.id === data.id)) list.value.push(data)
+			showToast?.({ type: 'success', title: `${noun} eklendi`, message: `"${data.name}" eklendi.` })
+			return { value: data.id, label: data.name }
+		} catch (e) {
+			showToast?.({ type: 'error', title: `${noun} eklenemedi`, message: e?.response?.data?.message || 'Bir hata oluştu.' })
+			return null
+		}
+	}
+}
+const createCategory = can('category.create') ? quickCreate('/products/categories/quick-create', localCategories, 'Kategori') : null
+const createBrand = can('brand.manage') ? quickCreate('/products/brands/quick-create', localBrands, 'Marka') : null
 const genderOptions = [{ value: 'Kadın', label: 'Kadın' }, { value: 'Erkek', label: 'Erkek' }, { value: 'Unisex', label: 'Unisex' }]
 const materialOptions = computed(() => props.materials.map((m) => ({ value: m.id, label: m.name, description: `${m.code} · ${formatMoney(m.unitCost)} / ${m.unit}` })))
 const materialById = computed(() => Object.fromEntries(props.materials.map((m) => [m.id, m])))
@@ -34,7 +61,15 @@ const form = useForm({
 	extra_cost_per_unit: 0,
 	margin_pct: 50,
 	price: 0,
+	route: [],
 })
+
+// Opsiyonel üretim rotası: tanımlanırsa ilk iş emri bu rotayla dolar. Öneri = operasyon sırası.
+function startRoute() {
+	form.route = props.operations.map((o, i) => ({
+		operation_id: o.id, sequence: i + 1, location_type: o.default_location, fason_supplier_id: null, unit_cost: Number(o.default_unit_cost),
+	}))
+}
 
 /* ── varyant SKU'su: elle değiştirilmedikçe ürün SKU + beden + renkten türetilir ── */
 const slug = (s) => (s ?? '').toString().trim().toLocaleUpperCase('tr')
@@ -78,6 +113,7 @@ function submit() {
 		...d,
 		brand_id: d.brand_id || null,
 		variants: d.variants.map(({ size, color_name, sku }) => ({ size, color_name, sku })),
+		route: d.route.map((st) => ({ ...st, fason_supplier_id: st.location_type === 'fason' ? st.fason_supplier_id : null })),
 	})).post('/atelier/new-product', {
 		onError: (errs) => showToast?.({ type: 'error', title: 'Kayıt başarısız', message: Object.values(errs)[0] || 'Doğrulama hatası.' }),
 	})
@@ -88,7 +124,7 @@ function submit() {
 	<Head title="Üretilecek Ürün Ekle" />
 
 	<OzPageHeader title="Üretilecek Ürün Ekle">
-		<template #subtitle>Reçete ve maliyetle <b>geçici stok kartı</b> açılır · ilk iş emri tamamlanınca ürüne dönüşür</template>
+		<template #subtitle>Reçete ve maliyetle <b>geçici stok kartı</b> açılır · ilk üretim stoğa girince ürüne dönüşür</template>
 		<template #actions>
 			<Link href="/products"><OzButton icon="x">Vazgeç</OzButton></Link>
 			<OzButton variant="primary" icon="check" :loading="form.processing" @click="submit">Geçici Kartı Aç</OzButton>
@@ -97,8 +133,8 @@ function submit() {
 
 	<OzAlert tone="info" title="Nasıl çalışır?" class="intro">
 		Kart “Geçici Kart” durumunda açılır: stok 0'dır, mağazaya (Bagisto) gönderilmez ve bayilere görünmez.
-		Kaydettikten sonra iş emri ekranına yönlendirilirsiniz. İş emri tamamlanınca üretilen adet stoğa girer,
-		gerçek birim maliyet alış fiyatı olarak yazılır ve ürün <b>Taslak</b> durumuna geçer.
+		Kaydettikten sonra iş emri ekranına yönlendirilirsiniz. İlk üretim stoğa alınınca ürün <b>Taslak</b> durumuna geçer;
+		iş emri kapatılınca gerçek birim maliyet alış fiyatı olarak yazılır.
 		Yayına almak ayrı bir adımdır.
 	</OzAlert>
 
@@ -116,10 +152,10 @@ function submit() {
 						<OzSelect v-model="form.gender" :options="genderOptions" />
 					</OzField>
 					<OzField label="Kategori" required :error="err('category_id')">
-						<OzCombobox v-model="form.category_id" :options="categoryOptions" placeholder="Kategori seçin" />
+						<OzCombobox v-model="form.category_id" :options="categoryOptions" placeholder="Kategori seçin" search-placeholder="Kategori ara ya da yeni ekle…" :create="createCategory" create-text="kategorisini ekle" />
 					</OzField>
 					<OzField label="Marka" :error="err('brand_id')">
-						<OzSelect v-model="form.brand_id" :options="brandOptions" />
+						<OzCombobox v-model="form.brand_id" :options="brandOptions" placeholder="Markasız" clearable search-placeholder="Marka ara ya da yeni ekle…" :create="createBrand" create-text="markasını ekle" />
 					</OzField>
 				</div>
 			</OzCard>
@@ -171,10 +207,23 @@ function submit() {
 					<OzButton size="sm" icon="plus" @click="addLine">Satır Ekle</OzButton>
 				</div>
 			</OzCard>
+
+			<OzCard title="4 · Üretim Rotası" :meta="form.route.length ? `${form.route.length} aşama` : 'isteğe bağlı'">
+				<div class="body rows">
+					<template v-if="form.route.length">
+						<RouteStepsEditor v-model="form.route" :operations="operations" :fason-suppliers="fasonSuppliers" :errors="form.errors" error-key="route" :required="false" />
+						<OzButton size="sm" icon="x" class="route-clear" @click="form.route = []">Rotayı kaldır</OzButton>
+					</template>
+					<template v-else>
+						<p class="dim hint">Aşama sırası (Kesim → Dikim → …) ve varsayılan iç/fason kararları. Tanımlarsanız iş emri bu rotayla otomatik dolar; tanımlamazsanız ilk iş emrinde de kaydedebilirsiniz.</p>
+						<OzButton size="sm" icon="workflow" class="route-clear" :disabled="!operations.length" @click="startRoute">Rota tanımla</OzButton>
+					</template>
+				</div>
+			</OzCard>
 		</div>
 
 		<aside class="side">
-			<OzCard title="4 · Maliyet ve Fiyat">
+			<OzCard title="5 · Maliyet ve Fiyat">
 				<div class="body price">
 					<div class="tiles">
 						<OzStatTile label="Hammadde" :value="formatMoney(materialCost)" icon="package" tone="info" />
@@ -229,6 +278,8 @@ function submit() {
 .row-error { margin: 0; font-size: 12px; color: var(--oz-danger); }
 .line-cost { display: flex; flex-direction: column; gap: 4px; padding-bottom: 8px; font-size: 12px; }
 
+.route-clear { align-self: flex-start; }
+.hint { margin: 0; font-size: 12.5px; }
 .price { display: flex; flex-direction: column; gap: 12px; }
 .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .suggest {

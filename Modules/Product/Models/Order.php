@@ -41,12 +41,12 @@ class Order extends Model
     public static function statuses(): array
     {
         return [
-            self::STATUS_PENDING   => 'Beklemede',
-            self::STATUS_CONFIRMED => 'Onaylandı',
-            self::STATUS_PREPARING => 'Hazırlanıyor',
-            self::STATUS_SHIPPED   => 'Kargolandı',
-            self::STATUS_DELIVERED => 'Teslim Edildi',
-            self::STATUS_CANCELLED => 'İptal Edildi',
+            self::STATUS_PENDING   => __('product::labels.order_status.pending'),
+            self::STATUS_CONFIRMED => __('product::labels.order_status.confirmed'),
+            self::STATUS_PREPARING => __('product::labels.order_status.preparing'),
+            self::STATUS_SHIPPED   => __('product::labels.order_status.shipped'),
+            self::STATUS_DELIVERED => __('product::labels.order_status.delivered'),
+            self::STATUS_CANCELLED => __('product::labels.order_status.cancelled'),
         ];
     }
 

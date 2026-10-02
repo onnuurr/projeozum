@@ -3,6 +3,7 @@ import { ozFold } from './ozText'
 import { ref, computed, watch, nextTick, useId } from 'vue'
 import OzIcon from './OzIcon.vue'
 import OzEmptyState from './OzEmptyState.vue'
+import { isTouchPrimary } from './ozTouch'
 
 // Arama / komut paleti (Ctrl K).
 // groups: [{ label, items: [{ key, label, icon?, hint?, keywords? }] }]
@@ -51,7 +52,8 @@ watch(open, async (v) => {
     query.value = ''
     activeIndex.value = 0
     await nextTick()
-    inputEl.value?.focus()
+    // Dokunmatikte klavye kendiliğinden açılmasın; kullanıcı arama kutusuna kendisi dokunur.
+    if (!isTouchPrimary()) inputEl.value?.focus()
   } else {
     lastFocused?.focus?.()
   }

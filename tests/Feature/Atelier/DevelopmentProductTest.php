@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Modules\Atelier\Models\Material;
+use Modules\Atelier\Models\Operation;
 use Modules\Atelier\Models\ProductBom;
 use Modules\Atelier\Models\ProductionOrder;
 use Modules\Atelier\Services\ProductionOrderService;
@@ -105,38 +106,40 @@ class DevelopmentProductTest extends TestCase
         $this->assertDatabaseMissing('products', ['sku' => 'KTN-01']);
     }
 
-    public function test_completing_first_production_order_promotes_card_to_draft(): void
+    public function test_first_stock_receipt_promotes_card_and_close_sets_real_cost(): void
     {
         $this->actingAs($this->admin)->post('/atelier/new-product', $this->payload());
         $product = Product::where('sku', 'KTN-01')->firstOrFail();
         $variant = $product->variants()->first();
         $warehouse = Warehouse::create(['name' => 'Ana', 'code' => 'W-' . uniqid()]);
-
-        $order = ProductionOrder::create([
-            'code' => 'IE-' . uniqid(), 'product_id' => $product->id, 'warehouse_id' => $warehouse->id,
-            'status' => ProductionOrder::STATUS_DRAFT, 'planned_qty' => 10,
-        ]);
-        $order->items()->create(['product_variant_id' => $variant->id, 'planned_qty' => 10]);
+        $op = Operation::create(['code' => 'kesim', 'name' => 'Kesim', 'default_location' => 'in_house', 'consumes_materials' => true]);
 
         $service = app(ProductionOrderService::class);
+        $order = $service->create([
+            'product_id' => $product->id, 'warehouse_id' => $warehouse->id, 'planned_qty' => 10,
+            'items' => [['product_variant_id' => $variant->id, 'planned_qty' => 10]],
+            'steps' => [['operation_id' => $op->id, 'sequence' => 1, 'location_type' => 'in_house', 'unit_cost' => 0]],
+        ], $this->admin);
         $service->plan($order);
-        $order->items()->first()->update(['produced_qty' => 10]);
+        $service->recordBatch($order->steps()->first(), 10, 0, null, $this->admin);
 
         Queue::fake();
-        $service->complete($order->fresh());
+        $service->receive($order, [$variant->id => 10], $this->admin);
 
         $product->refresh();
         $this->assertSame(Product::STATUS_DRAFT, $product->status);
-        // Gerçek maliyet: 10 adet × 1.65m × 100₺ = 1650 / 10 = 165 (işçilik adımı yok)
-        $this->assertEquals(165, (float) $product->purchase_price);
         $this->assertDatabaseHas('stocks', ['product_variant_id' => $variant->id, 'quantity' => 10]);
         $this->assertDatabaseHas('product_status_histories', [
             'product_id' => $product->id, 'from_status' => 'development', 'to_status' => 'draft',
         ]);
-
         // Ürün mağazada ilk kez oluşturulur.
         Queue::assertPushed(PushProductToBagisto::class, fn ($job) => $this->jobProperty($job, 'productId') === $product->id
             && $this->jobProperty($job, 'event') === 'created');
+
+        $service->close($order->fresh(), $this->admin);
+
+        // Gerçek maliyet: 10 adet × 1.65m × 100₺ = 1650 / 10 = 165 (işçilik adımı maliyetsiz)
+        $this->assertEquals(165, (float) $product->fresh()->purchase_price);
     }
 
     public function test_development_card_cannot_be_published_manually(): void
@@ -159,5 +162,58 @@ class DevelopmentProductTest extends TestCase
         $this->assertNotContains($dev->id, $ids);
         // Yönetici (tenant yok) geçici kartı görür.
         $this->assertContains($dev->id, Product::query()->accessibleToTenant(null)->pluck('id')->all());
+    }
+
+    public function test_production_orders_page_lists_development_cards_without_active_order(): void
+    {
+        Permission::firstOrCreate(['name' => 'atelier.view', 'guard_name' => 'web']);
+        $this->admin->givePermissionTo('atelier.view');
+
+        $waiting = Product::factory()->create(['status' => Product::STATUS_DEVELOPMENT]);
+        $ordered = Product::factory()->create(['status' => Product::STATUS_DEVELOPMENT]);
+        $cancelled = Product::factory()->create(['status' => Product::STATUS_DEVELOPMENT]);
+        Product::factory()->create(['status' => Product::STATUS_DRAFT]);
+
+        $warehouse = Warehouse::create(['name' => 'Ana', 'code' => 'ANA-' . uniqid(), 'is_active' => true]);
+        foreach ([[$ordered, ProductionOrder::STATUS_DRAFT], [$cancelled, ProductionOrder::STATUS_CANCELLED]] as [$p, $status]) {
+            ProductionOrder::create([
+                'code' => 'IE-' . uniqid(), 'product_id' => $p->id, 'warehouse_id' => $warehouse->id,
+                'status' => $status, 'planned_qty' => 10,
+            ]);
+        }
+
+        $this->actingAs($this->admin)->get('/atelier/production-orders')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->has('pendingCards', 2)
+                ->where('pendingCards.0.id', $cancelled->id)
+                ->where('pendingCards.1.id', $waiting->id));
+    }
+
+    public function test_product_card_links_manufactured_product_to_production_order_wizard(): void
+    {
+        foreach (['product.card.view', 'atelier.production.manage'] as $perm) {
+            Permission::firstOrCreate(['name' => $perm, 'guard_name' => 'web']);
+        }
+        $this->admin->givePermissionTo('product.card.view');
+
+        $dev = Product::factory()->create([
+            'status'   => Product::STATUS_DEVELOPMENT,
+            'sourcing' => Product::SOURCING_MANUFACTURED,
+        ]);
+        $purchased = Product::factory()->create(['sourcing' => Product::SOURCING_PURCHASED]);
+
+        // Üretim yetkisi yoksa buton yok.
+        $this->actingAs($this->admin)->get("/products/{$dev->id}/card")
+            ->assertInertia(fn ($page) => $page->where('productionOrderUrl', null));
+
+        $this->admin->givePermissionTo('atelier.production.manage');
+
+        $this->actingAs($this->admin)->get("/products/{$dev->id}/card")
+            ->assertInertia(fn ($page) => $page->where('productionOrderUrl', "/atelier/production-orders?product_id={$dev->id}"));
+
+        // Hazır (satın alınan) ürün üretilmez.
+        $this->actingAs($this->admin)->get("/products/{$purchased->id}/card")
+            ->assertInertia(fn ($page) => $page->where('productionOrderUrl', null));
     }
 }

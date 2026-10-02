@@ -23,7 +23,7 @@ trait HandlesCreativeReview
     private function guardNotOwnWork(Mannequin|TryonResult|CreativeAsset $subject): void
     {
         if ($subject->created_by !== null && $subject->created_by === auth()->id()) {
-            abort(403, 'Kendi ürettiğiniz görseli onaylayamaz/reddedemezsiniz.');
+            abort(403, __('creative::messages.review.own_work'));
         }
     }
 
@@ -47,7 +47,7 @@ trait HandlesCreativeReview
             if ($tags === [] && mb_strlen($reason) < 10) {
                 $validator->errors()->add(
                     'reason',
-                    'En az bir düzeltme alanı seçin veya en az 10 karakterlik açıklama yazın.',
+                    __('creative::messages.review.reason_required'),
                 );
             }
         })->validate();

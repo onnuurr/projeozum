@@ -53,7 +53,11 @@ function onItem(item, e) {
   }
 }
 
+// Dokunmatikte (tablet) dokunma önce hover, sonra click üretir: hover paneli yeni modüle
+// geçirir, ardından gelen click "zaten açık" deyip kapatırdı. Hover yalnız gerçek fareyle çalışır.
+const isMouse = (e) => e.pointerType === 'mouse'
 function onHover(item, e) {
+  if (!isMouse(e)) return
   if (flyItem.value && hasSub(item) && flyItem.value.key !== item.key) openFly(item, e.currentTarget)
 }
 
@@ -121,8 +125,8 @@ const groups = computed(() => [
         :aria-haspopup="hasSub(item) ? 'menu' : undefined"
         :aria-expanded="hasSub(item) ? flyItem?.key === item.key : undefined"
         @click="onItem(item, $event)"
-        @mouseenter="onHover(item, $event); flyItem?.key !== item.key && showTip(item.title, $event)"
-        @mouseleave="tip = null"
+        @pointerenter="onHover(item, $event); isMouse($event) && flyItem?.key !== item.key && showTip(item.title, $event)"
+        @pointerleave="tip = null"
         @keydown="onItemKey(item, $event)"
       >
         <OzIcon :name="item.icon" :size="g.size" />
@@ -136,8 +140,8 @@ const groups = computed(() => [
       class="rail-btn"
       aria-label="Tema Değiştir"
       @click="toggleTheme"
-      @mouseenter="showTip(theme === 'dark' ? 'Açık Tema' : 'Koyu Tema', $event)"
-      @mouseleave="tip = null"
+      @pointerenter="isMouse($event) && showTip(theme === 'dark' ? 'Açık Tema' : 'Koyu Tema', $event)"
+      @pointerleave="tip = null"
     >
       <OzIcon :name="theme === 'dark' ? 'moon' : 'sun'" :size="15" />
     </button>

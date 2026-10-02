@@ -74,9 +74,6 @@ class BagistoOrderSyncService
                 'discount_rate' => 0,
                 'discount_amount' => 0,
                 'total' => $subtotal,
-                'due_date' => $tenant->payment_term_days > 0
-                    ? now()->addDays((int) $tenant->payment_term_days)->toDateString()
-                    : null,
                 'status' => Order::STATUS_PENDING,
             ]);
 

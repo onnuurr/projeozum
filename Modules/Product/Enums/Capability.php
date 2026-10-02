@@ -16,9 +16,9 @@ enum Capability: string
     public function label(): string
     {
         return match ($this) {
-            self::TryOn => 'Sanal Giydirme',
-            self::CreativeRender => 'Kreatif Görsel Üretimi',
-            self::MarketplacePush => 'Pazaryeri Gönderimi',
+            self::TryOn => __('product::labels.capability.try_on'),
+            self::CreativeRender => __('product::labels.capability.creative_render'),
+            self::MarketplacePush => __('product::labels.capability.marketplace_push'),
         };
     }
 }

@@ -6,16 +6,13 @@ use App\Contracts\PlatformSettings;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Modules\Bagisto\Jobs\PushStorefrontFeaturesToBagisto;
-use Modules\Bagisto\Jobs\PushTenantApplicationStageToBagisto;
 use Modules\Bagisto\Jobs\PushTenantToBagisto;
-use Modules\Bagisto\Mail\DealerInvitationMail;
-use Modules\Bagisto\Services\BagistoSyncClient;
+use Modules\Bagisto\Mail\DealerApplicationMail;
 use Modules\Bagisto\Services\StorefrontFeatureService;
 use Modules\Superadmin\Models\Setting;
 use Modules\Tenant\Models\Tenant;
@@ -159,6 +156,7 @@ class TenantApplicationApiTest extends TestCase
         $this->assertArrayNotHasKey('bank', $application->details);
 
         Notification::assertSentTo($this->staff, TenantApplicationActivityNotification::class);
+        Mail::assertQueued(DealerApplicationMail::class, fn (DealerApplicationMail $mail) => $mail->stage === 'received' && $mail->hasTo('siparis@lilabutik.test'));
     }
 
     public function test_pre_application_requires_declaration(): void
@@ -232,7 +230,7 @@ class TenantApplicationApiTest extends TestCase
         $this->api()->post("/api/bagisto/tenant-applications/{$token}/official", $this->officialStep())->assertStatus(409);
     }
 
-    public function test_opening_document_stage_notifies_applicant_via_store(): void
+    public function test_opening_document_stage_mails_applicant(): void
     {
         $token = $this->api()->post('/api/bagisto/tenant-applications', $this->preApplication())->json('data.token');
         $application = TenantApplication::where('public_token', $token)->first();
@@ -241,7 +239,57 @@ class TenantApplicationApiTest extends TestCase
 
         $this->assertSame('documents_requested', $application->fresh()->status);
         $this->assertNotNull($application->fresh()->documents_requested_at);
-        Queue::assertPushed(PushTenantApplicationStageToBagisto::class);
+        Mail::assertQueued(DealerApplicationMail::class, fn (DealerApplicationMail $mail) => $mail->stage === 'documents_requested' && $mail->hasTo('siparis@lilabutik.test'));
+    }
+
+    public function test_documents_reminder_mails_applicant_and_is_throttled(): void
+    {
+        $token = $this->api()->post('/api/bagisto/tenant-applications', $this->preApplication())->json('data.token');
+        $application = TenantApplication::where('public_token', $token)->first();
+
+        // Belge adımı açılmadan hatırlatma yok.
+        $this->actingAs($this->staff)->post("/tenants/applications/{$application->id}/remind-documents")->assertInvalid('application');
+
+        $this->actingAs($this->staff)->post("/tenants/applications/{$application->id}/open-documents");
+        $this->actingAs($this->staff)->post("/tenants/applications/{$application->id}/remind-documents")->assertValid();
+
+        $this->assertNotNull($application->fresh()->documents_reminded_at);
+        Mail::assertQueued(DealerApplicationMail::class, fn (DealerApplicationMail $mail) => $mail->stage === 'documents_reminder' && $mail->hasTo('siparis@lilabutik.test'));
+
+        // Art arda ikinci tıklama reddedilir, süre dolunca tekrar gönderilebilir.
+        $this->actingAs($this->staff)->post("/tenants/applications/{$application->id}/remind-documents")->assertInvalid('application');
+        $this->travel(TenantApplication::REMINDER_COOLDOWN_MINUTES + 1)->minutes();
+        $this->actingAs($this->staff)->post("/tenants/applications/{$application->id}/remind-documents")->assertValid();
+
+        Mail::assertQueued(DealerApplicationMail::class, fn (DealerApplicationMail $mail) => $mail->stage === 'documents_reminder', 2);
+    }
+
+    public function test_documents_reminder_mail_renders(): void
+    {
+        $token = $this->api()->post('/api/bagisto/tenant-applications', $this->preApplication())->json('data.token');
+        $application = TenantApplication::where('public_token', $token)->first();
+
+        $html = (new DealerApplicationMail($application, 'documents_reminder'))->render();
+
+        $this->assertStringContainsString('Hatırlatma', $html);
+        $this->assertStringContainsString('Belgeleri Yükle', $html);
+    }
+
+    public function test_bank_transfer_payment_is_refused_while_cari_account_is_off(): void
+    {
+        $token = $this->api()->post('/api/bagisto/tenant-applications', $this->preApplication())->json('data.token');
+        $application = TenantApplication::where('public_token', $token)->first();
+        $this->actingAs($this->staff)->post("/tenants/applications/{$application->id}/open-documents");
+
+        Setting::setGroup('bagisto_features', ['cari_account' => false]);
+        $this->api()->post("/api/bagisto/tenant-applications/{$token}/official", $this->officialStep(['details' => ['payment_preference' => 'havale']]))
+            ->assertStatus(422)->assertJsonValidationErrors('details.payment_preference');
+
+        Setting::setGroup('bagisto_features', ['cari_account' => true]);
+        $this->api()->post("/api/bagisto/tenant-applications/{$token}/official", $this->officialStep(['details' => ['payment_preference' => 'havale']]))
+            ->assertSuccessful();
+
+        $this->assertSame('havale', $application->fresh()->details['payment_preference']);
     }
 
     public function test_official_step_validates_consent_and_iban(): void
@@ -295,6 +343,67 @@ class TenantApplicationApiTest extends TestCase
         $this->assertNull($application->fresh()->missing_documents);
     }
 
+    public function test_missing_documents_mail_lists_requested_documents_and_note(): void
+    {
+        $application = $this->applicationInReview();
+
+        $this->actingAs($this->staff)->post("/tenants/applications/{$application->id}/request-documents", [
+            'types' => ['vergi_levhasi'],
+            'note' => '2024/2025 tasdikli barkodlu vergi levhası yükleyin.',
+        ])->assertRedirect();
+
+        $mail = Mail::queued(DealerApplicationMail::class, fn (DealerApplicationMail $mail) => $mail->stage === 'missing_documents')->first();
+        $this->assertNotNull($mail);
+
+        $html = $mail->render();
+        $this->assertStringContainsString('Güncel vergi levhası', $html);
+        $this->assertStringContainsString('2024/2025 tasdikli barkodlu vergi levhası yükleyin.', $html);
+        $this->assertStringContainsString('/bayilik-basvurusu/durum/'.$application->public_token, $html);
+    }
+
+    public function test_rejection_mails_applicant_with_reason(): void
+    {
+        $application = $this->applicationInReview();
+
+        $this->actingAs($this->staff)
+            ->post("/tenants/applications/{$application->id}/reject", ['rejection_reason' => 'Bölgede aktif bayimiz var.'])
+            ->assertRedirect();
+
+        $mail = Mail::queued(DealerApplicationMail::class, fn (DealerApplicationMail $mail) => $mail->stage === 'rejected')->first();
+        $this->assertNotNull($mail);
+        $this->assertStringContainsString('Bölgede aktif bayimiz var.', $mail->render());
+    }
+
+    public function test_disabled_stage_sends_no_mail(): void
+    {
+        Setting::setGroup('dealer_mail', ['received' => ['enabled' => false, 'subject' => 'x', 'intro' => 'y', 'body' => '']]);
+
+        $this->api()->post('/api/bagisto/tenant-applications', $this->preApplication())->assertCreated();
+
+        Mail::assertNotQueued(DealerApplicationMail::class);
+    }
+
+    public function test_saved_texts_are_used_with_tags_filled(): void
+    {
+        Setting::setGroup('dealer_mail', ['received' => [
+            'enabled' => true,
+            'subject' => '{{company.name}} başvurusu alındı',
+            'intro' => 'Merhaba {{ user.name }}, referansınız {{application.reference}}.',
+            'body' => '{{user.email}} adresine yazacağız.',
+        ]]);
+
+        $this->api()->post('/api/bagisto/tenant-applications', $this->preApplication())->assertCreated();
+        $application = TenantApplication::first();
+
+        $mail = Mail::queued(DealerApplicationMail::class)->first();
+        $html = $mail->render();
+
+        $this->assertSame('Lila Bebek & Çocuk Butik başvurusu alındı', $mail->envelope()->subject);
+        $this->assertStringContainsString('Merhaba Buse Karaca, referansınız '.$application->reference.'.', $html);
+        $this->assertStringContainsString('siparis@lilabutik.test adresine yazacağız.', $html);
+        $this->assertStringNotContainsString('{{', $html);
+    }
+
     public function test_document_upload_is_refused_when_nothing_requested(): void
     {
         $application = $this->applicationInReview();
@@ -317,9 +426,8 @@ class TenantApplicationApiTest extends TestCase
         $this->assertSame('siparis@lilabutik.test', $tenant->primaryUser->email);
         $this->assertSame('Buse Karaca', $tenant->primaryUser->name);
 
-        Queue::assertPushed(PushTenantApplicationStageToBagisto::class, 1); // yalnız belge aşaması; davet mağazaya gitmez
         Queue::assertNotPushed(PushTenantToBagisto::class); // pasif tenant → Bagisto'da henüz hesap yok
-        Mail::assertQueued(DealerInvitationMail::class, fn (DealerInvitationMail $mail) => $mail->hasTo('siparis@lilabutik.test'));
+        Mail::assertQueued(DealerApplicationMail::class, fn (DealerApplicationMail $mail) => $mail->stage === 'account_opened' && $mail->hasTo('siparis@lilabutik.test'));
     }
 
     public function test_open_account_is_refused_before_document_review(): void
@@ -397,7 +505,7 @@ class TenantApplicationApiTest extends TestCase
 
         $application = $this->openAccount($this->applicationInReview());
 
-        $mail = new DealerInvitationMail($application);
+        $mail = new DealerApplicationMail($application, 'account_opened');
         $html = $mail->render();
 
         $this->assertStringContainsString('Hesap Açıldı • #'.$application->reference, $html);
@@ -409,23 +517,77 @@ class TenantApplicationApiTest extends TestCase
 
         // Yeniden gönderimde yeni bağlantılı ikinci bir davet kuyruğa girer.
         $this->actingAs($this->staff)->post("/tenants/applications/{$application->id}/resend-invitation");
-        Mail::assertQueued(DealerInvitationMail::class, 2);
+        $this->assertCount(2, Mail::queued(DealerApplicationMail::class, fn (DealerApplicationMail $mail) => $mail->stage === 'account_opened'));
     }
 
-    public function test_other_stages_are_still_pushed_to_store(): void
+    public function test_document_preview_is_served_inline_for_reviewers_only(): void
     {
-        config(['bagisto.sync.base_url' => 'https://store.test', 'bagisto.sync.webhook_secret' => 'secret']);
-        Http::fake(['store.test/*' => Http::response(['message' => 'ok'])]);
+        $application = $this->applicationInReview();
+        $document = $application->documents->firstWhere('type', 'vergi_levhasi');
 
+        $response = $this->actingAs($this->staff)->get("/tenants/applications/{$application->id}/documents/{$document->id}/preview")->assertOk();
+        $this->assertSame('application/pdf', $response->headers->get('Content-Type'));
+        $this->assertStringStartsWith('inline', $response->headers->get('Content-Disposition'));
+        $this->assertSame('nosniff', $response->headers->get('X-Content-Type-Options'));
+
+        // Önizlenemeyen tür (ör. uzantısı değiştirilmiş dosya) inline sunulmaz.
+        $other = $application->documents()->create(['type' => 'diger', 'path' => "tenant-applications/{$application->id}/x.html", 'original_filename' => 'x.html', 'mime_type' => 'text/html', 'size' => 4]);
+        Storage::put($other->path, '<b>x</b>');
+        $this->actingAs($this->staff)->get("/tenants/applications/{$application->id}/documents/{$other->id}/preview")->assertStatus(415);
+
+        // Başka başvurunun belgesi ve yetkisiz kullanıcı.
+        $this->actingAs($this->staff)->get("/tenants/applications/".($application->id + 1)."/documents/{$document->id}/preview")->assertNotFound();
+        $this->actingAs(User::factory()->create())->get("/tenants/applications/{$application->id}/documents/{$document->id}/preview")->assertForbidden();
+    }
+
+    public function test_application_file_prints_full_details_after_account_opened(): void
+    {
+        $application = $this->openAccount($this->applicationInReview());
+
+        $this->actingAs($this->staff)->get("/tenants/applications/{$application->id}/print")
+            ->assertOk()
+            ->assertSee($application->reference)
+            ->assertSee('Açılan iş ortağı hesabı')
+            ->assertSee('BAYI-0001')
+            ->assertSee('TR54 0006 2000 1122 3344 5566 77')
+            ->assertSee('Çerçeve sözleşme');
+
+        $this->actingAs(User::factory()->create())->get("/tenants/applications/{$application->id}/print")->assertForbidden();
+    }
+
+    public function test_open_account_applies_default_discount_and_drops_credit_while_cari_is_off(): void
+    {
+        $application = $this->openAccount($this->applicationInReview()); // credit_limit: 50000 gönderir
+
+        $tenant = Tenant::findOrFail($application->converted_tenant_id);
+        $this->assertEquals(Tenant::DEFAULT_DISCOUNT_RATE, (float) $tenant->discount_rate);
+        $this->assertEquals(0, (float) $tenant->credit_limit);
+    }
+
+    public function test_open_account_keeps_credit_limit_and_given_discount_while_cari_is_on(): void
+    {
+        Setting::setGroup('bagisto_features', ['cari_account' => true]);
         $application = $this->applicationInReview();
 
-        (new PushTenantApplicationStageToBagisto($application->id, 'documents_requested'))->handle(app(BagistoSyncClient::class));
+        $this->actingAs($this->staff)
+            ->post("/tenants/applications/{$application->id}/open-account", ['code' => 'BAYI-0001', 'credit_limit' => 50000, 'discount_rate' => 30])
+            ->assertSessionHasNoErrors();
 
-        Http::assertSent(fn ($request) => $request->url() === 'https://store.test/api/saas-sync/dealer-applications'
-            && $request['event'] === 'documents_requested'
-            && $request['status_token'] === $application->public_token
-            && $request['dealer_model'] === 'dropshipping'
-            && $request->hasHeader('X-Saas-Signature'));
+        $tenant = Tenant::findOrFail($application->fresh()->converted_tenant_id);
+        $this->assertEquals(50000, (float) $tenant->credit_limit);
+        $this->assertEquals(30, (float) $tenant->discount_rate);
+    }
+
+    public function test_suggested_code_skips_codes_already_taken(): void
+    {
+        $application = $this->applicationInReview();
+        $base = 'BAYI-'.str_pad((string) $application->id, 4, '0', STR_PAD_LEFT);
+        $service = app(\Modules\Tenant\Services\TenantApplicationService::class);
+
+        $this->assertSame($base, $service->suggestCode($application));
+
+        Tenant::factory()->create(['code' => $base]);
+        $this->assertSame("{$base}-2", $service->suggestCode($application));
     }
 
     public function test_unknown_token_is_404(): void

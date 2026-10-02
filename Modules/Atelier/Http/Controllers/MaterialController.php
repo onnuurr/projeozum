@@ -12,6 +12,7 @@ use Inertia\Response;
 use Modules\Atelier\Http\Requests\UpdateMaterialSpecsRequest;
 use Modules\Atelier\Models\Material;
 use Modules\Atelier\Models\MaterialMovement;
+use Modules\Atelier\Services\MaterialReservationService;
 use Modules\Atelier\Services\MaterialSpecService;
 use Modules\Atelier\Services\MaterialStockService;
 
@@ -20,10 +21,13 @@ class MaterialController extends Controller
     public function __construct(
         private MaterialStockService $stock,
         private MaterialSpecService $specs,
+        private MaterialReservationService $reservations,
     ) {}
 
     public function index(): Response
     {
+        $reserved = $this->reservations->reservedByMaterial();
+
         $materials = Material::query()
             ->orderBy('name')
             ->get()
@@ -35,6 +39,8 @@ class MaterialController extends Controller
                 'unit'         => $m->unit,
                 'unitCost'     => (float) $m->unit_cost,
                 'currentStock' => (float) $m->current_stock,
+                'reservedQty'  => $reserved[$m->id] ?? 0.0,
+                'availableQty' => round((float) $m->current_stock - ($reserved[$m->id] ?? 0), 3),
                 'isActive'     => $m->is_active,
                 'specs'        => (array) ($m->specs ?? []),
             ]);

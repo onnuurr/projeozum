@@ -21,6 +21,7 @@ class SuperadminPermissionSeeder extends Seeder
             'backups.manage' => 'Yedekleme Tetikle',
             'architecture-doctor.view' => 'Mimari Doktor Raporunu Görüntüle',
             'architecture-doctor.manage' => 'Mimari Doktor Otomatik Düzeltmeyi Tetikle',
+            'translations.manage' => 'Dil Dosyalarını Yönet',
         ];
 
         $created = [];

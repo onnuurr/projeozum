@@ -58,7 +58,7 @@ class BrandKitController extends Controller
 
         $this->brandTokens->forget();
 
-        return back()->with('success', 'Marka kiti oluşturuldu.');
+        return back()->with('success', __('creative::messages.brand_kit.created'));
     }
 
     public function update(StoreBrandKitRequest $request, BrandKit $brandKit): RedirectResponse
@@ -70,7 +70,7 @@ class BrandKitController extends Controller
 
         $this->brandTokens->forget();
 
-        return back()->with('success', 'Marka kiti güncellendi.');
+        return back()->with('success', __('creative::messages.brand_kit.updated'));
     }
 
     public function destroy(BrandKit $brandKit): RedirectResponse
@@ -78,7 +78,7 @@ class BrandKitController extends Controller
         $brandKit->delete();
         $this->brandTokens->forget();
 
-        return back()->with('success', 'Marka kiti silindi.');
+        return back()->with('success', __('creative::messages.brand_kit.deleted'));
     }
 
     /**
@@ -116,7 +116,7 @@ class BrandKitController extends Controller
         if ($ext === 'zip') {
             $fonts = $this->extractFontsFromZip($file->getRealPath());
             if (empty($fonts)) {
-                return response()->json(['message' => 'ZIP içinde font (ttf/otf/woff/woff2) bulunamadı.'], 422);
+                return response()->json(['message' => __('creative::messages.brand_kit.zip_has_no_font')], 422);
             }
 
             return response()->json(['fonts' => $fonts]);
@@ -124,7 +124,7 @@ class BrandKitController extends Controller
 
         if (! in_array($ext, self::FONT_EXTS, true)) {
             return response()->json([
-                'message' => 'Desteklenmeyen dosya türü. ttf/otf/woff/woff2 veya .zip yükleyin.',
+                'message' => __('creative::messages.brand_kit.unsupported_font'),
             ], 422);
         }
 

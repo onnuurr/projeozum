@@ -101,13 +101,13 @@ class ConceptStudioController extends Controller
 
         GenerateConceptJob::dispatch($card->id);
 
-        return redirect()->route('atelier.concepts.index')->with('success', 'Konsept üretimi başlatıldı.');
+        return redirect()->route('atelier.concepts.index')->with('success', __('patternengine::messages.concept.started'));
     }
 
     public function regenerate(DesignCard $card): RedirectResponse
     {
         if ($card->generation_status !== DesignCard::GENERATION_FAILED || empty($card->request_params)) {
-            return back()->withErrors(['generation' => 'Yalnızca üretimi başarısız konseptler yeniden denenebilir.']);
+            return back()->withErrors(['generation' => __('patternengine::messages.concept.only_failed_retry')]);
         }
 
         $card->update([
@@ -116,7 +116,7 @@ class ConceptStudioController extends Controller
         ]);
         GenerateConceptJob::dispatch($card->id);
 
-        return redirect()->route('atelier.concepts.index')->with('success', 'Üretim yeniden başlatıldı.');
+        return redirect()->route('atelier.concepts.index')->with('success', __('patternengine::messages.concept.restarted'));
     }
 
     public function match(Request $request, DesignCard $card): RedirectResponse
@@ -127,7 +127,7 @@ class ConceptStudioController extends Controller
 
         $this->studio->matchPattern($card, Pattern::findOrFail($data['pattern_id']));
 
-        return redirect()->route('atelier.concepts.index')->with('success', 'Konsept kalıba eşlendi.');
+        return redirect()->route('atelier.concepts.index')->with('success', __('patternengine::messages.concept.mapped'));
     }
 
     public function destroy(DesignCard $card): RedirectResponse
@@ -135,6 +135,6 @@ class ConceptStudioController extends Controller
         $card->update(['status' => DesignCard::STATUS_ARCHIVED]);
         $card->delete();
 
-        return redirect()->route('atelier.concepts.index')->with('success', 'Konsept arşivlendi.');
+        return redirect()->route('atelier.concepts.index')->with('success', __('patternengine::messages.concept.archived'));
     }
 }

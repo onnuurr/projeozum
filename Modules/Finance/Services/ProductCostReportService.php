@@ -36,7 +36,7 @@ class ProductCostReportService
                     $latest       = $orders->first(); // orderByDesc('id') → en son tamamlanan
                     $unitCost     = (float) $latest->unit_cost;
                     $avgUnitCost  = round((float) $orders->avg('unit_cost'), 2);
-                    $producedQty  = (int) $orders->sum('produced_qty');
+                    $producedQty  = (int) $orders->sum('received_qty');
                     $source       = 'production';
                 } else {
                     $unitCost    = (float) $product->purchase_price;

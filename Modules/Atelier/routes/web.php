@@ -35,6 +35,9 @@ Route::middleware(['auth', 'verified'])
             ->middleware('can:atelier.bom.manage')->name('boms.store');
         Route::delete('boms/{bom}', [\Modules\Atelier\Http\Controllers\BomController::class, 'destroy'])
             ->middleware('can:atelier.bom.manage')->name('boms.destroy');
+        // Ürün rotası (reçetenin yanındaki ana veri; yeni iş emri bundan dolar)
+        Route::put('products/{product:id}/route', [\Modules\Atelier\Http\Controllers\BomController::class, 'updateRoute'])
+            ->middleware('can:atelier.bom.manage')->name('products.route.update');
 
         // Üretilecek ürün: reçete + ön maliyetle geçici stok kartı (ilk iş emri tamamlanınca ürüne döner)
         Route::get('new-product', [\Modules\Atelier\Http\Controllers\DevelopmentProductController::class, 'create'])
@@ -73,14 +76,16 @@ Route::middleware(['auth', 'verified'])
             ->middleware('can:atelier.production.manage')->name('production-orders.store');
         Route::post('production-orders/{productionOrder}/plan', [\Modules\Atelier\Http\Controllers\ProductionOrderController::class, 'plan'])
             ->middleware('can:atelier.production.manage')->name('production-orders.plan');
-        Route::post('production-orders/{productionOrder}/complete', [\Modules\Atelier\Http\Controllers\ProductionOrderController::class, 'complete'])
-            ->middleware('can:atelier.production.manage')->name('production-orders.complete');
+        Route::post('production-orders/{productionOrder}/steps/{step}/batches', [\Modules\Atelier\Http\Controllers\ProductionOrderController::class, 'recordBatch'])
+            ->middleware('can:atelier.production.manage')->name('production-orders.steps.batches.store');
+        Route::put('production-orders/{productionOrder}/steps/{step}/decision', [\Modules\Atelier\Http\Controllers\ProductionOrderController::class, 'updateDecision'])
+            ->middleware('can:atelier.production.manage')->name('production-orders.steps.decision.update');
+        Route::post('production-orders/{productionOrder}/receive', [\Modules\Atelier\Http\Controllers\ProductionOrderController::class, 'receive'])
+            ->middleware('can:atelier.production.manage')->name('production-orders.receive');
+        Route::post('production-orders/{productionOrder}/close', [\Modules\Atelier\Http\Controllers\ProductionOrderController::class, 'close'])
+            ->middleware('can:atelier.production.manage')->name('production-orders.close');
         Route::post('production-orders/{productionOrder}/cancel', [\Modules\Atelier\Http\Controllers\ProductionOrderController::class, 'cancel'])
             ->middleware('can:atelier.production.manage')->name('production-orders.cancel');
-        Route::put('production-orders/{productionOrder}/items', [\Modules\Atelier\Http\Controllers\ProductionOrderController::class, 'updateItem'])
-            ->middleware('can:atelier.production.manage')->name('production-orders.items.update');
-        Route::put('production-orders/{productionOrder}/steps/{step}', [\Modules\Atelier\Http\Controllers\ProductionOrderController::class, 'updateStep'])
-            ->middleware('can:atelier.production.manage')->name('production-orders.steps.update');
 
         // Kalıp Kütüphanesi / Konsept Stüdyosu / Dönüştürücü / Atama route'ları
         // 2026-09-22'de Modules/PatternEngine/routes/web.php'ye taşındı (aynı

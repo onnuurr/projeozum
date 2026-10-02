@@ -55,7 +55,6 @@ class SaveTenantRequest extends FormRequest
             'country' => ['nullable', 'string', 'max:100'],
             'postal_code' => ['nullable', 'string', 'max:16'],
             'credit_limit' => ['nullable', 'numeric', 'min:0'],
-            'payment_term_days' => ['nullable', 'integer', 'min:0', 'max:365'],
             'discount_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'is_active' => ['nullable', 'boolean'],
             'notes' => ['nullable', 'string', 'max:2000'],

@@ -5,6 +5,7 @@ import OzButton from './OzButton.vue'
 import OzInput from './OzInput.vue'
 import OzField from './OzField.vue'
 import { ozConfirmInternals } from './useOzConfirm'
+import { isTouchPrimary } from './ozTouch'
 
 // useOzConfirm() pencerelerini çizer. OzShell tarafından bir kez render edilir.
 const { state, settle } = ozConfirmInternals
@@ -22,7 +23,8 @@ const openModel = computed({
 watch(() => state.open, async (v) => {
   if (!v) return
   typed.value = ''
-  if (o.value.requireText) { await nextTick(); inputRef.value?.focus() }
+  // Dokunmatikte klavye kendiliğinden açılmasın (bkz. ozTouch.js).
+  if (o.value.requireText && !isTouchPrimary()) { await nextTick(); inputRef.value?.focus() }
 })
 
 function accept() {

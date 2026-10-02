@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Modules\Bagisto\Jobs\NotifyTenantOfReturn;
+use Modules\Bagisto\Services\ReturnMailTemplateService;
 use Modules\Bagisto\Jobs\PushReturnStateToBagisto;
 use Modules\Finance\Models\OutgoingInvoice;
 use Modules\Product\Models\Order;
@@ -313,12 +314,32 @@ class OrderReturnTest extends TestCase
         $return = $this->returnFromWebhook();
         $return->update(['status' => OrderReturn::STATUS_APPROVED, 'approved_amount' => 80, 'invoice_required' => true, 'invoice_status' => OrderReturn::INVOICE_AWAITING]);
 
-        (new NotifyTenantOfReturn($return->id, NotifyTenantOfReturn::EVENT_APPROVED))->handle($sms);
+        (new NotifyTenantOfReturn($return->id, NotifyTenantOfReturn::EVENT_APPROVED))->handle($sms, app(ReturnMailTemplateService::class));
 
-        \Illuminate\Support\Facades\Mail::assertSent(\Modules\Bagisto\Mail\ReturnStatusMail::class, fn ($mail) => $mail->hasTo('magaza@example.com'));
+        \Illuminate\Support\Facades\Mail::assertSent(\Modules\Bagisto\Mail\ReturnStatusMail::class, fn ($mail) => $mail->hasTo('magaza@example.com') && $mail->stage === ReturnMailTemplateService::APPROVED_INVOICE);
 
-        $html = (new \Modules\Bagisto\Mail\ReturnStatusMail($return->fresh(), NotifyTenantOfReturn::EVENT_APPROVED))->render();
+        $html = (new \Modules\Bagisto\Mail\ReturnStatusMail($return->fresh(), ReturnMailTemplateService::APPROVED_INVOICE))->render();
         $this->assertStringContainsString('iade faturanızı', $html);
+        $this->assertStringContainsString('İade Faturasını Yükle', $html);
         $this->assertStringContainsString($order->order_no, $html);
+    }
+
+    public function test_disabled_return_mail_still_sends_sms(): void
+    {
+        \Illuminate\Support\Facades\Mail::fake();
+        $this->tenant->update(['contact_phone' => '905551112233']);
+        $sms = \Mockery::mock(\App\Contracts\SmsProviderInterface::class);
+        $sms->shouldReceive('send')->once()->andReturn(new \App\DTO\SmsSendResult(success: true));
+
+        $templates = app(ReturnMailTemplateService::class);
+        $templates->update([ReturnMailTemplateService::REJECTED => ['enabled' => false, ...$templates->catalog()[ReturnMailTemplateService::REJECTED]['defaults']]]);
+
+        $this->order();
+        $return = $this->returnFromWebhook();
+        $return->update(['status' => OrderReturn::STATUS_REJECTED, 'decision_note' => 'Kullanım hatası']);
+
+        (new NotifyTenantOfReturn($return->id, NotifyTenantOfReturn::EVENT_REJECTED))->handle($sms, $templates);
+
+        \Illuminate\Support\Facades\Mail::assertNothingSent();
     }
 }

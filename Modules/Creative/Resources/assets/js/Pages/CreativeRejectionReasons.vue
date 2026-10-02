@@ -53,7 +53,7 @@
 				</label>
 				<label class="field field-narrow">
 					<span class="field-label">Sıra</span>
-					<input v-model.number="form.sort_order" type="number" min="0" placeholder="0" />
+					<input v-model.number="form.sort_order" type="number" inputmode="numeric" min="0" placeholder="0" />
 				</label>
 			</div>
 			<div class="form-actions">
@@ -100,7 +100,7 @@
 								</select>
 								<input v-model="edit.label" class="row-input" type="text" />
 								<input v-model="edit.hint" class="row-input flex" type="text" placeholder="AI ipucu" />
-								<input v-model.number="edit.sort_order" class="row-input narrow" type="number" min="0" />
+								<input v-model.number="edit.sort_order" class="row-input narrow" type="number" inputmode="numeric" min="0" />
 								<div class="row-actions">
 									<Button variant="primary" size="sm" :disabled="!edit.label.trim()" :loading="busy" @click="saveEdit(item)">Kaydet</Button>
 									<Button variant="secondary" size="sm" @click="cancelEdit">Vazgeç</Button>

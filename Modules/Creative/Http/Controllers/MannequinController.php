@@ -88,7 +88,7 @@ class MannequinController extends Controller
 
         GenerateMannequinJob::dispatch($mannequin->id);
 
-        return back()->with('success', 'Manken üretim kuyruğuna alındı.');
+        return back()->with('success', __('creative::messages.mannequin.queued'));
     }
 
     public function regenerate(Mannequin $mannequin): RedirectResponse
@@ -105,7 +105,7 @@ class MannequinController extends Controller
 
         GenerateMannequinJob::dispatch($mannequin->id);
 
-        return back()->with('success', 'Manken yeniden üretim kuyruğuna alındı.');
+        return back()->with('success', __('creative::messages.mannequin.regenerate_queued'));
     }
 
     public function approve(Mannequin $mannequin, ReviewNotifier $notifier): RedirectResponse
@@ -113,7 +113,7 @@ class MannequinController extends Controller
         $this->guardNotOwnWork($mannequin);
 
         if ($mannequin->review_status !== Mannequin::REVIEW_PENDING) {
-            return back()->with('error', 'Bu manken onay bekliyor durumda değil.');
+            return back()->with('error', __('creative::messages.mannequin.not_pending'));
         }
 
         $mannequin->update([
@@ -124,7 +124,7 @@ class MannequinController extends Controller
 
         $notifier->notifyDecision($mannequin, true);
 
-        return back()->with('success', 'Manken onaylandı.');
+        return back()->with('success', __('creative::messages.mannequin.approved'));
     }
 
     public function reject(Mannequin $mannequin, Request $request, ReviewNotifier $notifier): RedirectResponse
@@ -132,7 +132,7 @@ class MannequinController extends Controller
         $this->guardNotOwnWork($mannequin);
 
         if ($mannequin->review_status !== Mannequin::REVIEW_PENDING) {
-            return back()->with('error', 'Bu manken onay bekliyor durumda değil.');
+            return back()->with('error', __('creative::messages.mannequin.not_pending'));
         }
 
         $review = $this->validatedReview($request);
@@ -147,14 +147,14 @@ class MannequinController extends Controller
 
         $notifier->notifyDecision($mannequin, false);
 
-        return back()->with('success', 'Manken reddedildi.');
+        return back()->with('success', __('creative::messages.mannequin.rejected'));
     }
 
     public function destroy(Mannequin $mannequin): RedirectResponse
     {
         $mannequin->delete();
 
-        return back()->with('success', 'Manken silindi.');
+        return back()->with('success', __('creative::messages.mannequin.deleted'));
     }
 
     private function url(?string $path, ?int $version = null): ?string

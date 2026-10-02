@@ -71,7 +71,7 @@
 					list="garment-label-options"
 					placeholder="Parça adı (ör. Yaka)"
 					maxlength="60"
-					autofocus
+					v-autofocus
 				/>
 				<datalist id="garment-label-options">
 					<option v-for="l in labels" :key="l.key" :value="l.display" />

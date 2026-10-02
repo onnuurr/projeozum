@@ -200,27 +200,20 @@ const activeAttributeDefinitions = computed(() => props.attributeDefinitions[for
 
 const canCreateCategory = computed(() => page.props.auth?.permissions?.includes?.('category.create') ?? true)
 const canCreateBrand = computed(() => page.props.auth?.permissions?.includes?.('brand.manage') ?? true)
-const creatingCategory = ref(false)
-const creatingBrand = ref(false)
-const newCategoryName = ref('')
-const newBrandName = ref('')
 
+// Kategori/marka aramasında olmayan isim yazılınca OzCombobox'ın "ekle" satırı bunları çağırır;
+// dönen seçenek combobox tarafından seçilir.
 async function handleCreateCategory(name) {
-	const clean = String(name || '').trim()
-	if (creatingCategory.value || !clean) return
-	creatingCategory.value = true
 	try {
-		const { data } = await axios.post('/products/categories/quick-create', { name: clean })
+		const { data } = await axios.post('/products/categories/quick-create', { name })
 		if (!localCategories.value.some((c) => c.id === data.id)) {
 			localCategories.value.push(data)
 		}
-		form.category_id = data.id
-		newCategoryName.value = ''
 		showToast?.({ type: 'success', title: 'Kategori eklendi', message: `"${data.name}" kategoriye eklendi.` })
+		return { value: data.id, label: data.name }
 	} catch (e) {
 		showToast?.({ type: 'error', title: 'Kategori eklenemedi', message: e?.response?.data?.message || 'Bir hata oluştu.' })
-	} finally {
-		creatingCategory.value = false
+		return null
 	}
 }
 
@@ -231,21 +224,16 @@ const brandOptions = computed(() =>
 )
 
 async function handleCreateBrand(name) {
-	const clean = String(name || '').trim()
-	if (creatingBrand.value || !clean) return
-	creatingBrand.value = true
 	try {
-		const { data } = await axios.post('/products/brands/quick-create', { name: clean })
+		const { data } = await axios.post('/products/brands/quick-create', { name })
 		if (!localBrands.value.some((b) => b.id === data.id)) {
 			localBrands.value.push(data)
 		}
-		form.brand_id = data.id
-		newBrandName.value = ''
 		showToast?.({ type: 'success', title: 'Marka eklendi', message: `"${data.name}" markaya eklendi.` })
+		return { value: data.id, label: data.name }
 	} catch (e) {
 		showToast?.({ type: 'error', title: 'Marka eklenemedi', message: e?.response?.data?.message || 'Bir hata oluştu.' })
-	} finally {
-		creatingBrand.value = false
+		return null
 	}
 }
 
@@ -676,19 +664,11 @@ onMounted(() => {
 							<OzSelect v-model="form.gender" :options="genderOptions" />
 						</OzField>
 						<OzField label="Kategori" :error="errors.category_id">
-							<OzCombobox v-model="form.category_id" :options="categoryOptions" placeholder="Kategori seçiniz…" search-placeholder="Kategori ara…" empty-text="Sonuç bulunamadı" />
-							<div v-if="canCreateCategory" class="inline-row quick-add">
-								<OzInput v-model="newCategoryName" placeholder="Yeni kategori adı…" class="grow" @keyup.enter="handleCreateCategory(newCategoryName)" />
-								<OzButton size="sm" icon="plus" :loading="creatingCategory" :disabled="!newCategoryName.trim()" @click="handleCreateCategory(newCategoryName)">Ekle</OzButton>
-							</div>
+							<OzCombobox v-model="form.category_id" :options="categoryOptions" placeholder="Kategori seçiniz…" search-placeholder="Kategori ara ya da yeni ekle…" empty-text="Sonuç bulunamadı" :create="canCreateCategory ? handleCreateCategory : null" create-text="kategorisini ekle" />
 						</OzField>
 					</div>
 					<OzField label="Marka" :error="errors.brand_id">
-						<OzCombobox v-model="form.brand_id" :options="brandOptions" placeholder="— Marka yok —" clearable search-placeholder="Marka ara…" empty-text="Sonuç bulunamadı" />
-						<div v-if="canCreateBrand" class="inline-row quick-add">
-							<OzInput v-model="newBrandName" placeholder="Yeni marka adı…" class="grow" @keyup.enter="handleCreateBrand(newBrandName)" />
-							<OzButton size="sm" icon="plus" :loading="creatingBrand" :disabled="!newBrandName.trim()" @click="handleCreateBrand(newBrandName)">Ekle</OzButton>
-						</div>
+						<OzCombobox v-model="form.brand_id" :options="brandOptions" placeholder="— Marka yok —" clearable search-placeholder="Marka ara ya da yeni ekle…" empty-text="Sonuç bulunamadı" :create="canCreateBrand ? handleCreateBrand : null" create-text="markasını ekle" />
 					</OzField>
 					<OzSwitch v-model="form.is_new" label="Yeni gelen olarak işaretle" description="Katalogda “Yeni” rozetiyle öne çıkar" />
 				</div>
@@ -1046,7 +1026,6 @@ onMounted(() => {
 
 .inline-row { display: flex; gap: 8px; align-items: center; }
 .inline-row .grow { flex: 1; min-width: 0; }
-.quick-add { margin-top: 8px; }
 .group-label { display: block; font-size: 12px; font-weight: 600; color: var(--oz-ink-soft); margin-bottom: 8px; }
 .hint-inline { color: var(--oz-muted); font-weight: 500; margin-left: 4px; }
 .field-error { margin: 0; padding: 0 18px 14px; font-size: 11px; font-weight: 500; color: var(--oz-danger); }

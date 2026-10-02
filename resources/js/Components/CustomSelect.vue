@@ -15,7 +15,7 @@
 				</svg>
 			</div>
 			<div class="cs-dropdown" :class="{ open }">
-				<div class="cs-search-wrap" @click.stop>
+				<div v-if="showSearch" class="cs-search-wrap" @click.stop>
 					<div class="cs-search-inner">
 						<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
 							<circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
@@ -55,6 +55,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { isTouchPrimary, shouldShowSelectSearch } from '@/Components/Oz/ozTouch'
 
 const props = defineProps({
 	modelValue: { default: null },
@@ -74,6 +75,8 @@ const open = ref(false)
 const query = ref('')
 const rootEl = ref(null)
 const searchInput = ref(null)
+// Dokunmatikte kısa listede arama kutusu gizlenir (bkz. ozTouch.js)
+const showSearch = computed(() => shouldShowSelectSearch(props.options.length, props.creatable))
 
 const selected = computed(() => props.options.find((o) => o.value === props.modelValue) || null)
 
@@ -85,7 +88,7 @@ const filteredOptions = computed(() => {
 
 function toggle() {
 	open.value = !open.value
-	if (open.value) nextTick(() => searchInput.value?.focus())
+	if (open.value && !isTouchPrimary()) nextTick(() => searchInput.value?.focus())
 }
 
 function select(opt) {

@@ -55,7 +55,7 @@ class CarrierController extends Controller
         // Geçmiş siparişlere bağlıysa silme; is_active=false ile pasifleştir.
         if ($carrier->orders()->exists()) {
             return back()->withErrors([
-                'carrier' => 'Bu kargo firmasına bağlı siparişler var. Silmek yerine pasife alın.',
+                'carrier' => __('product::messages.carrier_has_orders'),
             ]);
         }
 

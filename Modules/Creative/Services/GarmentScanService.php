@@ -59,7 +59,7 @@ class GarmentScanService
     {
         $hash = @sha1_file($garmentPath);
         if ($hash === false) {
-            throw new RuntimeException('Giysi görseli taramak için okunamadı: '.$garmentPath);
+            throw new RuntimeException(__('creative::messages.garment.scan_unreadable', ['path' => $garmentPath]));
         }
 
         $scan = GarmentScan::firstOrCreate(
@@ -127,7 +127,7 @@ class GarmentScanService
         $rel = sprintf('garment-scans/%s.%s', $hash, $ext);
 
         if (! Storage::disk(config('creative.disk', 'public'))->put($rel, $bytes)) {
-            throw new RuntimeException("Giysi kaynak görseli diske yazılamadı: {$rel}");
+            throw new RuntimeException(__('creative::messages.garment.source_write_failed', ['path' => $rel]));
         }
 
         return $rel;

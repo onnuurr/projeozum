@@ -1,6 +1,6 @@
 <script setup>
 import { computed, inject, reactive, ref, watch } from 'vue'
-import { Head, router, usePage } from '@inertiajs/vue3'
+import { Head, Link, router, usePage } from '@inertiajs/vue3'
 import { ArrowDown, ArrowUp, Pencil } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import {
@@ -21,6 +21,7 @@ const props = defineProps({
 	totals: { type: Object, default: () => ({ stock: 0, reserved: 0, available: 0, criticalVariants: 0 }) },
 	marketplaces: { type: Array, default: () => [] },
 	listings: { type: Object, default: () => ({}) },
+	productionOrderUrl: { type: String, default: null },
 })
 
 const showToast = inject('showToast')
@@ -265,6 +266,9 @@ function openListing(mp) {
 		</template>
 		<template #actions>
 			<OzButton v-if="canEdit" variant="ghost" icon="edit" @click="editProduct">Ürünü Düzenle</OzButton>
+			<Link v-if="productionOrderUrl" :href="productionOrderUrl">
+				<OzButton :variant="product.status === 'development' ? 'primary' : 'ghost'" icon="workflow">İş Emri Ver</OzButton>
+			</Link>
 			<OzButton v-if="canStock && variants.length > 0" variant="primary" icon="activity" @click="openMovement()">
 				Stok Hareketi Ekle
 			</OzButton>
@@ -275,6 +279,9 @@ function openListing(mp) {
 	<OzAlert v-if="product.status === 'development'" tone="warning" title="Geçici stok kartı — üretim bekleniyor" class="block">
 		Bu kart üretilecek bir ürün için reçeteyle açıldı; mağazaya gönderilmez ve bayilere görünmez.
 		İlk iş emri tamamlanınca üretilen adet stoğa girer, gerçek birim maliyet alış fiyatına yazılır ve ürün Taslak durumuna geçer.
+		<template v-if="productionOrderUrl" #actions>
+			<Link :href="productionOrderUrl"><OzButton variant="primary" size="sm" icon="workflow">İş Emri Ver</OzButton></Link>
+		</template>
 	</OzAlert>
 
 	<OzTabs v-model="activeTab" :tabs="tabs" aria-label="Ürün kartı bölümleri" class="block" />

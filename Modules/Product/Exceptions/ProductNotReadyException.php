@@ -17,10 +17,9 @@ class ProductNotReadyException extends RuntimeException
         public readonly Capability $capability,
         public readonly array $missing,
     ) {
-        parent::__construct(sprintf(
-            'Ürün "%s" için hazır değil: %s',
-            $capability->label(),
-            implode(', ', $missing),
-        ));
+        parent::__construct(__('product::messages.not_ready', [
+            'capability' => $capability->label(),
+            'missing' => implode(', ', $missing),
+        ]));
     }
 }

@@ -84,6 +84,8 @@ const { layer } = useOzFocusTrap(open, panelEl, { onEscape: close, initialFocus:
 <style scoped>
 .oz-drawer-backdrop {
   position: fixed; inset: 0; z-index: 100;
+  /* --oz-kb: iOS'ta sanal klavyenin yüksekliği (bkz. ozKeyboard.js) — katman klavyenin üstünde biter */
+  bottom: var(--oz-kb, 0px);
   background: rgba(15, 23, 42, .4);
   backdrop-filter: blur(1.5px);
   display: flex; justify-content: flex-end;
