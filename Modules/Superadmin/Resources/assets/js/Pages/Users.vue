@@ -3,7 +3,7 @@ import { ref, computed, inject } from 'vue'
 import { Head, router, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import {
-	OzPageHeader, OzModuleTabs, OzStatTile, OzCard, OzTable, OzPill, OzButton, OzAvatar, OzDropdown, OzEmptyState,
+	OzPageHeader, OzModuleTabs, OzStatStrip, OzCard, OzTable, OzPill, OzButton, OzAvatar, OzDropdown, OzEmptyState,
 	OzDrawer, OzField, OzInput, OzSelect, OzCombobox, useOzConfirm,
 } from '@/Components/Oz'
 import { useCan } from '@/composables/useCan'
@@ -168,9 +168,7 @@ const fmtDate = (s) => (s ? new Date(s.replace(' ', 'T')).toLocaleDateString('tr
 	</OzPageHeader>
 	<OzModuleTabs />
 
-	<div class="stats">
-		<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" />
-	</div>
+	<OzStatStrip :items="stats" />
 
 	<OzCard title="Kullanıcı listesi" :meta="`${users.length} kayıt`" class="block">
 		<OzTable
@@ -276,7 +274,6 @@ const fmtDate = (s) => (s ? new Date(s.replace(' ', 'T')).toLocaleDateString('tr
 
 <style scoped>
 .block { margin-bottom: 14px; }
-.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
 .users.clickable :deep(tbody tr) { cursor: pointer; }
 .who { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .who-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
@@ -290,6 +287,5 @@ const fmtDate = (s) => (s ? new Date(s.replace(' ', 'T')).toLocaleDateString('tr
 .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .section { margin-top: 4px; padding-top: 12px; border-top: 1px solid var(--oz-border-soft); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--oz-muted); }
 
-@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 560px) { .grid-2 { grid-template-columns: minmax(0, 1fr); } }
 </style>

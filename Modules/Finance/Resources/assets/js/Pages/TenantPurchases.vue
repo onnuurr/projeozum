@@ -2,7 +2,7 @@
 import { reactive, computed } from 'vue'
 import { Head, Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import { OzPageHeader, OzModuleTabs, OzStatTile, OzCard, OzTable, OzPill, OzInput, OzSelect, OzButton, OzDonut } from '@/Components/Oz'
+import { OzPageHeader, OzModuleTabs, OzStatStrip, OzCard, OzTable, OzPill, OzInput, OzSelect, OzButton, OzDonut } from '@/Components/Oz'
 
 defineOptions({ layout: AppLayout })
 
@@ -140,9 +140,7 @@ function formatMoney(v) {
 		<OzButton v-if="hasFilters" variant="ghost" icon="x" @click="reset">Temizle</OzButton>
 	</div>
 
-	<div class="stats">
-		<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" :context="s.context" />
-	</div>
+	<OzStatStrip :items="stats" />
 
 	<OzCard title="Bayi Bazlı Özet" subtitle="satıra tıklayınca o bayiye iner" :meta="`${byTenant.length} bayi`">
 		<OzTable
@@ -233,8 +231,6 @@ function formatMoney(v) {
 .f-status { width: 160px; }
 .f-product { flex: 1 1 180px; max-width: 240px; }
 
-.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
-@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; align-items: start; }
 @media (max-width: 1100px) { .grid { grid-template-columns: 1fr; } }

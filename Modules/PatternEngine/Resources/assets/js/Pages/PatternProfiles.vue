@@ -3,7 +3,7 @@ import { computed, ref, watch, inject } from 'vue'
 import { Head, useForm } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import {
-	OzPageHeader, OzModuleTabs, OzStatTile, OzCard, OzButton, OzPill, OzTable, OzDropdown, OzDrawer, OzAlert,
+	OzPageHeader, OzModuleTabs, OzStatStrip, OzCard, OzButton, OzPill, OzTable, OzDropdown, OzDrawer, OzAlert,
 	OzAccordion, OzField, OzInput, OzSelect, OzTextarea, OzCheckbox, OzTooltip, OzIcon,
 } from '@/Components/Oz'
 
@@ -150,9 +150,7 @@ const FIELD_GUIDE = [
 	</OzPageHeader>
 	<OzModuleTabs />
 
-	<div class="stats">
-		<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" />
-	</div>
+	<OzStatStrip :items="stats" />
 
 	<OzCard title="Var Olan Profiller">
 		<OzTable :columns="columns" :rows="profiles" row-key="name" searchable search-placeholder="Profil ya da kaynak ara…" empty-title="Henüz profil yok" empty-text="“Yeni Profil” ile ilk ölçü tablosunu ekleyin." min-width="620px">
@@ -266,8 +264,6 @@ const FIELD_GUIDE = [
 </template>
 
 <style scoped>
-.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
-@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 .mono { font-family: ui-monospace, monospace; font-size: 12px; }
 .strong { font-weight: 700; color: var(--oz-ink-soft); }

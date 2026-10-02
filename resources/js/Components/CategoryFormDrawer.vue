@@ -1,6 +1,7 @@
 <script setup>
-import { reactive, computed, ref, watch } from 'vue'
-import { OzDrawer, OzField, OzInput, OzSelect, OzButton } from '@/Components/Oz'
+import { reactive, computed, ref, watch, nextTick } from 'vue'
+import { OzDrawer, OzField, OzInput, OzSelect, OzButton, OzIcon, OzIconPicker } from '@/Components/Oz'
+import { categoryIconOptions, categoryIconLabel, DEFAULT_CATEGORY_ICON, categoryIconName, ozIconForCategory } from '@/categoryIcons.js'
 
 const props = defineProps({
 	category: { type: Object, default: null },
@@ -14,27 +15,44 @@ const emit = defineEmits(['submit'])
 
 const isEdit = computed(() => !!props.category)
 
+// Durum otomatik (yayında ürünü yoksa pasif); buradaki seçim kullanıcının niyeti — "Pasif" elle pasiftir,
+// ürün gelse de aktifleşmez. Bkz. CategoryStatusService.
 const statusOptions = [
-	{ value: 'active', label: 'Aktif' },
-	{ value: 'passive', label: 'Pasif' },
+	{ value: 'active', label: 'Otomatik' },
+	{ value: 'passive', label: 'Pasif (elle)' },
 ]
 
+// Seçenekler tam yoluyla ("Kız Çocuk › Dış Giyim"), yola göre sıralı. Düzenlemede kategorinin
+// kendisi ve alt kategorileri çıkarılır — kendi altına taşınırsa döngü oluşur (backend de reddeder).
 const parentOptions = computed(() => {
 	const excludeId = isEdit.value ? props.category?.id : null
+	const byId = new Map(props.parentCategories.map((c) => [c.id, c]))
+	const options = props.parentCategories.map((c) => {
+		const names = [c.name]
+		const chain = new Set([c.id])
+		for (let p = byId.get(c.parent_id); p && !chain.has(p.id); p = byId.get(p.parent_id)) {
+			names.unshift(p.name)
+			chain.add(p.id)
+		}
+		return { value: c.id, label: names.join(' › '), chain }
+	})
 	return [
 		{ value: null, label: '— Yok (Ana kategori) —' },
-		...props.parentCategories
-			.filter((c) => c.id !== excludeId)
-			.map((c) => ({ value: c.id, label: c.name })),
+		...options
+			.filter((o) => excludeId === null || !o.chain.has(excludeId))
+			.sort((x, y) => x.label.localeCompare(y.label, 'tr'))
+			.map(({ value, label }) => ({ value, label })),
 	]
 })
 
 const slugTouched = ref(false)
 
+const selectedIconLabel = computed(() => categoryIconLabel(form.icon))
+
 const defaultForm = () => ({
 	name: '',
 	slug: '',
-	icon: '📦',
+	icon: DEFAULT_CATEGORY_ICON,
 	parent_id: null,
 	status: 'active',
 	sort_order: 0,
@@ -42,17 +60,62 @@ const defaultForm = () => ({
 
 const form = reactive(defaultForm())
 
+// NFD + aksan silme: ç→c, ş→s, ğ→g, ü→u, ö→o, İ→i (İ'nin noktası ayrı karakter olarak kalıp
+// "i-c-giyim" üretmesin diye). ı ayrışmadığı için elle çevrilir.
 function slugify(str) {
 	return String(str || '')
+		.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+		.replace(/ı/g, 'i')
 		.toLowerCase()
-		.replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ç/g, 'c')
-		.replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o')
 		.replace(/[^a-z0-9]+/g, '-')
 		.replace(/^-+|-+$/g, '')
 }
 
+// Ad yazıldıkça slug güncellenir — ekleme ve düzenlemede. Üst kategori seçiliyse onun slug'ı
+// başa eklenir ("kiz-cocuk" + "Etek" → "kiz-cocuk-etek"; üstün slug'ı zaten kendi üstünü içerir).
+// Kullanıcı slug'ı elle değiştirirse durur; slug alanını boşaltırsa otomatik doldurma yeniden başlar.
+function autoSlug() {
+	const parentSlug = props.parentCategories.find((c) => c.id === form.parent_id)?.slug
+	const own = slugify(form.name)
+	return parentSlug && own ? `${parentSlug}-${own}` : own
+}
+
 function onNameInput() {
-	if (!slugTouched.value) form.slug = slugify(form.name)
+	if (!slugTouched.value) form.slug = autoSlug()
+}
+
+function onSlugInput() {
+	slugTouched.value = form.slug.trim() !== ''
+	if (!slugTouched.value) form.slug = autoSlug()
+}
+
+// Sıra: yeni kategoride (ve başka üst kategoriye taşınınca) kardeşlerin sonu otomatik önerilir.
+// Kullanıcı elle değiştirirse öneri durur; alanı boşaltırsa otomatik öneriye döner.
+const sortTouched = ref(false)
+
+function nextSortOrder(parentId) {
+	const siblings = props.parentCategories.filter((c) => (c.parent_id ?? null) === (parentId ?? null) && c.id !== props.category?.id)
+	return siblings.reduce((max, c) => Math.max(max, Number(c.sort_order) || 0), 0) + 1
+}
+
+function autoSortOrder() {
+	return isEdit.value && (form.parent_id ?? null) === (props.category.parent_id ?? null)
+		? props.category.sort_order ?? 0
+		: nextSortOrder(form.parent_id)
+}
+
+// Form açılırken yapılan atama (loadingForm) üst kategori değişikliği sayılmaz — düzenlemede mevcut
+// slug'ı ezmesin; yalnızca kullanıcı üst kategoriyi değiştirince slug yeniden üretilir.
+let loadingForm = false
+watch(() => form.parent_id, () => {
+	if (!open.value || loadingForm) return
+	if (!sortTouched.value) form.sort_order = autoSortOrder()
+	if (!slugTouched.value && form.name) form.slug = autoSlug()
+})
+
+function onSortInput() {
+	sortTouched.value = form.sort_order !== '' && form.sort_order !== null
+	if (!sortTouched.value) form.sort_order = autoSortOrder()
 }
 
 function submit() {
@@ -62,33 +125,38 @@ function submit() {
 		payload: {
 			name: form.name.trim(),
 			slug: form.slug.trim(),
-			icon: form.icon?.trim() || null,
+			icon: form.icon || DEFAULT_CATEGORY_ICON,
 			parent_id: form.parent_id || null,
 			status: form.status,
-			sort_order: Number(form.sort_order) || 0,
+			sort_order: form.sort_order === '' || form.sort_order === null ? null : Number(form.sort_order),
 		},
 	})
 }
 
 watch(open, (isOpen) => {
 	if (isOpen) {
+		loadingForm = true
+		nextTick(() => { loadingForm = false })
 		if (props.category) {
-			slugTouched.value = true
+			slugTouched.value = false
 			Object.assign(form, {
 				name: props.category.name || '',
 				slug: props.category.slug || '',
-				icon: props.category.icon || '📦',
+				icon: categoryIconName(props.category.icon),
 				parent_id: props.category.parent_id ?? null,
-				status: props.category.status || 'active',
+				status: props.category.manuallyPassive ? 'passive' : 'active',
 				sort_order: props.category.sort_order ?? 0,
 			})
+			sortTouched.value = false
 		} else {
 			slugTouched.value = false
-			Object.assign(form, defaultForm())
+			sortTouched.value = false
+			Object.assign(form, defaultForm(), { sort_order: nextSortOrder(null) })
 		}
 	} else {
 		setTimeout(() => {
 			slugTouched.value = false
+			sortTouched.value = false
 			Object.assign(form, defaultForm())
 		}, 250)
 	}
@@ -100,7 +168,7 @@ watch(open, (isOpen) => {
 		v-model:open="open"
 		:title="isEdit ? 'Kategoriyi Düzenle' : 'Yeni Kategori'"
 		:subtitle="isEdit ? category.name : 'Ürün kataloğuna yeni bir kategori ekleyin'"
-		:icon="isEdit ? 'edit' : 'plus'"
+		:icon="isEdit ? 'edit' : 'tag'"
 		size="md"
 		:persistent="busy"
 	>
@@ -108,24 +176,26 @@ watch(open, (isOpen) => {
 			<OzField label="Kategori Adı" required :error="errors.name">
 				<OzInput v-model="form.name" placeholder="örn. Erkek Tişört" @input="onNameInput" />
 			</OzField>
-			<div class="row-2">
-				<OzField label="Slug" required :error="errors.slug">
-					<OzInput v-model="form.slug" class="mono" placeholder="erkek-tisort" @input="slugTouched = true" />
-				</OzField>
-				<OzField label="İkon (emoji)">
-					<OzInput v-model="form.icon" maxlength="4" placeholder="📦" />
-				</OzField>
-			</div>
+			<OzField label="Slug" required :error="errors.slug">
+				<OzInput v-model="form.slug" class="mono" placeholder="erkek-tisort" @input="onSlugInput" />
+			</OzField>
+			<OzField label="İkon" :error="errors.icon">
+				<div class="icon-preview">
+					<div class="icon-badge"><OzIcon :name="ozIconForCategory(form.icon)" :size="18" /></div>
+					<span>{{ selectedIconLabel }}</span>
+				</div>
+				<OzIconPicker v-model="form.icon" :options="categoryIconOptions" :resolve="ozIconForCategory" :page-size="96" max-height="200px" />
+			</OzField>
 			<div class="row-2">
 				<OzField label="Üst Kategori" :error="errors.parent_id">
 					<OzSelect v-model="form.parent_id" :options="parentOptions" />
 				</OzField>
-				<OzField label="Durum">
+				<OzField label="Durum" :hint="form.status === 'active' ? 'Yayında ürünü varsa aktif, yoksa pasif olur.' : 'Ürün gelse de pasif kalır.'">
 					<OzSelect v-model="form.status" :options="statusOptions" />
 				</OzField>
 			</div>
-			<OzField label="Sıra" :error="errors.sort_order">
-				<OzInput v-model.number="form.sort_order" type="number" min="0" placeholder="0" />
+			<OzField label="Sıra" :error="errors.sort_order" :hint="sortTouched ? 'Elle girildi — boşaltırsanız otomatik sıraya döner.' : 'Otomatik: kendi grubunun sonuna eklenir. Değiştirebilirsiniz.'">
+				<OzInput v-model.number="form.sort_order" type="number" min="0" placeholder="Otomatik" @input="onSortInput" />
 			</OzField>
 			<button type="submit" hidden />
 		</form>
@@ -139,6 +209,8 @@ watch(open, (isOpen) => {
 <style scoped>
 .mono { font-family: ui-monospace, monospace; }
 .form { display: flex; flex-direction: column; gap: 14px; }
+.icon-preview { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 12.5px; font-weight: 600; color: var(--oz-ink-soft); }
+.icon-badge { width: 34px; height: 34px; border-radius: 10px; background: var(--oz-accent-soft); color: var(--oz-accent); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media (max-width: 560px) {
 	.row-2 { grid-template-columns: 1fr; }

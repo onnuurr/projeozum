@@ -3,7 +3,7 @@ import { ref, computed, inject, onBeforeUnmount } from 'vue'
 import { Head, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import {
-	OzPageHeader, OzModuleTabs, OzStatTile, OzCard, OzTable, OzPill, OzButton, OzDropdown, OzEmptyState, OzIcon, OzSpinner,
+	OzPageHeader, OzModuleTabs, OzStatStrip, OzCard, OzTable, OzPill, OzButton, OzDropdown, OzEmptyState, OzIcon, OzSpinner,
 	OzDrawer, OzField, OzInput, OzCombobox, OzTextarea, OzSwitch, OzAlert, OzRadioGroup, useOzConfirm,
 } from '@/Components/Oz'
 import { useCan } from '@/composables/useCan'
@@ -326,9 +326,7 @@ function submitCustomCopy() {
 	</OzPageHeader>
 	<OzModuleTabs />
 
-	<div class="stats">
-		<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" />
-	</div>
+	<OzStatStrip :items="stats" />
 
 	<div class="cols">
 		<OzCard title="Blok kuralları" subtitle="marka / kategori" class="block">
@@ -513,7 +511,6 @@ function submitCustomCopy() {
 
 <style scoped>
 .block { margin-bottom: 14px; }
-.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
 .cols { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 14px; align-items: start; }
 .cols > .block { margin-bottom: 0; }
 .meta { font-size: 12px; color: var(--oz-muted); }
@@ -547,5 +544,4 @@ function submitCustomCopy() {
 .md :deep(textarea) { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-size: 12.5px; }
 
 @media (max-width: 1280px) { .cols { grid-template-columns: minmax(0, 1fr); } .cols > .block { margin-bottom: 0; } }
-@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 </style>

@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { Head, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import { OzPageHeader, OzModuleTabs, OzStatTile, OzCard, OzPill, OzButton, OzAlert, OzIcon } from '@/Components/Oz'
+import { OzPageHeader, OzModuleTabs, OzStatStrip, OzCard, OzPill, OzButton, OzAlert, OzIcon } from '@/Components/Oz'
 import ReviewReportSection from '../Components/ReviewReportSection.vue'
 import { rateTone, formatRate, entriesOf } from '../reviewReport.js'
 
@@ -59,9 +59,7 @@ const formatDay = (iso) => (iso ? new Date(iso).toLocaleDateString('tr-TR', { da
 	</OzPageHeader>
 	<OzModuleTabs />
 
-	<div class="stats">
-		<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" />
-	</div>
+	<OzStatStrip :items="stats" />
 
 	<OzAlert v-for="(a, i) in alerts" :key="i" tone="danger" :title="`${a.subject_label} → ${a.label}: %${Math.round(a.rate * 100)}`" class="block">
 		Eşik %{{ Math.round(a.threshold * 100) }} · {{ a.streak }} gündür üstünde
@@ -129,7 +127,6 @@ const formatDay = (iso) => (iso ? new Date(iso).toLocaleDateString('tr-TR', { da
 <style scoped>
 code { font-family: ui-monospace, monospace; font-size: .92em; padding: 1px 5px; border-radius: 5px; background: var(--oz-surface-2); border: 1px solid var(--oz-border-soft); }
 .block { margin-bottom: 14px; }
-.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
 .title { display: inline-flex; align-items: center; gap: 6px; }
 .title :deep(svg) { color: var(--oz-accent); }
 
@@ -155,6 +152,5 @@ dd.warn { color: var(--oz-warning); }
 .chip b { margin-left: 2px; color: var(--oz-accent); }
 
 @media (max-width: 1180px) { .sections { grid-template-columns: minmax(0, 1fr); } .sections.two { grid-template-columns: minmax(0, 1fr); } }
-@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .kv { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 </style>

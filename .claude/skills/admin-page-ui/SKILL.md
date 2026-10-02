@@ -77,6 +77,7 @@ veya header-actions içine "gizlice" bir kaydet işlevi koymak yeni kodda
 
 | Şekil | Component | Not |
 |---|---|---|
+| Liste/rapor sayfasının üstündeki özet sayılar | `OzStatStrip` (Oz kit) | `:items="[{ key, label, value, icon, tone }]"` — tek ince satır; büyük kart sırası listeyi aşağı itiyordu (2026-10-02, 30 sayfa geçirildi). Tıklayınca filtreleyen özet için `interactive` + `:active` + `@select`. Trend/delta'lı büyük KPI kartları yalnızca **dashboard**'larda (`OzStatTile`) |
 | Sayı kutusu (icon + değer + başlık) | `StatWidget` | `icon` (lucide component) + `value` + `title` + `color` zorunlu; ikincil "hint" metni için slot **yok** — zengin içerik gerekiyorsa (Badge/ProgressBar barındıran kart) bunun yerine `Card` kullan |
 | Canlı/servis durumu (yeşil nokta + etiket) | `StatusIndicator` | `status` önceden tanımlı bir enum (`online`/`busy`/`error`/...), serbest metin değil |
 | Yüzde/ilerleme çubuğu | `ProgressBar` | `:value` + `:color` (`success`/`warning`/`danger`) |
@@ -144,6 +145,15 @@ gerçek örnekler:
 Named import + `<ComponentName :size="14" />` şeklinde kullan; string
 icon-name registry'sine (`UiIcon`) yeni bağımlılık **ekleme** — bu proje
 zaten `lucide-vue-next`'i doğrudan import ederek kullanıyor.
+
+**DB'de ikon adı saklayan alanlar / ikon seçiciler** (menü, kategori, …) için
+tek kaynak `resources/js/lucideIcons.js` ortak kaydıdır. Üç ad uzayı var: Lucide
+(`shirt`), Lucide Lab (`lab:dress`, `@lucide/lab` — aynı stil, ISC) ve bizim
+çizdiklerimiz (`oz:cocuk-etek` ← `resources/icons/custom/*.svg`, kurallar o
+klasörün README'sinde). Yeni bir ikon seçici eklersen seçenekleri
+`iconPickerOptions(featured, labels)` ile üret — kendi listesini kurarsa yeni
+`oz:` ikonları oraya düşmez. Backend validasyonu:
+`regex:/^(?:(?:lab|oz):)?[a-z0-9-]+$/`, `max:64`.
 
 ## Renk token kuralı
 

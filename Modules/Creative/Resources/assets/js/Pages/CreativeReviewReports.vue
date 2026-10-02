@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import { Head, Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import { OzPageHeader, OzModuleTabs, OzStatTile, OzCard, OzPill, OzSwitch, OzIcon, OzEmptyState } from '@/Components/Oz'
+import { OzPageHeader, OzModuleTabs, OzStatStrip, OzCard, OzPill, OzSwitch, OzIcon, OzEmptyState } from '@/Components/Oz'
 import { rateTone, formatRate } from '../reviewReport.js'
 
 // Ret analiz raporları listesi (Oz kit). creative:review-report her gün son N günü özetleyen bir JSON üretir
@@ -53,9 +53,7 @@ const formatTime = (iso) => (iso ? new Date(iso).toLocaleTimeString('tr-TR', { h
 	</OzPageHeader>
 	<OzModuleTabs />
 
-	<div class="stats">
-		<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" />
-	</div>
+	<OzStatStrip :items="stats" />
 
 	<OzCard title="Raporlar" :meta="`${visible.length} / ${reports.length} rapor`" class="block">
 		<template v-if="emptyCount" #actions>
@@ -110,7 +108,6 @@ const formatTime = (iso) => (iso ? new Date(iso).toLocaleTimeString('tr-TR', { h
 <style scoped>
 code { font-family: ui-monospace, monospace; font-size: .92em; padding: 1px 5px; border-radius: 5px; background: var(--oz-surface-2); border: 1px solid var(--oz-border-soft); }
 .block { margin-bottom: 14px; }
-.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
 .toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--oz-muted); cursor: pointer; }
 
 .rows { display: flex; flex-direction: column; gap: 8px; padding: 0 16px 16px; }
@@ -137,7 +134,6 @@ code { font-family: ui-monospace, monospace; font-size: .92em; padding: 1px 5px;
 .rate { flex-shrink: 0; }
 .chev { color: var(--oz-muted); flex-shrink: 0; }
 
-@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 640px) {
 	.rows { padding: 0 10px 12px; }
 	.row { flex-wrap: wrap; row-gap: 6px; }

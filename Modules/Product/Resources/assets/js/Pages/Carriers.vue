@@ -2,7 +2,7 @@
 import { ref, computed, inject, reactive, watch } from 'vue'
 import { Head, router, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import { OzPageHeader, OzModuleTabs, OzStatTile, OzCard, OzButton, OzTable, OzPill, OzDropdown, OzDrawer, OzField, OzInput, OzSwitch, useOzConfirm } from '@/Components/Oz'
+import { OzPageHeader, OzModuleTabs, OzStatStrip, OzCard, OzButton, OzTable, OzPill, OzDropdown, OzDrawer, OzField, OzInput, OzSwitch, useOzConfirm } from '@/Components/Oz'
 
 defineOptions({ layout: AppLayout })
 
@@ -146,9 +146,7 @@ async function confirmDelete(c) {
 	</OzPageHeader>
 	<OzModuleTabs />
 
-	<div class="stats">
-		<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" />
-	</div>
+	<OzStatStrip :items="stats" />
 
 	<OzCard title="Firma Listesi">
 		<OzTable :columns="columns" :rows="carriers" row-key="id" empty-title="Kayıt bulunamadı" searchable search-placeholder="Firma ara…">
@@ -194,8 +192,6 @@ async function confirmDelete(c) {
 </template>
 
 <style scoped>
-.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
-@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 .mono { font-family: ui-monospace, monospace; font-size: 12px; }
 .dim { color: var(--oz-muted); }

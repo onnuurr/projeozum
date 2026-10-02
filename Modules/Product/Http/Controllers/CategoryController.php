@@ -54,10 +54,11 @@ class CategoryController extends Controller
                     'slug'         => $c->slug,
                     'parent'       => $c->parent?->name ?? '—',
                     'parent_id'    => $c->parent_id,
-                    'icon'         => $c->icon ?? '📦',
+                    'icon'         => $c->icon ?? 'package',
                     'sort_order'   => $c->sort_order,
                     'productCount' => 0,
                     'status'       => $c->status,
+                    'manuallyPassive' => $c->manually_passive,
                     'updatedAt'    => optional($c->updated_at)->format('Y-m-d'),
                     'marketplaces' => $mpByKey,
                     'attributeDefinitions' => $c->attributeDefinitions->map(fn (CategoryAttributeDefinition $d) => [
@@ -87,7 +88,11 @@ class CategoryController extends Controller
 
     public function store(StoreCategoryRequest $request): RedirectResponse
     {
-        Category::create($request->validated());
+        $data = $request->validated();
+        // Sıra boş bırakıldıysa kardeşlerin sonuna (formda da önceden doldurulur; elle değiştirilebilir)
+        $data['sort_order'] ??= Category::nextSortOrder($data['parent_id'] ?? null);
+
+        Category::create($this->withManualStatus($data));
 
         // Flash basılmıyor — Categories.vue onSuccess'te kendi toast'unu gösteriyor.
         return redirect()->route('products.categories.index');
@@ -119,9 +124,9 @@ class CategoryController extends Controller
             $category = Category::create([
                 'name'       => $name,
                 'slug'       => $slug,
-                'icon'       => '📦',
+                'icon'       => 'package',
                 'status'     => 'active',
-                'sort_order' => (int) Category::max('sort_order') + 1,
+                'sort_order' => Category::nextSortOrder(null),
             ]);
         }
 
@@ -130,7 +135,7 @@ class CategoryController extends Controller
             'slug'  => $category->slug,
             'name'  => $category->name,
             'label' => $category->name,
-            'icon'  => $category->icon ?? '📦',
+            'icon'  => $category->icon ?? 'package',
         ]);
     }
 
@@ -139,10 +144,18 @@ class CategoryController extends Controller
         $data = $request->validated();
 
         if (! empty($data['parent_id']) && (int) $data['parent_id'] === $category->id) {
-            return back()->withErrors(['parent_id' => 'Bir kategori kendisinin üstü olamaz.']);
+            return back()->withErrors(['parent_id' => __('product::messages.category_self_parent')]);
         }
 
-        $category->update($data);
+        // Sıra boşaltıldıysa: başka üst kategoriye taşındıysa orada sona, değilse mevcut sıra korunur
+        if (($data['sort_order'] ?? null) === null) {
+            $newParent = $data['parent_id'] ?? null;
+            $data['sort_order'] = (int) $newParent !== (int) $category->parent_id
+                ? Category::nextSortOrder($newParent)
+                : $category->sort_order;
+        }
+
+        $category->update($this->withManualStatus($data));
 
         return redirect()->route('products.categories.index');
     }
@@ -241,6 +254,19 @@ class CategoryController extends Controller
         $data['category_id'] = $categoryId;
         $data['required']    = $data['required'] ?? false;
         $data['options']     = $data['type'] === 'enum' ? ($data['options'] ?? []) : null;
+
+        return $data;
+    }
+
+    /**
+     * Formdaki durum seçimi kullanıcının niyetidir: "Pasif" → elle pasif (kalıcı), "Aktif" → otomatik.
+     * Gerçek durumu kayıttan sonra CategoryStatusService belirler (yayında ürün yoksa pasif).
+     */
+    private function withManualStatus(array $data): array
+    {
+        if (array_key_exists('status', $data)) {
+            $data['manually_passive'] = $data['status'] === 'passive';
+        }
 
         return $data;
     }

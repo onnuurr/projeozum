@@ -4,7 +4,12 @@ namespace Modules\Product\Providers;
 
 use Nwidart\Modules\Support\ModuleServiceProvider;
 use Illuminate\Console\Scheduling\Schedule;
+use Modules\Product\Console\RenumberCategoriesCommand;
+use Modules\Product\Console\SyncCategoryStatusCommand;
 use Modules\Product\Console\SyncVariantStockCommand;
+use Modules\Product\Models\Category;
+use Modules\Product\Models\Product;
+use Modules\Product\Services\CategoryStatusService;
 use Modules\Product\Services\Ai\Contracts\ProductDescriptionGenerator;
 use Modules\Product\Services\Ai\GeminiProductDescriptionGenerator;
 
@@ -28,7 +33,38 @@ class ProductServiceProvider extends ModuleServiceProvider
 
         $this->commands([
             SyncVariantStockCommand::class,
+            SyncCategoryStatusCommand::class,
+            RenumberCategoriesCommand::class,
         ]);
+    }
+
+    public function boot(): void
+    {
+        parent::boot();
+
+        $this->registerCategoryStatusSync();
+    }
+
+    /**
+     * Kategori durumu otomatik: yayında ürünü (alt kategoriler dahil) yoksa pasif (CategoryStatusService).
+     * Model olayları — ürün yayına alma / kategori değiştirme / silme hangi yoldan gelirse gelsin yakalanır.
+     */
+    private function registerCategoryStatusSync(): void
+    {
+        $sync = fn () => app(CategoryStatusService::class)->syncAll();
+
+        Product::saved(function (Product $product) use ($sync) {
+            if (app(CategoryStatusService::class)->productAffectsCategories($product)) {
+                $sync();
+            }
+        });
+        Product::deleted($sync);
+        Product::restored($sync);
+
+        // Kategori kaydı (yeni, taşıma, elle pasif/aktif) ve silme — servis kendi kayıtlarında yeniden tetiklenmez
+        Category::saved($sync);
+        Category::deleted($sync);
+        Category::restored($sync);
     }
 
     /**

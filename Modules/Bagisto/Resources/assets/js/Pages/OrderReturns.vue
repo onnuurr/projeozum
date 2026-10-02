@@ -2,9 +2,12 @@
 import { reactive, computed } from 'vue'
 import { Head, Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import { OzPageHeader, OzModuleTabs, OzStatTile, OzCard, OzTable, OzPill, OzInput, OzButton } from '@/Components/Oz'
+import { useCan } from '@/composables/useCan'
+import { OzPageHeader, OzModuleTabs, OzStatStrip, OzCard, OzTable, OzPill, OzInput, OzButton } from '@/Components/Oz'
 
 defineOptions({ layout: AppLayout })
+
+const { can } = useCan()
 
 const props = defineProps({
 	returns: { type: Object, required: true },
@@ -77,14 +80,13 @@ function formatMoney(v) {
 
 	<OzPageHeader title="İadeler">
 		<template #subtitle>Bayi portalından gelen iade talepleri · <b>{{ returns.total }}</b> kayıt</template>
+		<template v-if="can('order-return-mail.manage')" #actions>
+			<OzButton icon="mail" @click="router.visit('/dealer-mail-templates?group=returns')">E-posta şablonları</OzButton>
+		</template>
 	</OzPageHeader>
 	<OzModuleTabs />
 
-	<div class="stats">
-		<button v-for="s in statTiles" :key="s.key" type="button" class="stat-btn" @click="setStatus(s.key)">
-			<OzStatTile :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" />
-		</button>
-	</div>
+	<OzStatStrip :items="statTiles" interactive :active="localFilters.status" label="İade özeti — duruma göre filtrele" @select="setStatus" />
 
 	<div class="status-chips">
 		<button
@@ -150,10 +152,6 @@ function formatMoney(v) {
 .plain-link { color: var(--oz-accent); text-decoration: none; }
 .plain-link:hover { text-decoration: underline; }
 
-.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
-.stat-btn { all: unset; display: block; cursor: pointer; border-radius: 14px; }
-.stat-btn:focus-visible { outline: 2px solid var(--oz-accent); outline-offset: 2px; }
-@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 .status-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .chip { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--oz-border); background: var(--oz-surface); font-size: 12px; font-weight: 600; color: var(--oz-muted); cursor: pointer; transition: all .15s; }

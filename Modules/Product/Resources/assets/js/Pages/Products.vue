@@ -4,7 +4,7 @@ import { Head, router, usePage } from '@inertiajs/vue3'
 import { Shirt, Palette, Store } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import {
-	OzPageHeader, OzModuleTabs, OzStatTile, OzButton, OzPill, OzTable,
+	OzPageHeader, OzModuleTabs, OzStatStrip, OzButton, OzPill, OzTable,
 	OzDropdown, OzEmptyState, OzCard, OzCheckbox, OzModal, OzIcon, useOzConfirm,
 } from '@/Components/Oz'
 import { ozFold } from '@/Components/Oz/ozText'
@@ -262,9 +262,7 @@ async function bulkDelete() {
 	</OzPageHeader>
 	<OzModuleTabs />
 
-	<div class="stats">
-		<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" />
-	</div>
+	<OzStatStrip :items="stats" />
 
 	<OzCard title="Ürün Listesi">
 		<OzEmptyState v-if="!products.length" icon="package" title="Henüz ürün yok" description="Kataloğa ilk ürününüzü ekleyerek başlayın.">
@@ -425,8 +423,6 @@ async function bulkDelete() {
 .choice b { font-size: 15px; font-weight: 600; }
 .choice small { font-size: 12.5px; color: var(--oz-muted); line-height: 1.4; }
 
-.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
-@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 /* ── Toplu seçim çubuğu ── */
 /* Toplu seçim çubuğu: akışta yer kaplamaz (tabloyu itmez), kaydırma alanının altında yüzer.

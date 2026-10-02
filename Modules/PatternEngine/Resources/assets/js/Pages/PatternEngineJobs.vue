@@ -3,7 +3,7 @@ import { computed, onMounted, onUnmounted, ref, watch, inject } from 'vue'
 import { Head, useForm, router, Link } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import {
-	OzPageHeader, OzModuleTabs, OzStatTile, OzCard, OzButton, OzPill, OzTable, OzAlert, OzAccordion,
+	OzPageHeader, OzModuleTabs, OzStatStrip, OzCard, OzButton, OzPill, OzTable, OzAlert, OzAccordion,
 	OzField, OzInput, OzSelect, OzCombobox, OzFileDrop,
 } from '@/Components/Oz'
 import { useCan } from '@/composables/useCan'
@@ -197,9 +197,7 @@ const FIELD_GUIDE = [
 	</OzPageHeader>
 	<OzModuleTabs />
 
-	<div class="stats">
-		<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" />
-	</div>
+	<OzStatStrip :items="stats" />
 
 	<OzAlert v-if="currentProfile && !currentProfile.verifiedByModelist" tone="warning" title="Ölçüler geçici, modelist onayı yok" class="notice">
 		<code>{{ currentProfile.name }}</code> profili istatistiksel yer tutucudur. Modelist onayı gelmeden bu profille üretim vaadi verilmez.
@@ -306,8 +304,6 @@ const FIELD_GUIDE = [
 </template>
 
 <style scoped>
-.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
-@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 .mono { font-family: ui-monospace, monospace; font-size: 12px; }
 .dim { color: var(--oz-muted); font-weight: 400; }

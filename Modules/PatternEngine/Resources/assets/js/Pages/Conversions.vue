@@ -3,7 +3,7 @@ import { ref, reactive, computed, inject } from 'vue'
 import { Head, router, useForm } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import {
-	OzPageHeader, OzModuleTabs, OzStatTile, OzCard, OzButton, OzPill, OzEmptyState, OzFileDrop, OzModal, useOzConfirm,
+	OzPageHeader, OzModuleTabs, OzStatStrip, OzCard, OzButton, OzPill, OzEmptyState, OzFileDrop, OzModal, useOzConfirm,
 } from '@/Components/Oz'
 import { useCan } from '@/composables/useCan'
 
@@ -94,9 +94,7 @@ async function reject(j) {
 	</OzPageHeader>
 	<OzModuleTabs />
 
-	<div class="stats">
-		<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" />
-	</div>
+	<OzStatStrip :items="stats" />
 
 	<OzCard v-if="canManage" title="PDF Yükle" subtitle="çoklu seçim, her dosya ayrı iş olur" class="upload">
 		<div class="upload-body">
@@ -224,8 +222,6 @@ async function reject(j) {
 </template>
 
 <style scoped>
-.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
-@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 .dim { color: var(--oz-muted); font-weight: 400; }
 .small { font-size: 11px; margin: 4px 0 0; }

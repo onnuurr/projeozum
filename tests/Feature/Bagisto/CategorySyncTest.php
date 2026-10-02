@@ -23,7 +23,8 @@ class CategorySyncTest extends TestCase
     {
         Queue::fake();
 
-        $category = Category::create(['name' => 'Bebek', 'slug' => 'bebek', 'status' => 'active', 'sort_order' => 1]);
+        // Ürünsüz kategori otomatik pasif (CategoryStatusService) — 'active' verilse durum değişimi de push üretirdi
+        $category = Category::create(['name' => 'Bebek', 'slug' => 'bebek', 'status' => 'passive', 'sort_order' => 1]);
         Queue::assertPushed(PushCategoryToBagisto::class, 1);
 
         $category->update(['icon' => 'baby']); // Bagisto'ya gitmeyen alan

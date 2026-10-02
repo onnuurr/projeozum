@@ -61,6 +61,9 @@ Schedule::command('cache:prune-stale-tags')->hourly();
 // Geçerlilik tarihi dolmuş proforma faturaları expired yapar (Finance modülü).
 Schedule::command('finance:expire-proformas')->daily();
 
+// Kategori durumu ürünlere göre otomatik (olaylarla anlık); kaçan değişikliklere karşı günlük tarama.
+Schedule::command('categories:sync-status')->dailyAt('04:15')->onOneServer();
+
 /*
 |--------------------------------------------------------------------------
 | AI görsel üretimi — kalite geri bildirim raporu
@@ -98,3 +101,14 @@ Schedule::command('architecture:doctor --ci --json')->weekly()->onOneServer();
 | olursa backups.view iznine sahip hesaplara bildirim gider.
 */
 Schedule::command('backup:run')->dailyAt('02:00')->onOneServer()->runInBackground();
+
+/*
+|--------------------------------------------------------------------------
+| Yazılım sürümü kontrolü
+|--------------------------------------------------------------------------
+| PHP/Laravel/PostgreSQL/Redis/nginx/Inertia/Vue için son sürüm + EOL verisi
+| endoflife.date ve Packagist'ten çekilip cache'e yazılır; süper admin Sistem
+| Paneli "güncelleme mevcut / destek bitti" uyarısını buradan gösterir
+| (bkz. Modules\Superadmin\Services\VersionCheckService).
+*/
+Schedule::command('superadmin:check-versions')->weeklyOn(1, '03:30')->onOneServer()->runInBackground(); // her pazartesi

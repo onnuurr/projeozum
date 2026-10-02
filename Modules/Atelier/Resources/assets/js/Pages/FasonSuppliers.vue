@@ -3,7 +3,7 @@ import { ref, computed, inject, watch } from 'vue'
 import { Head, router, useForm } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import {
-	OzPageHeader, OzModuleTabs, OzStatTile, OzCard, OzButton, OzTable, OzPill, OzDropdown, OzAvatar,
+	OzPageHeader, OzModuleTabs, OzStatStrip, OzCard, OzButton, OzTable, OzPill, OzDropdown, OzAvatar,
 	OzDrawer, OzField, OzInput, OzTextarea, OzSwitch, useOzConfirm,
 } from '@/Components/Oz'
 import { useCan } from '@/composables/useCan'
@@ -110,9 +110,7 @@ async function remove(s) {
 	</OzPageHeader>
 	<OzModuleTabs />
 
-	<div class="stats">
-		<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" />
-	</div>
+	<OzStatStrip :items="stats" />
 
 	<OzCard title="Fasoncu Listesi">
 		<OzTable :columns="columns" :rows="suppliers" row-key="id" searchable search-placeholder="Firma, yetkili ya da iletişim ara…" empty-title="Fasoncu kaydı yok" min-width="700px">
@@ -179,8 +177,6 @@ async function remove(s) {
 </template>
 
 <style scoped>
-.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
-@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 .mono { font-family: ui-monospace, monospace; font-size: 11.5px; }
 .dim { color: var(--oz-muted); }

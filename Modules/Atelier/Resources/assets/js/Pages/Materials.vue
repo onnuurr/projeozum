@@ -4,7 +4,7 @@ import { Head, router, useForm } from '@inertiajs/vue3'
 import axios from 'axios'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import {
-	OzPageHeader, OzModuleTabs, OzStatTile, OzCard, OzButton, OzTable, OzPill, OzDropdown,
+	OzPageHeader, OzModuleTabs, OzStatStrip, OzCard, OzButton, OzTable, OzPill, OzDropdown,
 	OzDrawer, OzField, OzInput, OzSelect, OzTextarea, OzSwitch, useOzConfirm,
 } from '@/Components/Oz'
 import MaterialSpecsPanel from '../Components/MaterialSpecsPanel.vue'
@@ -50,6 +50,8 @@ const columns = [
 	{ key: 'type', label: 'Tür', sortable: true, filter: { type: 'select', options: typeOptions } },
 	{ key: 'unit', label: 'Birim', sortable: true },
 	{ key: 'currentStock', label: 'Stok', align: 'right', sortable: true },
+	{ key: 'reservedQty', label: 'Rezerve', align: 'right', sortable: true },
+	{ key: 'availableQty', label: 'Kullanılabilir', align: 'right', sortable: true },
 	{ key: 'unitCost', label: 'Birim Maliyet', align: 'right', sortable: true, class: 'oz-cell-amount' },
 	{ key: 'isActive', label: 'Durum', sortable: true },
 	{ key: 'actions', label: '', align: 'right', width: '48px', searchable: false },
@@ -183,15 +185,19 @@ async function submitSpecs() {
 	</OzPageHeader>
 	<OzModuleTabs />
 
-	<div class="stats">
-		<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" />
-	</div>
+	<OzStatStrip :items="stats" />
 
 	<OzCard title="Hammadde Listesi">
-		<OzTable :columns="columns" :rows="materials" row-key="id" searchable search-placeholder="Kod ya da ad ara…" empty-title="Hammadde kaydı yok" min-width="720px">
+		<OzTable :columns="columns" :rows="materials" row-key="id" searchable search-placeholder="Kod ya da ad ara…" empty-title="Hammadde kaydı yok" min-width="900px">
 			<template #cell-code="{ value }"><span class="mono">{{ value }}</span></template>
 			<template #cell-type="{ value }"><OzPill tone="info">{{ TYPES[value] ?? value }}</OzPill></template>
 			<template #cell-unit="{ value }"><span class="dim">{{ UNITS[value] ?? value }}</span></template>
+			<template #cell-reservedQty="{ row }">
+				<span class="mono" :class="{ dim: !row.reservedQty }">{{ formatNumber(row.reservedQty, 3) }}</span>
+			</template>
+			<template #cell-availableQty="{ row }">
+				<span class="mono" :class="{ 'is-out': row.availableQty <= 0 }">{{ formatNumber(row.availableQty, 3) }}</span>
+			</template>
 			<template #cell-currentStock="{ row }">
 				<span class="mono" :class="{ 'is-out': row.currentStock <= 0 }">{{ formatNumber(row.currentStock, 3) }}</span>
 			</template>
@@ -291,8 +297,6 @@ async function submitSpecs() {
 </template>
 
 <style scoped>
-.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
-@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 .mono { font-family: ui-monospace, monospace; font-size: 12px; }
 .dim { color: var(--oz-muted); }

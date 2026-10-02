@@ -3,8 +3,8 @@ import { ref, computed, inject, watch } from 'vue'
 import { Head, router, useForm } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import {
-	OzPageHeader, OzModuleTabs, OzStatTile, OzCard, OzButton, OzTable, OzPill, OzDropdown,
-	OzDrawer, OzField, OzInput, OzRadioGroup, useOzConfirm,
+	OzPageHeader, OzModuleTabs, OzStatStrip, OzCard, OzButton, OzTable, OzPill, OzDropdown,
+	OzDrawer, OzField, OzInput, OzRadioGroup, OzSwitch, useOzConfirm,
 } from '@/Components/Oz'
 import { formatMoney } from '../atelierNav'
 import { useCan } from '@/composables/useCan'
@@ -53,7 +53,7 @@ function onAction(key, o) {
 	else if (key === 'remove') remove(o)
 }
 
-const emptyForm = () => ({ id: null, code: '', name: '', default_location: 'in_house', default_unit_cost: 0, sort_order: 0 })
+const emptyForm = () => ({ id: null, code: '', name: '', default_location: 'in_house', default_unit_cost: 0, consumes_materials: false, sort_order: 0 })
 const form = useForm(emptyForm())
 const editing = ref(false)
 const formOpen = ref(false)
@@ -77,7 +77,7 @@ function openEdit(o) {
 	editing.value = true
 	Object.assign(form, {
 		id: o.id, code: o.code, name: o.name,
-		default_location: o.defaultLocation, default_unit_cost: o.defaultUnitCost, sort_order: o.sortOrder,
+		default_location: o.defaultLocation, default_unit_cost: o.defaultUnitCost, consumes_materials: o.consumesMaterials, sort_order: o.sortOrder,
 	})
 	formOpen.value = true
 }
@@ -109,14 +109,16 @@ async function remove(o) {
 	</OzPageHeader>
 	<OzModuleTabs />
 
-	<div class="stats">
-		<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" />
-	</div>
+	<OzStatStrip :items="stats" />
 
 	<OzCard title="Operasyon Listesi">
 		<OzTable :columns="columns" :rows="operations" row-key="id" :default-sort="{ key: 'sortOrder', dir: 'asc' }" searchable search-placeholder="Operasyon ara…" empty-title="Operasyon kaydı yok" min-width="600px">
 			<template #cell-sortOrder="{ value }"><span class="mono dim">{{ value }}</span></template>
 			<template #cell-code="{ value }"><span class="mono">{{ value }}</span></template>
+			<template #cell-name="{ row }">
+				{{ row.name }}
+				<OzPill v-if="row.consumesMaterials" tone="info" class="consumes">Hammadde düşer</OzPill>
+			</template>
 			<template #cell-defaultLocation="{ value }">
 				<OzPill :tone="value === 'fason' ? 'warning' : 'success'">{{ LOCATIONS[value] ?? value }}</OzPill>
 			</template>
@@ -148,6 +150,11 @@ async function remove(o) {
 					<OzInput v-model.number="form.sort_order" type="number" min="0" placeholder="0" />
 				</OzField>
 			</div>
+			<OzSwitch
+				v-model="form.consumes_materials"
+				label="Hammadde bu aşamada düşer"
+				description="İş emrinde hammadde planlamada rezerve edilir; bu operasyonda üretim kaydı girildikçe stoktan düşülür (genelde Kesim). Rotada işaretli aşama yoksa ilk aşamada düşer."
+			/>
 			<button type="submit" hidden />
 		</form>
 		<template #footer>
@@ -158,12 +165,11 @@ async function remove(o) {
 </template>
 
 <style scoped>
-.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
-@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 .mono { font-family: ui-monospace, monospace; font-size: 12px; }
 .dim { color: var(--oz-muted); }
 .form { display: flex; flex-direction: column; gap: 14px; }
+.consumes { margin-left: 8px; }
 .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media (max-width: 560px) {
 	.row-2 { grid-template-columns: 1fr; }

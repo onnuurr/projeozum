@@ -9,7 +9,7 @@ class StoreCategoryRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->hasPermissionTo('category.manage') ?? false;
+        return $this->user()?->hasPermissionTo('category.create') ?? false;
     }
 
     public function rules(): array
@@ -23,7 +23,7 @@ class StoreCategoryRequest extends FormRequest
                 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/',
                 Rule::unique('product_categories', 'slug'),
             ],
-            'icon'       => ['nullable', 'string', 'max:16'],
+            'icon'       => ['nullable', 'string', 'max:64', 'regex:/^(?:(?:lab|oz):)?[a-z0-9-]+$/'], // ortak ikon kaydındaki ad (resources/js/lucideIcons.js)
             'parent_id'  => ['nullable', 'integer', Rule::exists('product_categories', 'id')],
             'status'     => ['required', Rule::in(['active', 'passive'])],
             'sort_order' => ['nullable', 'integer', 'min:0'],
@@ -33,7 +33,8 @@ class StoreCategoryRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'slug.regex' => 'Slug yalnızca küçük harf, rakam ve tire içerebilir.',
+            'slug.regex' => __('product::messages.validation.slug_format'),
+            'icon.regex' => __('product::messages.validation.icon_format'),
         ];
     }
 }

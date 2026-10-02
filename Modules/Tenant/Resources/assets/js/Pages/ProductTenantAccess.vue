@@ -3,7 +3,7 @@ import { ref, reactive, computed, inject } from 'vue'
 import { Head, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import {
-	OzPageHeader, OzModuleTabs, OzStatTile, OzCard, OzTable, OzPill, OzButton, OzAvatar, OzEmptyState,
+	OzPageHeader, OzModuleTabs, OzStatStrip, OzCard, OzTable, OzPill, OzButton, OzAvatar, OzEmptyState,
 	OzInput, OzCheckbox, OzAlert, OzTooltip, useOzConfirm,
 } from '@/Components/Oz'
 
@@ -135,9 +135,7 @@ async function reset(r) {
 	</OzPageHeader>
 	<OzModuleTabs />
 
-	<div class="stats">
-		<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" />
-	</div>
+	<OzStatStrip :items="stats" />
 
 	<OzAlert tone="info" title="Yalnızca sistem yöneticisi düzenleyebilir" class="block">
 		Tüm aktif iş ortakları listelenir; durum etiketi kaynağı gösterir (varsayılan, marka/kategori kuralı ya da ürün override).
@@ -221,7 +219,6 @@ async function reset(r) {
 
 <style scoped>
 .block { margin-bottom: 14px; }
-.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
 .mono { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; }
 .dim { color: var(--oz-muted-2); }
 .num { font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--oz-ink-soft); }
@@ -237,5 +234,4 @@ async function reset(r) {
 .price { width: 140px; }
 .acts { display: flex; justify-content: flex-end; align-items: center; gap: 6px; }
 
-@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 </style>

@@ -1,9 +1,10 @@
 <script setup>
-import { ref, computed, inject } from 'vue'
+import { ref, computed, inject, watch } from 'vue'
 import { Head, router } from '@inertiajs/vue3'
+import axios from 'axios'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import {
-	OzPageHeader, OzModuleTabs, OzStatTile, OzCard, OzTable, OzPill, OzButton, OzEmptyState, OzIcon,
+	OzPageHeader, OzModuleTabs, OzStatStrip, OzCard, OzTable, OzPill, OzButton, OzEmptyState, OzIcon,
 	OzDrawer, OzModal, OzField, OzTextarea, OzAlert, OzCheckbox, OzInput, OzSelect,
 } from '@/Components/Oz'
 import { useCan } from '@/composables/useCan'
@@ -19,11 +20,15 @@ const props = defineProps({
 	applications: { type: Array, default: () => [] },
 	tenantTypes: { type: Array, default: () => [] },
 	filters: { type: Object, default: () => ({}) },
+	// Bayi Portalı › "Cari hesap ve bakiyeden ödeme" kapalıyken kredi limiti sorulmaz.
+	cariEnabled: { type: Boolean, default: false },
+	defaultDiscountRate: { type: Number, default: 0 },
 })
 
 const { can } = useCan()
 const canApprove = computed(() => can('tenant-application.approve'))
 const canManageTenants = computed(() => can('tenant.manage'))
+const canManageMails = computed(() => can('tenant-application-mail.manage'))
 const showToast = inject('showToast', null)
 
 const STATUS = {
@@ -60,6 +65,8 @@ const PORTAL_LABELS = {
 const portal = (group, key) => PORTAL_LABELS[group]?.[key] ?? key ?? '—'
 const docLabel = (t) => DOC_LABELS[t] ?? t
 const docUrl = (a, d) => `/tenants/applications/${a.id}/documents/${d.id}/download`
+const previewUrl = (a, d) => `/tenants/applications/${a.id}/documents/${d.id}/preview`
+const fmtSize = (bytes) => (bytes ? `${(bytes / 1048576).toLocaleString('tr-TR', { maximumFractionDigits: 1 })} MB` : '')
 const fmtDate = (s) => (s ? new Date(s.replace(' ', 'T')).toLocaleString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—')
 
 /* ── özet ── */
@@ -105,6 +112,24 @@ function openDetail(a) {
 	detailOpen.value = true
 }
 
+// Onaylanan bayi sözleşmeleri: bayinin onay anındaki doldurulmuş kopyaları (Bayi Sözleşmeleri arşivi,
+// Bagisto modülü — bu modül ona PHP'den bağımlı olamadığı için ayrıntı açılınca uç noktadan okunur).
+const acceptances = ref([])
+const acceptancesLoading = ref(false)
+watch([detailId, detailOpen], async ([id, open]) => {
+	acceptances.value = []
+	if (!open || !id || !canApprove.value || !detail.value?.details) return
+	acceptancesLoading.value = true
+	try {
+		const { data } = await axios.get('/dealer-agreements/acceptances', { params: { application: id } })
+		if (detailId.value === id) acceptances.value = data.data
+	} catch {
+		acceptances.value = []
+	} finally {
+		acceptancesLoading.value = false
+	}
+})
+
 /* ── işlemler ── */
 const approving = ref(null)
 function approve(a) {
@@ -139,6 +164,46 @@ function post(a, action, data, success) {
 }
 const openDocuments = (a) => post(a, 'open-documents', {}, 'Resmi belge aşaması açıldı')
 const resendInvitation = (a) => post(a, 'resend-invitation', {}, 'Davet yeniden gönderildi')
+const remindDocuments = (a) => post(a, 'remind-documents', {}, 'Hatırlatma e-postası gönderildi')
+
+/* ── belge önizleme: PDF iframe'de, görsel img olarak; buradan yazdırılır / indirilir ── */
+const preview = ref(null) // { app, doc }
+const previewOpen = ref(false)
+const previewFrame = ref(null)
+function openPreview(a, d) {
+	if (!d.kind) {
+		download(docUrl(a, d))
+		return
+	}
+	preview.value = { app: a, doc: d }
+	previewOpen.value = true
+}
+// Görseli kendi başına basmak için gizli bir iframe'e yerleştirip yazdırır (sayfanın geri kalanı basılmaz).
+function printImage(url) {
+	const frame = document.createElement('iframe')
+	frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0'
+	frame.srcdoc = `<style>@page{margin:10mm}body{margin:0}img{display:block;max-width:100%;max-height:100vh;margin:auto}</style><img src="${url}">`
+	frame.onload = () => {
+		const img = frame.contentDocument.querySelector('img')
+		const go = () => { frame.contentWindow.print(); setTimeout(() => frame.remove(), 1000) }
+		img.complete ? go() : (img.onload = go)
+	}
+	document.body.appendChild(frame)
+}
+function printPreview() {
+	const { app, doc } = preview.value
+	const url = previewUrl(app, doc)
+	if (doc.kind === 'image') return printImage(url)
+	try {
+		previewFrame.value.contentWindow.focus()
+		previewFrame.value.contentWindow.print()
+	} catch {
+		window.open(url, '_blank', 'noopener')
+	}
+}
+const openTab = (url) => window.open(url, '_blank', 'noopener')
+const download = (url) => { window.location.href = url }
+const printApplication = (a) => openTab(`/tenants/applications/${a.id}/print`)
 
 async function copyLink(url) {
 	try {
@@ -158,7 +223,7 @@ const typeOptions = computed(() => [{ value: '', label: 'Seçilmedi' }, ...props
 
 function openAccountModal(a) {
 	accountTarget.value = a
-	accountForm.value = { code: a.suggestedCode, tenant_type_id: '', credit_limit: '', payment_term_days: '', discount_rate: '' }
+	accountForm.value = { code: a.suggestedCode ?? '', tenant_type_id: '', credit_limit: '', discount_rate: props.defaultDiscountRate }
 	accountErrors.value = {}
 	accountOpen.value = true
 }
@@ -250,12 +315,14 @@ function submitMissing() {
 <template>
 	<Head title="İş Ortağı Başvuruları" />
 
-	<OzPageHeader title="İş Ortağı Başvuruları" :subtitle="`${applications.length} başvuru · ${pendingCount} bekliyor`" />
+	<OzPageHeader title="İş Ortağı Başvuruları" :subtitle="`${applications.length} başvuru · ${pendingCount} bekliyor`">
+		<template v-if="canManageMails" #actions>
+			<OzButton icon="mail" @click="router.visit('/dealer-mail-templates?group=applications')">E-posta şablonları</OzButton>
+		</template>
+	</OzPageHeader>
 	<OzModuleTabs />
 
-	<div class="stats">
-		<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" />
-	</div>
+	<OzStatStrip :items="stats" />
 
 	<OzCard title="Başvuru listesi" :meta="`${applications.length} kayıt`" class="block">
 		<OzTable
@@ -286,9 +353,9 @@ function submitMissing() {
 			</template>
 			<template #cell-documents="{ row }">
 				<div class="docs" @click.stop>
-					<a v-for="d in row.documents" :key="d.id" :href="docUrl(row, d)" target="_blank" rel="noopener" class="doc" :title="d.name">
-						<OzIcon name="file" :size="12" />{{ docLabel(d.type) }}
-					</a>
+					<button v-for="d in row.documents" :key="d.id" type="button" class="doc" :title="`${d.name} · ${d.kind ? 'önizle' : 'indir'}`" @click="openPreview(row, d)">
+						<OzIcon :name="d.kind ? 'eye' : 'download'" :size="12" />{{ docLabel(d.type) }}
+					</button>
 					<span v-if="!row.documents.length" class="dim">Belge yok</span>
 				</div>
 			</template>
@@ -348,6 +415,7 @@ function submitMissing() {
 				</OzAlert>
 				<OzAlert v-else-if="detail.status === 'documents_requested'" tone="info" title="Resmi belgeler bekleniyor">
 					Belge aşaması {{ fmtDate(detail.documentsRequestedAt) }} tarihinde açıldı; bayinin belgeleri, banka bilgisini ve sözleşme onayını göndermesi bekleniyor.
+					<template v-if="detail.documentsRemindedAt"> Son hatırlatma {{ fmtDate(detail.documentsRemindedAt) }} tarihinde gönderildi.</template>
 				</OzAlert>
 				<OzAlert v-else-if="detail.status === 'documents_review'" tone="warning" title="Resmi evrak incelemesi">
 					Belgeler {{ fmtDate(detail.documentsSubmittedAt) }} tarihinde yüklendi. Uygunsa “Onayla ve hesabı aç”: iş ortağı pasif açılır ve bayiye üyelik tamamlama bağlantısı gider.
@@ -428,19 +496,35 @@ function submitMissing() {
 			<div class="section">Belgeler</div>
 			<p v-if="!canApprove" class="dim">Belgeleri görmek için başvuru onay yetkisi gerekir.</p>
 			<div v-else-if="detail.documents.length" class="doc-list">
-				<a v-for="d in detail.documents" :key="d.id" :href="docUrl(detail, d)" target="_blank" rel="noopener" class="doc-row">
+				<div v-for="d in detail.documents" :key="d.id" class="doc-row" role="button" tabindex="0" :title="d.kind ? 'Önizle' : 'İndir'" @click="openPreview(detail, d)" @keydown.enter="openPreview(detail, d)">
 					<OzIcon name="file" :size="16" />
-					<span class="doc-text"><b>{{ docLabel(d.type) }}</b><span>{{ d.name }}</span></span>
-					<OzIcon name="download" :size="14" />
-				</a>
+					<span class="doc-text"><b>{{ docLabel(d.type) }}</b><span>{{ d.name }}<template v-if="d.size"> · {{ fmtSize(d.size) }}</template></span></span>
+					<OzIcon v-if="d.kind" name="eye" :size="15" />
+					<a :href="docUrl(detail, d)" class="doc-dl" title="İndir" aria-label="İndir" @click.stop><OzIcon name="download" :size="14" /></a>
+				</div>
 			</div>
 			<p v-else class="dim">Belge yüklenmemiş.</p>
+
+			<template v-if="canApprove && detail.details">
+				<div class="section">Onaylanan sözleşmeler</div>
+				<p v-if="acceptancesLoading" class="dim">Yükleniyor…</p>
+				<div v-else-if="acceptances.length" class="doc-list">
+					<a v-for="c in acceptances" :key="c.id" :href="c.printUrl" target="_blank" rel="noopener" class="doc-row" title="Bayi bilgileriyle doldurulmuş onay kopyasını yazdır">
+						<OzIcon name="file" :size="16" />
+						<span class="doc-text"><b>{{ c.title }}</b><span>{{ c.version }} · {{ c.context }} · {{ fmtDate(c.acceptedAt) }}</span></span>
+						<OzIcon name="print" :size="15" />
+					</a>
+				</div>
+				<p v-else class="dim">Arşivlenmiş sözleşme onayı yok.</p>
+			</template>
 		</div>
 
 		<template v-if="detail && canApprove" #footer>
+			<OzButton v-if="detail.status === 'approved'" icon="print" @click="printApplication(detail)">Başvuru dosyasını yazdır</OzButton>
 			<template v-if="detail.source === 'bagisto'">
 				<OzButton v-if="['pending', 'documents_requested', 'documents_review', 'missing_documents'].includes(detail.status)" variant="danger" icon="x" @click="openReject(detail)">Reddet</OzButton>
 				<OzButton v-if="detail.status === 'pending'" variant="primary" icon="file" :loading="approving === detail.id" @click="openDocuments(detail)">Belge aşamasını aç</OzButton>
+				<OzButton v-else-if="detail.status === 'documents_requested'" icon="send" :loading="approving === detail.id" @click="remindDocuments(detail)">Hatırlatma gönder</OzButton>
 				<template v-else-if="detail.status === 'documents_review'">
 					<OzButton icon="file" @click="openMissing(detail)">Eksik evrak iste</OzButton>
 					<OzButton v-if="canManageTenants" variant="primary" icon="check" @click="openAccountModal(detail)">Onayla ve hesabı aç</OzButton>
@@ -458,6 +542,19 @@ function submitMissing() {
 		</template>
 	</OzDrawer>
 
+	<!-- Belge önizleme -->
+	<OzModal v-model:open="previewOpen" :title="preview ? docLabel(preview.doc.type) : ''" :subtitle="preview?.doc.name ?? ''" icon="file" size="lg">
+		<div v-if="preview" class="preview">
+			<iframe v-if="preview.doc.kind === 'pdf'" ref="previewFrame" :src="previewUrl(preview.app, preview.doc)" :title="preview.doc.name" />
+			<img v-else :src="previewUrl(preview.app, preview.doc)" :alt="preview.doc.name">
+		</div>
+		<template v-if="preview" #footer>
+			<OzButton icon="external-link" @click="openTab(previewUrl(preview.app, preview.doc))">Yeni sekmede aç</OzButton>
+			<OzButton icon="print" @click="printPreview">Yazdır</OzButton>
+			<OzButton variant="primary" icon="download" @click="download(docUrl(preview.app, preview.doc))">İndir</OzButton>
+		</template>
+	</OzModal>
+
 	<!-- Red -->
 	<OzModal v-model:open="rejectOpen" title="Başvuruyu reddet" :subtitle="rejectTarget?.name ?? ''" icon="x" tone="danger" size="sm" :persistent="busy">
 		<OzField label="Red gerekçesi" required :error="rejectError" hint="Başvuru sahibine iletilebilecek kısa bir açıklama">
@@ -470,28 +567,29 @@ function submitMissing() {
 	</OzModal>
 
 	<!-- Onayla ve hesabı aç -->
-	<OzModal v-model:open="accountOpen" title="Onayla ve hesabı aç" :subtitle="accountTarget?.name ?? ''" icon="building" size="sm" :persistent="busy">
-		<OzAlert v-if="accountErrors.application" tone="danger" title="Hesap açılamadı">{{ accountErrors.application }}</OzAlert>
-		<p class="modal-note">
-			Başvurudaki firma, vergi ve iletişim bilgileriyle iş ortağı <b>pasif</b> açılır. {{ accountTarget?.contact_email }} adresine
-			üyelik tamamlama bağlantısı gider; bayi parolasını ve kargo anlaşmasını girince hesap aktifleşir.
-		</p>
-		<OzField label="İş ortağı kodu" required :error="accountErrors.code">
-			<OzInput v-model="accountForm.code" class="mono" maxlength="32" autocomplete="off" />
-		</OzField>
-		<OzField label="İş ortağı tipi" :error="accountErrors.tenant_type_id">
-			<OzSelect v-model="accountForm.tenant_type_id" :options="typeOptions" />
-		</OzField>
-		<div class="terms">
-			<OzField label="Kredi limiti (₺)" :error="accountErrors.credit_limit">
-				<OzInput v-model="accountForm.credit_limit" type="number" min="0" placeholder="0" />
-			</OzField>
-			<OzField label="Vade (gün)" :error="accountErrors.payment_term_days">
-				<OzInput v-model="accountForm.payment_term_days" type="number" min="0" max="365" />
-			</OzField>
-			<OzField label="İskonto (%)" :error="accountErrors.discount_rate">
-				<OzInput v-model="accountForm.discount_rate" type="number" min="0" max="100" />
-			</OzField>
+	<OzModal v-model:open="accountOpen" title="Onayla ve hesabı aç" :subtitle="accountTarget?.name ?? ''" icon="building" size="md" :persistent="busy">
+		<div class="account-form">
+			<OzAlert v-if="accountErrors.application" tone="danger" title="Hesap açılamadı">{{ accountErrors.application }}</OzAlert>
+			<p class="modal-note">
+				Başvurudaki firma, vergi ve iletişim bilgileriyle iş ortağı <b>pasif</b> açılır. {{ accountTarget?.contact_email }} adresine
+				üyelik tamamlama bağlantısı gider; bayi parolasını ve kargo anlaşmasını girince hesap aktifleşir.
+			</p>
+			<div class="form-row">
+				<OzField label="İş ortağı kodu" required :error="accountErrors.code" hint="Başvuru numarasından otomatik; benzersizdir">
+					<OzInput v-model="accountForm.code" class="mono" maxlength="32" autocomplete="off" />
+				</OzField>
+				<OzField label="İş ortağı tipi" :error="accountErrors.tenant_type_id">
+					<OzSelect v-model="accountForm.tenant_type_id" :options="typeOptions" />
+				</OzField>
+			</div>
+			<div class="form-row">
+				<OzField v-if="cariEnabled" label="Kredi limiti" :error="accountErrors.credit_limit">
+					<OzInput v-model="accountForm.credit_limit" type="number" min="0" placeholder="0" suffix="₺" />
+				</OzField>
+				<OzField label="İskonto" :error="accountErrors.discount_rate" hint="Standart bayi iskontosu">
+					<OzInput v-model="accountForm.discount_rate" type="number" min="0" max="100" step="0.01" suffix="%" />
+				</OzField>
+			</div>
 		</div>
 		<template #footer>
 			<OzButton :disabled="busy" @click="accountOpen = false">Vazgeç</OzButton>
@@ -520,12 +618,14 @@ function submitMissing() {
 .src { font-size: 10.5px; font-weight: 600; color: var(--oz-accent); }
 .chan { display: block; }
 .missing-types { display: grid; gap: 8px; }
-.modal-note { margin: 0 0 12px; font-size: 13px; line-height: 1.5; color: var(--oz-muted); }
-.terms { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.modal-note { margin: 0; font-size: 13px; line-height: 1.5; color: var(--oz-muted); }
+.account-form { display: grid; gap: 16px; }
+.form-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
+.form-row.is-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 560px) { .form-row, .form-row.is-3 { grid-template-columns: minmax(0, 1fr); } }
 .links { display: flex; flex-direction: column; gap: 6px; }
 .link-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; border: 1px dashed var(--oz-border); border-radius: 10px; font-size: 13px; color: var(--oz-ink-soft); }
 .block { margin-bottom: 14px; }
-.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
 .apps :deep(tbody tr) { cursor: pointer; }
 .who-text { display: flex; flex-direction: column; gap: 1px; }
 .who-text b { font-size: 13px; color: var(--oz-ink-soft); white-space: nowrap; }
@@ -536,7 +636,8 @@ function submitMissing() {
 .small { font-size: 11px; }
 .date { white-space: nowrap; color: var(--oz-muted); font-variant-numeric: tabular-nums; }
 .docs { display: flex; flex-direction: column; gap: 3px; }
-.doc { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 500; color: var(--oz-accent); text-decoration: none; white-space: nowrap; }
+.doc { display: inline-flex; align-items: center; gap: 4px; padding: 0; border: 0; background: none; cursor: pointer; font: inherit; font-size: 12px; font-weight: 500; color: var(--oz-accent); text-decoration: none; white-space: nowrap; }
+.doc:hover { text-decoration: underline; }
 .doc:hover { text-decoration: underline; }
 .acts { display: flex; justify-content: flex-end; gap: 6px; white-space: nowrap; }
 
@@ -553,7 +654,12 @@ function submitMissing() {
 .doc-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .doc-text b { font-size: 13px; color: var(--oz-ink-soft); }
 .doc-text span { font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.doc-row { cursor: pointer; }
+.doc-dl { display: inline-flex; padding: 4px; margin: -4px -4px -4px 0; border-radius: 6px; color: var(--oz-muted); }
+.doc-dl:hover { background: var(--oz-surface); color: var(--oz-accent); }
+.preview { margin: -4px 0; border: 1px solid var(--oz-border); border-radius: 10px; overflow: hidden; background: var(--oz-surface-2); }
+.preview iframe { display: block; width: 100%; height: 70vh; border: 0; }
+.preview img { display: block; max-width: 100%; max-height: 70vh; margin: 0 auto; object-fit: contain; }
 
-@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 560px) { .facts { grid-template-columns: minmax(0, 1fr); gap: 2px; } .facts dd { margin-bottom: 8px; } }
 </style>

@@ -1,4 +1,4 @@
-import { lucideIcon, lucideNames } from '@/lucideIcons.js'
+import { lucideIcon, iconPickerOptions } from '@/lucideIcons.js'
 
 // Menü ikonları (superadmin_menus.icon) Lucide adıyla saklanır (ör. 'shopping-cart'); tüm Lucide seti seçilebilir.
 // Eski kayıtlarda menuIcons.js anahtarları olabilir → Lucide karşılığına çevrilir.
@@ -19,8 +19,8 @@ export function ozIconForMenu(key, fallback = 'layers') {
 	return lucideIcon(menuIconName(key) || fallback) ?? Blank
 }
 
-// OzIconPicker :options — değer ve çizim Lucide adı; :resolve="ozIconForMenu" ile çizilir
-// İlk sayfada menülere uygun ikonlar, ardından tüm set alfabetik
+// OzIconPicker :options — değer ve çizim ortak kayıttaki ad (Lucide / lab: / oz:); :resolve="ozIconForMenu" ile çizilir
+// İlk sayfada menülere uygun ikonlar, ardından bizim ikonlar ve tüm set (lucideIcons.js → iconPickerOptions)
 const FEATURED = [
 	'layout-grid', 'layout-dashboard', 'house', 'users', 'user', 'contact', 'building-2', 'store', 'package', 'boxes',
 	'shopping-cart', 'shopping-bag', 'receipt', 'truck', 'send', 'warehouse', 'factory', 'scissors', 'shirt', 'ruler',
@@ -28,7 +28,5 @@ const FEATURED = [
 	'wallet', 'banknote', 'credit-card', 'coins', 'landmark', 'file-text', 'files', 'folder', 'clipboard-list', 'tag',
 	'barcode', 'qr-code', 'printer', 'mail', 'message-square', 'bell', 'star', 'sparkles', 'image', 'globe',
 	'shield-check', 'key-round', 'database', 'server', 'wrench', 'settings', 'sliders-horizontal', 'circle-help',
-].filter((n) => lucideNames.includes(n))
-const featured = new Set(FEATURED)
-export const menuIconOptions = [...FEATURED, ...lucideNames.filter((n) => !featured.has(n))]
-	.map((name) => ({ value: name, icon: name, label: name }))
+]
+export const menuIconOptions = iconPickerOptions(FEATURED)

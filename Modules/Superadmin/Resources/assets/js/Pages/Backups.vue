@@ -2,7 +2,7 @@
 import { ref, reactive, computed, watch, nextTick, onBeforeUnmount } from 'vue'
 import { Head, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import { OzPageHeader, OzModuleTabs, OzStatTile, OzCard, OzPill, OzButton, OzAlert, OzEmptyState, OzIcon } from '@/Components/Oz'
+import { OzPageHeader, OzModuleTabs, OzStatStrip, OzCard, OzPill, OzButton, OzAlert, OzEmptyState, OzIcon } from '@/Components/Oz'
 import { useCan } from '@/composables/useCan'
 
 // Süper admin · Yedeklemeler (Oz kit). backup_runs kayıtları (son 50) + elle tetikleme (RunBackupJob, kuyruk).
@@ -158,9 +158,7 @@ const totalBytes = (r) => (r.db_dump_bytes ?? 0) + (r.files_bytes ?? 0)
 		</template>
 	</OzAlert>
 
-	<div class="stats">
-		<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" :delta="s.delta" :trend="s.trend ?? 'up'" />
-	</div>
+	<OzStatStrip :items="stats" />
 
 	<OzCard title="Geçmiş" :meta="runs.length ? `son ${runs.length} çalışma` : ''" class="block">
 		<OzEmptyState v-if="!runs.length" icon="cloud" title="Henüz yedekleme çalışmadı" description="Her gece 02:00'de otomatik çalışır ya da “Şimdi yedekle” ile başlatılır." compact />
@@ -216,7 +214,6 @@ const totalBytes = (r) => (r.db_dump_bytes ?? 0) + (r.files_bytes ?? 0)
 code { font-family: ui-monospace, monospace; font-size: .92em; padding: 1px 5px; border-radius: 5px; background: var(--oz-surface-2); border: 1px solid var(--oz-border-soft); }
 .block { margin-bottom: 14px; }
 .alert-err { display: block; margin-top: 4px; font-family: ui-monospace, monospace; font-size: 11.5px; opacity: .85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
 
 .strip { display: flex; align-items: flex-end; gap: 3px; padding: 0 16px 14px; }
 .bar { flex: 1; max-width: 18px; height: 26px; border-radius: 4px; background: var(--oz-border); }
@@ -254,7 +251,6 @@ dd.mono { font-family: ui-monospace, monospace; font-size: 11.5px; word-break: b
 .label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--oz-muted); }
 .log { margin: 0; font-family: ui-monospace, monospace; font-size: 11px; line-height: 1.5; color: var(--oz-ink-soft); background: var(--oz-surface-2); border: 1px solid var(--oz-border-soft); border-radius: 8px; padding: 10px 12px; max-height: 260px; overflow: auto; white-space: pre-wrap; word-break: break-word; }
 
-@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 640px) {
 	.strip, .runs { padding-left: 10px; padding-right: 10px; }
 	.strip-legend { display: none; }

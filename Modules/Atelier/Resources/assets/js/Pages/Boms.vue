@@ -3,10 +3,11 @@ import { ref, computed, inject, watch } from 'vue'
 import { Head, router, useForm } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import {
-	OzPageHeader, OzModuleTabs, OzStatTile, OzCard, OzButton, OzPill, OzDropdown, OzEmptyState,
+	OzPageHeader, OzModuleTabs, OzStatStrip, OzCard, OzButton, OzPill, OzDropdown, OzEmptyState,
 	OzDrawer, OzField, OzInput, OzCombobox, OzAlert, useOzConfirm,
 } from '@/Components/Oz'
-import { formatNumber } from '../atelierNav'
+import { formatNumber, formatMoney } from '../atelierNav'
+import RouteStepsEditor from '../Components/RouteStepsEditor.vue'
 import { useCan } from '@/composables/useCan'
 
 defineOptions({ layout: AppLayout })
@@ -15,6 +16,11 @@ const props = defineProps({
 	boms: { type: Array, default: () => [] },
 	products: { type: Array, default: () => [] },
 	materials: { type: Array, default: () => [] },
+	// ürün id → rota adımları
+	// (boşken PHP boş diziyi [] olarak serileştirir)
+	routes: { type: [Object, Array], default: () => ({}) },
+	operations: { type: Array, default: () => [] },
+	fasonSuppliers: { type: Array, default: () => [] },
 })
 
 const { can } = useCan()
@@ -50,6 +56,36 @@ const bomActions = [{ key: 'remove', label: 'Sil', icon: 'trash', danger: true }
 async function remove(b) {
 	const ok = await confirm.danger('Reçeteyi Sil', `${b.productName} ürününün "${b.name}" reçetesi kalıcı olarak silinecek.`)
 	if (ok) router.delete(`/atelier/boms/${b.id}`, { preserveScroll: true })
+}
+
+/* ── ürün rotası ── */
+const routeOf = (productId) => props.routes[productId] ?? []
+const routeForm = useForm({ steps: [] })
+const routeOpen = ref(false)
+const routeBom = ref(null)
+
+// Rotası olmayan ürün için operasyonlar sırasıyla önerilir (sunucu sort_order sırasıyla verir;
+// iş emri sihirbazındaki öneriyle aynı).
+const suggestedRoute = () => props.operations
+	.map((o, i) => ({ operation_id: o.id, sequence: i + 1, location_type: o.default_location, fason_supplier_id: null, unit_cost: Number(o.default_unit_cost) }))
+
+function openRoute(b) {
+	routeBom.value = b
+	const current = routeOf(b.productId)
+	routeForm.clearErrors()
+	routeForm.steps = current.length
+		? current.map(({ operation_id, sequence, location_type, fason_supplier_id, unit_cost }) => ({ operation_id, sequence, location_type, fason_supplier_id, unit_cost }))
+		: suggestedRoute()
+	routeOpen.value = true
+}
+const routeMissingFason = computed(() => routeForm.steps.some((st) => st.location_type === 'fason' && !st.fason_supplier_id))
+function saveRoute() {
+	if (routeForm.processing) return
+	routeForm.put(`/atelier/products/${routeBom.value.productId}/route`, {
+		preserveScroll: true,
+		onSuccess: () => { routeOpen.value = false },
+		onError: (errs) => showToast?.({ type: 'error', title: 'Rota kaydedilemedi', message: Object.values(errs)[0] || 'Doğrulama hatası.' }),
+	})
 }
 
 /* ── yeni reçete ── */
@@ -99,9 +135,7 @@ function submit() {
 	</OzPageHeader>
 	<OzModuleTabs />
 
-	<div class="stats">
-		<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" />
-	</div>
+	<OzStatStrip :items="stats" />
 
 	<OzCard title="Reçete Listesi" :meta="query ? `${visibleBoms.length} / ${boms.length}` : `${boms.length} kayıt`">
 		<div v-if="boms.length" class="toolbar">
@@ -140,9 +174,38 @@ function submit() {
 						</tr>
 					</tbody>
 				</table>
+				<footer class="route">
+					<div class="route-head">
+						<span class="section-title">Üretim Rotası</span>
+						<OzButton v-if="canManage" size="sm" :icon="routeOf(b.productId).length ? 'edit' : 'plus'" @click="openRoute(b)">
+							{{ routeOf(b.productId).length ? 'Düzenle' : 'Rota Tanımla' }}
+						</OzButton>
+					</div>
+					<ol v-if="routeOf(b.productId).length" class="route-chain">
+						<li v-for="st in routeOf(b.productId)" :key="st.sequence">
+							<b>{{ st.operationName }}</b>
+							<span v-if="st.location_type === 'fason'" class="dim"> · {{ st.fasonSupplierName ?? 'Fason' }}</span>
+							<span v-if="st.unit_cost" class="dim mono"> · {{ formatMoney(st.unit_cost) }}</span>
+						</li>
+					</ol>
+					<p v-else class="dim small">Rota tanımlı değil; iş emrinde operasyon sırası önerilir.</p>
+				</footer>
 			</article>
 		</div>
 	</OzCard>
+
+	<OzDrawer
+		v-model:open="routeOpen"
+		:title="`${routeBom?.productName ?? ''} — Üretim Rotası`"
+		subtitle="Yeni iş emri bu sırayla ve varsayılan iç/fason kararlarıyla açılır"
+		icon="workflow" size="lg" :persistent="routeForm.processing"
+	>
+		<RouteStepsEditor v-model="routeForm.steps" :operations="operations" :fason-suppliers="fasonSuppliers" :errors="routeForm.errors" />
+		<template #footer>
+			<OzButton :disabled="routeForm.processing" @click="routeOpen = false">İptal</OzButton>
+			<OzButton variant="primary" icon="check" :loading="routeForm.processing" :disabled="!routeForm.steps.length || routeMissingFason" @click="saveRoute">Kaydet</OzButton>
+		</template>
+	</OzDrawer>
 
 	<OzDrawer v-model:open="formOpen" title="Yeni Reçete" subtitle="Ürünün bir adedi için gereken hammaddeler" icon="receipt" size="lg" :persistent="form.processing">
 		<form class="form" @submit.prevent="submit">
@@ -189,8 +252,6 @@ function submit() {
 </template>
 
 <style scoped>
-.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
-@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 .mono { font-family: ui-monospace, monospace; font-size: 12px; }
 .dim { color: var(--oz-muted); }
@@ -206,6 +267,11 @@ function submit() {
 .lines th { text-align: left; padding: 8px 14px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--oz-muted); }
 .lines td { padding: 8px 14px; border-top: 1px solid var(--oz-border-soft); color: var(--oz-ink); }
 .lines .num { text-align: right; }
+.small { font-size: 12px; margin: 0; }
+.route { padding: 10px 14px 12px; border-top: 1px solid var(--oz-border-soft); display: flex; flex-direction: column; gap: 8px; }
+.route-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.route-chain { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 0; font-size: 12.5px; color: var(--oz-ink); }
+.route-chain li + li::before { content: '→'; margin: 0 8px; color: var(--oz-muted); }
 .unit { font-size: 10.5px; color: var(--oz-muted); background: var(--oz-surface-2); border: 1px solid var(--oz-border-soft); padding: 0 6px; border-radius: 4px; margin-left: 4px; }
 
 .form { display: flex; flex-direction: column; gap: 14px; }

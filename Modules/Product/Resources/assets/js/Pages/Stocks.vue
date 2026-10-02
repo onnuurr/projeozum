@@ -3,7 +3,7 @@ import { ref, computed, inject, reactive, watch } from 'vue'
 import { Head, Link, router, usePage } from '@inertiajs/vue3'
 import { ArrowUpDown, ArrowDown, ArrowUp, Pencil } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import { OzPageHeader, OzModuleTabs, OzStatTile, OzCard, OzTable, OzPill, OzSelect, OzSwitch, OzButton, OzDrawer, OzField, OzInput, OzTextarea } from '@/Components/Oz'
+import { OzPageHeader, OzModuleTabs, OzStatStrip, OzCard, OzTable, OzPill, OzSelect, OzSwitch, OzButton, OzDrawer, OzField, OzInput, OzTextarea } from '@/Components/Oz'
 
 defineOptions({ layout: AppLayout })
 
@@ -142,9 +142,7 @@ function submitMovement() {
 	</OzPageHeader>
 	<OzModuleTabs />
 
-	<div class="stats">
-		<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" />
-	</div>
+	<OzStatStrip :items="stats" />
 
 	<OzCard title="Stok Listesi">
 		<template #actions>
@@ -233,8 +231,6 @@ function submitMovement() {
 </template>
 
 <style scoped>
-.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
-@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 .toolbar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .wh-select { width: 200px; }

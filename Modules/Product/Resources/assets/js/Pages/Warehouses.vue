@@ -3,7 +3,7 @@ import { ref, computed, inject, reactive, watch } from 'vue'
 import { Head, router, usePage } from '@inertiajs/vue3'
 import { MapPin } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import { OzPageHeader, OzModuleTabs, OzStatTile, OzIcon, OzPill, OzDropdown, OzEmptyState, OzButton, OzDrawer, OzField, OzInput, OzTextarea, OzSwitch, useOzConfirm } from '@/Components/Oz'
+import { OzPageHeader, OzModuleTabs, OzStatStrip, OzIcon, OzPill, OzDropdown, OzEmptyState, OzButton, OzDrawer, OzField, OzInput, OzTextarea, OzSwitch, useOzConfirm } from '@/Components/Oz'
 
 defineOptions({ layout: AppLayout })
 
@@ -134,9 +134,7 @@ async function confirmDelete(w) {
 	</OzPageHeader>
 	<OzModuleTabs />
 
-	<div v-if="warehouses.length" class="stats">
-		<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" />
-	</div>
+	<OzStatStrip v-if="warehouses.length" :items="stats" />
 
 	<OzEmptyState v-if="!warehouses.length" icon="warehouse" title="Henüz depo eklenmemiş" />
 	<div v-else class="cards-grid">
@@ -195,8 +193,6 @@ async function confirmDelete(w) {
 </template>
 
 <style scoped>
-.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
-@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 .mono { font-family: ui-monospace, monospace; }
 .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }

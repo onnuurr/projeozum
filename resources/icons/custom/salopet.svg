@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Salopet</title>
+  <path d="M8 2v6"/>
+  <path d="M16 2v6"/>
+  <path d="M7 8h10v4H7z"/>
+  <path d="M6 12h12l1 10h-5l-2-5-2 5H5Z"/>
+  <path d="M10.5 10h3"/>
+</svg>

@@ -28,13 +28,23 @@ class Category extends Model
         'slug',
         'icon',
         'status',
+        'manually_passive', // kullanıcı bilerek pasife aldı; otomatik aktifleştirme ezmez (CategoryStatusService)
         'sort_order',
     ];
 
     protected $casts = [
         'parent_id'  => 'integer',
         'sort_order' => 'integer',
+        'manually_passive' => 'boolean',
     ];
+
+    /** Aynı üst kategorinin (kardeşlerin) sonuna eklenecek sıra numarası. */
+    public static function nextSortOrder(?int $parentId): int
+    {
+        return (int) static::query()
+            ->when($parentId, fn ($q) => $q->where('parent_id', $parentId), fn ($q) => $q->whereNull('parent_id'))
+            ->max('sort_order') + 1;
+    }
 
     public function parent(): BelongsTo
     {

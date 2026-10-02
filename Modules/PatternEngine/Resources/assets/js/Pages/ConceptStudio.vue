@@ -3,7 +3,7 @@ import { ref, computed, watch, inject, onUnmounted } from 'vue'
 import { Head, router, useForm } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import {
-	OzPageHeader, OzModuleTabs, OzStatTile, OzCard, OzButton, OzPill, OzEmptyState, OzModal, OzTabs,
+	OzPageHeader, OzModuleTabs, OzStatStrip, OzCard, OzButton, OzPill, OzEmptyState, OzModal, OzTabs,
 	OzField, OzInput, OzTextarea, OzCombobox, OzSpinner, OzAlert, useOzConfirm,
 } from '@/Components/Oz'
 import { useCan } from '@/composables/useCan'
@@ -143,9 +143,7 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer) })
 	</OzPageHeader>
 	<OzModuleTabs />
 
-	<div class="stats">
-		<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" />
-	</div>
+	<OzStatStrip :items="stats" />
 
 	<div class="studio" :class="{ 'no-composer': !canDesign }">
 		<!-- Sol: tarif -->
@@ -262,8 +260,6 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer) })
 </template>
 
 <style scoped>
-.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
-@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 .dim { color: var(--oz-muted); font-size: 12px; }
 .mono { font-family: ui-monospace, monospace; }

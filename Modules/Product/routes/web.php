@@ -62,12 +62,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/', [CategoryController::class, 'index'])
             ->middleware('can:category.view')->name('index');
         Route::post('/', [CategoryController::class, 'store'])
-            ->middleware('can:category.manage')->name('store');
+            ->middleware('can:category.create')->name('store');
         // Ürün formundaki kategori aramasından tek isimle hızlı ekleme (dar yetki).
         Route::post('/quick-create', [CategoryController::class, 'quickStore'])
             ->middleware('can:category.create')->name('quick-store');
         Route::put('/{category}', [CategoryController::class, 'update'])
-            ->middleware('can:category.manage')->name('update');
+            ->middleware('can:category.edit')->name('update');
         Route::delete('/{category}', [CategoryController::class, 'destroy'])
             ->middleware('can:category.manage')->name('destroy');
         Route::post('/bulk-destroy', [CategoryController::class, 'bulkDestroy'])

@@ -2,7 +2,7 @@
 import { reactive, computed } from 'vue'
 import { Head, Link, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import { OzPageHeader, OzModuleTabs, OzStatTile, OzCard, OzTable, OzPill, OzInput, OzSelect, OzButton } from '@/Components/Oz'
+import { OzPageHeader, OzModuleTabs, OzStatStrip, OzCard, OzTable, OzPill, OzInput, OzSelect, OzButton } from '@/Components/Oz'
 
 defineOptions({ layout: AppLayout })
 
@@ -73,9 +73,7 @@ function formatMoney(v) {
 	</OzPageHeader>
 	<OzModuleTabs />
 
-	<div class="stats">
-		<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" />
-	</div>
+	<OzStatStrip :items="stats" />
 
 	<div class="status-chips">
 		<button class="chip" :class="{ active: !localFilters.status }" type="button" @click="setStatus('')">Tümü <span class="chip-count">{{ totalCount }}</span></button>
@@ -127,8 +125,6 @@ function formatMoney(v) {
 <style scoped>
 .mono { font-family: ui-monospace, monospace; font-size: 12px; }
 
-.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
-@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 .status-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .chip { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--oz-border); background: var(--oz-surface); font-size: 12px; font-weight: 600; color: var(--oz-muted); cursor: pointer; transition: all .15s; }

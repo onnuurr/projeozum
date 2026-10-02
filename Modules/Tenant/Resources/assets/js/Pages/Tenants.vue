@@ -3,7 +3,7 @@ import { ref, computed, inject, onMounted } from 'vue'
 import { Head, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import {
-	OzPageHeader, OzModuleTabs, OzStatTile, OzCard, OzTable, OzPill, OzButton, OzAvatar, OzDropdown, OzEmptyState,
+	OzPageHeader, OzModuleTabs, OzStatStrip, OzCard, OzTable, OzPill, OzButton, OzAvatar, OzDropdown, OzEmptyState,
 	OzProgress, OzDrawer, OzField, OzInput, OzSelect, OzTextarea, OzCheckbox, OzSwitch, OzAlert, OzIcon, useOzConfirm,
 } from '@/Components/Oz'
 import { useCan } from '@/composables/useCan'
@@ -20,6 +20,7 @@ const props = defineProps({
 	carriers: { type: Array, default: () => [] },
 	filters: { type: Object, default: () => ({}) },
 	prefillApplication: { type: Object, default: null },
+	defaultDiscountRate: { type: Number, default: 0 },
 })
 
 const { can } = useCan()
@@ -107,7 +108,7 @@ const blank = () => ({
 	tax_number: '', tax_office: '', tenant_application_id: null,
 	email: '', phone: '', contact_person: '', contact_phone: '',
 	address: '', city: '', district: '', country: 'TR', postal_code: '',
-	credit_limit: 0, payment_term_days: 0, discount_rate: 0,
+	credit_limit: 0, discount_rate: props.defaultDiscountRate,
 	is_active: true, notes: '',
 	shipping_agreement_type: '', carrier_id: '', shipping_terms_accepted: false,
 })
@@ -159,7 +160,7 @@ function openEdit(t) {
 		tax_number: t.tax_number ?? '', tax_office: t.tax_office ?? '',
 		email: t.email ?? '', phone: t.phone ?? '', contact_person: t.contact_person ?? '', contact_phone: t.contact_phone ?? '',
 		address: t.address ?? '', city: t.city ?? '', district: t.district ?? '', country: t.country ?? 'TR', postal_code: t.postal_code ?? '',
-		credit_limit: Number(t.credit_limit ?? 0), payment_term_days: Number(t.payment_term_days ?? 0), discount_rate: Number(t.discount_rate ?? 0),
+		credit_limit: Number(t.credit_limit ?? 0), discount_rate: Number(t.discount_rate ?? 0),
 		is_active: !!t.is_active, notes: t.notes ?? '',
 		shipping_agreement_type: t.shipping_agreement_type ?? '', carrier_id: t.carrier?.id ?? '',
 		shipping_terms_accepted: !!t.shipping_terms_accepted_at,
@@ -177,7 +178,7 @@ const taxError = computed(() => errors.value.tax_number || (taxCheck.value === f
 const FIELD_KEYS = [
 	'code', 'name', 'legal_name', 'tenant_type_id', 'owner_name', 'owner_email', 'owner_password', 'tax_number', 'tax_office',
 	'email', 'phone', 'contact_person', 'contact_phone', 'address', 'city', 'district', 'postal_code',
-	'credit_limit', 'payment_term_days', 'discount_rate', 'notes', 'shipping_agreement_type', 'carrier_id', 'shipping_terms_accepted',
+	'credit_limit', 'discount_rate', 'notes', 'shipping_agreement_type', 'carrier_id', 'shipping_terms_accepted',
 ]
 
 function submit() {
@@ -256,9 +257,7 @@ async function remove(t) {
 	</OzPageHeader>
 	<OzModuleTabs />
 
-	<div class="stats">
-		<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" />
-	</div>
+	<OzStatStrip :items="stats" />
 
 	<OzCard title="İş ortağı listesi" :meta="`${tenants.length} kayıt`" class="block">
 		<OzTable
@@ -415,12 +414,9 @@ async function remove(t) {
 			</div>
 
 			<div class="section">Ticari koşullar</div>
-			<div class="grid-3">
+			<div class="grid-2">
 				<OzField label="Kredi limiti" :error="errors.credit_limit">
 					<OzInput v-model="form.credit_limit" type="number" min="0" step="0.01" suffix="₺" />
-				</OzField>
-				<OzField label="Vade" :error="errors.payment_term_days">
-					<OzInput v-model="form.payment_term_days" type="number" min="0" max="365" suffix="gün" />
 				</OzField>
 				<OzField label="İskonto" :error="errors.discount_rate">
 					<OzInput v-model="form.discount_rate" type="number" min="0" max="100" step="0.01" suffix="%" />
@@ -458,7 +454,6 @@ async function remove(t) {
 
 <style scoped>
 .block { margin-bottom: 14px; }
-.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
 .tenants.clickable :deep(tbody tr) { cursor: pointer; }
 .who { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .who-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
@@ -481,6 +476,5 @@ async function remove(t) {
 .docs { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 6px; }
 .doc { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; color: inherit; }
 
-@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 560px) { .grid-2, .grid-3 { grid-template-columns: minmax(0, 1fr); } }
 </style>

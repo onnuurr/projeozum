@@ -3,14 +3,15 @@ import { ref, computed, inject, watch, onBeforeUnmount } from 'vue'
 import { Head, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import {
-	OzPageHeader, OzModuleTabs, OzStatTile, OzCard, OzInput, OzSelect, OzPill, OzDropdown,
-	OzPagination, OzEmptyState, OzButton, OzModal, useOzConfirm,
+	OzPageHeader, OzModuleTabs, OzStatStrip, OzCard, OzInput, OzSelect, OzPill, OzDropdown,
+	OzPagination, OzEmptyState, OzButton, OzModal, OzIcon, useOzConfirm,
 } from '@/Components/Oz'
 import MarketplaceConnectDrawer from '@/Components/MarketplaceConnectDrawer.vue'
 import MarketplaceCategoryPickerModal from '@/Components/MarketplaceCategoryPickerModal.vue'
 import CategoryFormDrawer from '@/Components/CategoryFormDrawer.vue'
 import CategoryAttributesModal from '@/Components/CategoryAttributesModal.vue'
 import { useCan } from '@/composables/useCan'
+import { ozIconForCategory } from '@/categoryIcons.js'
 
 defineOptions({ layout: AppLayout })
 
@@ -23,6 +24,10 @@ const showToast = inject('showToast')
 const confirm = useOzConfirm()
 const { can } = useCan()
 const canManage = computed(() => can('category.manage'))
+const canCreate = computed(() => can('category.create'))
+const canEdit = computed(() => can('category.edit'))
+// Satır menüsü: Düzenle → category.edit, Özellikler / Sil → category.manage
+const hasRowActions = computed(() => canEdit.value || canManage.value)
 
 /* ── Veri ── */
 const categories = ref(props.categories.map((c) => ({ ...c })))
@@ -90,11 +95,19 @@ const stats = computed(() => {
 	}, 0)
 	return {
 		total: categories.value.length,
-		products: categories.value.reduce((acc, c) => acc + c.productCount, 0),
+		// productCount backend'de henüz hesaplanmıyor (hep 0) — onun yerine otomatik durumdan aktif sayısı
+		active: categories.value.filter((c) => c.status === 'active').length,
 		activeMarketplaces: marketplaces.value.filter((mp) => mp.connected).length,
 		mappingRate: totalCells > 0 ? Math.round((mappedCells / totalCells) * 100) : 0,
 	}
 })
+
+const summaryItems = computed(() => [
+	{ key: 'total', label: 'kategori', value: stats.value.total, icon: 'layers', tone: 'accent' },
+	{ key: 'active', label: 'aktif', value: stats.value.active, icon: 'check', tone: 'success' },
+	{ key: 'mp', label: 'pazaryeri bağlı', value: `${stats.value.activeMarketplaces} / ${marketplaces.value.length}`, icon: 'store', tone: 'info' },
+	{ key: 'map', label: 'eşleştirme', value: `%${stats.value.mappingRate}`, icon: 'link', tone: 'warning' },
+])
 
 /* ── Toplu seçim ── */
 const selected = ref(new Set())
@@ -140,18 +153,69 @@ async function bulkDelete() {
 	})
 }
 
+/* ── Ağaç ── */
+// Düz listeden ağaç satırları: ebeveyn → çocuklar, kardeşler backend sırasında (sort_order, name).
+// Ebeveyni listede olmayan (silinmiş) kategori köke düşer; bozuk veride döngüye karşı `seen` kümesi.
+const tree = computed(() => {
+	const byId = new Map(categories.value.map((c) => [c.id, c]))
+	const children = new Map()
+	const roots = []
+	for (const c of categories.value) {
+		const pid = c.parent_id && c.parent_id !== c.id && byId.has(c.parent_id) ? c.parent_id : null
+		if (pid === null) roots.push(c)
+		else {
+			if (!children.has(pid)) children.set(pid, [])
+			children.get(pid).push(c)
+		}
+	}
+	const rows = []
+	const seen = new Set()
+	const walk = (c, depth, ancestors, rootId) => {
+		if (seen.has(c.id)) return
+		seen.add(c.id)
+		const kids = children.get(c.id) ?? []
+		rows.push({ cat: c, depth, ancestors, rootId, childCount: kids.length })
+		kids.forEach((k) => walk(k, depth + 1, [...ancestors, c.id], rootId))
+	}
+	roots.forEach((r) => walk(r, 0, [], r.id))
+	categories.value.filter((c) => !seen.has(c.id)).forEach((c) => walk(c, 0, [], c.id))
+	return rows
+})
+
+// Daraltılmış düğümler (varsayılan: hepsi açık)
+const collapsed = ref(new Set())
+const hasNested = computed(() => tree.value.some((r) => r.childCount > 0))
+const isCollapsed = (id) => collapsed.value.has(id)
+function toggleNode(id) {
+	const next = new Set(collapsed.value)
+	next.has(id) ? next.delete(id) : next.add(id)
+	collapsed.value = next
+}
+const allCollapsed = computed(() => tree.value.filter((r) => r.childCount > 0).every((r) => collapsed.value.has(r.cat.id)))
+function toggleAll() {
+	collapsed.value = allCollapsed.value
+		? new Set()
+		: new Set(tree.value.filter((r) => r.childCount > 0).map((r) => r.cat.id))
+}
+
 /* ── Filtreler ── */
 const searchQuery = ref('')
 const parentFilter = ref('all')
 const statusFilter = ref('all')
 const currentPage = ref(1)
-const itemsPerPage = 8
+const itemsPerPage = 8 // sayfa başına ana kategori grubu (alt kategoriler grubuyla birlikte gelir)
 
+// "Şunun altındakiler": alt kategorisi olan kategoriler, tam yoluyla
 const parentFilterOptions = computed(() => {
-	const uniqueParents = [...new Set(categories.value.map((c) => c.parent))]
+	const byId = new Map(categories.value.map((c) => [c.id, c]))
 	return [
-		{ value: 'all', label: 'Tüm Üst Kategoriler' },
-		...uniqueParents.map((p) => ({ value: p, label: p })),
+		{ value: 'all', label: 'Tüm Kategoriler' },
+		...tree.value
+			.filter((r) => r.childCount > 0)
+			.map((r) => ({
+				value: String(r.cat.id),
+				label: [...r.ancestors.map((id) => byId.get(id)?.name), r.cat.name].join(' › '),
+			})),
 	]
 })
 
@@ -161,27 +225,57 @@ const statusFilterOptions = [
 	{ value: 'passive', label: 'Pasif' },
 ]
 
-const filtered = computed(() => {
-	const q = searchQuery.value.trim().toLowerCase()
-	return categories.value.filter((c) => {
-		const matchesSearch = !q || c.name.toLowerCase().includes(q) || c.parent.toLowerCase().includes(q)
-		const matchesParent = parentFilter.value === 'all' || c.parent === parentFilter.value
-		const matchesStatus = statusFilter.value === 'all' || c.status === statusFilter.value
-		return matchesSearch && matchesParent && matchesStatus
-	})
+const isFiltering = computed(() => !!searchQuery.value.trim() || statusFilter.value !== 'all')
+
+// Görünen satırlar. Arama/durum filtresinde eşleşenler üst kategorileriyle birlikte gösterilir
+// (üstler soluk "bağlam" satırı); bu modda daraltma yok sayılır.
+const visibleRows = computed(() => {
+	let rows = tree.value
+	if (parentFilter.value !== 'all') {
+		const id = Number(parentFilter.value)
+		const base = rows.find((r) => r.cat.id === id)?.depth ?? 0
+		rows = rows
+			.filter((r) => r.cat.id === id || r.ancestors.includes(id))
+			.map((r) => ({ ...r, depth: r.depth - base, rootId: id }))
+	}
+	if (isFiltering.value) {
+		const q = searchQuery.value.trim().toLocaleLowerCase('tr')
+		const hit = new Set(rows
+			.filter(({ cat }) => (!q || cat.name.toLocaleLowerCase('tr').includes(q) || cat.slug?.includes(q))
+				&& (statusFilter.value === 'all' || cat.status === statusFilter.value))
+			.map((r) => r.cat.id))
+		const keep = new Set(hit)
+		rows.forEach((r) => { if (hit.has(r.cat.id)) r.ancestors.forEach((a) => keep.add(a)) })
+		return rows.filter((r) => keep.has(r.cat.id)).map((r) => ({ ...r, context: !hit.has(r.cat.id) }))
+	}
+	return rows.filter((r) => !r.ancestors.some((a) => collapsed.value.has(a)))
+})
+
+// Sayfalama ana kategori gruplarıyla — bir ağaç iki sayfaya bölünmez
+const groups = computed(() => {
+	const list = []
+	for (const r of visibleRows.value) {
+		if (!list.length || list.at(-1).key !== r.rootId) list.push({ key: r.rootId, rows: [] })
+		list.at(-1).rows.push(r)
+	}
+	return list
 })
 watch([searchQuery, parentFilter, statusFilter], () => { currentPage.value = 1 })
 
-const paginated = computed(() => {
+const paginatedRows = computed(() => {
 	const start = (currentPage.value - 1) * itemsPerPage
-	return filtered.value.slice(start, start + itemsPerPage)
+	return groups.value.slice(start, start + itemsPerPage).flatMap((g) => g.rows)
 })
+// Seçim / toplu işlem için: bağlam satırları hariç kategoriler
+const paginated = computed(() => paginatedRows.value.filter((r) => !r.context).map((r) => r.cat))
 
 const rowActions = () => [
-	{ key: 'edit', label: 'Düzenle', icon: 'edit' },
-	{ key: 'attributes', label: 'Özellikler', icon: 'tag' },
-	{ divider: true },
-	{ key: 'remove', label: 'Sil', icon: 'trash', danger: true },
+	...(canEdit.value ? [{ key: 'edit', label: 'Düzenle', icon: 'edit' }] : []),
+	...(canManage.value ? [
+		{ key: 'attributes', label: 'Özellikler', icon: 'tag' },
+		{ divider: true },
+		{ key: 'remove', label: 'Sil', icon: 'trash', danger: true },
+	] : []),
 ]
 function onRowAction(key, cat) {
 	if (key === 'edit') editCategory(cat)
@@ -411,17 +505,12 @@ async function confirmDelete(cat) {
 
 	<OzPageHeader title="Kategoriler" subtitle="Ürün kategorilerini yönet, pazaryeri entegrasyonlarıyla eşleştir">
 		<template #actions>
-			<OzButton v-if="canManage" variant="primary" icon="plus" @click="openNewCategoryDrawer">Yeni Kategori</OzButton>
+			<OzButton v-if="canCreate" variant="primary" icon="plus" @click="openNewCategoryDrawer">Yeni Kategori</OzButton>
 		</template>
 	</OzPageHeader>
 	<OzModuleTabs />
 
-	<div class="stats">
-		<OzStatTile icon="layers" tone="accent" label="Toplam Kategori" :value="stats.total" />
-		<OzStatTile icon="package" tone="success" label="Toplam Ürün" :value="stats.products" />
-		<OzStatTile icon="store" tone="info" label="Aktif Pazaryeri" :value="`${stats.activeMarketplaces} / ${marketplaces.length}`" />
-		<OzStatTile icon="link" tone="warning" label="Ortalama Eşleştirme" :value="`%${stats.mappingRate}`" />
-	</div>
+	<OzStatStrip :items="summaryItems" label="Kategori özeti" />
 
 	<OzCard title="Kategori Listesi">
 		<template #actions>
@@ -429,6 +518,9 @@ async function confirmDelete(cat) {
 				<OzInput v-model="searchQuery" icon="search" placeholder="Kategori ara…" class="tb-search" />
 				<OzSelect v-model="parentFilter" :options="parentFilterOptions" class="tb-select" />
 				<OzSelect v-model="statusFilter" :options="statusFilterOptions" class="tb-select-sm" />
+				<OzButton v-if="hasNested && !isFiltering" size="sm" :icon="allCollapsed ? 'chevron-right' : 'chevron-down'" @click="toggleAll">
+					{{ allCollapsed ? 'Tümünü Aç' : 'Tümünü Kapat' }}
+				</OzButton>
 			</div>
 		</template>
 
@@ -444,20 +536,35 @@ async function confirmDelete(cat) {
 						<th style="width: 28%">Pazaryeri Entegrasyonları</th>
 						<th style="width: 10%">Durum</th>
 						<th style="width: 12%">Güncelleme</th>
-						<th v-if="canManage" style="width: 48px"></th>
+						<th v-if="hasRowActions" style="width: 48px"></th>
 					</tr>
 				</thead>
 				<tbody>
-					<tr v-for="cat in paginated" :key="cat.id" :class="{ 'row-selected': isSelected(cat.id) }">
+					<tr
+						v-for="{ cat, depth, childCount, context } in paginatedRows"
+						:key="cat.id"
+						:class="{ 'row-selected': isSelected(cat.id), 'row-context': context, 'row-child': depth > 0 }"
+					>
 						<td v-if="canManage" class="col-check">
-							<input type="checkbox" :checked="isSelected(cat.id)" :aria-label="`${cat.name} seç`" @change="toggleRow(cat.id)">
+							<input v-if="!context" type="checkbox" :checked="isSelected(cat.id)" :aria-label="`${cat.name} seç`" @change="toggleRow(cat.id)">
 						</td>
 						<td>
-							<div class="cat-cell">
-								<div class="cat-icon">{{ cat.icon }}</div>
+							<div class="cat-cell" :style="{ paddingLeft: `${depth * 26}px` }">
+								<button
+									v-if="childCount && !isFiltering"
+									type="button"
+									class="tree-toggle"
+									:aria-expanded="!isCollapsed(cat.id)"
+									:aria-label="`${cat.name} alt kategorilerini ${isCollapsed(cat.id) ? 'göster' : 'gizle'}`"
+									@click="toggleNode(cat.id)"
+								>
+									<OzIcon :name="isCollapsed(cat.id) ? 'chevron-right' : 'chevron-down'" :size="14" />
+								</button>
+								<span v-else-if="hasNested" class="tree-spacer" :class="{ 'is-leaf': depth > 0 }" aria-hidden="true" />
+								<div class="cat-icon" :class="{ 'is-sub': depth > 0 }"><OzIcon :name="ozIconForCategory(cat.icon)" :size="depth > 0 ? 15 : 17" /></div>
 								<div class="cat-info">
 									<span class="cat-name">{{ cat.name }}</span>
-									<span class="cat-parent">{{ cat.parent }}</span>
+									<span v-if="childCount" class="cat-parent">{{ childCount }} alt kategori</span>
 								</div>
 							</div>
 						</td>
@@ -481,20 +588,23 @@ async function confirmDelete(cat) {
 							</div>
 						</td>
 						<td>
-							<OzPill :tone="cat.status === 'active' ? 'success' : 'neutral'">{{ cat.status === 'active' ? 'Aktif' : 'Pasif' }}</OzPill>
+							<OzPill
+								:tone="cat.status === 'active' ? 'success' : 'neutral'"
+								:title="cat.status === 'active' ? null : cat.manuallyPassive ? 'Elle pasife alındı — ürün gelse de pasif kalır' : 'Kendisinde ve alt kategorilerinde yayında ürün yok — ürün yayına alınınca otomatik aktif olur'"
+							>{{ cat.status === 'active' ? 'Aktif' : cat.manuallyPassive ? 'Pasif (elle)' : 'Pasif · ürün yok' }}</OzPill>
 						</td>
 						<td class="dim">{{ cat.updatedAt }}</td>
-						<td v-if="canManage" @click.stop>
+						<td v-if="hasRowActions" @click.stop>
 							<OzDropdown :items="rowActions()" :label="`${cat.name} işlemleri`" @select="(k) => onRowAction(k, cat)" />
 						</td>
 					</tr>
 				</tbody>
 			</table>
-			<OzEmptyState v-if="!paginated.length" icon="layers" title="Kayıt bulunamadı" compact />
+			<OzEmptyState v-if="!paginatedRows.length" icon="layers" title="Kayıt bulunamadı" compact />
 		</div>
 
-		<div v-if="filtered.length" class="pagination-wrap">
-			<OzPagination v-model="currentPage" :total="filtered.length" :page-size="itemsPerPage" />
+		<div v-if="groups.length > itemsPerPage" class="pagination-wrap">
+			<OzPagination v-model="currentPage" :total="groups.length" :page-size="itemsPerPage" />
 		</div>
 	</OzCard>
 
@@ -558,9 +668,6 @@ async function confirmDelete(cat) {
 </template>
 
 <style scoped>
-.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
-@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-
 .toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .tb-search { width: 220px; }
 .tb-select { width: 170px; }
@@ -598,10 +705,21 @@ async function confirmDelete(cat) {
 .dim { font-size: 12px; color: var(--oz-muted); }
 
 .cat-cell { display: flex; align-items: center; gap: 12px; }
-.cat-icon { width: 34px; height: 34px; border-radius: 10px; background: var(--oz-accent-soft); display: flex; align-items: center; justify-content: center; font-size: 17px; flex-shrink: 0; }
+.cat-icon { width: 34px; height: 34px; border-radius: 10px; background: var(--oz-accent-soft); color: var(--oz-accent); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .cat-info { display: flex; flex-direction: column; gap: 2px; }
 .cat-name { font-weight: 700; color: var(--oz-ink-soft); font-size: 12.5px; }
 .cat-parent { font-size: 10.5px; color: var(--oz-muted); font-weight: 500; }
+
+/* Ağaç */
+.tree-toggle { width: 22px; height: 22px; margin-right: -6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: none; border-radius: 6px; background: none; color: var(--oz-muted); cursor: pointer; }
+.tree-toggle:hover { background: var(--oz-surface-2); color: var(--oz-ink); }
+.tree-toggle:focus-visible { outline: 2px solid var(--oz-accent); outline-offset: 1px; }
+.tree-spacer { width: 22px; margin-right: -6px; flex-shrink: 0; align-self: stretch; position: relative; }
+/* alt kategori: üst kategoriye bağlayan "└" çizgisi */
+.tree-spacer.is-leaf::before { content: ''; position: absolute; left: 10px; top: -12px; height: calc(50% + 12px); width: 9px; border-left: 1.5px solid var(--oz-border); border-bottom: 1.5px solid var(--oz-border); border-bottom-left-radius: 6px; }
+.cat-icon.is-sub { width: 30px; height: 30px; border-radius: 9px; }
+.row-child .cat-name { font-weight: 600; }
+.row-context td { opacity: .55; }
 
 .product-count { display: inline-block; padding: 2px 9px; background: var(--oz-surface-2); color: var(--oz-muted); border-radius: 6px; font-size: 11.5px; font-weight: 700; font-family: ui-monospace, monospace; }
 

@@ -5,9 +5,10 @@ import axios from 'axios'
 import { useDebounceFn } from '@vueuse/core'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import {
-	OzPageHeader, OzModuleTabs, OzStatTile, OzCard, OzButton, OzTable, OzPill, OzDrawer,
-	OzField, OzInput, OzSelect, OzCombobox, OzTextarea, OzAlert, OzSpinner,
+	OzPageHeader, OzModuleTabs, OzStatStrip, OzCard, OzButton, OzTable, OzPill, OzDrawer,
+	OzField, OzInput, OzSelect, OzCombobox, OzTextarea, OzAlert, OzSpinner, OzCheckbox,
 } from '@/Components/Oz'
+import RouteStepsEditor from '../Components/RouteStepsEditor.vue'
 import { ORDER_STATUS, ORDER_TONE, formatMoney, formatNumber } from '../atelierNav'
 import { useCan } from '@/composables/useCan'
 
@@ -18,11 +19,14 @@ const props = defineProps({
 	products: { type: Array, default: () => [] },
 	warehouses: { type: Array, default: () => [] },
 	operations: { type: Array, default: () => [] },
+	fasonSuppliers: { type: Array, default: () => [] },
 	preselectProductId: { type: Number, default: null },
+	pendingCards: { type: Array, default: () => [] },
 })
 
 const { can } = useCan()
 const canManage = computed(() => can('atelier.production.manage'))
+const canEditRoute = computed(() => can('atelier.bom.manage'))
 const showToast = inject('showToast', null)
 
 /* ── özet ── */
@@ -42,7 +46,7 @@ const columns = [
 	{ key: 'code', label: 'Kod', sortable: true },
 	{ key: 'productName', label: 'Ürün', sortable: true, class: 'oz-cell-strong' },
 	{ key: 'status', label: 'Durum', sortable: true, filter: { type: 'select', options: statusOptions } },
-	{ key: 'progress', label: 'Üretilen / Plan', align: 'right', searchable: false },
+	{ key: 'progress', label: 'Stoğa Alınan / Plan', align: 'right', searchable: false },
 	{ key: 'dueDate', label: 'Termin', sortable: true, filter: { type: 'date' } },
 	{ key: 'totalCost', label: 'Maliyet', align: 'right', sortable: true, class: 'oz-cell-amount' },
 	{ key: 'actions', label: '', align: 'right', width: '80px', searchable: false },
@@ -51,24 +55,38 @@ const columns = [
 /* ── yeni iş emri sihirbazı ── */
 const productOptions = computed(() => props.products.map((p) => ({ value: p.id, label: p.name, description: p.sku })))
 const warehouseOptions = computed(() => props.warehouses.map((w) => ({ value: w.id, label: `${w.name} (${w.code})` })))
-const operationOptions = computed(() => props.operations.map((o) => ({ value: o.id, label: o.name })))
-const locationOptions = [{ value: 'in_house', label: 'İç atölye' }, { value: 'fason', label: 'Fason' }]
-
-const emptyStep = (sequence) => ({ operation_id: '', sequence, location_type: 'in_house', fason_supplier_id: null, unit_cost: 0 })
 const emptyForm = () => ({
 	product_id: '', warehouse_id: props.warehouses.length === 1 ? props.warehouses[0].id : '',
-	planned_qty: 0, due_date: '', notes: '', items: [], steps: [emptyStep(1)],
+	planned_qty: 0, due_date: '', notes: '', items: [], steps: [], save_as_product_route: false,
 })
 const form = useForm(emptyForm())
 const wizardOpen = ref(false)
 const requirements = ref([])
 const previewLoading = ref(false)
 
+/* ── rota: ürünün rotasından (yoksa operasyon sırasından önerilen) otomatik dolar ── */
+const routeSource = ref('')          // product | suggested
+const routeLoadedFor = ref(null)     // rotanın yüklendiği ürün; adet değişikliği rotayı ezmesin
+const routeSnapshot = ref('')
+const stepsKey = (steps) => JSON.stringify(steps.map(({ operation_id, location_type, fason_supplier_id, unit_cost }) => [operation_id, location_type, fason_supplier_id, Number(unit_cost)]))
+const routeChanged = computed(() => routeSource.value === 'product' && stepsKey(form.steps) !== routeSnapshot.value)
+const showSaveRoute = computed(() => canEditRoute.value && (routeSource.value === 'suggested' || routeChanged.value))
+watch(routeChanged, (changed) => { if (changed) form.save_as_product_route = true })
+
+function applyRoute(route) {
+	form.steps = route.steps.map((st) => ({ ...st }))
+	routeSource.value = route.source
+	routeSnapshot.value = stepsKey(form.steps)
+	form.save_as_product_route = route.source === 'suggested' && canEditRoute.value
+}
+
 function resetForm() {
 	form.defaults(emptyForm())
 	form.reset()
 	form.clearErrors()
 	requirements.value = []
+	routeSource.value = ''
+	routeLoadedFor.value = null
 }
 watch(wizardOpen, (open) => { if (!open) setTimeout(resetForm, 250) })
 
@@ -77,18 +95,21 @@ function openWizard() {
 	wizardOpen.value = true
 }
 
+function openWizardFor(productId) {
+	openWizard()
+	form.product_id = productId
+}
+
 // "Üretilecek Ürün" kaydından yönlendirildiyse sihirbazı o ürünle aç
 onMounted(() => {
-	if (props.preselectProductId && canManage.value) {
-		openWizard()
-		form.product_id = props.preselectProductId
-	}
+	if (props.preselectProductId && canManage.value) openWizardFor(props.preselectProductId)
 })
 
 // Ürün ya da adet değişince varyantlar + BOM malzeme gereksinimi sunucudan önizlenir
 let previewSeq = 0
 const loadPreview = useDebounceFn(async () => {
-	if (!form.product_id || !(form.planned_qty > 0)) {
+	// Ürün seçilince rota ve varyantlar hemen gelir; malzeme ihtiyacı yalnız adet girilince anlamlı
+	if (!form.product_id) {
 		requirements.value = []
 		return
 	}
@@ -99,7 +120,11 @@ const loadPreview = useDebounceFn(async () => {
 			params: { product_id: form.product_id, planned_qty: form.planned_qty },
 		})
 		if (seq !== previewSeq) return
-		requirements.value = data.requirements
+		requirements.value = form.planned_qty > 0 ? data.requirements : []
+		if (routeLoadedFor.value !== form.product_id) {
+			applyRoute(data.route)
+			routeLoadedFor.value = form.product_id
+		}
 		// Varyant listesi yalnızca ürün değişince yeniden kurulur; adet değişikliği girilen dağılımı silmez
 		const ids = data.variants.map((v) => v.id).join(',')
 		if (ids !== form.items.map((i) => i.product_variant_id).join(',')) {
@@ -117,6 +142,9 @@ watch(() => form.planned_qty, loadPreview)
 const itemsTotal = computed(() => form.items.reduce((s, i) => s + (Number(i.planned_qty) || 0), 0))
 const itemsMismatch = computed(() => form.items.length > 0 && itemsTotal.value !== Number(form.planned_qty))
 const requirementsCost = computed(() => requirements.value.reduce((s, r) => s + Number(r.line_cost || 0), 0))
+const isShort = (r) => Number(r.available_qty) < Number(r.required_qty)
+const hasShortage = computed(() => requirements.value.some(isShort))
+const missingFason = computed(() => form.steps.some((s) => s.location_type === 'fason' && !s.fason_supplier_id))
 
 // Planlanan adedi varyantlara eşit böler, artan adetler ilk varyantlara eklenir
 function distributeEvenly() {
@@ -127,25 +155,13 @@ function distributeEvenly() {
 	form.items.forEach((it, i) => { it.planned_qty = base + (i < total % n ? 1 : 0) })
 }
 
-function addStep() { form.steps.push(emptyStep(form.steps.length + 1)) }
-function removeStep(i) {
-	form.steps.splice(i, 1)
-	form.steps.forEach((s, idx) => { s.sequence = idx + 1 })
-}
-function onOperationChange(step) {
-	const op = props.operations.find((o) => o.id === Number(step.operation_id))
-	if (op) {
-		step.location_type = op.default_location
-		step.unit_cost = Number(op.default_unit_cost)
-	}
-}
-const stepError = (i, field) => form.errors[`steps.${i}.${field}`]
-
 function submit() {
 	if (form.processing) return
 	form.transform((d) => ({
 		...d,
 		items: d.items.map(({ product_variant_id, planned_qty }) => ({ product_variant_id, planned_qty })),
+		steps: d.steps.map((s) => ({ ...s, fason_supplier_id: s.location_type === 'fason' ? s.fason_supplier_id : null })),
+		save_as_product_route: showSaveRoute.value && d.save_as_product_route,
 	})).post('/atelier/production-orders', {
 		preserveScroll: true,
 		onSuccess: () => { wizardOpen.value = false },
@@ -165,9 +181,20 @@ function submit() {
 	</OzPageHeader>
 	<OzModuleTabs />
 
-	<div class="stats">
-		<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" />
-	</div>
+	<OzStatStrip :items="stats" />
+
+	<OzCard v-if="pendingCards.length" title="Üretim Bekleyen Geçici Kartlar" subtitle="henüz iş emri verilmedi" class="pending">
+		<div class="pending-list">
+			<div v-for="c in pendingCards" :key="c.id" class="pending-row">
+				<div class="pending-label">
+					<Link :href="`/products/${c.id}/card`" class="pending-name">{{ c.name }}</Link>
+					<span class="mono dim">{{ c.sku }} · {{ c.createdAt }}</span>
+				</div>
+				<OzPill tone="warning">Geçici Kart</OzPill>
+				<OzButton v-if="canManage" variant="primary" size="sm" icon="workflow" @click="openWizardFor(c.id)">İş Emri Ver</OzButton>
+			</div>
+		</div>
+	</OzCard>
 
 	<OzCard title="İş Emri Listesi">
 		<OzTable :columns="columns" :rows="orders" row-key="id" searchable search-placeholder="Kod ya da ürün ara…" empty-title="İş emri kaydı yok" min-width="820px">
@@ -176,7 +203,7 @@ function submit() {
 				<OzPill :tone="ORDER_TONE[value] ?? 'neutral'">{{ ORDER_STATUS[value] ?? value }}</OzPill>
 			</template>
 			<template #cell-progress="{ row }">
-				<span class="mono"><b>{{ row.producedQty }}</b> <span class="dim">/ {{ row.plannedQty }}</span></span>
+				<span class="mono"><b>{{ row.receivedQty }}</b> <span class="dim">/ {{ row.plannedQty }}</span></span>
 			</template>
 			<template #cell-dueDate="{ row }">
 				<span class="due">
@@ -219,7 +246,7 @@ function submit() {
 				</div>
 				<p v-if="form.errors.items" class="field-error">{{ form.errors.items }}</p>
 				<p v-if="!previewLoading && !form.items.length" class="dim small">
-					{{ form.planned_qty > 0 ? 'Bu ürünün varyantı yok.' : 'Varyantları görmek için planlanan adedi girin.' }}
+					Bu ürünün varyantı yok.
 				</p>
 				<div v-else class="variants">
 					<div v-for="it in form.items" :key="it.product_variant_id" class="variant">
@@ -237,41 +264,60 @@ function submit() {
 			</section>
 
 			<section v-if="requirements.length" class="section">
-				<h3 class="section-title">Malzeme Gereksinimi <span class="dim">(önizleme)</span></h3>
+				<h3 class="section-title">Malzeme Gereksinimi <span class="dim">(planlamada rezerve edilir)</span></h3>
 				<div class="reqs">
-					<div v-for="(r, i) in requirements" :key="i" class="req">
+					<div class="req req-head">
+						<span>Hammadde</span>
+						<span>Gerekli</span>
+						<span>Kullanılabilir</span>
+						<span>Tutar</span>
+					</div>
+					<div v-for="(r, i) in requirements" :key="i" class="req" :class="{ 'is-short': isShort(r) }">
 						<span class="req-name">{{ r.material_name }}</span>
 						<span class="mono">{{ formatNumber(r.required_qty, 3) }} {{ r.unit }}</span>
+						<span class="mono" :title="`Stok − diğer iş emirlerinin rezervi (${formatNumber(r.reserved_qty, 3)} ${r.unit})`">{{ formatNumber(r.available_qty, 3) }} {{ r.unit }}</span>
 						<span class="mono dim">≈ {{ formatMoney(r.line_cost) }}</span>
 					</div>
 					<div class="req req-total">
 						<span class="req-name">Tahmini malzeme maliyeti</span>
 						<span />
+						<span />
 						<span class="mono">{{ formatMoney(requirementsCost) }}</span>
 					</div>
 				</div>
+				<OzAlert v-if="hasShortage" tone="warning" title="Hammadde yetersiz">
+					İş emri taslak olarak oluşturulabilir, ancak eksik hammadde alınmadan planlanamaz.
+				</OzAlert>
 			</section>
 			<OzAlert v-else-if="form.product_id && form.planned_qty > 0 && !previewLoading" tone="warning" title="Reçete bulunamadı">
-				Bu ürünün aktif reçetesi yok; iş emri planlanırken hammadde düşülmez.
+				Bu ürünün aktif reçetesi yok; iş emri planlanırken hammadde rezerve edilmez.
 			</OzAlert>
 
 			<section class="section">
-				<h3 class="section-title">Üretim Rotası</h3>
-				<p v-if="form.errors.steps" class="field-error">{{ form.errors.steps }}</p>
-				<div v-for="(s, i) in form.steps" :key="i" class="step">
-					<span class="step-seq">{{ s.sequence }}</span>
-					<OzField label="Operasyon" :error="stepError(i, 'operation_id')">
-						<OzSelect v-model="s.operation_id" :options="operationOptions" placeholder="Operasyon seçin" @update:model-value="onOperationChange(s)" />
-					</OzField>
-					<OzField label="Yer" :error="stepError(i, 'location_type')">
-						<OzSelect v-model="s.location_type" :options="locationOptions" />
-					</OzField>
-					<OzField label="Birim Maliyet" :error="stepError(i, 'unit_cost')">
-						<OzInput v-model.number="s.unit_cost" type="number" min="0" step="0.01" suffix="₺" />
-					</OzField>
-					<OzButton class="step-remove" size="sm" icon="trash" :disabled="form.steps.length === 1" :aria-label="`${s.sequence}. adımı kaldır`" @click="removeStep(i)" />
+				<div class="section-head">
+					<h3 class="section-title">Üretim Rotası</h3>
+					<OzPill v-if="routeSource === 'product'" :tone="routeChanged ? 'warning' : 'success'">
+						{{ routeChanged ? 'Ürün rotası · bu iş emrinde değiştirildi' : 'Ürün rotası' }}
+					</OzPill>
+					<OzPill v-else-if="routeSource === 'suggested'" tone="info">Önerilen · operasyon sırası</OzPill>
 				</div>
-				<OzButton size="sm" icon="plus" @click="addStep">Adım Ekle</OzButton>
+				<p v-if="!form.product_id" class="dim small">Ürün seçilince rota ürünün rotasından otomatik dolar.</p>
+				<p v-else-if="routeSource === 'suggested'" class="dim small">
+					Bu ürünün kayıtlı rotası yok; tüm operasyonlar sırasıyla önerildi. Gerekmeyenleri silin, sırayı düzenleyin.
+				</p>
+				<RouteStepsEditor
+					v-if="form.product_id && routeSource"
+					v-model="form.steps"
+					:operations="operations"
+					:fason-suppliers="fasonSuppliers"
+					:errors="form.errors"
+				/>
+				<OzCheckbox
+					v-if="showSaveRoute"
+					v-model="form.save_as_product_route"
+					label="Bu rotayı ürünün rotası olarak kaydet"
+					description="Sonraki iş emirlerinde bu ürün için rota otomatik gelir."
+				/>
 			</section>
 
 			<section class="section">
@@ -283,14 +329,12 @@ function submit() {
 		</form>
 		<template #footer>
 			<OzButton :disabled="form.processing" @click="wizardOpen = false">İptal</OzButton>
-			<OzButton variant="primary" icon="check" :loading="form.processing" @click="submit">Oluştur</OzButton>
+			<OzButton variant="primary" icon="check" :loading="form.processing" :disabled="itemsMismatch || missingFason || !form.steps.length" @click="submit">Oluştur</OzButton>
 		</template>
 	</OzDrawer>
 </template>
 
 <style scoped>
-.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
-@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 .mono { font-family: ui-monospace, monospace; font-size: 12px; }
 .dim { color: var(--oz-muted); font-weight: 400; }
@@ -298,6 +342,14 @@ function submit() {
 .due { display: inline-flex; align-items: center; gap: 8px; }
 .detail-link { color: var(--oz-accent); text-decoration: none; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; }
 .detail-link:hover { background: var(--oz-accent-soft); }
+
+.pending { margin-bottom: 14px; }
+.pending-list { display: flex; flex-direction: column; }
+.pending-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 12px; padding: 10px 16px; }
+.pending-row + .pending-row { border-top: 1px solid var(--oz-border-soft); }
+.pending-label { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pending-name { color: var(--oz-ink); font-weight: 600; font-size: 13.5px; text-decoration: none; }
+.pending-name:hover { color: var(--oz-accent); }
 
 .form { display: flex; flex-direction: column; gap: 18px; }
 .section { display: flex; flex-direction: column; gap: 12px; }
@@ -316,26 +368,19 @@ function submit() {
 .variant-total.is-off { color: var(--oz-warning); }
 
 .reqs { display: flex; flex-direction: column; border: 1px solid var(--oz-border-soft); border-radius: var(--oz-radius-sm); overflow: hidden; }
-.req { display: grid; grid-template-columns: minmax(0, 1fr) auto 110px; gap: 12px; align-items: center; padding: 7px 12px; font-size: 13px; }
+.req { display: grid; grid-template-columns: minmax(0, 1fr) 110px 110px 100px; gap: 12px; align-items: center; padding: 7px 12px; font-size: 13px; }
+.req > :not(:first-child) { text-align: right; }
+.req-head { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--oz-muted); }
+.req.is-short { background: rgba(var(--oz-danger-rgb), 0.06); }
+.req.is-short > :nth-child(3) { color: var(--oz-danger); font-weight: 700; }
 .req + .req { border-top: 1px solid var(--oz-border-soft); }
-.req > :last-child { text-align: right; }
 .req-name { font-weight: 600; color: var(--oz-ink-soft); }
 .req-total { background: var(--oz-surface-2); }
 
-.step {
-	display: grid; grid-template-columns: 26px minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) auto; gap: 10px; align-items: end;
-	padding: 10px 12px; border: 1px solid var(--oz-border-soft); border-radius: var(--oz-radius-sm); background: var(--oz-surface-2);
-}
-.step-seq {
-	align-self: center; width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
-	font-size: 11px; font-weight: 700; background: var(--oz-accent-soft); color: var(--oz-accent);
-}
-.step-remove { margin-bottom: 2px; }
 
 @media (max-width: 640px) {
 	.row-3 { grid-template-columns: 1fr; }
-	.step { grid-template-columns: 1fr 1fr; }
-	.step-seq { grid-column: 1 / -1; }
-	.step > :nth-child(2) { grid-column: 1 / -1; }
+	.req { grid-template-columns: minmax(0, 1fr) 90px 90px; }
+	.req > :nth-child(4) { display: none; }
 }
 </style>

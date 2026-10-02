@@ -4,7 +4,7 @@ import { Head, router, useForm } from '@inertiajs/vue3'
 import { useDebounceFn } from '@vueuse/core'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import {
-	OzPageHeader, OzModuleTabs, OzStatTile, OzCard, OzButton, OzPill, OzDropdown, OzEmptyState, OzDrawer, OzModal,
+	OzPageHeader, OzModuleTabs, OzStatStrip, OzCard, OzButton, OzPill, OzDropdown, OzEmptyState, OzDrawer, OzModal,
 	OzField, OzInput, OzSelect, OzTextarea, OzCheckbox, OzFileDrop, OzAlert, useOzConfirm,
 } from '@/Components/Oz'
 
@@ -241,9 +241,7 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer) })
 	</OzPageHeader>
 	<OzModuleTabs />
 
-	<div class="stats">
-		<OzStatTile v-for="s in stats" :key="s.key" :label="s.label" :value="s.value" :icon="s.icon" :tone="s.tone" />
-	</div>
+	<OzStatStrip :items="stats" />
 
 	<OzCard title="Kalıplar" :meta="hasFilters ? 'filtrelenmiş' : `${patterns.length} kayıt`">
 		<div class="toolbar">
@@ -431,8 +429,6 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer) })
 </template>
 
 <style scoped>
-.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
-@media (max-width: 1040px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 .dim { color: var(--oz-muted); font-size: 12.5px; line-height: 1.5; margin: 0; }
 .small { font-size: 12px; }
