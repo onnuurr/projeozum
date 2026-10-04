@@ -33,7 +33,8 @@ export function makeInvoicePdf({ tenant, invoice }) {
 	doc.text(tenant.name ?? '', 14, 66)
 	if (tenant.legal_name) doc.text(tenant.legal_name, 14, 72)
 	if (tenant.tax_number) doc.text(`VKN: ${tenant.tax_number}  ${tenant.tax_office ?? ''}`, 14, 78)
-	if (tenant.address) doc.text(`${tenant.address}  ${tenant.city ?? ''}`, 14, 84)
+	const billing = tenant.addresses?.billing
+	if (billing?.address) doc.text(`${billing.address}  ${billing.city ?? ''}`, 14, 84)
 
 	autoTable(doc, {
 		startY: 95,

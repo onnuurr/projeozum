@@ -10,6 +10,7 @@ use Modules\Tenant\Events\TenantActivated;
 use Modules\Tenant\Events\TenantDeactivated;
 use Modules\Tenant\Events\TenantDeleted;
 use Modules\Tenant\Models\Tenant;
+use Modules\Tenant\Models\TenantAddress;
 use Modules\Tenant\Models\TenantInvoice;
 use Modules\Tenant\Models\TenantPriceList;
 
@@ -30,7 +31,8 @@ class TenantService
         $ownerName     = $data['owner_name']     ?? null;
         $ownerEmail    = $data['owner_email']    ?? null;
         $ownerPassword = $data['owner_password'] ?? null;
-        unset($data['owner_name'], $data['owner_email'], $data['owner_password']);
+        $addresses     = $data['addresses']      ?? null;
+        unset($data['owner_name'], $data['owner_email'], $data['owner_password'], $data['addresses']);
 
         $data['slug']        = $data['slug']        ?? Tenant::generateUniqueSlug($data['name']);
         $data['created_by']  = $data['created_by']  ?? auth()->id();
@@ -41,8 +43,12 @@ class TenantService
             $data['discount_rate'] = Tenant::DEFAULT_DISCOUNT_RATE;
         }
 
-        $tenant = DB::transaction(function () use ($data, $ownerName, $ownerEmail, $ownerPassword) {
+        $tenant = DB::transaction(function () use ($data, $ownerName, $ownerEmail, $ownerPassword, $addresses) {
             $tenant = Tenant::create($data);
+
+            if ($addresses !== null) {
+                $this->syncAddresses($tenant, $addresses);
+            }
 
             if ($ownerEmail) {
                 $this->users->createOwner($tenant, [
@@ -77,10 +83,15 @@ class TenantService
         $ownerName     = $data['owner_name']     ?? null;
         $ownerEmail    = $data['owner_email']    ?? null;
         $ownerPassword = $data['owner_password'] ?? null;
-        unset($data['owner_name'], $data['owner_email'], $data['owner_password'], $data['owner_password_confirmation']);
+        $addresses     = $data['addresses']      ?? null;
+        unset($data['owner_name'], $data['owner_email'], $data['owner_password'], $data['owner_password_confirmation'], $data['addresses']);
 
-        $tenant = DB::transaction(function () use ($tenant, $data, $ownerName, $ownerEmail, $ownerPassword) {
+        $tenant = DB::transaction(function () use ($tenant, $data, $ownerName, $ownerEmail, $ownerPassword, $addresses) {
             $tenant->update($data);
+
+            if ($addresses !== null) {
+                $this->syncAddresses($tenant, $addresses);
+            }
 
             if (($ownerName || $ownerEmail || $ownerPassword) && ($owner = $tenant->owner)) {
                 $this->users->updateOwner($owner, [
@@ -96,6 +107,33 @@ class TenantService
         $this->dispatchStatusEvent($tenant, $ownerPassword);
 
         return $tenant;
+    }
+
+    /**
+     * Fatura / sevk / iade adreslerini yazar: adres metni boş gelen tür silinir, listede hiç
+     * olmayan türe dokunulmaz. Çağıran Bagisto senkronunu (TenantActivated) ayrıca tetikler.
+     *
+     * @param  array<string, array<string, mixed>|null>  $addresses  tür => TenantAddress::FIELDS
+     */
+    public function syncAddresses(Tenant $tenant, array $addresses): void
+    {
+        foreach (array_intersect_key($addresses, array_flip(TenantAddress::TYPES)) as $type => $fields) {
+            $fields = collect($fields ?? [])->only(TenantAddress::FIELDS)
+                ->map(fn ($v) => is_string($v) ? trim($v) : $v)
+                ->all();
+
+            if (blank($fields['address'] ?? null)) {
+                $tenant->addresses()->where('type', $type)->delete();
+
+                continue;
+            }
+
+            $fields['country'] = ($fields['country'] ?? null) ?: 'TR';
+
+            $tenant->addresses()->updateOrCreate(['type' => $type], $fields);
+        }
+
+        $tenant->unsetRelation('addresses');
     }
 
     public function suspend(Tenant $tenant): void

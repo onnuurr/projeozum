@@ -10,6 +10,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Modules\Tenant\Events\TenantApplicationStageChanged;
 use Modules\Tenant\Models\Tenant;
+use Modules\Tenant\Models\TenantAddress;
 use Modules\Tenant\Models\TenantApplication;
 use Modules\Tenant\Models\TenantApplicationDocument;
 use Modules\Tenant\Notifications\TenantApplicationActivityNotification;
@@ -309,11 +310,8 @@ class TenantApplicationService
                 'phone' => $application->contact_phone,
                 'contact_person' => $application->contact_person,
                 'contact_phone' => $application->contact_phone,
-                'address' => $application->address,
-                'city' => $application->city,
-                'district' => $application->district,
-                'country' => $application->country ?: 'TR',
-                'postal_code' => $application->postal_code,
+                // Başvuruda tek adres var; üç türe de aynısı yazılır, personel sonra ayırır.
+                'addresses' => array_fill_keys(TenantAddress::TYPES, $this->applicationAddress($application)),
                 'notes' => "Bayi portalı başvurusu #{$application->reference}",
                 'is_active' => false,
                 'created_by' => $reviewer->id,
@@ -387,14 +385,12 @@ class TenantApplicationService
             $tenant = $application->convertedTenant()->lockForUpdate()->firstOrFail();
             $platform = $data['shipping_agreement_type'] === 'platform';
 
+            $this->applyConfirmedAddress($tenant, $data);
+
             $tenant->update([
                 'contact_person' => $data['contact_person'],
                 'contact_phone' => $data['contact_phone'],
                 'phone' => $data['contact_phone'],
-                'address' => $data['address'],
-                'city' => $data['city'],
-                'district' => $data['district'],
-                'postal_code' => $data['postal_code'],
                 'shipping_agreement_type' => $data['shipping_agreement_type'],
                 'carrier_id' => $platform ? null : $data['carrier_id'],
                 'shipping_terms_accepted_at' => $platform ? now() : null,
@@ -424,6 +420,53 @@ class TenantApplicationService
         $this->notifyReviewers($application, TenantApplicationActivityNotification::MEMBERSHIP_COMPLETED);
 
         return $tenant->fresh(['primaryUser', 'carrier']);
+    }
+
+    /** @return array<string, string|null> TenantAddress::FIELDS biçiminde başvuru adresi. */
+    private function applicationAddress(TenantApplication $application): array
+    {
+        return [
+            'contact_name' => $application->contact_person,
+            'phone' => $application->contact_phone,
+            'address' => $application->address,
+            'district' => $application->district,
+            'city' => $application->city,
+            'postal_code' => $application->postal_code,
+            'country' => $application->country ?: 'TR',
+        ];
+    }
+
+    /**
+     * Üyelik formunda bayinin teyit ettiği adres fatura adresine yazılır. Sevk/iade adresi ya hiç
+     * yoksa ya da hâlâ eski fatura adresinin kopyasıysa onlar da güncellenir; personelin ayrıca
+     * girdiği farklı bir sevk/iade adresi ezilmez.
+     *
+     * @param  array{contact_person: string, contact_phone: string, address: string, city: string, district: string, postal_code: string}  $data
+     */
+    private function applyConfirmedAddress(Tenant $tenant, array $data): void
+    {
+        $confirmed = [
+            'contact_name' => $data['contact_person'],
+            'phone' => $data['contact_phone'],
+            'address' => $data['address'],
+            'district' => $data['district'],
+            'city' => $data['city'],
+            'postal_code' => $data['postal_code'],
+            'country' => $tenant->addressOf(TenantAddress::TYPE_BILLING)?->country ?: 'TR',
+        ];
+
+        $previousBilling = $tenant->addressOf(TenantAddress::TYPE_BILLING)?->only(TenantAddress::FIELDS);
+        $addresses = [TenantAddress::TYPE_BILLING => $confirmed];
+
+        foreach ([TenantAddress::TYPE_SHIPPING, TenantAddress::TYPE_RETURN] as $type) {
+            $current = $tenant->addressOf($type)?->only(TenantAddress::FIELDS);
+
+            if ($current === null || $current == $previousBilling) {
+                $addresses[$type] = $confirmed;
+            }
+        }
+
+        $this->tenants->syncAddresses($tenant, $addresses);
     }
 
     /**
@@ -458,11 +501,7 @@ class TenantApplicationService
             'phone' => $application->contact_phone,
             'contact_person' => $application->contact_person,
             'contact_phone' => $application->contact_phone,
-            'address' => $application->address,
-            'city' => $application->city,
-            'district' => $application->district,
-            'country' => $application->country,
-            'postal_code' => $application->postal_code,
+            'addresses' => array_fill_keys(TenantAddress::TYPES, $this->applicationAddress($application)),
             'documents' => $application->documents->map(fn ($d) => [
                 'id' => $d->id,
                 'type' => $d->type,

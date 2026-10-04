@@ -4,6 +4,7 @@ namespace Modules\Tenant\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Modules\Tenant\Models\TenantAddress;
 
 class TenantResource extends JsonResource
 {
@@ -25,9 +26,7 @@ class TenantResource extends JsonResource
             'email'            => $this->email,
             'phone'            => $this->phone,
             'contact_person'   => $this->contact_person,
-            'address'          => $this->address,
-            'city'             => $this->city,
-            'country'          => $this->country,
+            'addresses'        => $this->addresses->mapWithKeys(fn ($a) => [$a->type => $a->only(TenantAddress::FIELDS)]),
             'logo_path'        => $this->logo_path,
             'credit_limit'     => (float) $this->credit_limit,
             'current_balance'  => (float) $this->current_balance,

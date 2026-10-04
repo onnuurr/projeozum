@@ -102,12 +102,35 @@ const ownerExists = ref(false)
 const taxCheck = ref(null)
 const prefillDocuments = ref([])
 
+/* ── adresler: fatura / sevk / iade (TenantAddress) ── */
+const ADDRESS_TYPES = [
+	{ key: 'billing', label: 'Fatura adresi', hint: 'Faturalar ve sözleşmelerde kullanılır; Bagisto\'da varsayılan adres.' },
+	{ key: 'shipping', label: 'Sevk adresi', hint: 'Siparişlerin gönderileceği adres.' },
+	{ key: 'return', label: 'İade adresi', hint: 'İade/geri gönderimlerin yapılacağı adres.' },
+]
+const ADDRESS_FIELDS = ['contact_name', 'phone', 'address', 'district', 'city', 'postal_code', 'country']
+const blankAddress = () => ({ contact_name: '', phone: '', address: '', district: '', city: '', postal_code: '', country: 'TR' })
+const toAddress = (a) => Object.fromEntries(ADDRESS_FIELDS.map((f) => [f, a?.[f] ?? (f === 'country' ? 'TR' : '')]))
+const sameAddress = (a, b) => ADDRESS_FIELDS.every((f) => String(a[f] ?? '').trim() === String(b[f] ?? '').trim())
+
+// Sunucudaki adreslerden form durumu: sevk/iade, fatura adresiyle birebir aynıysa (ya da hiç yoksa) "aynı" işaretli gelir.
+function addressState(addresses = {}) {
+	const billing = toAddress(addresses.billing)
+	const state = { addresses: { billing }, sameAsBilling: {} }
+	for (const type of ['shipping', 'return']) {
+		const own = addresses[type] ? toAddress(addresses[type]) : null
+		state.sameAsBilling[type] = !own || sameAddress(own, billing)
+		state.addresses[type] = own && !state.sameAsBilling[type] ? own : blankAddress()
+	}
+	return state
+}
+
 const blank = () => ({
 	code: '', name: '', legal_name: '', tenant_type_id: '',
 	owner_name: '', owner_email: '', owner_password: '', owner_password_confirmation: '',
 	tax_number: '', tax_office: '', tenant_application_id: null,
 	email: '', phone: '', contact_person: '', contact_phone: '',
-	address: '', city: '', district: '', country: 'TR', postal_code: '',
+	...addressState(),
 	credit_limit: 0, discount_rate: props.defaultDiscountRate,
 	is_active: true, notes: '',
 	shipping_agreement_type: '', carrier_id: '', shipping_terms_accepted: false,
@@ -142,8 +165,7 @@ function openFromApplication(app) {
 		tax_number: app.tax_number ?? '', tax_office: app.tax_office ?? '',
 		email: app.email ?? '', phone: app.phone ?? '',
 		contact_person: app.contact_person ?? '', contact_phone: app.contact_phone ?? '',
-		address: app.address ?? '', city: app.city ?? '', district: app.district ?? '',
-		country: app.country ?? 'TR', postal_code: app.postal_code ?? '',
+		...addressState(app.addresses),
 		tenant_application_id: app.id,
 	})
 	prefillDocuments.value = app.documents ?? []
@@ -159,7 +181,7 @@ function openEdit(t) {
 		owner_name: t.owner?.name ?? '', owner_email: t.owner?.email ?? '',
 		tax_number: t.tax_number ?? '', tax_office: t.tax_office ?? '',
 		email: t.email ?? '', phone: t.phone ?? '', contact_person: t.contact_person ?? '', contact_phone: t.contact_phone ?? '',
-		address: t.address ?? '', city: t.city ?? '', district: t.district ?? '', country: t.country ?? 'TR', postal_code: t.postal_code ?? '',
+		...addressState(t.addresses),
 		credit_limit: Number(t.credit_limit ?? 0), discount_rate: Number(t.discount_rate ?? 0),
 		is_active: !!t.is_active, notes: t.notes ?? '',
 		shipping_agreement_type: t.shipping_agreement_type ?? '', carrier_id: t.carrier?.id ?? '',
@@ -177,7 +199,7 @@ const taxError = computed(() => errors.value.tax_number || (taxCheck.value === f
 
 const FIELD_KEYS = [
 	'code', 'name', 'legal_name', 'tenant_type_id', 'owner_name', 'owner_email', 'owner_password', 'tax_number', 'tax_office',
-	'email', 'phone', 'contact_person', 'contact_phone', 'address', 'city', 'district', 'postal_code',
+	'email', 'phone', 'contact_person', 'contact_phone',
 	'credit_limit', 'discount_rate', 'notes', 'shipping_agreement_type', 'carrier_id', 'shipping_terms_accepted',
 ]
 
@@ -185,8 +207,13 @@ function submit() {
 	if (busy.value) return
 	busy.value = true
 	errors.value = {}
+	const { sameAsBilling, ...rest } = form.value
 	const payload = {
-		...form.value,
+		...rest,
+		addresses: Object.fromEntries(ADDRESS_TYPES.map(({ key }) => [
+			key,
+			key !== 'billing' && sameAsBilling[key] ? { ...rest.addresses.billing } : { ...rest.addresses[key] },
+		])),
 		tenant_type_id: form.value.tenant_type_id || null,
 		shipping_agreement_type: form.value.shipping_agreement_type || null,
 		carrier_id: form.value.shipping_agreement_type === 'own' ? (form.value.carrier_id || null) : null,
@@ -216,7 +243,7 @@ function submit() {
 		// Alan hataları panelde; toast yalnızca alana bağlanamayanlar için
 		onError: (errs) => {
 			errors.value = errs
-			const other = Object.entries(errs).find(([k]) => !FIELD_KEYS.includes(k))
+			const other = Object.entries(errs).find(([k]) => !FIELD_KEYS.includes(k) && !k.startsWith('addresses.'))
 			if (other) showToast?.({ type: 'error', title: 'Kaydedilemedi', message: other[1] })
 		},
 		onFinish: () => { busy.value = false },
@@ -403,14 +430,32 @@ async function remove(t) {
 				</OzField>
 			</div>
 
-			<div class="section">Adres</div>
-			<OzField label="Adres" :error="errors.address">
-				<OzTextarea v-model="form.address" :rows="2" :maxlength="1000" placeholder="Cadde, sokak, bina no…" />
-			</OzField>
-			<div class="grid-3">
-				<OzField label="İl" :error="errors.city"><OzInput v-model="form.city" placeholder="İstanbul" maxlength="100" /></OzField>
-				<OzField label="İlçe" :error="errors.district"><OzInput v-model="form.district" placeholder="Kadıköy" maxlength="100" /></OzField>
-				<OzField label="Posta kodu" :error="errors.postal_code"><OzInput v-model="form.postal_code" placeholder="34000" maxlength="16" /></OzField>
+			<div class="section">Adresler</div>
+			<p class="section-hint">Bagisto'da bayi hesabına salt okunur olarak gider; bayi mağazadan değiştiremez.</p>
+			<div v-for="type in ADDRESS_TYPES" :key="type.key" class="address">
+				<div class="address-head">
+					<b>{{ type.label }}</b>
+					<span>{{ type.hint }}</span>
+				</div>
+				<OzCheckbox v-if="type.key !== 'billing'" v-model="form.sameAsBilling[type.key]" label="Fatura adresiyle aynı" />
+				<template v-if="type.key === 'billing' || !form.sameAsBilling[type.key]">
+					<OzField label="Adres" :error="errors[`addresses.${type.key}.address`]">
+						<OzTextarea v-model="form.addresses[type.key].address" :rows="2" :maxlength="1000" placeholder="Cadde, sokak, bina no…" />
+					</OzField>
+					<div class="grid-3">
+						<OzField label="İl" :error="errors[`addresses.${type.key}.city`]"><OzInput v-model="form.addresses[type.key].city" placeholder="İstanbul" maxlength="100" /></OzField>
+						<OzField label="İlçe" :error="errors[`addresses.${type.key}.district`]"><OzInput v-model="form.addresses[type.key].district" placeholder="Kadıköy" maxlength="100" /></OzField>
+						<OzField label="Posta kodu" :error="errors[`addresses.${type.key}.postal_code`]"><OzInput v-model="form.addresses[type.key].postal_code" placeholder="34000" maxlength="16" /></OzField>
+					</div>
+					<div class="grid-2">
+						<OzField label="Teslim alan / yetkili" :error="errors[`addresses.${type.key}.contact_name`]" hint="Boşsa yetkili hesabın adı kullanılır">
+							<OzInput v-model="form.addresses[type.key].contact_name" placeholder="Ahmet Yılmaz" maxlength="191" />
+						</OzField>
+						<OzField label="Telefon" :error="errors[`addresses.${type.key}.phone`]">
+							<OzInput v-model="form.addresses[type.key].phone" type="tel" icon="phone" placeholder="+90 532 …" maxlength="32" />
+						</OzField>
+					</div>
+				</template>
 			</div>
 
 			<div class="section">Ticari koşullar</div>
@@ -473,6 +518,10 @@ async function remove(t) {
 .section-hint { margin: -6px 0 0; font-size: 12px; color: var(--oz-muted); }
 .inline { display: flex; gap: 8px; }
 .inline > :first-child { flex: 1; min-width: 0; }
+.address { display: flex; flex-direction: column; gap: 12px; padding: 14px; border: 1px solid var(--oz-border-soft); border-radius: 10px; }
+.address-head { display: flex; flex-direction: column; gap: 2px; }
+.address-head b { font-size: 13px; color: var(--oz-ink-soft); }
+.address-head span { font-size: 12px; color: var(--oz-muted); }
 .docs { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 6px; }
 .doc { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; color: inherit; }
 

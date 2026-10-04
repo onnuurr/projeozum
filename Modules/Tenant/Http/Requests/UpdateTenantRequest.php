@@ -3,10 +3,13 @@
 namespace Modules\Tenant\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Modules\Tenant\Http\Requests\Concerns\ValidatesTenantAddresses;
 use Modules\Tenant\Rules\ValidTaxNumber;
 
 class UpdateTenantRequest extends FormRequest
 {
+    use ValidatesTenantAddresses;
+
     public function authorize(): bool
     {
         return $this->user()?->hasPermissionTo('tenant.manage') ?? false;
@@ -28,15 +31,16 @@ class UpdateTenantRequest extends FormRequest
             'phone'            => 'nullable|string|max:32',
             'contact_person'   => 'nullable|string|max:191',
             'contact_phone'    => 'nullable|string|max:32',
-            'address'          => 'nullable|string',
-            'city'             => 'nullable|string|max:100',
-            'district'         => 'nullable|string|max:100',
-            'country'          => 'nullable|string|max:100',
-            'postal_code'      => 'nullable|string|max:16',
             'credit_limit'     => 'nullable|numeric|min:0',
             'discount_rate'    => 'nullable|numeric|min:0|max:100',
             'is_active'        => 'boolean',
             'notes'            => 'nullable|string',
+            ...$this->addressRules(),
         ];
+    }
+
+    public function attributes(): array
+    {
+        return $this->addressAttributes();
     }
 }

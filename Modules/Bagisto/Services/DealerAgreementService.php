@@ -19,6 +19,7 @@ use Modules\Bagisto\Models\DealerAgreementAcceptance;
 use Modules\Bagisto\Models\DealerAgreementDraft;
 use Modules\Bagisto\Models\DealerAgreementVersion;
 use Modules\Tenant\Models\Tenant;
+use Modules\Tenant\Models\TenantAddress;
 use Modules\Tenant\Models\TenantApplication;
 
 /**
@@ -448,8 +449,11 @@ class DealerAgreementService
         $pick = fn (string $field) => trim((string) ($tenant?->{$field} ?: $application->{$field}));
 
         $name = $pick('name');
-        $address = collect([$pick('address'), collect([$pick('district'), $pick('city')])->filter()->implode(' / ')])
-            ->filter()->implode(', ');
+        // Hesap açıldıysa iş ortağının fatura adresi, yoksa başvurudaki adres.
+        $billing = $tenant?->addressOf(TenantAddress::TYPE_BILLING);
+        $address = $billing
+            ? $this->addressLine($billing->address, $billing->district, $billing->city)
+            : $this->addressLine($application->address, $application->district, $application->city);
 
         $details = $application->details ?? [];
 
@@ -850,7 +854,8 @@ class DealerAgreementService
         }
 
         $field = fn (string $name) => trim((string) $tenant->{$name});
-        $address = collect([$field('address'), collect([$field('district'), $field('city')])->filter()->implode(' / ')])->filter()->implode(', ');
+        $billing = $tenant->addressOf(TenantAddress::TYPE_BILLING);
+        $address = $this->addressLine($billing?->address, $billing?->district, $billing?->city);
 
         return array_filter([
             ...$this->staticVariables($locale),
@@ -1007,5 +1012,13 @@ class DealerAgreementService
     private function normalize(string $body): string
     {
         return trim(str_replace("\r\n", "\n", $body));
+    }
+
+    /** "Cadde no, İlçe / İl" — sözleşmedeki firma adresi etiketi. */
+    private function addressLine(?string $address, ?string $district, ?string $city): string
+    {
+        $place = collect([trim((string) $district), trim((string) $city)])->filter()->implode(' / ');
+
+        return collect([trim((string) $address), $place])->filter()->implode(', ');
     }
 }

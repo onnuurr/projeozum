@@ -3,6 +3,7 @@
 namespace Modules\Bagisto\Mappers;
 
 use Modules\Tenant\Models\Tenant;
+use Modules\Tenant\Models\TenantAddress;
 
 /**
  * `Tenant` + owner kullanıcısını, Bagisto tarafındaki
@@ -58,25 +59,34 @@ class TenantPayloadMapper
                 : null;
         }
 
-        // Bagisto'nun `address.*` alanları `required_with:address` olduğu için
-        // hepsi dolu değilse hiç göndermiyoruz — kısmi adres 422'ye yol açar.
-        // Türkçe adres hiyerarşisi Bagisto'nun `state`/`city` alanlarına
+        // Fatura / sevk / iade adresleri Bagisto'da bayi hesabının salt-okunur adresleri olur
+        // (`additional.saas_type` ile eşleşir). Liste her zaman gider: SaaS'ta silinen adres
+        // Bagisto'dan da kalkar. Türkçe adres hiyerarşisi Bagisto'nun `state`/`city` alanlarına
         // İl/İlçe olarak eşlenir (bkz. Bagisto tr dil dosyası: state => "İl").
-        if ($tenant->address && $tenant->country && $tenant->city && $tenant->district && $tenant->postal_code) {
-            $payload['address'] = [
-                'company_name' => $tenant->legal_name ?: $tenant->name,
-                'vat_id' => $tenant->tax_number,
-                'first_name' => $firstName,
-                'last_name' => $lastName,
-                'address' => $tenant->address,
-                'country' => $tenant->country,
-                'state' => $tenant->city,
-                'city' => $tenant->district,
-                'postcode' => $tenant->postal_code,
-                'phone' => $tenant->phone,
-                'email' => $owner->email,
-            ];
-        }
+        $payload['addresses'] = $tenant->addresses
+            ->filter(fn (TenantAddress $a) => $a->address && $a->city && $a->district)
+            ->sortBy(fn (TenantAddress $a) => array_search($a->type, TenantAddress::TYPES, true))
+            ->map(function (TenantAddress $a) use ($tenant, $owner, $firstName, $lastName) {
+                [$contactFirst, $contactLast] = $a->contact_name ? $this->splitName($a->contact_name) : [$firstName, $lastName];
+
+                return [
+                    'type' => $a->type,
+                    'label' => TenantAddress::LABELS[$a->type],
+                    'company_name' => $tenant->legal_name ?: $tenant->name,
+                    'vat_id' => $a->type === TenantAddress::TYPE_BILLING ? $tenant->tax_number : null,
+                    'first_name' => $contactFirst,
+                    'last_name' => $contactLast,
+                    'address' => $a->address,
+                    'country' => $a->country ?: 'TR',
+                    'state' => $a->city,
+                    'city' => $a->district,
+                    'postcode' => $a->postal_code,
+                    'phone' => $a->phone ?: $tenant->phone,
+                    'email' => $owner->email,
+                ];
+            })
+            ->values()
+            ->all();
 
         return $payload;
     }

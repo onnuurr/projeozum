@@ -10,6 +10,7 @@ use Inertia\Response;
 use Modules\Product\Models\Carrier;
 use Modules\Tenant\Http\Requests\SaveTenantRequest;
 use Modules\Tenant\Models\Tenant;
+use Modules\Tenant\Models\TenantAddress;
 use Modules\Tenant\Models\TenantType;
 use Modules\Tenant\Services\TenantApplicationService;
 use Modules\Tenant\Services\TenantService;
@@ -24,7 +25,7 @@ class TenantController extends Controller
     public function index(Request $request): Response
     {
         $query = Tenant::query()
-            ->with(['type:id,code,name', 'owner:id,tenant_id,name,email', 'carrier:id,code,name'])
+            ->with(['type:id,code,name', 'owner:id,tenant_id,name,email', 'carrier:id,code,name', 'addresses'])
             ->withCount('users');
 
         if ($search = trim((string) $request->query('q', ''))) {
@@ -69,11 +70,7 @@ class TenantController extends Controller
                 'phone' => $t->phone,
                 'contact_person' => $t->contact_person,
                 'contact_phone' => $t->contact_phone,
-                'address' => $t->address,
-                'city' => $t->city,
-                'district' => $t->district,
-                'country' => $t->country,
-                'postal_code' => $t->postal_code,
+                'addresses' => $t->addresses->mapWithKeys(fn (TenantAddress $a) => [$a->type => $a->only(TenantAddress::FIELDS)]),
                 'credit_limit' => (float) $t->credit_limit,
                 'current_balance' => (float) $t->current_balance,
                 'available_credit' => $t->available_credit,

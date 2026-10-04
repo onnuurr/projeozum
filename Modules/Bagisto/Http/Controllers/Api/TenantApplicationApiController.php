@@ -14,6 +14,7 @@ use Modules\Bagisto\Models\DealerAgreementAcceptance;
 use Modules\Bagisto\Services\DealerAgreementService;
 use Modules\Bagisto\Services\StorefrontFeatureService;
 use Modules\Product\Models\Carrier;
+use Modules\Tenant\Models\TenantAddress;
 use Modules\Tenant\Models\TenantApplication;
 use Modules\Tenant\Models\TenantApplicationDocument;
 use Modules\Tenant\Rules\ValidTaxNumber;
@@ -209,6 +210,7 @@ class TenantApplicationApiController extends Controller
         abort_unless($application, 410, 'Bu üyelik bağlantısı geçersiz ya da süresi dolmuş.');
 
         $tenant = $application->convertedTenant;
+        $billing = $tenant->addressOf(TenantAddress::TYPE_BILLING);
 
         return response()->json(['data' => [
             'reference' => $application->reference,
@@ -219,10 +221,11 @@ class TenantApplicationApiController extends Controller
             'email' => $application->contact_email,
             'contact_person' => $tenant->contact_person,
             'contact_phone' => $tenant->contact_phone,
-            'address' => $tenant->address,
-            'city' => $tenant->city,
-            'district' => $tenant->district,
-            'postal_code' => $tenant->postal_code,
+            // Üyelik formu tek adres teyit eder: fatura adresi (bkz. TenantApplicationService::applyConfirmedAddress).
+            'address' => $billing?->address,
+            'city' => $billing?->city,
+            'district' => $billing?->district,
+            'postal_code' => $billing?->postal_code,
             'dealer_model' => $application->details['dealer_model'] ?? null,
             'expires_at' => $application->invitation_expires_at?->toIso8601String(),
             'carriers' => Carrier::query()->active()->orderBy('sort_order')->orderBy('name')->get(['id', 'name']),

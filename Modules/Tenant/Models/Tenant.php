@@ -40,11 +40,6 @@ class Tenant extends Model
         'phone',
         'contact_person',
         'contact_phone',
-        'address',
-        'city',
-        'district',
-        'country',
-        'postal_code',
         'logo_path',
         'settings',
         'feed_secret',
@@ -110,6 +105,17 @@ class Tenant extends Model
     public function primaryUser(): HasOne
     {
         return $this->hasOne(User::class, 'tenant_id')->oldestOfMany();
+    }
+
+    /** Fatura / sevk / iade adresleri (bkz. TenantAddress::TYPES). */
+    public function addresses(): HasMany
+    {
+        return $this->hasMany(TenantAddress::class);
+    }
+
+    public function addressOf(string $type): ?TenantAddress
+    {
+        return $this->addresses->firstWhere('type', $type);
     }
 
     public function accessRules(): HasMany

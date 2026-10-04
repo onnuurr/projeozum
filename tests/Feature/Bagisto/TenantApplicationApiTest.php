@@ -18,6 +18,7 @@ use Modules\Superadmin\Models\Setting;
 use Modules\Tenant\Models\Tenant;
 use Modules\Tenant\Models\TenantApplication;
 use Modules\Tenant\Notifications\TenantApplicationActivityNotification;
+use Modules\Tenant\Services\TenantService;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -430,6 +431,27 @@ class TenantApplicationApiTest extends TestCase
         Mail::assertQueued(DealerApplicationMail::class, fn (DealerApplicationMail $mail) => $mail->stage === 'account_opened' && $mail->hasTo('siparis@lilabutik.test'));
     }
 
+    public function test_invitation_completion_keeps_a_separately_entered_shipping_address(): void
+    {
+        $invitation = $this->openAccount($this->applicationInReview())->invitation_token;
+        $tenant = Tenant::where('code', 'BAYI-0001')->firstOrFail();
+
+        // Hesap açılışında başvuru adresi üç türe de kopyalanır; personel sevk adresini ayrıca girer.
+        $this->assertSame(3, $tenant->addresses()->count());
+        app(TenantService::class)->syncAddresses($tenant, [
+            'shipping' => ['address' => 'Depo Sok. No:3', 'district' => 'Tuzla', 'city' => 'İstanbul'],
+        ]);
+
+        $this->api()->postJson("/api/bagisto/tenant-applications/invitations/{$invitation}/complete", $this->completion([
+            'address' => 'Yeni Fatura Cad. No:1',
+        ]))->assertOk();
+
+        $tenant = $tenant->fresh();
+        $this->assertSame('Yeni Fatura Cad. No:1', $tenant->addressOf('billing')->address);
+        $this->assertSame('Yeni Fatura Cad. No:1', $tenant->addressOf('return')->address); // hâlâ fatura kopyasıydı
+        $this->assertSame('Depo Sok. No:3', $tenant->addressOf('shipping')->address);     // personelin girdiği korunur
+    }
+
     public function test_open_account_is_refused_before_document_review(): void
     {
         $token = $this->api()->post('/api/bagisto/tenant-applications', $this->preApplication())->json('data.token');
@@ -458,7 +480,12 @@ class TenantApplicationApiTest extends TestCase
             ->assertJsonPath('data.customer.first_name', 'Buse')
             ->assertJsonPath('data.customer.last_name', 'Karaca Yılmaz')
             ->assertJsonPath('data.customer.shipping_agreement_type', 'platform')
-            ->assertJsonPath('data.customer.address.postcode', '34728');
+            // Teyit edilen adres fatura/sevk/iade adreslerine yazılır (sevk/iade henüz fatura kopyası).
+            ->assertJsonCount(3, 'data.customer.addresses')
+            ->assertJsonPath('data.customer.addresses.0.type', 'billing')
+            ->assertJsonPath('data.customer.addresses.0.postcode', '34728')
+            ->assertJsonPath('data.customer.addresses.1.type', 'shipping')
+            ->assertJsonPath('data.customer.addresses.1.postcode', '34728');
 
         $tenant = Tenant::where('code', 'BAYI-0001')->first();
         $application = TenantApplication::first();

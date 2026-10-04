@@ -4,6 +4,7 @@ namespace Modules\Tenant\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Modules\Tenant\Http\Requests\Concerns\ValidatesTenantAddresses;
 use Modules\Tenant\Models\Tenant;
 use Modules\Tenant\Rules\ValidTaxNumber;
 
@@ -14,6 +15,8 @@ use Modules\Tenant\Rules\ValidTaxNumber;
  */
 class SaveTenantRequest extends FormRequest
 {
+    use ValidatesTenantAddresses;
+
     public function authorize(): bool
     {
         return $this->user()?->hasPermissionTo('tenant.manage') ?? false;
@@ -49,11 +52,6 @@ class SaveTenantRequest extends FormRequest
             'phone' => ['nullable', 'string', 'max:32'],
             'contact_person' => ['nullable', 'string', 'max:191'],
             'contact_phone' => ['nullable', 'string', 'max:32'],
-            'address' => ['nullable', 'string', 'max:1000'],
-            'city' => ['nullable', 'string', 'max:100'],
-            'district' => ['nullable', 'string', 'max:100'],
-            'country' => ['nullable', 'string', 'max:100'],
-            'postal_code' => ['nullable', 'string', 'max:16'],
             'credit_limit' => ['nullable', 'numeric', 'min:0'],
             'discount_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'is_active' => ['nullable', 'boolean'],
@@ -62,7 +60,13 @@ class SaveTenantRequest extends FormRequest
             'carrier_id' => ['required_if:shipping_agreement_type,own', 'nullable', 'integer', 'exists:carriers,id'],
             // Ham onay bayrağı — DB kolonu değil, tenantData() içinde shipping_terms_accepted_at'e çevrilir.
             'shipping_terms_accepted' => ['accepted_if:shipping_agreement_type,platform'],
+            ...$this->addressRules(),
         ];
+    }
+
+    public function attributes(): array
+    {
+        return $this->addressAttributes();
     }
 
     public function messages(): array
