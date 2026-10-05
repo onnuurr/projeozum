@@ -81,7 +81,9 @@ final class AiServiceProviderScanner
      */
     public static function driverClassesIn(string $body): array
     {
-        preg_match_all('/\b((?:Gemini|Fal|Mock)[A-Za-z0-9]*)::class/', $body, $m);
+        // Önekten sonra büyük harf şart: MockTryOn/GeminiTryOn/FalFashnTryOn sürücüdür; "Mockup"
+        // gibi önekle başlayan alan adları (MockupGeneratorContract, MockupVisionContract) değildir.
+        preg_match_all('/\b((?:Gemini|Fal|Mock)[A-Z][A-Za-z0-9]*)::class/', $body, $m);
 
         return array_values(array_unique($m[1]));
     }

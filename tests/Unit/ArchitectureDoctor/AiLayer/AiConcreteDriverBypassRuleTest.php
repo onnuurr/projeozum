@@ -3,6 +3,7 @@
 namespace Tests\Unit\ArchitectureDoctor\AiLayer;
 
 use ArchitectureDoctor\Rules\AiLayer\AiConcreteDriverBypassRule;
+use ArchitectureDoctor\Rules\AiLayer\AiServiceProviderScanner;
 use Tests\TestCase;
 
 class AiConcreteDriverBypassRuleTest extends TestCase
@@ -36,6 +37,14 @@ class AiConcreteDriverBypassRuleTest extends TestCase
         // GeminiSharedClient (fixture'daki GeminiClient karşılığı) hiçbir Contract'a bind
         // edilmediği için LegitimateConsumer'ın onu inject etmesi bypass sayılmamalı.
         $this->assertFalse(collect($files)->contains(fn ($f) => str_contains($f, 'LegitimateConsumer.php')));
+    }
+
+    public function test_driver_detection_ignores_domain_names_that_merely_start_with_mock(): void
+    {
+        $body = '$this->app->bind(MockupGeneratorContract::class, fn ($app) => $app->make($key ? GeminiMockupGenerator::class : MockMockupGenerator::class));'
+            . ' $this->app->bind(MockupVisionContract::class, PythonMockupVision::class);';
+
+        $this->assertSame(['GeminiMockupGenerator', 'MockMockupGenerator'], AiServiceProviderScanner::driverClassesIn($body));
     }
 
     public function test_it_does_not_flag_the_drivers_own_definition_file_or_provider(): void
