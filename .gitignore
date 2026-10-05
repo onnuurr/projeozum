@@ -33,6 +33,9 @@
 # üretilir (creative:train-garment-detector), repoya commitlenmez. FSRCNN
 # gibi küçük statik model dosyaları (python/models/*.pb) bundan etkilenmez.
 /Modules/Creative/python/models/garment_parts_*.pt
+# Mokap giydirme model dosyaları (MediaPipe .tflite/.task + SAM 2.1 HF önbelleği, ~225 MB) —
+# deploy'da indirilir (bkz. docs/superpowers/specs/2026-10-05-creative-mokap-giydirme-design.md).
+/Modules/Creative/python/models/mockup/
 _ide_helper.php
 Homestead.json
 Homestead.yaml

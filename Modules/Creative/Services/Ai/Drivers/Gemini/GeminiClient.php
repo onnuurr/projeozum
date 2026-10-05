@@ -7,7 +7,7 @@ use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Modules\Creative\Services\Ai\Support\ImageFile;
-use RuntimeException;
+use Modules\Creative\Services\Ai\Support\AiUsageRecorder;
 
 /**
  * Google Gemini görsel üretim istemcisi (generateContent).
@@ -180,7 +180,27 @@ class GeminiClient
             throw $exception;
         }
 
-        return $this->extractText($response->json() ?? []);
+        // Maliyet kaydı (yalnız başarılı çağrılar faturalanır) — bkz. AiUsageRecorder.
+        app(AiUsageRecorder::class)->recordGemini($operation, $model, $payload, $response->json() ?? []);
+
+        return $response;
+    }
+
+    /**
+     * Yanıtta beklenen parça yoksa sebep: güvenlik filtresi (promptFeedback.blockReason /
+     * finishReason SAFETY…) ya da gerçekten boş yanıt.
+     *
+     * @param  array<string,mixed>  $json
+     */
+    private function missingContent(array $json, string $expected): GeminiRequestException
+    {
+        $blockReason = $json['promptFeedback']['blockReason'] ?? null;
+        $finishReason = $json['candidates'][0]['finishReason'] ?? null;
+        $blocked = $blockReason !== null || in_array($finishReason, ['SAFETY', 'PROHIBITED_CONTENT', 'BLOCKLIST', 'SPII', 'IMAGE_SAFETY', 'RECITATION'], true);
+
+        Log::warning('Gemini yanıtında '.$expected.' yok.', ['block_reason' => $blockReason, 'finish_reason' => $finishReason]);
+
+        return new GeminiRequestException($blocked ? GeminiRequestException::BLOCKED : GeminiRequestException::EMPTY_RESPONSE);
     }
 
     /**

@@ -6,20 +6,32 @@ use Nwidart\Modules\Support\ModuleServiceProvider;
 use Modules\Creative\Console\Commands\CreativeReviewReportCommand;
 use Modules\Creative\Console\Commands\TrainGarmentDetectorCommand;
 use Modules\Creative\Console\Commands\TryonPromptCompareCommand;
+use Modules\Creative\Console\Commands\MockupGenerateCommand;
+use Modules\Creative\Console\Commands\AiUsageReportCommand;
+use Modules\Creative\Services\Ai\Contracts\MockupGeneratorContract;
+use Modules\Creative\Services\Ai\Support\AiUsageRecorder;
+use Modules\Creative\Services\Ai\Contracts\AiUsageStoreContract;
+use Modules\Creative\Services\DatabaseAiUsageStore;
+use Modules\Creative\Services\Ai\Contracts\MockupVisionContract;
+use Modules\Creative\Services\Ai\Drivers\Gemini\GeminiMockupGenerator;
+use Modules\Creative\Services\Ai\Drivers\Mock\MockMockupGenerator;
+use Modules\Creative\Services\Ai\Drivers\Python\PythonMockupVision;
 use Modules\Creative\Services\Ai\Contracts\CaptionGeneratorContract;
 use Modules\Creative\Services\Ai\Contracts\CompositionComposerContract;
 use Modules\Creative\Services\Ai\Contracts\CopyGeneratorContract;
 use Modules\Creative\Services\Ai\Contracts\GarmentIdentitySummarizerContract;
 use Modules\Creative\Services\Ai\Contracts\GarmentPartAnalyzerContract;
 use Modules\Creative\Services\Ai\Contracts\GarmentTryOnContract;
+use Modules\Creative\Services\Ai\Contracts\CloseupComposerContract;
+use Modules\Creative\Services\Ai\Drivers\Gemini\GeminiCloseupComposer;
+use Modules\Creative\Services\Ai\Drivers\Mock\MockCloseupComposer;
+use Modules\Creative\Services\Ai\TryOnDriverResolver;
 use Modules\Creative\Services\Ai\Contracts\MannequinComposerContract;
 use Modules\Creative\Services\Ai\Contracts\MannequinPoseComposerContract;
 use Modules\Creative\Services\Ai\Contracts\PosePreviewComposerContract;
 use Modules\Creative\Services\Ai\Contracts\RejectionInsightContract;
 use Modules\Creative\Services\Ai\Contracts\SceneComposerContract;
-use Modules\Creative\Services\Ai\Drivers\Fal\FalFashnTryOn;
 use Modules\Creative\Services\Ai\Drivers\Fal\FalFluxComposer;
-use Modules\Creative\Services\Ai\Drivers\Fal\FalFluxVtoTryOn;
 use Modules\Creative\Services\Ai\Drivers\Gemini\GeminiCaptionGenerator;
 use Modules\Creative\Services\Ai\Drivers\Gemini\GeminiCopyGenerator;
 use Modules\Creative\Services\Ai\Drivers\Gemini\GeminiIdentitySummarizer;
@@ -29,7 +41,6 @@ use Modules\Creative\Services\Ai\Drivers\Gemini\GeminiPartAnalyzer;
 use Modules\Creative\Services\Ai\Drivers\Gemini\GeminiPosePreviewComposer;
 use Modules\Creative\Services\Ai\Drivers\Gemini\GeminiRejectionInsightGenerator;
 use Modules\Creative\Services\Ai\Drivers\Gemini\GeminiSceneComposer;
-use Modules\Creative\Services\Ai\Drivers\Gemini\GeminiTryOn;
 use Modules\Creative\Services\Ai\Drivers\Mock\MockCaptionGenerator;
 use Modules\Creative\Services\Ai\Drivers\Mock\MockCompositionComposer;
 use Modules\Creative\Services\Ai\Drivers\Mock\MockCopyGenerator;
@@ -40,7 +51,6 @@ use Modules\Creative\Services\Ai\Drivers\Mock\MockPartAnalyzer;
 use Modules\Creative\Services\Ai\Drivers\Mock\MockPosePreviewComposer;
 use Modules\Creative\Services\Ai\Drivers\Mock\MockRejectionInsightGenerator;
 use Modules\Creative\Services\Ai\Drivers\Mock\MockSceneComposer;
-use Modules\Creative\Services\Ai\Drivers\Mock\MockTryOn;
 use Modules\Creative\Services\Enhancement\ColorLockContract;
 use Modules\Creative\Services\Enhancement\GarmentDetailClassifierContract;
 use Modules\Creative\Services\Enhancement\GarmentPartDetectorContract;
@@ -80,6 +90,8 @@ class CreativeServiceProvider extends ModuleServiceProvider
         CreativeReviewReportCommand::class,
         TrainGarmentDetectorCommand::class,
         TryonPromptCompareCommand::class,
+        MockupGenerateCommand::class,
+        AiUsageReportCommand::class,
     ];
 
     public function register(): void
@@ -217,26 +229,30 @@ class CreativeServiceProvider extends ModuleServiceProvider
             return $app->make($useGemini ? GeminiPosePreviewComposer::class : MockPosePreviewComposer::class);
         });
 
-        // AI try-on sürücüsü: gemini (Nano Banana 2) → fal → mock. Seçilen
-        // sürücünün anahtarı yoksa mock'a düşülür. fal tarafında iki farklı
-        // model şeması desteklenir — hangisinin bağlanacağı `creative.ai.fal.model`
-        // (FAL_TRYON_MODEL) değerine göre belirlenir: fashn/tryon (sabit warp
-        // API'si, FalFashnTryOn) veya flux-pro/v1/vto (prompt tabanlı FLUX,
-        // FalFluxVtoTryOn) — bkz. o sürücülerin sınıf dokblokları.
+        // AI try-on sürücüsü: gemini (Nano Banana 2) | fal | mock — seçim mantığı
+        // TryOnDriverResolver'da (sayfadaki Gemini/fal.ai seçimi de aynı sınıfı kullanır).
         $this->app->bind(GarmentTryOnContract::class, function ($app) {
-            $driver = config('creative.ai.tryon_driver');
-            $hasGemini = (bool) config('creative.ai.gemini.api_key');
-            $hasFal    = (bool) config('creative.ai.fal.key');
-            $isFashn   = str_contains((string) config('creative.ai.fal.model'), 'fashn');
+            $resolver = $app->make(TryOnDriverResolver::class);
 
-            $class = match (true) {
-                $driver === 'gemini' && $hasGemini => GeminiTryOn::class,
-                $driver === 'fal' && $hasFal && $isFashn => FalFashnTryOn::class,
-                $driver === 'fal' && $hasFal        => FalFluxVtoTryOn::class,
-                default                             => MockTryOn::class,
-            };
+            return $app->make($resolver->classFor($resolver->defaultDriver()));
+        });
 
-            return $app->make($class);
+        // AI maliyet kaydı: iş bağlamı (forSubject) kuyruk işi başına sıfırlansın diye scoped.
+        $this->app->scoped(AiUsageRecorder::class);
+        $this->app->bind(AiUsageStoreContract::class, DatabaseAiUsageStore::class);
+
+        // Mokap giydirme: AI adımları gemini (anahtar varsa) / mock; görüntü adımları Python
+        // (proje .venv'i — MediaPipe + SAM 2.1, Apache 2.0). Bkz. Services/Mockup.
+        $this->app->bind(MockupGeneratorContract::class, function ($app) {
+            return $app->make(config('creative.ai.gemini.api_key') ? GeminiMockupGenerator::class : MockMockupGenerator::class);
+        });
+        $this->app->bind(MockupVisionContract::class, PythonMockupVision::class);
+
+        // Yakın plan / detay çekimi sürücüsü: gemini (anahtar varsa), aksi halde mock.
+        // Seçilen try-on sürücüsünden bağımsızdır — fal fashn yalnız giydirme yapar,
+        // kadraj değiştiremez; yakın plan her zaman Gemini ile üretilir.
+        $this->app->bind(CloseupComposerContract::class, function ($app) {
+            return $app->make(config('creative.ai.gemini.api_key') ? GeminiCloseupComposer::class : MockCloseupComposer::class);
         });
 
         // Caption sürücüsü: gemini metin modeli (anahtar varsa), aksi halde mock.

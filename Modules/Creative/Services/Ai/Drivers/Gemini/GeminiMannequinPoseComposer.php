@@ -29,6 +29,11 @@ class GeminiMannequinPoseComposer implements MannequinPoseComposerContract
         if ($request->posePreviewPath !== null && is_file($request->posePreviewPath)) {
             $refs[] = $request->posePreviewPath;
         }
+        // Son referans (varsa): kombin tamamlamada stil referansı olan ürün görseli —
+        // sıra MannequinPosePromptBuilder::stylingLines()'taki görsel numarasıyla eşleşir.
+        if ($request->stylingGarmentPath !== null && is_file($request->stylingGarmentPath)) {
+            $refs[] = $request->stylingGarmentPath;
+        }
 
         // Poz görseli sonraki adımda try-on'a "kişi" referansı olarak girer;
         // düşük çözünürlükte üretilirse try-on çıktısı da o tavana sıkışır.

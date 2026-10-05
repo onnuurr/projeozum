@@ -38,3 +38,11 @@ pycocotools>=2.0
 # kullanımda sorunsuz). CREATIVE_GARMENT_ZERO_SHOT_ENABLED=true değilse hiç aranmaz —
 # varsayılan kapalı, çünkü ilk çalıştırmada ~1GB model ağırlığı indirir.
 transformers>=4.40
+
+# Mokap giydirme (mockup_segment.py / mockup_mask.py / mockup_composite.py) — yalnız
+# Apache 2.0 bileşenler: MediaPipe (Selfie Multiclass + Pose Landmarker) ve SAM 2.1
+# (transformers içindeki Sam2Model, ağırlık: facebook/sam2.1-hiera-small). NVIDIA SegFormer
+# türevleri ticari olmayan lisanslı olduğu için KULLANILMAZ. Model dosyaları için bkz.
+# models/README.md "Mokap giydirme".
+mediapipe>=1.0
+transformers>=5.0

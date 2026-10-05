@@ -397,6 +397,10 @@ return [
         // fashn/tryon v1.6 (logo/desen/yazı sadakatinde bağımsız incelemelerde
         // kategori lideri — bkz. yukarıdaki not).
         'tryon_driver'   => env('AI_STUDIO_TRYON_DRIVER', 'fal'),
+        // Kombin tamamlama: tek parça ürün (ör. etek) giydirilirken manken poz adımında
+        // ürüne uygun bir kombinle (üst, ayakkabı, çorap vb. — AI seçer) pozlanır, ürün
+        // sonra giydirilir. Her iki sürücüde de çalışır (bkz. MannequinPosePromptBuilder::stylingLines).
+        'tryon_styling'  => (bool) env('CREATIVE_TRYON_STYLING', true),
         // gemini | mock — caption/hashtag üretimi
         'caption_driver' => env('CREATIVE_CAPTION_DRIVER', 'gemini'),
         // gemini | mock — görsel-üstü metin (headline/sub-headline/CTA) üretimi
@@ -408,6 +412,24 @@ return [
             // Slot genişliği → karakter tavanı heuristiğinde kullanılan kaba glyph
             // genişlik katsayısı (gerçek font metriği değil, marka fontuna göre ayarlanabilir).
             'glyph_width_factor' => (float) env('CREATIVE_COPY_GLYPH_WIDTH_FACTOR', 0.55),
+        ],
+
+        // Maliyet kaydı (creative_ai_usages) için TAHMİNİ fiyat listesi (USD). Kaynak: Google resmi
+        // fiyat sayfası (ai.google.dev/gemini-api/docs/pricing, 2026-10-06). Fatura kesin kaynaktır;
+        // fiyat değişince burası güncellenir. Görsel modellerde çıktı, istenen imageSize'a göre
+        // görsel başı fiyattır; girdi (prompt + referans görseller) token fiyatıyla eklenir.
+        // fal.ai: çağrı başı fiyat — fal.ai model sayfasından doğrulanmalı.
+        'pricing' => [
+            'gemini' => [
+                'gemini-3.1-flash-image' => ['input_per_mtok' => 0.50, 'image' => ['512' => 0.045, '1K' => 0.067, '2K' => 0.101, '4K' => 0.151], 'default_size' => '1K'],
+                'gemini-2.5-flash-image' => ['input_per_mtok' => 0.30, 'image' => ['1K' => 0.039], 'default_size' => '1K'],
+                'gemini-2.5-flash'       => ['input_per_mtok' => 0.30, 'output_per_mtok' => 2.50],
+                'gemini-2.5-flash-lite'  => ['input_per_mtok' => 0.10, 'output_per_mtok' => 0.40],
+            ],
+            'fal' => [
+                'fal-ai/fashn/tryon/v1.6' => 0.075,
+                'default'                 => 0.05,
+            ],
         ],
 
         // AI çağrıları yavaş; pipeline genel zaman aşımı (saniye).
@@ -843,6 +865,101 @@ return [
             ['key' => 'three_qtr_back',       'label' => 'Üç-çeyrek arka',         'prompt' => 'a three-quarter back view, weight on one leg, head turned to camera'],
             ['key' => 'step_forward',         'label' => 'Öne adım',               'prompt' => 'taking a confident step forward toward the camera, arms swinging naturally'],
             ['key' => 'relaxed_lean',         'label' => 'Rahat yaslanış',         'prompt' => 'relaxed standing lean with weight back, hands loosely clasped in front'],
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Yakın plan / detay çekimleri
+    |--------------------------------------------------------------------------
+    | Onaylı bir tam boy giydirmeden aynı çekimin yakın kadrajları üretilir
+    | (bkz. ProductCloseupService). Gemini'ye giydirme sonucu (sahne/ışık/manken)
+    | + ürünün orijinal fotoğrafı (desen/doku sadakati) verilir. Sonuçlar
+    | creative_tryon_results'a shot=<anahtar> olarak yazılır, normal onay akışından
+    | geçer. Anahtar DB'de saklanır — mevcut bir anahtarı değiştirme, yenisini ekle.
+    | 'prompt' İngilizce kadraj tarifidir (ürünün bölgesine göre genel yazılır).
+    */
+    'closeup' => [
+        'shots' => [
+            'upper_body'  => ['label' => 'Bel üstü',      'prompt' => 'a medium close-up framed from just below the waist up to the top of the head, showing the upper-body garment(s) and how they sit on the shoulders and torso'],
+            'lower_body'  => ['label' => 'Bel altı',      'prompt' => 'a medium close-up framed from the waist down to the feet, showing the lower-body garment(s), their length, drape and how they fall, together with the footwear'],
+            'product'     => ['label' => 'Ürün odaklı',   'prompt' => 'a close-up tightly framed on the PRODUCT itself as worn, filling most of the frame, cropping away everything that is not needed to show the product'],
+            'neckline'    => ['label' => 'Yaka / bel',    'prompt' => 'a detail close-up of the product\'s top edge — the collar/neckline for tops and dresses, or the waistband for skirts and trousers — showing its construction, stitching and finish'],
+            'hem'         => ['label' => 'Etek / paça ucu', 'prompt' => 'a detail close-up of the product\'s bottom edge — the hem of the skirt/dress/top or the trouser cuff — showing the hem finish, stitching and how the fabric falls'],
+            'hardware'    => ['label' => 'Düğme / fermuar', 'prompt' => 'a detail close-up of the product\'s most prominent closure or hardware (buttons, zipper, buckle, drawstring or similar); if the product has none, its most distinctive construction detail'],
+            'fabric'      => ['label' => 'Kumaş dokusu',  'prompt' => 'a macro close-up of the product\'s fabric as worn on the body, showing the weave/knit texture, any print or pattern at true scale, and a natural fold'],
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Mokap giydirme (kilitli baz + maske + birleştirme)
+    |--------------------------------------------------------------------------
+    | Tasarım: docs/superpowers/specs/2026-10-05-creative-mokap-giydirme-design.md.
+    | Ürüne özel kombin → ana kare + türetilen pozlar (baz) → segmentasyon/maske →
+    | kırpılmış bölgeye Gemini giydirme → baz görselle birleştirme → onay kuyruğu.
+    | Segmentasyon yalnız Apache 2.0 bileşenlerle (MediaPipe + SAM 2.1); NVIDIA SegFormer
+    | türevleri ticari olmayan lisanslı olduğu için KULLANILMAZ.
+    */
+    'mockup' => [
+        // Proje sanal ortamı (mediapipe, torch, transformers kurulu).
+        'python_bin' => env('CREATIVE_MOCKUP_PYTHON_BIN', base_path('Modules/Creative/python/.venv/bin/python')),
+        'scripts' => [
+            'segment'   => base_path('Modules/Creative/python/mockup_segment.py'),
+            'mask'      => base_path('Modules/Creative/python/mockup_mask.py'),
+            'composite' => base_path('Modules/Creative/python/mockup_composite.py'),
+            'upscale'   => base_path('Modules/Creative/python/mockup_upscale.py'),
+        ],
+        'timeout' => (int) env('CREATIVE_MOCKUP_TIMEOUT', 300),
+
+        // Ara dosyalar (etiket haritası, maskeler) herkese açık diskte DEĞİL.
+        'work_disk' => env('CREATIVE_MOCKUP_WORK_DISK', 'local'),
+        'work_dir'  => 'creative/mockup',
+
+        // Baz ve giydirme görsel modeli (pilotta en sadık sonuç; fal fashn bu hatta kullanılmaz).
+        'image_model'  => env('CREATIVE_MOCKUP_IMAGE_MODEL', 'gemini-3.1-flash-image'),
+        'aspect_ratio' => '3:4',
+        // Maliyet: 1K görsel 0,067 $, 2K 0,101 $ (%34 fark). Bazlar 1K üretilip sunucuda FSRCNN ile
+        // base_width × base_height'a büyütülür (ücretsiz, ~2 sn); giydirme kırpılmış bölgeye yapıldığı
+        // için 1K çıktı kırpma boyutuna zaten denk (bkz. mockup_upscale.py, 2026-10-06 ölçümü).
+        'base_image_size'  => env('CREATIVE_MOCKUP_BASE_SIZE', '1K'),
+        'tryon_image_size' => env('CREATIVE_MOCKUP_TRYON_SIZE', '1K'),
+        'base_width'  => 1792,
+        'base_height' => 2400,
+
+        // Ürün başına poz: ana kare + stilistin seçtiği ek pozlar.
+        'master_pose'      => 'standing_front',
+        'extra_poses'      => (int) env('CREATIVE_MOCKUP_EXTRA_POSES', 2),
+        // Maske kalitesi ölçülmemiş / ürünü gizleyen pozlar (Faz 3'te poz etiketlerine taşınacak).
+        'excluded_poses'   => ['urun_detay', 'seated_chair', 'seated_editorial', 'seated_floor', 'crouching', 'arms_crossed', 'arms_raised', 'leaning_wall', 'hands_in_pockets', 'standing_back', 'three_qtr_back'],
+
+        // Kategori adı (küçük harf) → bölge [+ varsayılan boy]. Eşleşmeyen kategori mokap dışıdır
+        // (eski hattan geçer). Faz 4'te ayarlar sayfasına taşınacak.
+        'category_regions' => [
+            'etek'              => ['region' => 'bottom'],
+            'şort'              => ['region' => 'bottom', 'length' => 'mini'],
+            'alt giyim'         => ['region' => 'bottom'],
+            'kot pantolon'      => ['region' => 'bottom', 'length' => 'maxi'],
+            'tayt'              => ['region' => 'bottom', 'length' => 'maxi'],
+            'tişört'            => ['region' => 'top'],
+            'atlet'             => ['region' => 'top'],
+            'sweatshirt'        => ['region' => 'top'],
+            'kazak & hırka'     => ['region' => 'top'],
+            'üst giyim'         => ['region' => 'top'],
+            'takım'             => ['region' => 'set'],
+            'alt üst takım'     => ['region' => 'set'],
+            'ev giyim & pijama' => ['region' => 'set'],
+            'elbise & tulum'    => ['region' => 'one_piece'],
+            'tulum'             => ['region' => 'one_piece'],
+        ],
+
+        // Ürün "Boy" özelliği (product_attribute code=boy) seçenek adı (küçük harf) → uzunluk.
+        // Eşleşmeyen/"Belirtilmemiş" → kategori varsayılanı, o da yoksa stilistin tahmini (uyarılı).
+        'length_attribute' => 'boy',
+        'length_by_option' => [
+            'crop' => 'mini', 'kısa / mini' => 'mini', 'mini' => 'mini', 'ekstra kısa / süper mini' => 'mini',
+            'normal' => 'knee', 'normal boy' => 'knee', 'standart' => 'knee', 'regular' => 'knee',
+            'midi' => 'midi', 'uzun' => 'maxi', 'maxi' => 'maxi',
         ],
     ],
 ];

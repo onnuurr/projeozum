@@ -105,6 +105,8 @@ Route::middleware(['auth', 'verified'])
         ->middleware('can:creative.approve')->whereNumber('result')->name('tryon.approve');
     Route::post('/tryon/{result}/reject', [TryonController::class, 'reject'])
         ->middleware('can:creative.approve')->whereNumber('result')->name('tryon.reject');
+    Route::post('/tryon/{result}/closeups', [TryonController::class, 'closeups'])
+        ->middleware(['can:creative.asset.manage', 'throttle:15,1'])->whereNumber('result')->name('tryon.closeups');
     Route::post('/tryon/{result}/cover', [TryonController::class, 'setCover'])
         ->middleware('can:creative.asset.manage')->whereNumber('result')->name('tryon.cover');
     Route::delete('/tryon/{result}', [TryonController::class, 'destroyResult'])

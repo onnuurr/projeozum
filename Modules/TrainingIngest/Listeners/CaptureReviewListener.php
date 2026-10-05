@@ -52,6 +52,12 @@ class CaptureReviewListener implements ShouldQueue
         }
 
         $result = TryonResult::find($event->resultId);
+
+        // Yakın plan / detay çekimleri (shot != 'full') giydirme üretimi değil — eğitim
+        // verisine (try-on yakalaması) girmez; TryonGenerationRendered de onlar için yayılmaz.
+        if ($result?->isCloseup()) {
+            return;
+        }
         $localPath = $result?->staged_image_path ? Media::localPath($result->staged_image_path) : null;
 
         if (! $localPath) {

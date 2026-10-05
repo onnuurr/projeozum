@@ -11,6 +11,21 @@
 
 		<PageHeader title="Ürün Giydirme" subtitle="Ürünü bir mankenin pozlarına giydir, ürün görseli olarak ekle">
 			<template #actions>
+				<!-- Giydirme sürücüsü: yeni kuyruğa alınan üretimler seçili servisle yapılır. -->
+				<div v-if="can('creative.asset.manage')" class="driver-toggle" role="radiogroup" aria-label="Giydirme servisi">
+					<button
+						v-for="d in TRYON_DRIVERS"
+						:key="d.key"
+						type="button"
+						role="radio"
+						class="driver-toggle__opt"
+						:class="{ active: tryonDriver === d.key }"
+						:aria-checked="tryonDriver === d.key"
+						:disabled="!tryonDriverAvailable[d.key]"
+						:title="tryonDriverAvailable[d.key] ? `Ürün giydirme ${d.label} ile yapılır` : `${d.label} API anahtarı tanımlı değil`"
+						@click="tryonDriver = d.key"
+					>{{ d.label }}</button>
+				</div>
 				<Badge
 					v-if="falBalance"
 					:icon="CreditCard"
@@ -365,6 +380,15 @@
 				>{{ f.label }}</button>
 				<span class="filter-sep"></span>
 				<button
+					v-for="f in SHOT_FILTERS"
+					:key="f.key"
+					type="button"
+					class="filter-chip"
+					:class="{ active: shotFilter === f.key }"
+					@click="shotFilter = f.key"
+				>{{ f.label }}</button>
+				<span class="filter-sep"></span>
+				<button
 					v-for="f in REVIEW_FILTERS"
 					:key="f.key"
 					type="button"
@@ -393,6 +417,7 @@
 						<button v-if="r.image_url" class="zoom-badge" title="Büyük önizleme" @click="openPreview(r)"><Maximize2 :size="13" /></button>
 						<Badge class="status-badge" :color="statusColor(r.status)" :label="statusLabel(r.status)" variant="filled" />
 						<Badge v-if="r.is_cover" class="cover-badge" :icon="Star" label="Kapak" color="neutral" variant="filled" />
+						<Badge v-if="r.shot_label" class="shot-badge" :icon="ZoomIn" :label="r.shot_label" color="primary" variant="filled" />
 						<Badge
 							v-if="r.review_status"
 							class="review-badge"
@@ -403,7 +428,7 @@
 					</div>
 					<div class="result-meta">
 						<span class="result-product">{{ r.product_name }}</span>
-						<span class="result-sub">{{ r.mannequin_name }} · {{ r.pose_label }}</span>
+						<span class="result-sub">{{ r.mannequin_name }} · {{ r.pose_label }}<template v-if="r.shot_label"> · {{ r.shot_label }}</template></span>
 						<span v-if="r.creator_name" class="result-creator">Üreten: {{ r.creator_name }}{{ r.is_own ? ' (siz)' : '' }}</span>
 						<span v-if="r.tryon_model" class="result-model" :title="r.tryon_model">Model: {{ r.tryon_model }}</span>
 						<div v-if="r.review_tags && r.review_tags.length" class="review-tags">
@@ -418,6 +443,7 @@
 							<template v-if="r.status === 'done' && r.review_status === 'approved'">
 								<button v-if="!r.is_cover" type="button" class="link-btn" @click="setCover(r)">Kapak yap</button>
 								<span v-else class="is-cover-note">Kapak</span>
+								<button v-if="r.shot === 'full'" type="button" class="link-btn" @click="openCloseupPicker(r)">Yakın plan üret</button>
 							</template>
 							<button type="button" class="link-btn danger" @click="destroyResult(r)">Sil</button>
 						</div>
@@ -431,6 +457,42 @@
 				</div>
 			</div>
 		</Card>
+
+		<!-- Yakın plan kadraj seçimi: onaylı tam boy giydirmeden aynı çekimin yakın kareleri -->
+		<Teleport to="body">
+			<div v-if="closeupSource" class="lightbox" @click.self="closeCloseupPicker">
+				<div class="cu-box">
+					<button class="lb-close" @click="closeCloseupPicker"><X :size="16" /></button>
+					<div class="cu-head">
+						<img v-if="closeupSource.image_url" :src="closeupSource.image_url" :alt="closeupSource.product_name" />
+						<div>
+							<h3 class="lb-title">Yakın plan üret</h3>
+							<p class="cu-sub">{{ closeupSource.product_name }} · {{ closeupSource.pose_label }}</p>
+							<p class="cu-hint">Bu giydirmeyle aynı çekimden yakın kareler üretilir; ürünün orijinal fotoğrafı desen/doku için referans alınır. Sonuçlar onaya düşer.</p>
+						</div>
+					</div>
+					<div class="cu-shots">
+						<label v-for="(label, key) in closeupShots" :key="key" class="cu-shot" :class="{ active: closeupSelected.has(key) }">
+							<input type="checkbox" :checked="closeupSelected.has(key)" @change="toggleCloseupShot(key)" />
+							<span>{{ label }}</span>
+							<small v-if="existingCloseups[key]" :class="`cu-state is-${existingCloseups[key].review_status || existingCloseups[key].status}`">
+								{{ existingCloseups[key].review_status ? reviewLabel(existingCloseups[key].review_status) : statusLabel(existingCloseups[key].status) }}
+							</small>
+						</label>
+					</div>
+					<p v-if="closeupOverwriteCount" class="cu-warn"><AlertTriangle :size="12" /> Seçilenlerden {{ closeupOverwriteCount }} tanesi zaten var; yeniden üretilir ve onayı sıfırlanır.</p>
+					<div class="cu-actions">
+						<button type="button" class="link-btn" @click="selectAllCloseups">{{ closeupSelected.size === Object.keys(closeupShots).length ? 'Seçimi temizle' : 'Tümünü seç' }}</button>
+						<span class="step-nav-spacer"></span>
+						<Button variant="ghost" @click="closeCloseupPicker">Vazgeç</Button>
+						<Button :disabled="!closeupSelected.size || closeupBusy" @click="submitCloseups">
+							<template #leading><ZoomIn :size="14" /></template>
+							{{ closeupSelected.size ? `${closeupSelected.size} yakın plan üret` : 'Kadraj seçin' }}
+						</Button>
+					</div>
+				</div>
+			</div>
+		</Teleport>
 
 		<!-- Büyük önizleme (lightbox) -->
 		<Teleport to="body">
@@ -461,6 +523,7 @@
 						<div class="lb-tags-meta">
 							<Tag :label="preview.mannequin_name" color="primary" />
 							<Tag :label="preview.pose_label" color="neutral" />
+							<Tag v-if="preview.shot_label" :label="`Yakın plan: ${preview.shot_label}`" color="primary" />
 							<Tag v-if="preview.review_status" :label="reviewLabel(preview.review_status)" :color="reviewColor(preview.review_status)" />
 						</div>
 						<span class="lb-hint">Yakınlaştırmak için fare tekerleği veya pinch, gezinmek için sürükleyin.</span>
@@ -481,7 +544,7 @@ import { Head, Link, router } from '@inertiajs/vue3'
 import {
 	RefreshCw, Play, Maximize2, Star, AlertTriangle, Check, X, ClipboardList, MessageCircle, Download,
 	Search, Loader2, PackageSearch, Users, Footprints, ImageOff, ShieldCheck, Info, ChevronRight, ChevronLeft, ImagePlus,
-	CreditCard,
+	CreditCard, ZoomIn,
 } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
@@ -509,6 +572,25 @@ const props = defineProps({
 	poses: { type: Array, default: () => [] },
 	rejectionReasons: { type: Array, default: () => [] },
 	geminiSpend: { type: Object, default: null },
+	// { anahtar: etiket } — yakın plan kadraj kataloğu (config creative.closeup.shots)
+	closeupShots: { type: Object, default: () => ({}) },
+	// { default: 'fal'|'gemini', available: { gemini: bool, fal: bool } } — bkz. TryOnDriverResolver
+	tryonDriver: { type: Object, default: () => ({ default: 'fal', available: {} }) },
+})
+
+// Başlıktaki Gemini / fal.ai seçici: seçim bu tarayıcıda hatırlanır, ilk açılışta config varsayılanı.
+const TRYON_DRIVERS = [{ key: 'gemini', label: 'Gemini' }, { key: 'fal', label: 'fal.ai' }]
+const TRYON_DRIVER_STORAGE_KEY = 'creative.tryon.driver'
+const tryonDriverAvailable = computed(() => props.tryonDriver?.available ?? {})
+const tryonDriver = ref((() => {
+	let stored = null
+	try { stored = window.localStorage.getItem(TRYON_DRIVER_STORAGE_KEY) } catch {}
+	return [stored, props.tryonDriver?.default].find(k => k && tryonDriverAvailable.value[k])
+		?? TRYON_DRIVERS.find(d => tryonDriverAvailable.value[d.key])?.key
+		?? null
+})())
+watch(tryonDriver, (v) => {
+	try { v && window.localStorage.setItem(TRYON_DRIVER_STORAGE_KEY, v) } catch {}
 })
 
 // fal.ai bakiyesi artık sayfa yüküne dahil DEĞİL (bkz. TryonController::index()
@@ -863,7 +945,7 @@ const approvedPoseIdsForSelectedProduct = computed(() => {
 	const set = new Set()
 	if (selectedProduct.value === null) return set
 	for (const r of displayResults.value) {
-		if (r.product_id === selectedProduct.value && r.review_status === 'approved' && r.pose_id) set.add(r.pose_id)
+		if (r.product_id === selectedProduct.value && r.shot === 'full' && r.pipeline !== 'mockup' && r.review_status === 'approved' && r.pose_id) set.add(r.pose_id)
 	}
 	return set
 })
@@ -914,12 +996,64 @@ const REVIEW_FILTERS = [
 	{ key: 'approved', label: 'Onaylı' },
 	{ key: 'rejected', label: 'Reddedildi' },
 ]
+const SHOT_FILTERS = [
+	{ key: 'all', label: 'Tümü' },
+	{ key: 'full', label: 'Tam boy' },
+	{ key: 'closeup', label: 'Yakın plan' },
+]
 const statusFilter = ref('all')
 const reviewFilter = ref('all')
+const shotFilter = ref('all')
 const filteredResults = computed(() => displayResults.value.filter(r =>
 	(statusFilter.value === 'all' || r.status === statusFilter.value)
+	&& (shotFilter.value === 'all' || (shotFilter.value === 'full') === (r.shot === 'full'))
 	&& (reviewFilter.value === 'all' || r.review_status === reviewFilter.value),
 ))
+
+// ── Yakın plan üretimi (onaylı tam boy giydirmeden) ──
+const closeupSource = ref(null)
+const closeupSelected = reactive(new Set())
+const closeupBusy = ref(false)
+// Bu kaynaktan daha önce üretilmiş yakın planlar (kadraj => sonuç) — durum etiketi + üzerine yazma uyarısı
+const existingCloseups = computed(() => {
+	const map = {}
+	if (!closeupSource.value) return map
+	for (const r of displayResults.value) {
+		if (r.shot !== 'full' && r.pipeline === closeupSource.value.pipeline && r.product_id === closeupSource.value.product_id && r.pose_id === closeupSource.value.pose_id) map[r.shot] = r
+	}
+	return map
+})
+const closeupOverwriteCount = computed(() => Array.from(closeupSelected).filter(k => existingCloseups.value[k]).length)
+
+function openCloseupPicker(r) {
+	closeupSelected.clear()
+	closeupSource.value = r
+}
+function closeCloseupPicker() {
+	if (closeupBusy.value) return
+	closeupSource.value = null
+}
+function toggleCloseupShot(key) {
+	closeupSelected.has(key) ? closeupSelected.delete(key) : closeupSelected.add(key)
+}
+function selectAllCloseups() {
+	const keys = Object.keys(props.closeupShots)
+	if (closeupSelected.size === keys.length) closeupSelected.clear()
+	else keys.forEach(k => closeupSelected.add(k))
+}
+function submitCloseups() {
+	if (!closeupSource.value || !closeupSelected.size) return
+	closeupBusy.value = true
+	router.post(`/creative/tryon/${closeupSource.value.id}/closeups`, { shots: Array.from(closeupSelected) }, {
+		preserveScroll: true,
+		onSuccess: () => {
+			closeupSource.value = null
+			refetchProductResultsIfActive()
+		},
+		onError: (errs) => showToast?.({ type: 'error', title: 'Başlatılamadı', message: Object.values(errs)[0] || 'Doğrulama hatası.' }),
+		onFinish: () => { closeupBusy.value = false },
+	})
+}
 
 function approve(r) {
 	if (busyReview.value) return
@@ -983,6 +1117,7 @@ async function generate() {
 		product_id: selectedProduct.value,
 		mannequin_id: selectedMannequin.value,
 		pose_ids: Array.from(selectedPoses),
+		tryon_driver: tryonDriver.value,
 		garment_image: garmentFile.value,
 		garment_details: [...fixedDetailSlots, ...customDetailSlots]
 			.filter(d => d.file)
@@ -1141,6 +1276,27 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.shot-badge { position: absolute; top: 34px; left: 6px; }
+.cu-box { position: relative; width: min(560px, 100%); max-height: 90vh; overflow: auto; background: var(--color-surface); border-radius: 16px; padding: 20px; box-shadow: 0 24px 80px rgba(0,0,0,.4); }
+.cu-head { display: flex; gap: 14px; align-items: flex-start; padding-right: 28px; }
+.cu-head img { width: 72px; height: 96px; object-fit: cover; border-radius: 8px; flex-shrink: 0; }
+.cu-sub { margin: 2px 0 0; font-size: 12.5px; color: var(--color-ink); }
+.cu-hint { margin: 6px 0 0; font-size: 12px; line-height: 1.45; color: var(--color-muted); }
+.cu-shots { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-top: 16px; }
+.cu-shot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 9px 11px; border: 1.5px solid var(--color-outline-variant); border-radius: 10px; font-size: 12.5px; font-weight: 600; color: var(--color-ink); cursor: pointer; }
+.cu-shot.active { border-color: var(--color-primary); background: var(--color-primary-soft); }
+.cu-shot input { accent-color: var(--color-primary); }
+.cu-state { width: 100%; font-size: 10.5px; font-weight: 600; color: var(--color-muted); }
+.cu-state.is-approved { color: var(--color-success); }
+.cu-state.is-rejected, .cu-state.is-failed { color: var(--color-danger); }
+.cu-state.is-pending, .cu-state.is-generating { color: var(--color-warning); }
+.cu-warn { display: flex; align-items: center; gap: 6px; margin: 12px 0 0; font-size: 12px; color: var(--color-warning); }
+.cu-actions { display: flex; align-items: center; gap: 8px; margin-top: 18px; }
+.driver-toggle { display: inline-flex; padding: 2px; gap: 2px; border-radius: 9px; border: 1px solid var(--color-outline-variant); background: var(--color-surface-container-low); }
+.driver-toggle__opt { height: 28px; padding: 0 12px; border: 0; border-radius: 7px; background: transparent; font: inherit; font-size: 12px; font-weight: 600; color: var(--color-muted); cursor: pointer; transition: background .15s, color .15s; }
+.driver-toggle__opt:hover:not(:disabled):not(.active) { color: var(--color-ink); }
+.driver-toggle__opt.active { background: var(--color-primary); color: #fff; }
+.driver-toggle__opt:disabled { opacity: .45; cursor: not-allowed; }
 .empty-block { text-align: center; color: var(--color-muted); padding: 28px 0; font-style: italic; font-size: 13px; }
 .hint { font-size: 12px; color: var(--color-muted); }
 .inline-link { color: var(--color-primary); font-weight: 600; }

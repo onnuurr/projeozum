@@ -9,6 +9,9 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Modules\Creative\Models\TryonResult;
+use Modules\Creative\Services\Ai\Support\AiUsageRecorder;
+use Modules\Creative\Services\Mockup\MockupTryOnService;
+use Modules\Creative\Services\ProductCloseupService;
 use Modules\Creative\Services\ProductOnModelService;
 use Throwable;
 
@@ -45,7 +48,7 @@ class GenerateOnModelJob implements ShouldQueue
         return [10, 30];
     }
 
-    public function handle(ProductOnModelService $service): void
+    public function handle(ProductOnModelService $service, ProductCloseupService $closeups, ?MockupTryOnService $mockups = null): void
     {
         $result = TryonResult::find($this->resultId);
 
@@ -60,7 +63,15 @@ class GenerateOnModelJob implements ShouldQueue
         $result->update(['status' => TryonResult::STATUS_GENERATING, 'error' => null]);
 
         try {
-            $service->generate($result, $this->generationToken);
+            // Yakın plan satırları (shot != 'full') aynı kuyruk/yeniden deneme/ret sohbeti
+            // akışını kullanır ama kendi üretim hattından geçer.
+            // AI maliyet kaydı bu sonuca bağlanır (creative_ai_usages.subject).
+            app(AiUsageRecorder::class)->forSubject($result, fn () => match (true) {
+                $result->isCloseup() => $closeups->generate($result, $this->generationToken),
+                // Mokap (kilitli baz + maske + birleştirme) — bkz. MockupTryOnService
+                $result->isMockup()  => ($mockups ?? app(MockupTryOnService::class))->generate($result, $this->generationToken),
+                default              => $service->generate($result, $this->generationToken),
+            });
         } catch (Throwable $e) {
             if (! $this->isCurrent($result->fresh())) {
                 return;

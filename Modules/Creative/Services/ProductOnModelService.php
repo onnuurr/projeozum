@@ -11,6 +11,7 @@ use Modules\Creative\Models\Mannequin;
 use Modules\Creative\Models\Pose;
 use Modules\Creative\Models\TryonResult;
 use Modules\Creative\Services\Ai\Contracts\GarmentTryOnContract;
+use Modules\Creative\Services\Ai\TryOnDriverResolver;
 use Modules\Creative\Services\Ai\Contracts\MannequinPoseComposerContract;
 use Modules\Creative\Services\Ai\MannequinPoseRequest;
 use Modules\Creative\Services\Ai\Support\ImageFile;
@@ -30,13 +31,14 @@ use RuntimeException;
  * ÜRETİM bitince product_images'a DEĞİL, staged_image_path'e yazılır — insan
  * onayı olmadan mağazada görünmez. Onay anında {@see publish()} çağrılır ve
  * ancak o zaman Product modülünün product_images tablosuna satır eklenir.
- * İzlenebilirlik/idempotensi: creative_tryon_results (product_id+pose_id benzersiz).
+ * İzlenebilirlik/idempotensi: creative_tryon_results (product_id+pose_id+shot benzersiz;
+ * bu servis yalnız shot='full' satırlarını üretir — yakın planlar ProductCloseupService'te).
  */
 class ProductOnModelService
 {
     public function __construct(
         private MannequinPoseComposerContract $poseComposer,
-        private GarmentTryOnContract $tryOn,
+        private TryOnDriverResolver $tryOnDrivers,
         private CanvasAssetResolver $resolver,
         private ImageEnhancerContract $enhancer,
         private GarmentPrepContract $garmentPrep,
@@ -58,9 +60,12 @@ class ProductOnModelService
      * @param  array<int,array{path:string,label:?string}>  $garmentExtras  Opsiyonel detay
      *                                         görselleri (arkadan/yandan/dikiş vb.); AI
      *                                         giydirmede ek referans olarak kullanılır.
+     * @param  string|null  $tryOnDriver  Sayfada seçilen giydirme sürücüsü (gemini|fal); null →
+     *                                    config varsayılanı. meta.tryon_driver_requested'e yazılır,
+     *                                    generate() (ve sonraki yeniden üretimler) bunu kullanır.
      * @return Collection<int,TryonResult>
      */
-    public function queue(Product $product, Mannequin $mannequin, array $poseIds, ?int $creatorId = null, ?string $garmentImagePath = null, array $garmentExtras = []): Collection
+    public function queue(Product $product, Mannequin $mannequin, array $poseIds, ?int $creatorId = null, ?string $garmentImagePath = null, array $garmentExtras = [], ?string $tryOnDriver = null): Collection
     {
         $poses = Pose::query()
             ->where('status', Pose::STATUS_READY)
@@ -70,10 +75,12 @@ class ProductOnModelService
         // meta tamamen ezilmez: sohbetten gelen chat_suggested_instruction /
         // extra_instructions gibi önceki alanlar korunur, sadece garment_extras
         // güncellenir (bkz. ReviewChatController::applyTryon — orada meta merge edilir).
-        return $poses->map(function (Pose $pose) use ($product, $mannequin, $garmentImagePath, $garmentExtras, $creatorId) {
+        return $poses->map(function (Pose $pose) use ($product, $mannequin, $garmentImagePath, $garmentExtras, $creatorId, $tryOnDriver) {
             $meta = TryonResult::query()
                 ->where('product_id', $product->id)
                 ->where('pose_id', $pose->id)
+                ->where('shot', TryonResult::SHOT_FULL)
+                ->where('pipeline', TryonResult::PIPELINE_LEGACY)
                 ->first()?->meta ?? [];
 
             if ($garmentExtras !== []) {
@@ -82,8 +89,14 @@ class ProductOnModelService
                 unset($meta['garment_extras']);
             }
 
+            if ($tryOnDriver !== null) {
+                $meta['tryon_driver_requested'] = $tryOnDriver;
+            } else {
+                unset($meta['tryon_driver_requested']);
+            }
+
             return TryonResult::updateOrCreate(
-                ['product_id' => $product->id, 'pose_id' => $pose->id],
+                ['product_id' => $product->id, 'pose_id' => $pose->id, 'shot' => TryonResult::SHOT_FULL, 'pipeline' => TryonResult::PIPELINE_LEGACY],
                 [
                     'mannequin_id'       => $mannequin->id,
                     'garment_image_path' => $garmentImagePath,
@@ -226,6 +239,9 @@ class ProductOnModelService
                 label:              (string) ($pose->label ?: $pose->pose_key),
                 directive:          $directive,
                 posePreviewPath:    $posePreview,
+                // Kombin tamamlama: ürün görseli stil referansı olur, eksik parçaları AI seçer;
+                // ürünün kendisi aşağıdaki try-on adımında giydirilir.
+                stylingGarmentPath: config('creative.ai.tryon_styling') ? $garmentPath : null,
             ));
 
             // 2) Ürünü bu poza giydir (destekleyen sürücülerde ek açı/detay görselleri VE
@@ -245,7 +261,9 @@ class ProductOnModelService
                 'requested_at'     => $requestedAt,
             ];
 
-            $out = $this->tryOn->tryOn($posed, $garmentPath, $directives, $extra !== '' ? $extra : null, $protectListSentence, $context);
+            // Sayfada seçilen sürücü (meta.tryon_driver_requested), yoksa config varsayılanı.
+            $tryOn = $this->tryOnDrivers->make($result->meta['tryon_driver_requested'] ?? null);
+            $out = $tryOn->tryOn($posed, $garmentPath, $directives, $extra !== '' ? $extra : null, $protectListSentence, $context);
 
             // 2b) Renk sadakati (Faz Q): kapalıysa (varsayılan) $locked === $out,
             //     davranış hiç değişmez. Açıksa ürünün rengini orijinal fotoğrafa doğru
@@ -291,8 +309,8 @@ class ProductOnModelService
                 // config('creative.ai.tryon_driver') İSTENEN sürücüyü söyler; anahtar
                 // eksikse binding sessizce mock'a düşebileceğinden (CreativeServiceProvider),
                 // burada GERÇEKTEN çalışan sürücü, çözülen instance'ın namespace'inden okunur.
-                'tryon_driver'      => $this->resolveTryOnDriverName(),
-                'tryon_model'       => $this->tryOn->modelIdentifier(),
+                'tryon_driver'      => $this->resolveTryOnDriverName($tryOn),
+                'tryon_model'       => $tryOn->modelIdentifier(),
                 'generation_duration_ms' => (int) round((microtime(true) - $startedAt) * 1000),
                 'error'             => null,
                 'review_status'     => TryonResult::REVIEW_PENDING,
@@ -334,7 +352,8 @@ class ProductOnModelService
 
         $image = $product->images()->create([
             'path'       => $result->staged_image_path,
-            'alt_text'   => trim($product->name . ' — ' . ($pose?->label ?: $pose?->pose_key)),
+            'alt_text'   => trim($product->name . ' — ' . ($pose?->label ?: $pose?->pose_key)
+                . ($result->isCloseup() ? ' — ' . (config("creative.closeup.shots.{$result->shot}.label") ?? $result->shot) : '')),
             'sort_order' => $sortOrder,
             'is_cover'   => false,
         ]);
@@ -351,13 +370,13 @@ class ProductOnModelService
     }
 
     /**
-     * Enjekte edilen GarmentTryOnContract implementasyonunun namespace'inden gerçek
+     * Kullanılan GarmentTryOnContract implementasyonunun namespace'inden gerçek
      * sürücü adını çıkarır (fal|gemini|mock) — raporlarda config'teki İSTENEN sürücü
      * değil, o üretimde FİİLEN çalışan sürücü görünsün diye.
      */
-    private function resolveTryOnDriverName(): string
+    private function resolveTryOnDriverName(GarmentTryOnContract $tryOn): string
     {
-        $class = get_class($this->tryOn);
+        $class = get_class($tryOn);
 
         return match (true) {
             str_contains($class, '\\Drivers\\Fal\\')    => 'fal',
@@ -367,11 +386,23 @@ class ProductOnModelService
     }
 
     /**
+     * Ürünün yalın (mankensiz) fotoğrafı — giydirme çıktıları (onmodel_*) hariç. Giydirme
+     * onaylanıp kapak yapıldıysa {@see pickGarmentSrc()} mankenli görseli seçerdi; yakın plan
+     * ve mokap giydirmede sadakat referansı mutlaka ürünün kendi fotoğrafı olmalı.
+     */
+    public function pickPlainProductPhoto(Product $product): ?string
+    {
+        $photos = $product->images->reject(fn (ProductImage $i) => str_contains((string) $i->path, '/onmodel_'));
+
+        return ($photos->firstWhere('is_cover', true) ?? $photos->first())?->path;
+    }
+
+    /**
      * Ürünün kendi galerisinden giysi referansı seçer (kapak, yoksa ilk görsel).
      * Sadece result->garment_image_path boşsa (ekrandan ayrıca yükleme yapılmadıysa)
      * kullanılır; bkz. generate().
      */
-    private function pickGarmentSrc(Product $product): ?string
+    public function pickGarmentSrc(Product $product): ?string
     {
         $images = $product->images;
         if ($images->isEmpty()) {
@@ -393,7 +424,7 @@ class ProductOnModelService
      *
      * @param  array<int,string>  $preparedTemps
      */
-    private function prepareGarmentImage(string $path, array &$preparedTemps): string
+    public function prepareGarmentImage(string $path, array &$preparedTemps): string
     {
         $prepared = $this->garmentPrep->prepare($path);
         if ($prepared !== $path) {
@@ -408,7 +439,7 @@ class ProductOnModelService
      * DEĞİL. Yol sonuç id'sine göre deterministiktir; yeniden üretim aynı dosyayı ezer,
      * disk şişmesi/yetim dosya birikmez.
      */
-    private function persistStaged(string $sourcePath, Product $product, TryonResult $result): string
+    public function persistStaged(string $sourcePath, Product $product, TryonResult $result): string
     {
         $bytes = @file_get_contents($sourcePath);
         if ($bytes === false || $bytes === '') {

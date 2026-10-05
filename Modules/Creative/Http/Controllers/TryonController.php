@@ -15,15 +15,18 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Creative\Events\TryonReviewed;
 use Modules\Creative\Http\Controllers\Concerns\HandlesCreativeReview;
+use Modules\Creative\Http\Requests\GenerateCloseupsRequest;
 use Modules\Creative\Http\Requests\GenerateTryonRequest;
 use Modules\Creative\Jobs\GenerateOnModelJob;
 use Modules\Creative\Models\GarmentLabel;
 use Modules\Creative\Models\Mannequin;
 use Modules\Creative\Models\Pose;
 use Modules\Creative\Models\TryonResult;
+use Modules\Creative\Services\Ai\TryOnDriverResolver;
 use Modules\Creative\Services\Enhancement\GarmentDetailClassifierContract;
 use Modules\Creative\Services\FalBalanceService;
 use Modules\Creative\Services\GeminiSpendService;
+use Modules\Creative\Services\ProductCloseupService;
 use Modules\Creative\Services\ProductOnModelService;
 use Modules\Creative\Services\ReviewNotifier;
 use Modules\Product\Models\Product;
@@ -41,7 +44,7 @@ class TryonController extends Controller
      */
     private const PRODUCT_PAGE_SIZE = 60;
 
-    public function index(GeminiSpendService $geminiSpend): Response
+    public function index(GeminiSpendService $geminiSpend, TryOnDriverResolver $tryOnDrivers): Response
     {
         $productsTotal = Product::query()->count();
 
@@ -86,6 +89,13 @@ class TryonController extends Controller
             'poses'            => $poses,
             'rejectionReasons' => $this->rejectionReasonGroups('tryon'),
             'geminiSpend'      => $geminiSpend->currentMonthSpend(),
+            // Onaylı giydirmeden üretilebilecek yakın plan kadrajları (anahtar => etiket).
+            'closeupShots'     => ProductCloseupService::shotOptions(),
+            // Başlıktaki Gemini / fal.ai seçici: varsayılan + anahtarı tanımlı olanlar.
+            'tryonDriver'      => [
+                'default'   => $tryOnDrivers->defaultDriver(),
+                'available' => $tryOnDrivers->availability(),
+            ],
         ]);
     }
 
@@ -166,6 +176,11 @@ class TryonController extends Controller
             'mannequin_name'  => $r->mannequin?->name,
             'pose_id'         => $r->pose_id,
             'pose_label'      => $r->pose?->label,
+            // 'full' = tam boy giydirme; diğerleri yakın plan kadrajı (bkz. ProductCloseupService).
+            'shot'            => $r->shot ?? TryonResult::SHOT_FULL,
+            'pipeline'        => $r->pipeline ?? TryonResult::PIPELINE_LEGACY,
+            'shot_label'      => $r->isCloseup() ? (ProductCloseupService::shotOptions()[$r->shot] ?? $r->shot) : null,
+            'source_result_id' => $r->source_result_id,
             // Onaydan önce henüz product_images satırı yok; staged (bekleyen) önizleme gösterilir.
             // Dosya adı result id'sine sabit (onmodel_staged_{id}.webp) ve nginx statik
             // varlıkları 10 yıl cache'liyor (bkz. `expires max`) — aynı satır yeniden
@@ -264,7 +279,7 @@ class TryonController extends Controller
             ];
         }
 
-        $queued = $service->queue($product, $mannequin, $request->validated('pose_ids'), auth()->id(), $garmentImagePath, $garmentExtras);
+        $queued = $service->queue($product, $mannequin, $request->validated('pose_ids'), auth()->id(), $garmentImagePath, $garmentExtras, $request->validated('tryon_driver'));
 
         if ($queued->isEmpty()) {
             return back()->with('error', __('creative::messages.tryon.no_pose_ready'));
@@ -275,6 +290,25 @@ class TryonController extends Controller
         }
 
         return back()->with('success', __('creative::messages.tryon.queued', ['count' => $queued->count()]));
+    }
+
+    /**
+     * Onaylı bir tam boy giydirmeden seçili kadrajlarda yakın plan / detay çekimleri
+     * kuyruğa alır (bkz. ProductCloseupService). Sonuçlar galeride aynı onay akışıyla görünür.
+     */
+    public function closeups(TryonResult $result, GenerateCloseupsRequest $request, ProductCloseupService $service): RedirectResponse
+    {
+        try {
+            $queued = $service->queue($result, $request->validated('shots'), auth()->id());
+        } catch (\RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        foreach ($queued as $closeup) {
+            GenerateOnModelJob::dispatch($closeup->id, $closeup->generation_token);
+        }
+
+        return back()->with('success', __('creative::messages.closeup.queued', ['count' => $queued->count()]));
     }
 
     /**
@@ -339,6 +373,7 @@ class TryonController extends Controller
                 'product_name'           => $result->product?->name,
                 'mannequin_name'         => $result->mannequin?->name,
                 'pose_label'             => $result->pose?->label,
+                'shot_label'             => $result->isCloseup() ? (ProductCloseupService::shotOptions()[$result->shot] ?? $result->shot) : null,
                 'tryon_driver'           => $result->tryon_driver,
                 'tryon_model'            => $result->tryon_model,
                 'generation_duration_ms' => $result->generation_duration_ms,

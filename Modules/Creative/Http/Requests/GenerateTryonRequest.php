@@ -3,6 +3,8 @@
 namespace Modules\Creative\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+use Modules\Creative\Services\Ai\TryOnDriverResolver;
 
 class GenerateTryonRequest extends FormRequest
 {
@@ -18,6 +20,8 @@ class GenerateTryonRequest extends FormRequest
             'mannequin_id'  => ['required', 'integer', 'exists:creative_mannequins,id'],
             'pose_ids'      => ['required', 'array', 'min:1'],
             'pose_ids.*'    => ['integer', 'exists:creative_poses,id'],
+            // Sayfa başlığındaki Gemini / fal.ai seçimi; boşsa config varsayılanı (bkz. TryOnDriverResolver).
+            'tryon_driver'  => ['nullable', 'string', Rule::in(TryOnDriverResolver::DRIVERS)],
             // Ürünün kendi fotoğrafı yoksa (veya kullanıcı farklı bir görsel giydirmek
             // istiyorsa) burada ayrıca bir giysi görseli yüklenebilir.
             'garment_image' => ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:8192'],

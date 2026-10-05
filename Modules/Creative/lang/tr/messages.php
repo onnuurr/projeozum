@@ -66,6 +66,26 @@ return [
     ],
 
     // Giydirme (try-on)
+    'mockup' => [
+        'unsupported_category' => '":category" kategorisi mokap giydirmede tanımlı değil (dış giyim, aksesuar vb. mokap dışıdır).',
+        'no_category' => 'Ürünün kategorisi yok; mokap için bölge tipi belirlenemedi.',
+        'no_product_photo' => 'Ürünün giydirilecek yalın (mankensiz) fotoğrafı yok. Ürüne fotoğraf ekleyin ya da giysi görseli verin.',
+        'garment_not_found' => 'Giysi görseli bulunamadı: ":path". Tam yol (/home/...), proje kökünden yol (public/...) ya da medya diskindeki yol verin.',
+        'mannequin_not_ready' => 'Manken hazır ve onaylı değil.',
+        'no_master_pose' => 'Ana kare için hazır poz bulunamadı.',
+        'master_failed' => 'Ana kare üretilemedi: :error',
+        'no_ready_base' => 'Hiç hazır baz görsel yok; giydirme kuyruğa alınamadı.',
+        'base_missing' => 'Giydirmenin baz görseli bulunamadı.',
+        'stylist_invalid' => 'Stilist geçerli bir kombin önerisi döndürmedi.',
+        'vision_failed' => 'Görüntü işleme adımı (:step) başarısız: :error',
+        'queued' => ':product için mokap giydirme kuyruğa alındı.',
+    ],
+    'closeup' => [
+        'source_not_approved' => 'Yakın plan yalnızca onaylanmış bir tam boy giydirmeden üretilebilir.',
+        'source_missing' => 'Yakın planın kaynağı olan giydirme görseli bulunamadı.',
+        'unknown_shot' => 'Tanımsız yakın plan kadrajı: :shot',
+        'queued' => ':count yakın plan kuyruğa alındı.',
+    ],
     'tryon' => [
         'no_garment_image' => 'Bu ürünün giydirilecek bir fotoğrafı yok. Önce ürüne fotoğraf ekleyin ya da burada bir görsel yükleyin.',
         'no_pose_ready' => 'Seçili pozların hiçbiri hazır değil.',

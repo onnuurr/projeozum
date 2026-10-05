@@ -14,8 +14,12 @@ use Modules\Product\Models\ProductImage;
  *
  * Nihai görsel Product modülünün product_images tablosuna, ANCAK insan onayından
  * SONRA yazılır (bkz. ProductOnModelService::publish). Üretim biter bitmez çıktı
- * staged_image_path'e yazılır; bu satır (product_id + pose_id benzersiz) kaynak
+ * staged_image_path'e yazılır; bu satır (product_id + pose_id + shot benzersiz) kaynak
  * takibi ve idempotensi sağlar.
+ *
+ * shot: 'full' = tam boy giydirme; diğer değerler onaylı bir tam boy sonuçtan
+ * (source_result_id) üretilen yakın plan / detay kadrajlarıdır (bkz. ProductCloseupService,
+ * config('creative.closeup.shots')). Yakın planlar aynı onay/yayın akışından geçer.
  */
 class TryonResult extends Model
 {
@@ -25,6 +29,10 @@ class TryonResult extends Model
         'product_id',
         'mannequin_id',
         'pose_id',
+        'shot',
+        'pipeline',
+        'mockup_base_id',
+        'source_result_id',
         'garment_image_path',
         'garment_scan_id',
         'product_image_id',
@@ -36,6 +44,7 @@ class TryonResult extends Model
         'generation_duration_ms',
         'error',
         'meta',
+        'qa',
         'created_by',
         'review_status',
         'review_note',
@@ -46,6 +55,7 @@ class TryonResult extends Model
 
     protected $casts = [
         'meta'        => 'array',
+        'qa'          => 'array',
         'review_tags' => 'array',
         'reviewed_at' => 'datetime',
     ];
@@ -54,6 +64,13 @@ class TryonResult extends Model
     public const STATUS_GENERATING = 'generating';
     public const STATUS_DONE       = 'done';
     public const STATUS_FAILED     = 'failed';
+
+    public const SHOT_FULL = 'full';
+
+    // legacy: manken her üretimde pozlanır (ProductOnModelService) · mockup: kilitli baz + maske +
+    // birleştirme (MockupTryOnService). Tekillik (product_id, pose_id, shot, pipeline).
+    public const PIPELINE_LEGACY = 'legacy';
+    public const PIPELINE_MOCKUP = 'mockup';
 
     public const REVIEW_PENDING  = 'pending';
     public const REVIEW_APPROVED = 'approved';
@@ -72,6 +89,27 @@ class TryonResult extends Model
     public function pose(): BelongsTo
     {
         return $this->belongsTo(Pose::class, 'pose_id');
+    }
+
+    /** Yakın planın üretildiği tam boy giydirme. */
+    public function sourceResult(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'source_result_id');
+    }
+
+    public function mockupBase(): BelongsTo
+    {
+        return $this->belongsTo(MockupBase::class, 'mockup_base_id');
+    }
+
+    public function isMockup(): bool
+    {
+        return ($this->pipeline ?? self::PIPELINE_LEGACY) === self::PIPELINE_MOCKUP;
+    }
+
+    public function isCloseup(): bool
+    {
+        return ($this->shot ?? self::SHOT_FULL) !== self::SHOT_FULL;
     }
 
     public function productImage(): BelongsTo

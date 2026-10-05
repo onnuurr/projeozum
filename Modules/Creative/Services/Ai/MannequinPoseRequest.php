@@ -16,6 +16,10 @@ class MannequinPoseRequest
      * @param  string       $directive           Duruş yönergesi (config kataloğundan)
      * @param  string|null  $posePreviewPath     Pozun önizleme görselinin yerel yolu (birebir poz referansı)
      * @param  string|null  $promptOverride      Verilirse otomatik prompt yerine bu kullanılır
+     * @param  string|null  $stylingGarmentPath  Kombin tamamlama: verilirse manken sade taban kıyafet
+     *                                           yerine bu ürüne uygun bir kombinle (üst/alt, ayakkabı,
+     *                                           çorap vb.) pozlanır; ürünün kendisi sonraki try-on
+     *                                           adımında giydirilir (bkz. creative.ai.tryon_styling).
      */
     public function __construct(
         public string $referenceImagePath,
@@ -23,5 +27,6 @@ class MannequinPoseRequest
         public string $directive,
         public ?string $posePreviewPath = null,
         public ?string $promptOverride = null,
+        public ?string $stylingGarmentPath = null,
     ) {}
 }

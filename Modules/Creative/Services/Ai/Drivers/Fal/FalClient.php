@@ -62,6 +62,9 @@ class FalClient
             ));
         }
 
+        // Maliyet kaydı (çağrı başı fiyat) — bkz. AiUsageRecorder.
+        app(\Modules\Creative\Services\Ai\Support\AiUsageRecorder::class)->recordFal($model);
+
         return $result->json() ?? [];
     }
 

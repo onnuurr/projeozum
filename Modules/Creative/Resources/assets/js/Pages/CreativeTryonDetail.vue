@@ -10,7 +10,7 @@
 			]"
 		/>
 
-		<PageHeader :title="result.product_name" :subtitle="`${result.mannequin_name} · ${result.pose_label}`">
+		<PageHeader :title="result.product_name" :subtitle="`${result.mannequin_name} · ${result.pose_label}${result.shot_label ? ` · Yakın plan: ${result.shot_label}` : ''}`">
 			<template #actions>
 				<Badge :color="statusColor(result.status)" :label="statusLabel(result.status)" variant="filled" />
 			</template>

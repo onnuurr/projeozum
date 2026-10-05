@@ -1,5 +1,6 @@
 <?php
 
+use Modules\Creative\Models\AiUsage;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -43,6 +44,7 @@ Schedule::command('model:prune', [
         BankTransaction::class,
         BackupRun::class,
         PatternGenerationJob::class,
+        AiUsage::class,
     ],
 ])->daily()->onOneServer()->runInBackground();
 
