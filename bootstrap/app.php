@@ -44,4 +44,22 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->report(function (\Throwable $e): void {
             app(\App\Logging\ErrorLogger::class)->capture($e);
         });
+
+        // 419 (CSRF/oturum süresi doldu): Inertia isteklerinde çıplak "Page Expired" sayfası yerine
+        // geri yönlendir (303: PUT/DELETE'in aynı metotla tekrarlanmaması için) + uyarı toast'ı. Oturum tamamen düştüyse auth middleware login'e atar.
+        $exceptions->respond(function (\Symfony\Component\HttpFoundation\Response $response, \Throwable $e, \Illuminate\Http\Request $request) {
+            if ($response->getStatusCode() === 419 && $request->header('X-Inertia')) {
+                return back(303)->with('warning', __('auth.session_expired'));
+            }
+
+            // 403 (yetki yok — spatie permission/role middleware, policy, abort(403)): JSON istemeyen
+            // isteklerde çıplak Laravel hata sayfası yerine Errors/Forbidden (birkaç sn sonra ana sayfaya yönlendirir).
+            if ($response->getStatusCode() === 403 && ! $request->expectsJson()) {
+                return \Inertia\Inertia::render('Errors/Forbidden')
+                    ->toResponse($request)
+                    ->setStatusCode(403);
+            }
+
+            return $response;
+        });
     })->create();
