@@ -12,6 +12,22 @@ return [
         'default_reason_category' => 'Düzeltilmesi gereken alan',
     ],
 
+    // AI sağlayıcısı (Gemini) hataları — GeminiRequestException; ham cevap yalnızca loga yazılır.
+    // Creative'in paylaşılan AI altyapısını kullanan modüller (Product açıklama vb.) de bu metinleri gösterir.
+    'ai_provider' => [
+        'missing_key' => 'AI sağlayıcısının API anahtarı tanımlı değil. Sistem yöneticisine bildirin.',
+        'auth' => 'AI sağlayıcısı API anahtarını kabul etmedi (geçersiz ya da silinmiş anahtar). Sistem yöneticisine bildirin.',
+        'denied' => 'AI sağlayıcısı bu hesabın erişimini reddetti. Sağlayıcı hesabında bir kısıtlama olabilir; sistem yöneticisine bildirin.',
+        'quota' => 'AI sağlayıcısının kullanım kotası doldu. Birkaç dakika sonra tekrar deneyin; sürerse sistem yöneticisine bildirin.',
+        'unavailable' => 'AI sağlayıcısı şu anda yanıt veremiyor (yoğunluk ya da bakım). Biraz sonra tekrar deneyin.',
+        'unreachable' => 'AI sağlayıcısına bağlanılamadı ya da istek zaman aşımına uğradı. Biraz sonra tekrar deneyin.',
+        'bad_request' => 'AI sağlayıcısı isteği geçersiz buldu. Girdi ya da ayarlar sağlayıcının beklediği biçimde değil.',
+        'blocked' => 'AI sağlayıcısının içerik güvenlik filtresi yanıtı engelledi. Girdiyi değiştirip tekrar deneyin.',
+        'empty_response' => 'AI sağlayıcısı boş yanıt döndürdü. Tekrar deneyin.',
+        'file_missing' => 'AI\'ya gönderilecek görsel dosyası bulunamadı.',
+        'failed' => 'AI sağlayıcısına yapılan istek başarısız oldu. Tekrar deneyin; sürerse sistem yöneticisine bildirin.',
+    ],
+
     // Kuyruk işleri (ekranda hata olarak görünür)
     'job_attempt_failed' => 'Deneme :attempt/:tries başarısız: :error',
 

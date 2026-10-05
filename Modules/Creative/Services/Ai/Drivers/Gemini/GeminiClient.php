@@ -2,7 +2,10 @@
 
 namespace Modules\Creative\Services\Ai\Drivers\Gemini;
 
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Modules\Creative\Services\Ai\Support\ImageFile;
 use RuntimeException;
 
@@ -11,6 +14,9 @@ use RuntimeException;
  *
  * Görsel üretiminde responseModalities = [TEXT, IMAGE] zorunludur; yalnız IMAGE
  * istenirse API 400 döner (bkz. memory reference_gemini_image_modalities).
+ *
+ * Hatalar GeminiRequestException'dır: mesajı kullanıcıya gösterilebilir (creative::messages.ai_provider.*),
+ * Google'ın ham cevabı yalnızca loga yazılır.
  */
 class GeminiClient
 {
@@ -26,11 +32,6 @@ class GeminiClient
      */
     public function generateImage(string $prompt, array $imagePaths = [], ?string $model = null, array $imageConfig = []): string
     {
-        $apiKey = (string) config('creative.ai.gemini.api_key');
-        if ($apiKey === '') {
-            throw new RuntimeException('GEMINI_API_KEY tanımlı değil.');
-        }
-
         $parts = [['text' => $prompt]];
         foreach ($imagePaths as $path) {
             if (is_string($path) && is_file($path)) {
@@ -43,7 +44,6 @@ class GeminiClient
             }
         }
 
-        $base  = rtrim((string) config('creative.ai.gemini.base_url'), '/');
         $model = $model ?: (string) config('creative.ai.gemini.model');
 
         $generationConfig = [
@@ -56,20 +56,10 @@ class GeminiClient
             $generationConfig['imageConfig'] = $imageConfig;
         }
 
-        $response = Http::timeout((int) config('creative.ai.timeout', 240))
-            ->withHeaders(['x-goog-api-key' => $apiKey])
-            ->post("{$base}/models/{$model}:generateContent", [
-                'contents' => [['parts' => $parts]],
-                'generationConfig' => $generationConfig,
-            ]);
-
-        if ($response->failed()) {
-            throw new RuntimeException(sprintf(
-                'Gemini isteği başarısız (HTTP %d): %s',
-                $response->status(),
-                substr($response->body(), 0, 500),
-            ));
-        }
+        $response = $this->generateContent('image', $model, [
+            'contents' => [['parts' => $parts]],
+            'generationConfig' => $generationConfig,
+        ]);
 
         return $this->extractImage($response->json() ?? []);
     }
@@ -113,27 +103,11 @@ class GeminiClient
      */
     public function generateText(string $prompt): string
     {
-        $apiKey = (string) config('creative.ai.gemini.api_key');
-        if ($apiKey === '') {
-            throw new RuntimeException('GEMINI_API_KEY tanımlı değil.');
-        }
-
-        $base  = rtrim((string) config('creative.ai.gemini.base_url'), '/');
         $model = (string) config('creative.ai.gemini.text_model', config('creative.ai.gemini.model'));
 
-        $response = Http::timeout((int) config('creative.ai.timeout', 240))
-            ->withHeaders(['x-goog-api-key' => $apiKey])
-            ->post("{$base}/models/{$model}:generateContent", [
-                'contents' => [['parts' => [['text' => $prompt]]]],
-            ]);
-
-        if ($response->failed()) {
-            throw new RuntimeException(sprintf(
-                'Gemini metin isteği başarısız (HTTP %d): %s',
-                $response->status(),
-                substr($response->body(), 0, 500),
-            ));
-        }
+        $response = $this->generateContent('text', $model, [
+            'contents' => [['parts' => [['text' => $prompt]]]],
+        ]);
 
         return $this->extractText($response->json() ?? []);
     }
@@ -146,12 +120,9 @@ class GeminiClient
      */
     public function analyzeImage(string $prompt, string $imagePath): string
     {
-        $apiKey = (string) config('creative.ai.gemini.api_key');
-        if ($apiKey === '') {
-            throw new RuntimeException('GEMINI_API_KEY tanımlı değil.');
-        }
         if (! is_file($imagePath)) {
-            throw new RuntimeException('Analiz edilecek görsel bulunamadı: ' . $imagePath);
+            Log::warning('Gemini görsel analizi: dosya yok.', ['path' => $imagePath]);
+            throw new GeminiRequestException(GeminiRequestException::FILE_MISSING);
         }
 
         $parts = [
@@ -162,21 +133,51 @@ class GeminiClient
             ]],
         ];
 
-        $base  = rtrim((string) config('creative.ai.gemini.base_url'), '/');
         $model = (string) config('creative.ai.gemini.text_model', config('creative.ai.gemini.model'));
 
-        $response = Http::timeout((int) config('creative.ai.timeout', 240))
-            ->withHeaders(['x-goog-api-key' => $apiKey])
-            ->post("{$base}/models/{$model}:generateContent", [
-                'contents' => [['parts' => $parts]],
-            ]);
+        $response = $this->generateContent('analyze', $model, [
+            'contents' => [['parts' => $parts]],
+        ]);
+
+        return $this->extractText($response->json() ?? []);
+    }
+
+    /**
+     * generateContent çağrısı: anahtar kontrolü, bağlantı hatası ve HTTP hatası burada
+     * GeminiRequestException'a çevrilir; ham ayrıntı (Google mesajı, gövde) loglanır.
+     *
+     * @param  array<string,mixed>  $payload
+     */
+    private function generateContent(string $operation, string $model, array $payload): Response
+    {
+        $apiKey = (string) config('creative.ai.gemini.api_key');
+        if ($apiKey === '') {
+            throw new GeminiRequestException(GeminiRequestException::MISSING_KEY);
+        }
+
+        $base = rtrim((string) config('creative.ai.gemini.base_url'), '/');
+
+        try {
+            $response = Http::timeout((int) config('creative.ai.timeout', 240))
+                ->withHeaders(['x-goog-api-key' => $apiKey])
+                ->post("{$base}/models/{$model}:generateContent", $payload);
+        } catch (ConnectionException $e) {
+            Log::warning('Gemini isteği gönderilemedi.', ['operation' => $operation, 'model' => $model, 'error' => $e->getMessage()]);
+            throw new GeminiRequestException(GeminiRequestException::UNREACHABLE, previous: $e);
+        }
 
         if ($response->failed()) {
-            throw new RuntimeException(sprintf(
-                'Gemini görsel analiz isteği başarısız (HTTP %d): %s',
-                $response->status(),
-                substr($response->body(), 0, 500),
-            ));
+            $exception = GeminiRequestException::fromResponse($response);
+            Log::warning('Gemini isteği başarısız.', [
+                'operation'        => $operation,
+                'model'            => $model,
+                'reason'           => $exception->reason,
+                'http_status'      => $response->status(),
+                'provider_status'  => $exception->providerStatus,
+                'provider_message' => $response->json('error.message'),
+                'body'             => $response->json('error') ? null : substr($response->body(), 0, 500),
+            ]);
+            throw $exception;
         }
 
         return $this->extractText($response->json() ?? []);
@@ -200,7 +201,7 @@ class GeminiClient
 
         $text = trim($text);
         if ($text === '') {
-            throw new RuntimeException('Gemini yanıtında metin verisi bulunamadı.');
+            throw $this->missingContent($json, 'metin');
         }
 
         return $text;
@@ -226,6 +227,6 @@ class GeminiClient
             }
         }
 
-        throw new RuntimeException('Gemini yanıtında görsel verisi bulunamadı.');
+        throw $this->missingContent($json, 'görsel');
     }
 }
