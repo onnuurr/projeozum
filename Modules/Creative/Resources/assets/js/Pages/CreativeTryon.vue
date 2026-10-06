@@ -42,6 +42,13 @@
 					:label="geminiSpendFormatted ? `Gemini (bu ay): ${geminiSpendFormatted}` : 'Gemini harcaması alınamadı'"
 					:title="geminiSpend.error ?? undefined"
 				/>
+				<!-- Mokap (Faz 4): mokap kategorisinde, yalın fotoğraflı ve henüz mokapı olmayan ürünler için toplu başlat. -->
+				<Button v-if="can('creative.asset.manage')" variant="ghost" with-icon :loading="mockupBusy" :disabled="!mockup.has_mannequins || mockup.remaining_today <= 0"
+					:title="!mockup.has_mannequins ? 'Önce Creative ayarlarında varsayılan manken seçin' : `Bugün kalan hak: ${mockup.remaining_today}/${mockup.daily_limit}`"
+					@click="startBulkMockup">
+					<template #leading><Sparkles :size="14" /></template>
+					Mokap bekleyenleri başlat
+				</Button>
 				<Button variant="ghost" with-icon @click="refresh">
 					<template #leading><RefreshCw :size="14" /></template>
 					Yenile
@@ -115,6 +122,7 @@
 					</div>
 					<span class="product-name">{{ p.name }}</span>
 					<span v-if="!p.has_garment" class="no-garment-badge">Fotoğraf yok</span>
+					<span v-else-if="p.mockup_region" class="mockup-badge" title="Mokap kapsamında: kilitli kombinle otomatik giydirilir">Mokap</span>
 				</button>
 			</div>
 
@@ -123,6 +131,21 @@
 			<div v-if="!productQuery && defaultProductsHasMore" class="load-more-row">
 				<Button variant="ghost" :loading="loadingMoreProducts" @click="loadMoreProducts">
 					Daha fazla yükle ({{ defaultProducts.length }}/{{ productsTotal }})
+				</Button>
+			</div>
+
+			<!-- Mokap kapsamındaki ürün: manken, poz ve kombin otomatik — sihirbazın kalanı gerekmez. -->
+			<div v-if="selectedProductObj?.mockup_region && selectedProductHasGarment" class="mockup-panel">
+				<div class="mockup-panel__text">
+					<strong>Bu ürün mokap kapsamında ({{ MOCKUP_REGIONS[selectedProductObj.mockup_region] }}).</strong>
+					Stilist ürüne özel bir kombin seçer, manken ve pozlar otomatik belirlenir; üç poz aynı kombinle giydirilir ve onay listesine düşer.
+					<template v-if="mockup.batch"> Batch API ile üretilir (yarı fiyat, sonuç genelde birkaç dakikada).</template>
+					<span class="mockup-panel__quota">Bugün kalan hak: {{ mockup.remaining_today }}/{{ mockup.daily_limit }}</span>
+				</div>
+				<Button variant="primary" with-icon :loading="mockupBusy" :disabled="!mockup.has_mannequins || mockup.remaining_today <= 0"
+					:title="!mockup.has_mannequins ? 'Önce Creative ayarlarında varsayılan manken seçin' : ''" @click="startMockup">
+					<template #leading><Sparkles :size="14" /></template>
+					Mokap üret
 				</Button>
 			</div>
 
@@ -438,6 +461,11 @@
 								<li v-for="(i, idx) in r.qa.issues.slice(0, 3)" :key="idx">{{ i }}</li>
 							</ul>
 						</div>
+						<!-- Mokap kombin özeti: stilistin seçtiği parçalar + Türkçe gerekçe + kural motoru uyarıları -->
+						<div v-if="r.outfit" class="outfit-line" :title="r.outfit.reasoning || ''">
+							<span class="outfit-head">Kombin:</span> {{ r.outfit.pieces.join(' · ') }}
+							<span v-if="r.outfit.warnings.length" class="outfit-warn" :title="r.outfit.warnings.join('\n')"><AlertTriangle :size="10" /> {{ r.outfit.warnings.length }} uyarı</span>
+						</div>
 						<div v-if="r.review_tags && r.review_tags.length" class="review-tags">
 							<Tag v-for="t in r.review_tags" :key="t" :label="t" color="danger" />
 						</div>
@@ -551,7 +579,7 @@ import { Head, Link, router } from '@inertiajs/vue3'
 import {
 	RefreshCw, Play, Maximize2, Star, AlertTriangle, Check, X, ClipboardList, MessageCircle, Download,
 	Search, Loader2, PackageSearch, Users, Footprints, ImageOff, ShieldCheck, Info, ChevronRight, ChevronLeft, ImagePlus,
-	CreditCard, ZoomIn,
+	CreditCard, ZoomIn, Sparkles,
 } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
@@ -583,6 +611,8 @@ const props = defineProps({
 	closeupShots: { type: Object, default: () => ({}) },
 	// { default: 'fal'|'gemini', available: { gemini: bool, fal: bool } } — bkz. TryOnDriverResolver
 	tryonDriver: { type: Object, default: () => ({ default: 'fal', available: {} }) },
+	// Mokap (Faz 4): { remaining_today, daily_limit, has_mannequins, batch } — Creative ayarlar › Mokap
+	mockup: { type: Object, default: () => ({ remaining_today: 0, daily_limit: 0, has_mannequins: false, batch: true }) },
 })
 
 // Başlıktaki Gemini / fal.ai seçici: seçim bu tarayıcıda hatırlanır, ilk açılışta config varsayılanı.
@@ -981,6 +1011,46 @@ const hasPending = computed(() => displayResults.value.some(r => r.status === 'q
 
 const STATUS_LABELS = { queued: 'Sırada', generating: 'Üretiliyor', done: 'Hazır', failed: 'Başarısız' }
 const QA_LABELS = { pass: 'geçti', warn: 'uyarı', fail: 'kaldı', unknown: 'yapılamadı' }
+const MOCKUP_REGIONS = { bottom: 'alt', top: 'üst', one_piece: 'tek parça', set: 'takım' }
+
+/* ── Mokap (Faz 4): tek ürün / toplu başlat. Ücretli AI; sunucu günlük limiti ve varsayılan mankeni uygular. ── */
+const mockupBusy = ref(false)
+const MOCKUP_USD_PER_PRODUCT = 0.22
+
+function mockupRequest(url, data, onSuccess) {
+	mockupBusy.value = true
+	router.post(url, data, {
+		preserveScroll: true,
+		onSuccess: () => { onSuccess?.(); refetchProductResultsIfActive() },
+		onError: (errs) => showToast?.({ type: 'error', title: 'Mokap başlatılamadı', message: Object.values(errs)[0] || 'Doğrulama hatası.' }),
+		onFinish: () => { mockupBusy.value = false },
+	})
+}
+
+async function startMockup() {
+	if (mockupBusy.value || !selectedProduct.value) return
+	const ok = await $swal.confirm({
+		title: 'Mokap Üret',
+		html: `<strong>${selectedProductObj.value?.name ?? ''}</strong> için kombin + 3 baz görsel + 3 giydirme üretilecek (tahmini ~${MOCKUP_USD_PER_PRODUCT.toLocaleString('tr-TR')} $). Sonuçlar onay listesine düşer.`,
+		confirmText: 'Başlat',
+		cancelText: 'Vazgeç',
+	})
+	if (!ok) return
+	mockupRequest('/creative/tryon/mockup', { product_id: selectedProduct.value }, () => { currentStep.value = 4 })
+}
+
+async function startBulkMockup() {
+	if (mockupBusy.value) return
+	const limit = Math.min(props.mockup.remaining_today, 10)
+	const ok = await $swal.confirm({
+		title: 'Mokap Bekleyenleri Başlat',
+		html: `Mokap kategorisinde, yalın fotoğrafı olan ve henüz mokapı olmayan ürünlerden en fazla <strong>${limit}</strong> tanesi başlatılacak (ürün başı ~${MOCKUP_USD_PER_PRODUCT.toLocaleString('tr-TR')} $, en fazla ~${(limit * MOCKUP_USD_PER_PRODUCT).toLocaleString('tr-TR', { maximumFractionDigits: 2 })} $). Bugün kalan hak: ${props.mockup.remaining_today}/${props.mockup.daily_limit}.`,
+		confirmText: 'Başlat',
+		cancelText: 'Vazgeç',
+	})
+	if (!ok) return
+	mockupRequest('/creative/tryon/mockup/bulk', { limit })
+}
 const REVIEW_LABELS = { pending: 'Onay Bekliyor', approved: 'Onaylı', rejected: 'Reddedildi' }
 function statusLabel(s) { return STATUS_LABELS[s] || s }
 function reviewLabel(r) { return REVIEW_LABELS[r] || r }
@@ -1284,6 +1354,14 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.mockup-badge { position: absolute; top: 6px; left: 6px; font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 20px; background: var(--color-primary); color: #fff; }
+.mockup-panel { display: flex; align-items: center; gap: 14px; margin-top: 14px; padding: 12px 14px; border-radius: 10px; background: var(--color-surface-container-low); }
+.mockup-panel__text { flex: 1; font-size: 12.5px; line-height: 1.5; color: var(--color-muted); }
+.mockup-panel__text strong { color: var(--color-on-surface, inherit); }
+.mockup-panel__quota { display: block; margin-top: 2px; font-size: 11.5px; }
+.outfit-line { margin-top: 4px; font-size: 11px; line-height: 1.4; color: var(--color-muted); }
+.outfit-head { font-weight: 600; }
+.outfit-warn { margin-left: 6px; color: var(--color-warning); display: inline-flex; align-items: center; gap: 2px; }
 .qa-line { margin-top: 4px; padding: 5px 8px; border-radius: 6px; font-size: 11px; line-height: 1.4; background: var(--color-surface-container-low); color: var(--color-muted); }
 .qa-line.is-pass { color: var(--color-success); }
 .qa-line.is-warn, .qa-line.is-unknown { color: var(--color-warning); }
