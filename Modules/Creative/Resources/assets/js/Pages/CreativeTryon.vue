@@ -463,7 +463,7 @@
 						</div>
 						<!-- Mokap kombin özeti: stilistin seçtiği parçalar + Türkçe gerekçe + kural motoru uyarıları -->
 						<div v-if="r.outfit" class="outfit-line" :title="r.outfit.reasoning || ''">
-							<span v-if="r.outfit.sizes" class="outfit-sizes">Bedenler: {{ r.outfit.sizes }}</span>
+							<span v-if="r.outfit.sizes || r.color" class="outfit-sizes">{{ [r.outfit.sizes ? `Bedenler: ${r.outfit.sizes}` : null, r.color ? `Renk: ${r.color}` : null].filter(Boolean).join(' · ') }}</span>
 							<span class="outfit-head">Kombin:</span> {{ r.outfit.pieces.join(' · ') }}
 							<span v-if="r.outfit.warnings.length" class="outfit-warn" :title="r.outfit.warnings.join('\n')"><AlertTriangle :size="10" /> {{ r.outfit.warnings.length }} uyarı</span>
 						</div>

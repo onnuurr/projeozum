@@ -30,6 +30,8 @@ class TryonResult extends Model
         'mannequin_id',
         'pose_id',
         'shot',
+        // Mokap: giydirilen ürün rengi (product_variants.color_name); '' = renksiz / genel set.
+        'color',
         'pipeline',
         'mockup_base_id',
         'source_result_id',

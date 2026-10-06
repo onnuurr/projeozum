@@ -32,7 +32,9 @@ class MockupController extends Controller
             return back()->with('error', $e->getMessage());
         }
 
-        return back()->with('success', __('creative::messages.mockup.groups_queued', ['product' => $product->name, 'count' => count($started)]));
+        return back()->with('success', $started === []
+            ? __('creative::messages.mockup.colors_queued', ['product' => $product->name])
+            : __('creative::messages.mockup.groups_queued', ['product' => $product->name, 'count' => count($started)]));
     }
 
     /** Faz 5: reddedilen mokap sonucunu ret nedeninin aşamasından düzeltme talimatıyla yeniden üretir. */

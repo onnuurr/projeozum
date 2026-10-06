@@ -43,6 +43,21 @@ class VariantSizeImagesPayloadTest extends TestCase
         $this->assertSame($bySize['11 Yaş']['images'], $bySize['14 Yaş']['images']);
     }
 
+    public function test_color_specific_set_wins_over_the_general_set(): void
+    {
+        $product = Product::factory()->create();
+        ProductVariant::factory()->create(['product_id' => $product->id, 'sku' => 'G', 'size' => '7 Yaş', 'color_name' => 'Yeşil']);
+        ProductVariant::factory()->create(['product_id' => $product->id, 'sku' => 'B', 'size' => '7 Yaş', 'color_name' => 'Bej']);
+        $product->images()->create(['path' => 'p/general.webp', 'sort_order' => 1, 'variant_sizes' => ['7 Yaş']]);
+        $product->images()->create(['path' => 'p/green.webp', 'sort_order' => 2, 'variant_sizes' => ['7 Yaş'], 'variant_colors' => ['Yeşil']]);
+
+        $bySku = collect($this->payload($product)['variants'])->keyBy('sku');
+
+        $this->assertCount(1, $bySku['G']['images']);
+        $this->assertStringEndsWith('p/green.webp', $bySku['G']['images'][0]);      // rengin kendi seti
+        $this->assertStringEndsWith('p/general.webp', $bySku['B']['images'][0]);    // Bej'in seti yok → genel
+    }
+
     public function test_variant_without_its_set_gets_an_explicit_empty_list_only_when_sets_exist(): void
     {
         $plain = Product::factory()->create();

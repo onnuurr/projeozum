@@ -5,7 +5,9 @@ namespace Modules\Creative\Services\Mockup;
 use Modules\Creative\Jobs\GenerateMockupJob;
 use Modules\Creative\Jobs\GenerateOnModelJob;
 use Modules\Creative\Models\Mannequin;
+use Modules\Creative\Models\MockupBase;
 use Modules\Creative\Models\MockupOutfit;
+use Modules\Creative\Models\TryonResult;
 use Modules\Product\Models\Product;
 use Modules\Creative\Services\CanvasAssetResolver;
 use Modules\Creative\Services\ProductOnModelService;
@@ -79,6 +81,10 @@ class MockupPipelineService
             ? [['mannequin' => $mannequin, 'sizes' => [], 'ages' => null, 'note' => null]]
             : $this->missingGroups($product);
         if ($groups === []) {
+            // Gruplar tamam ama sonradan fotoğrafı eklenen renk olabilir: yalnız o rengin giydirmesi (baz yeniden üretilmez).
+            if (! $mannequin && $this->queueMissingColors($product, $creatorId) > 0) {
+                return [];
+            }
             throw new RuntimeException(__($this->settings->sizeGroups($product) === []
                 ? 'creative::messages.mockup.no_default_mannequin' : 'creative::messages.mockup.already_complete'));
         }
@@ -117,6 +123,46 @@ class MockupPipelineService
         $have = MockupOutfit::where('product_id', $product->id)->where('status', '!=', MockupOutfit::STATUS_FAILED)->pluck('mannequin_id')->all();
 
         return array_values(array_filter($this->settings->sizeGroups($product), fn ($g) => ! in_array($g['mannequin']->id, $have, true)));
+    }
+
+    /**
+     * Hazır kombinlerde giydirmesi olmayan renkler (fotoğrafı sonradan eklenen renk): kombin => renkler.
+     *
+     * @return array<int,list<string>>
+     */
+    public function missingColors(Product $product): array
+    {
+        $outfits = MockupOutfit::where('product_id', $product->id)->where('status', MockupOutfit::STATUS_READY)->get();
+        if ($outfits->isEmpty()) {
+            return [];
+        }
+        $wanted = array_keys($this->onModel->colorGarments($product)['garments']);
+        $out = [];
+        foreach ($outfits as $o) {
+            $have = TryonResult::where(['product_id' => $product->id, 'mannequin_id' => $o->mannequin_id,
+                'pipeline' => TryonResult::PIPELINE_MOCKUP, 'shot' => TryonResult::SHOT_FULL])->distinct()->pluck('color')->all();
+            if ($missing = array_values(array_diff($wanted, $have))) {
+                $out[$o->id] = $missing;
+            }
+        }
+
+        return $out;
+    }
+
+    /** Eksik renklerin giydirmelerini mevcut bazlarla kuyruğa alır. @return int kuyruğa alınan satır */
+    public function queueMissingColors(Product $product, ?int $creatorId = null): int
+    {
+        $count = 0;
+        foreach ($this->missingColors($product) as $outfitId => $colors) {
+            $outfit = MockupOutfit::find($outfitId);
+            $bases = MockupBase::where('outfit_id', $outfitId)->where('status', MockupBase::STATUS_READY)->orderBy('id')->get();
+            foreach ($this->tryOn->queue($outfit, $bases, $creatorId ?? $outfit->created_by, $colors) as $result) {
+                GenerateOnModelJob::dispatch($result->id, $result->generation_token);
+                $count++;
+            }
+        }
+
+        return $count;
     }
 
     private function hasActiveOutfit(Product $product, Mannequin $mannequin): bool
@@ -160,7 +206,7 @@ class MockupPipelineService
         return Product::query()->whereHas('images')
             ->with(['images', 'category.parent'])->orderBy('id')->limit($max)->get()
             ->filter(fn (Product $p) => $this->settings->regionFor($p->category) !== null && $this->onModel->pickPlainProductPhoto($p)
-                && $this->missingGroups($p) !== [])
+                && ($this->missingGroups($p) !== [] || $this->missingColors($p) !== []))
             ->values();
     }
 

@@ -194,6 +194,8 @@ class TryonController extends Controller
             // 'full' = tam boy giydirme; diğerleri yakın plan kadrajı (bkz. ProductCloseupService).
             'shot'            => $r->shot ?? TryonResult::SHOT_FULL,
             'pipeline'        => $r->pipeline ?? TryonResult::PIPELINE_LEGACY,
+            // Mokap renk seti: giydirilen ürün rengi ('' = genel set, bütün renkler).
+            'color'           => (string) $r->color,
             // Faz 2 otomatik kontrol özeti (yalnız mokap): durum + deneme sayısı + onaycıya Türkçe bulgular.
             'qa'              => isset($r->qa['status']) ? [
                 'status'   => $r->qa['status'],
@@ -206,7 +208,9 @@ class TryonController extends Controller
                 'pieces'     => collect((array) $o->pieces)->reject(fn ($k) => $k === 'none')
                     ->map(fn ($k, $kind) => $labels["{$kind}.{$k}"] ?? $k)->values()->all(),
                 'reasoning'  => $o->reasoning_tr,
-                'warnings'   => array_values(array_filter([$o->meta['mannequin_note'] ?? null, ...((array) ($o->meta['stylist_warnings'] ?? []))])),
+                'warnings'   => array_values(array_filter([$o->meta['mannequin_note'] ?? null,
+                    ($o->meta['colors_missing'] ?? []) ? 'Yalın fotoğrafı olmayan renkler (genel setle gösterilir): ' . implode(', ', $o->meta['colors_missing']) : null,
+                    ...((array) ($o->meta['stylist_warnings'] ?? []))])),
                 'confidence' => $o->meta['stylist_confidence'] ?? null,
                 // Beden grubu (sitede bu bedenler seçilince bu mankenin görselleri gösterilecek).
                 'sizes'      => isset($o->meta['ages'][0]) ? ($o->meta['ages'][0] === $o->meta['ages'][1]

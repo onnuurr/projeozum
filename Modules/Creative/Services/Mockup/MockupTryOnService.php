@@ -41,38 +41,50 @@ class MockupTryOnService
      * onayı sıfırlar). Mevcut legacy satırlarına dokunmaz (tekillik pipeline'ı da içerir).
      *
      * @param  Collection<int,MockupBase>  $bases
+     * @param  list<string>|null  $onlyColors  Yalnız bu renkler (sonradan fotoğrafı eklenen renk); null = hepsi
      * @return Collection<int,TryonResult>
      */
-    public function queue(MockupOutfit $outfit, Collection $bases, ?int $creatorId = null): Collection
+    public function queue(MockupOutfit $outfit, Collection $bases, ?int $creatorId = null, ?array $onlyColors = null): Collection
     {
-        return $bases->map(function (MockupBase $base) use ($outfit, $creatorId) {
-            $existing = TryonResult::query()->where([
-                'product_id' => $outfit->product_id, 'mannequin_id' => $outfit->mannequin_id, 'pose_id' => $base->pose_id,
-                'shot' => TryonResult::SHOT_FULL, 'pipeline' => TryonResult::PIPELINE_MOCKUP,
-            ])->first();
-            $meta = $existing?->meta ?? [];
-            unset($meta['extra_instructions'], $meta['mockup_run']);   // yeni baz → eski düzeltme talimatı geçersiz
-            $meta['batch'] = (bool) ($outfit->meta['batch'] ?? false);
+        // Renk başına giydirme: her rengin yalın fotoğrafı (ProductOnModelService::colorGarments); renge özel
+        // fotoğraf yoksa tek genel set ('' → bütün renkler). Fotoğrafı olmayan renkler onaycıya not düşülür.
+        $plan = $this->onModel->colorGarments($outfit->product, $outfit->meta['garment_path'] ?? null);
+        if (($outfit->meta['colors_missing'] ?? []) !== $plan['missing']) {
+            $outfit->update(['meta' => [...($outfit->meta ?? []), 'colors_missing' => $plan['missing']]]);
+        }
+        $garments = $onlyColors === null ? $plan['garments'] : array_intersect_key($plan['garments'], array_flip($onlyColors));
 
-            return TryonResult::updateOrCreate(
-                // Beden grubu başına ayrı satır (manken anahtarın parçası) — bkz. sizeGroups.
-                ['product_id' => $outfit->product_id, 'mannequin_id' => $outfit->mannequin_id, 'pose_id' => $base->pose_id, 'shot' => TryonResult::SHOT_FULL, 'pipeline' => TryonResult::PIPELINE_MOCKUP],
-                [
-                    'mockup_base_id'     => $base->id,
-                    'garment_image_path' => $outfit->meta['garment_path'] ?? null,
-                    'status'             => TryonResult::STATUS_QUEUED,
-                    'generation_token'   => (string) Str::uuid(),
-                    'error'              => null,
-                    'qa'                 => null,
-                    'meta'               => $meta,
-                    'created_by'         => $creatorId,
-                    'review_status'      => null,
-                    'review_note'        => null,
-                    'reviewed_by'        => null,
-                    'reviewed_at'        => null,
-                ],
-            );
-        });
+        // İç koleksiyon renk anahtarlı — values() olmadan flatMap aynı anahtarlı ('' ya da aynı renk) satırları ezer.
+        return $bases->flatMap(fn (MockupBase $base) => collect($garments)->map(
+            fn (string $garment, $color) => $this->queueOne($outfit, $base, (string) $color, $garment, $creatorId),
+        )->values())->values();
+    }
+
+    /** Tek bir (baz × renk) giydirme satırı; yeniden kuyruğa alma aynı satırı günceller ve onayı sıfırlar. */
+    private function queueOne(MockupOutfit $outfit, MockupBase $base, string $color, string $garment, ?int $creatorId): TryonResult
+    {
+        // Beden grubu (manken) ve renk anahtarın parçası — bkz. sizeGroups, colorGarments.
+        $key = ['product_id' => $outfit->product_id, 'mannequin_id' => $outfit->mannequin_id, 'pose_id' => $base->pose_id,
+            'shot' => TryonResult::SHOT_FULL, 'pipeline' => TryonResult::PIPELINE_MOCKUP, 'color' => $color];
+        $meta = TryonResult::query()->where($key)->value('meta');
+        $meta = is_array($meta) ? $meta : (json_decode((string) $meta, true) ?: []);
+        unset($meta['extra_instructions'], $meta['mockup_run']);   // yeni baz → eski düzeltme talimatı geçersiz
+        $meta['batch'] = (bool) ($outfit->meta['batch'] ?? false);
+
+        return TryonResult::updateOrCreate($key, [
+            'mockup_base_id'     => $base->id,
+            'garment_image_path' => $garment,
+            'status'             => TryonResult::STATUS_QUEUED,
+            'generation_token'   => (string) Str::uuid(),
+            'error'              => null,
+            'qa'                 => null,
+            'meta'               => $meta,
+            'created_by'         => $creatorId,
+            'review_status'      => null,
+            'review_note'        => null,
+            'reviewed_by'        => null,
+            'reviewed_at'        => null,
+        ]);
     }
 
     public function generate(TryonResult $result, ?string $expectedToken = null): TryonResult

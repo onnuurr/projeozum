@@ -301,6 +301,57 @@ class MockupPipelineTest extends TestCase
         $this->assertSame(['14 Yaş'], ProductImage::find($r2->fresh()->product_image_id)->variant_sizes);
     }
 
+    public function test_each_color_is_dressed_from_its_own_photo_and_new_color_photos_are_filled_later(): void
+    {
+        Queue::fake();
+        $product = $this->product();
+        foreach ([['Yeşil', '7 Yaş'], ['Bej', '7 Yaş']] as $i => [$color, $size]) {
+            $product->variants()->create(['size' => $size, 'color_name' => $color, 'sku' => "C{$product->id}-{$i}", 'price' => 1, 'stock' => 1, 'sort_order' => $i]);
+        }
+        $this->png("products/{$product->id}/green.png");
+        $product->images()->create(['path' => "products/{$product->id}/green.png", 'sort_order' => 1, 'variant_colors' => ['Yeşil']]);
+        $pipeline = app(MockupPipelineService::class);
+
+        // Yalnız Yeşil'in fotoğrafı var: Yeşil kendi fotoğrafıyla, Bej onaycıya not.
+        $outfit = $pipeline->run($pipeline->start($product->fresh(), $this->mannequinAndPoses()));
+        $rows = TryonResult::where('pipeline', TryonResult::PIPELINE_MOCKUP)->get();
+        $this->assertSame(['Yeşil'], $rows->pluck('color')->unique()->values()->all());
+        $this->assertTrue($rows->every(fn ($r) => $r->garment_image_path === "products/{$product->id}/green.png"));
+        $this->assertSame(['Bej'], $outfit->fresh()->meta['colors_missing']);
+        $this->assertSame([], $pipeline->missingColors($product->fresh()));   // Bej'in fotoğrafı yok: doldurulacak renk yok
+
+        // Bej fotoğrafı eklenince yalnız Bej'in giydirmesi kuyruğa alınır (bazlar yeniden üretilmez).
+        $this->png("products/{$product->id}/beige.png");
+        $product->images()->create(['path' => "products/{$product->id}/beige.png", 'sort_order' => 2, 'variant_colors' => ['Bej']]);
+        $baseCount = MockupBase::count();
+        $this->assertSame([], $pipeline->startFor($product->fresh()));
+        $this->assertSame(3, TryonResult::where('pipeline', TryonResult::PIPELINE_MOCKUP)->where('color', 'Bej')->count());
+        $this->assertSame($baseCount, MockupBase::count());
+        $this->assertSame([], $pipeline->missingColors($product->fresh()));
+
+        // Onayda renk + bedenler görsele yazılır.
+        $r = TryonResult::where('color', 'Bej')->first();
+        $r->update(['staged_image_path' => "products/{$product->id}/onmodel_staged_{$r->id}.webp", 'status' => TryonResult::STATUS_DONE]);
+        $outfit->update(['meta' => [...$outfit->fresh()->meta, 'sizes' => ['7 Yaş']]]);
+        app(\Modules\Creative\Services\ProductOnModelService::class)->publish($r->fresh());
+        $img = ProductImage::find($r->fresh()->product_image_id);
+        $this->assertSame(['Bej'], $img->variant_colors);
+        $this->assertSame(['7 Yaş'], $img->variant_sizes);
+    }
+
+    public function test_product_without_color_photos_gets_one_general_set_with_a_note(): void
+    {
+        Queue::fake();
+        $product = $this->product();
+        foreach (['Yeşil', 'Bej'] as $i => $color) {
+            $product->variants()->create(['size' => '7 Yaş', 'color_name' => $color, 'sku' => "G{$product->id}-{$i}", 'price' => 1, 'stock' => 1, 'sort_order' => $i]);
+        }
+        $outfit = app(MockupPipelineService::class)->run(app(MockupPipelineService::class)->start($product->fresh(), $this->mannequinAndPoses()));
+
+        $this->assertSame([''], TryonResult::where('pipeline', TryonResult::PIPELINE_MOCKUP)->pluck('color')->unique()->values()->all());
+        $this->assertSame(['Yeşil', 'Bej'], $outfit->fresh()->meta['colors_missing']);
+    }
+
     public function test_outerwear_product_gets_an_inner_outfit_and_goes_through_the_pipeline(): void
     {
         Queue::fake();

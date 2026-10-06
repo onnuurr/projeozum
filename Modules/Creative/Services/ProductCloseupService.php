@@ -68,6 +68,7 @@ class ProductCloseupService
                 $existing = TryonResult::query()
                     ->where('product_id', $source->product_id)
                     ->where('mannequin_id', $source->mannequin_id)
+                    ->where('color', (string) $source->color)
                     ->where('pose_id', $source->pose_id)
                     ->where('shot', $shot)
                     ->where('pipeline', $source->pipeline ?? TryonResult::PIPELINE_LEGACY)
@@ -83,7 +84,8 @@ class ProductCloseupService
                 }
 
                 return TryonResult::updateOrCreate(
-                    ['product_id' => $source->product_id, 'mannequin_id' => $source->mannequin_id, 'pose_id' => $source->pose_id, 'shot' => $shot, 'pipeline' => $source->pipeline ?? TryonResult::PIPELINE_LEGACY],
+                    ['product_id' => $source->product_id, 'mannequin_id' => $source->mannequin_id, 'pose_id' => $source->pose_id, 'shot' => $shot,
+                        'pipeline' => $source->pipeline ?? TryonResult::PIPELINE_LEGACY, 'color' => (string) $source->color],
                     [
                         'source_result_id'   => $source->id,
                         'garment_image_path' => $source->garment_image_path,

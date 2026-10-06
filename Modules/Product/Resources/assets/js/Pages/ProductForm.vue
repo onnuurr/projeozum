@@ -159,6 +159,21 @@ function deleteExisting(img) {
 	})
 	existingImages.value = existingImages.value.filter((x) => x.id !== img.id)
 }
+// Çok renkli üründe yalın fotoğraf bir renge etiketlenir (variant_colors): Creative mokap o rengi bu
+// fotoğraftan giydirir, onaylanan görsel mağazada yalnız o rengin varyantlarına gider. Giydirme
+// çıktılarına (onmodel_*) etiket verilmez — renkleri üretimden gelir.
+const productColors = computed(() => [...new Set(form.variants.map((v) => (v.color_name || '').trim()).filter(Boolean))])
+const isOnModel = (img) => String(img.path || img.url || '').includes('/onmodel_')
+function setImageColor(img, color) {
+	const variant_colors = color ? [color] : null
+	router.put(`/products/images/${img.id}`, { variant_colors }, {
+		preserveScroll: true,
+		preserveState: true,
+		onSuccess: () => showToast?.({ type: 'success', title: color ? `Görsel “${color}” rengine bağlandı` : 'Görsel bütün renklere ait' }),
+		onError: () => showToast?.({ type: 'error', title: 'Görselin rengi kaydedilemedi' }),
+	})
+	existingImages.value = existingImages.value.map((x) => (x.id === img.id ? { ...x, variant_colors } : x))
+}
 function setCover(img) {
 	router.put(`/products/images/${img.id}`, { is_cover: true }, {
 		preserveScroll: true,
@@ -834,6 +849,11 @@ onMounted(() => {
 						<div v-for="img in existingImages" :key="'e' + img.id" class="img-thumb" :class="{ cover: img.is_cover }">
 							<img :src="img.url" alt="" />
 							<span v-if="img.is_cover" class="img-badge cover-badge">Kapak</span>
+							<select v-if="productColors.length > 1 && !isOnModel(img)" class="img-color" :value="img.variant_colors?.[0] ?? ''"
+								:title="'Bu fotoğraf hangi rengin? (mokap giydirmesi bu fotoğrafla yapılır)'" @change="setImageColor(img, $event.target.value)">
+								<option value="">Tüm renkler</option>
+								<option v-for="c in productColors" :key="c" :value="c">{{ c }}</option>
+							</select>
 							<div class="img-actions">
 								<button v-if="!img.is_cover" type="button" class="img-act" title="Kapak yap" @click="setCover(img)"><Star :size="13" /></button>
 								<button type="button" class="img-act del" title="Sil" @click="deleteExisting(img)"><X :size="13" /></button>
@@ -1129,4 +1149,5 @@ onMounted(() => {
 	.savebar-actions { margin-left: 0; }
 	.savebar-actions > * { flex: 1; }
 }
+.img-color { position: absolute; left: 6px; right: 6px; bottom: 6px; font-size: 11px; padding: 2px 4px; border-radius: 6px; border: 1px solid var(--oz-border); background: var(--oz-surface); color: var(--oz-ink-soft); }
 </style>

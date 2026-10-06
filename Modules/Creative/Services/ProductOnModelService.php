@@ -349,8 +349,10 @@ class ProductOnModelService
 
         // Mokap beden grubu → görsel yalnız o bedenlere ait (mağazada beden seçilince gösterilir).
         $sizes = $this->variantSizesFor($result);
+        // Renk başına mokap: görsel yalnız o rengin varyantlarına (''/genel set → bütün renkler).
+        $colors = $result->isMockup() && trim((string) $result->color) !== '' ? [(string) $result->color] : null;
         $image = $product->images()->create([
-            ...($sizes !== null && ProductImage::supportsVariantSizes() ? ['variant_sizes' => $sizes] : []),
+            ...($sizes !== null && ProductImage::supportsVariantSizes() ? ['variant_sizes' => $sizes, 'variant_colors' => $colors] : []),
             'path'       => $result->staged_image_path,
             'alt_text'   => trim($product->name . ' — ' . ($pose?->label ?: $pose?->pose_key)
                 . ($result->isCloseup() ? ' — ' . (config("creative.closeup.shots.{$result->shot}.label") ?? $result->shot) : '')),
@@ -360,7 +362,7 @@ class ProductOnModelService
 
         $result->update(['product_image_id' => $image->id]);
         if ($sizes !== null && ProductImage::supportsVariantSizes()) {
-            $this->releaseSizesFromOtherSets($product->id, $image->id, $sizes);
+            $this->releaseSizesFromOtherSets($product->id, $image->id, $sizes, $colors);
         }
 
         // Aynı sonuç daha önce yayınlanmışsa (örn. çift onay), eski satırı temizle.
@@ -387,18 +389,20 @@ class ProductOnModelService
     }
 
     /**
-     * Bu bedenler artık yeni sete ait: ürünün BAŞKA setlerine ait görsellerinden çıkarılır (aynı setin
-     * diğer pozları — aynı beden listesi — korunur). Hiç bedeni kalmayan görsel [] olur: mağazaya gitmez.
+     * Bu bedenler artık yeni sete ait: ürünün AYNI renk kapsamındaki BAŞKA setlerine ait görsellerinden
+     * çıkarılır (aynı setin diğer pozları — aynı beden listesi — korunur; başka rengin setine dokunulmaz).
+     * Hiç bedeni kalmayan görsel [] olur: mağazaya gitmez.
      *
      * @param  list<string>  $sizes
+     * @param  list<string>|null  $colors
      */
-    private function releaseSizesFromOtherSets(int $productId, int $imageId, array $sizes): void
+    private function releaseSizesFromOtherSets(int $productId, int $imageId, array $sizes, ?array $colors = null): void
     {
-        $key = fn (array $s) => implode('|', collect($s)->sort()->values()->all());
+        $key = fn (?array $s) => $s === null ? '*' : implode('|', collect($s)->sort()->values()->all());
         ProductImage::where('product_id', $productId)->whereKeyNot($imageId)->whereNotNull('variant_sizes')->get()
-            ->each(function (ProductImage $img) use ($sizes, $key) {
+            ->each(function (ProductImage $img) use ($sizes, $colors, $key) {
                 $current = (array) $img->variant_sizes;
-                if ($key($current) === $key($sizes) || array_intersect($current, $sizes) === []) {
+                if ($key($img->variant_colors) !== $key($colors) || $key($current) === $key($sizes) || array_intersect($current, $sizes) === []) {
                     return;
                 }
                 $img->update(['variant_sizes' => array_values(array_diff($current, $sizes))]);
@@ -419,6 +423,37 @@ class ProductOnModelService
             str_contains($class, '\\Drivers\\Gemini\\') => 'gemini',
             default                                     => 'mock',
         };
+    }
+
+    /**
+     * Mokap renk setleri: renk adı => o rengin yalın fotoğrafı (görsel variant_colors ile renge etiketli
+     * ya da o rengin bir varyantına bağlı). Tek renkli / renksiz ürün ya da hiçbir rengin fotoğrafı yoksa
+     * tek genel set: ['' => $fallback] (bütün renklere gider). Fotoğrafı olmayan renkler atlanır.
+     *
+     * @return array{garments: array<string,string>, missing: list<string>}
+     */
+    public function colorGarments(Product $product, ?string $fallback = null): array
+    {
+        $product->loadMissing(['images', 'variants']);
+        $colors = $product->variants->pluck('color_name')->filter(fn ($c) => trim((string) $c) !== '')->unique()->values()->all();
+        $plain = $product->images->reject(fn (ProductImage $i) => str_contains((string) $i->path, '/onmodel_'));
+        $variantColor = $product->variants->pluck('color_name', 'id')->all();
+
+        $garments = [];
+        foreach (count($colors) > 1 ? $colors : [] as $color) {
+            $photos = $plain->filter(fn (ProductImage $i) => in_array($color, (array) $i->variant_colors, true)
+                || ($i->product_variant_id && ($variantColor[$i->product_variant_id] ?? null) === $color));
+            if ($photo = ($photos->firstWhere('is_cover', true) ?? $photos->first())?->path) {
+                $garments[$color] = $photo;
+            }
+        }
+        if ($garments === []) {
+            $general = $fallback ?: $this->pickPlainProductPhoto($product);
+
+            return ['garments' => $general ? ['' => $general] : [], 'missing' => count($colors) > 1 ? $colors : []];
+        }
+
+        return ['garments' => $garments, 'missing' => array_values(array_diff($colors, array_keys($garments)))];
     }
 
     /**

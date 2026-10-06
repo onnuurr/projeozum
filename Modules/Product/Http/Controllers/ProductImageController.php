@@ -52,6 +52,9 @@ class ProductImageController extends Controller
             'alt_text'   => ['nullable', 'string', 'max:191'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
             'is_cover'   => ['nullable', 'boolean'],
+            // Yalın fotoğrafın rengi (null = bütün renkler): Creative mokap o rengi bu fotoğraftan giydirir.
+            'variant_colors'   => ['nullable', 'array', 'max:20'],
+            'variant_colors.*' => ['string', 'max:60'],
         ]);
 
         DB::transaction(function () use ($image, $data) {

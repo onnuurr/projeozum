@@ -47,6 +47,7 @@ class ProductPayloadMapper
 
     /**
      * Varyantın görselleri: doğrudan bağlı olanlar + bedeni variant_sizes'ta geçen bedene özel görseller.
+     * Renk: varyantın rengine özel set (variant_colors) varsa o, yoksa genel set (variant_colors null).
      * Bedene özel görseli olan üründe liste boşsa [] gider (Bagisto varyantın eski setini temizler);
      * hiç bedene özel görseli olmayan üründe null (Bagisto mevcut görsellere dokunmaz — eski davranış).
      *
@@ -56,10 +57,11 @@ class ProductPayloadMapper
     private function variantImages(Product $product, $variant): ?array
     {
         $scoped = $product->images->filter(fn ($img) => $img->variant_sizes !== null);
-        $urls = $product->images
-            ->filter(fn ($img) => $img->product_variant_id === $variant->id
-                || in_array($variant->size, (array) $img->variant_sizes, true))
-            ->sortBy('sort_order')->pluck('url')->unique()->values()->all();
+        $forSize = $scoped->filter(fn ($img) => in_array($variant->size, (array) $img->variant_sizes, true));
+        $exact = $forSize->filter(fn ($img) => in_array($variant->color_name, (array) $img->variant_colors, true));
+        $sets = $exact->isNotEmpty() ? $exact : $forSize->filter(fn ($img) => $img->variant_colors === null);
+        $urls = $product->images->filter(fn ($img) => $img->product_variant_id === $variant->id)
+            ->merge($sets)->sortBy('sort_order')->pluck('url')->unique()->values()->all();
 
         return $urls !== [] ? $urls : ($scoped->isNotEmpty() ? [] : null);
     }

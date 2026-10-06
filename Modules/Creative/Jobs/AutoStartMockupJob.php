@@ -45,7 +45,8 @@ class AutoStartMockupJob implements ShouldQueue, ShouldBeUnique
         }
         $product = Product::with(['images', 'category.parent'])->find($this->productId);
         if (! $product || $product->images->isEmpty() || $settings->regionFor($product->category) === null
-            || ! $onModel->pickPlainProductPhoto($product) || $pipeline->missingGroups($product) === []) {
+            || ! $onModel->pickPlainProductPhoto($product)
+            || ($pipeline->missingGroups($product) === [] && $pipeline->missingColors($product) === [])) {
             return;
         }
 

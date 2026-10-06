@@ -29,6 +29,8 @@ class ProductImage extends Model
         'product_variant_id',
         // Bedene özel görsel: ait olduğu beden adları; null = genel (bkz. migration 2026_10_06_180000).
         'variant_sizes',
+        // Renge özel görsel: ait olduğu renk adları; null = bütün renkler (bkz. migration 2026_10_06_190000).
+        'variant_colors',
         'path',
         'alt_text',
         'sort_order',
@@ -39,6 +41,7 @@ class ProductImage extends Model
         'sort_order' => 'integer',
         'is_cover'   => 'boolean',
         'variant_sizes' => 'array',
+        'variant_colors' => 'array',
     ];
 
     /** variant_sizes kolonu var mı (migration çalışmadan yazan kod canlıyı kırmasın). */

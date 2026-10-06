@@ -85,6 +85,7 @@ return [
         'rerun_not_rejected' => 'Yalnız reddedilmiş mokap sonuçları aşamasından yeniden üretilebilir.',
         'rerun_queued' => ':stage aşamasından yeniden üretim kuyruğa alındı.',
         'already_complete' => 'Bu ürünün bütün beden gruplarının mokapı zaten var.',
+        'colors_queued' => ':product için yeni renklerin giydirmesi mevcut kombinle kuyruğa alındı.',
         'groups_queued' => ':product için :count beden grubunun mokapı kuyruğa alındı.',
         'bulk_queued' => ':count ürün için mokap kuyruğa alındı.',
         'bulk_none' => 'Mokap bekleyen uygun ürün yok (mokap kategorisinde, yalın fotoğraflı ve henüz mokapı olmayan ürün).',
