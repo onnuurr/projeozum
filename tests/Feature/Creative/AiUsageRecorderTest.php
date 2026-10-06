@@ -43,6 +43,20 @@ class AiUsageRecorderTest extends TestCase
         $this->assertEqualsWithDelta(0.103, $u->est_cost_usd, 0.00001);
     }
 
+    public function test_image_call_adds_thinking_and_text_output_at_text_price(): void
+    {
+        $response = $this->imageResponse();
+        $response['usageMetadata'] += [
+            'thoughtsTokenCount'      => 200_000,
+            'candidatesTokensDetails' => [['modality' => 'IMAGE', 'tokenCount' => 1680], ['modality' => 'TEXT', 'tokenCount' => 100_000]],
+        ];
+        app(AiUsageRecorder::class)->recordGemini('image', 'gemini-3.1-flash-image',
+            ['generationConfig' => ['imageConfig' => ['imageSize' => '2K']]], $response);
+
+        // 0.101 + 4000 × 0.50/M + (200k düşünme + 100k metin) × 3/M = 0.103 + 0.90; görsel token'ı ikinci kez sayılmaz
+        $this->assertEqualsWithDelta(1.003, AiUsage::sole()->est_cost_usd, 0.00001);
+    }
+
     public function test_text_call_uses_token_prices_and_preview_model_matches_prefix(): void
     {
         app(AiUsageRecorder::class)->recordGemini('analyze', 'gemini-2.5-flash-preview-09', [], [

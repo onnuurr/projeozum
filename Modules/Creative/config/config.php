@@ -417,12 +417,13 @@ return [
         // Maliyet kaydı (creative_ai_usages) için TAHMİNİ fiyat listesi (USD). Kaynak: Google resmi
         // fiyat sayfası (ai.google.dev/gemini-api/docs/pricing, 2026-10-06). Fatura kesin kaynaktır;
         // fiyat değişince burası güncellenir. Görsel modellerde çıktı, istenen imageSize'a göre
-        // görsel başı fiyattır; girdi (prompt + referans görseller) token fiyatıyla eklenir.
+        // görsel başı fiyattır; girdi (prompt + referans görseller) token fiyatıyla, görsel çağrısının
+        // düşünme/metin çıktısı text_output_per_mtok ile eklenir.
         // fal.ai: çağrı başı fiyat — fal.ai model sayfasından doğrulanmalı.
         'pricing' => [
             'gemini' => [
-                'gemini-3.1-flash-image' => ['input_per_mtok' => 0.50, 'image' => ['512' => 0.045, '1K' => 0.067, '2K' => 0.101, '4K' => 0.151], 'default_size' => '1K'],
-                'gemini-2.5-flash-image' => ['input_per_mtok' => 0.30, 'image' => ['1K' => 0.039], 'default_size' => '1K'],
+                'gemini-3.1-flash-image' => ['input_per_mtok' => 0.50, 'text_output_per_mtok' => 3.00, 'image' => ['512' => 0.045, '1K' => 0.067, '2K' => 0.101, '4K' => 0.151], 'default_size' => '1K'],
+                'gemini-2.5-flash-image' => ['input_per_mtok' => 0.30, 'output_per_mtok' => 30.00, 'image' => ['1K' => 0.039], 'default_size' => '1K'],
                 'gemini-2.5-flash'       => ['input_per_mtok' => 0.30, 'output_per_mtok' => 2.50],
                 'gemini-2.5-flash-lite'  => ['input_per_mtok' => 0.10, 'output_per_mtok' => 0.40],
             ],

@@ -64,12 +64,29 @@ class AiUsageRecorder
             if ($images > 0 && isset($price['image'])) {
                 $size = (string) ($payload['generationConfig']['imageConfig']['imageSize'] ?? ($price['default_size'] ?? '1K'));
                 $cost += $images * (float) ($price['image'][$size] ?? max($price['image']));
+                // Görsel çağrısı da düşünür / metin yazar; bunlar görsel değil metin fiyatıyla
+                // faturalanır (≈ %1). Metin kısmı candidatesTokensDetails'ten ayrılır; detay
+                // yoksa yalnız düşünme token'ları sayılır (görsel token'ı ikinci kez fiyatlanmasın).
+                $cost += $this->nonImageOutputTokens($usage) / 1e6 * (float) ($price['text_output_per_mtok'] ?? 0);
             } else {
                 $cost += $out / 1e6 * (float) ($price['output_per_mtok'] ?? 0);
             }
 
             $this->store('gemini', $model, $operation, $size, $in, $out, $images, $cost);
         });
+    }
+
+    /** @param  array<string,mixed>  $usage */
+    private function nonImageOutputTokens(array $usage): int
+    {
+        $text = 0;
+        foreach ((array) ($usage['candidatesTokensDetails'] ?? []) as $detail) {
+            if (strtoupper((string) ($detail['modality'] ?? '')) !== 'IMAGE') {
+                $text += (int) ($detail['tokenCount'] ?? 0);
+            }
+        }
+
+        return $text + (int) ($usage['thoughtsTokenCount'] ?? 0);
     }
 
     public function recordFal(string $model): void
