@@ -104,6 +104,7 @@ class MockupBatchTest extends TestCase
         foreach (['standing_front', 'walking_stride', 'standing_three_qtr'] as $i => $key) {
             $this->png("mannequins/poses/{$key}.png");
             Pose::create(['pose_key' => $key, 'label' => $key, 'prompt' => "pose {$key}", 'status' => Pose::STATUS_READY,
+                'mockup_regions' => $key === 'seated_floor' ? null : ['bottom', 'top', 'one_piece', 'set'],
                 'sort_order' => $i, 'preview_image_path' => "mannequins/poses/{$key}.png"]);
         }
         $mannequin = Mannequin::create(['name' => 'M', 'status' => Mannequin::STATUS_READY, 'review_status' => Mannequin::REVIEW_APPROVED,

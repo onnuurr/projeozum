@@ -946,8 +946,10 @@ return [
         // Ürün başına poz: ana kare + stilistin seçtiği ek pozlar.
         'master_pose'      => 'standing_front',
         'extra_poses'      => (int) env('CREATIVE_MOCKUP_EXTRA_POSES', 2),
-        // Maske kalitesi ölçülmemiş / ürünü gizleyen pozlar (Faz 3'te poz etiketlerine taşınacak).
-        'excluded_poses'   => ['urun_detay', 'seated_chair', 'seated_editorial', 'seated_floor', 'crouching', 'arms_crossed', 'arms_raised', 'leaning_wall', 'hands_in_pockets', 'standing_back', 'three_qtr_back'],
+        // Poz etiketleri (mokapta kullanılabilir bölgeler, gereksinim, kamera yönü) creative_poses
+        // tablosunda (mockup_regions, requires, view). Çeşitlilik: aynı kategoride son N kombinde
+        // kullanılan (tamamlayıcı parça + ayakkabı) ikilisi tekrarlanmaz (MockupStylistRuleEngine).
+        'stylist_diversity_window' => (int) env('CREATIVE_MOCKUP_DIVERSITY_WINDOW', 5),
 
         // Kategori adı (küçük harf) → bölge [+ varsayılan boy]. Eşleşmeyen kategori mokap dışıdır
         // (eski hattan geçer). Faz 4'te ayarlar sayfasına taşınacak.
@@ -980,13 +982,6 @@ return [
             'max_shoe_skin_ratio' => 0.6,
             // Birleştirme: maske dışı ortalama fark (0–255) bunun üstündeyse hiza bozuk sayılır.
             'max_align_mae'    => 8.0,
-        ],
-        // Pozun kameraya göre yönü — sadakat kontrolü görünmemesi gereken detayları (ör. önden
-        // çekimde sırt düğmesi) eksik saymasın diye. Listede olmayan poz "front" kabul edilir.
-        'pose_views' => [
-            'standing_profile' => 'side', 'standing_back' => 'back', 'three_qtr_back' => 'back',
-            'looking_over_shoulder' => 'back', 'standing_three_qtr' => 'three_quarter', 'walking_stride' => 'side',
-            'twisting_torso' => 'three_quarter', 'contrapposto' => 'three_quarter', 'step_forward' => 'front',
         ],
 
         // Ürün "Boy" özelliği (product_attribute code=boy) seçenek adı (küçük harf) → uzunluk.

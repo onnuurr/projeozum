@@ -9,35 +9,48 @@ namespace Modules\Creative\Services\Ai\Drivers\Gemini;
  */
 class MockupPromptBuilder
 {
-    public const STYLIST_VERSION = 1;
+    public const STYLIST_VERSION = 2;   // 2: seçenek listesi + kural motoru (Faz 3)
 
     private const STUDIO = 'Plain seamless light-grey studio background with soft, even, diffused frontal studio lighting and a soft natural floor shadow; no props, no window light patterns, no text or watermark.';
 
     private const FRAMING = 'Full-body framing, the entire body visible from head to feet with some space above the head and below the feet, single person centered.';
 
-    /** @param array{region:string,length:string,age:?string,gender:?string,poses:array<string,string>,extra_poses:int} $c */
+    /** Stilistin işaretleyebileceği ürün özellikleri (poz gereksinimleri bunlarla karşılanır). */
+    public const PRODUCT_FEATURES = ['pockets', 'collar', 'buttons', 'zipper', 'belt_loops', 'ruffles', 'print'];
+
+    /**
+     * Faz 3: stilist serbest kombin YAZMAZ; her tür için listeden sıralı 3 anahtar seçer. Kombin cümlesini
+     * MockupStylistRuleEngine seçeneklerin prompt_en alanlarından kurar.
+     *
+     * @param array{region:string,length:string,age:?string,gender:?string,poses:array<string,string>,extra_poses:int,options:array<string,array<string,string>>} $c
+     *        options: kind => key => kısa İngilizce tanım (yalnız bu ürüne uygun olanlar)
+     */
     public function stylist(array $c): string
     {
         $poses = collect($c['poses'])->map(fn ($p, $k) => "- {$k}: {$p}")->implode("\n");
+        $options = collect($c['options'])->map(fn ($opts, $kind) => strtoupper($kind) . ":\n" . collect($opts)->map(fn ($d, $k) => "- {$k}: {$d}")->implode("\n"))->implode("\n");
+        $kinds = implode(', ', array_map(fn ($k) => "\"{$k}\": [\"key1\",\"key2\",\"key3\"]", array_keys($c['options'])));
         $who = trim(($c['gender'] ? "a {$c['gender']}" : 'a child') . ($c['age'] ? " ({$c['age']})" : ''));
+        $features = implode('|', self::PRODUCT_FEATURES);
 
         return <<<TXT
 You are a senior fashion stylist preparing an e-commerce catalog shoot. The model is {$who}.
-The attached image is the PRODUCT we sell. It covers the "{$c['region']}" body region (bottom | top | one_piece | set = matching two-piece) and its length is "{$c['length']}" (if "unknown": judge it from the garment's own proportions — mini | knee | midi | maxi; ankle-length is maxi — and return it as "length"). Style a complete, realistic, age-appropriate outfit AROUND it.
-Rules:
-- Choose complementary pieces for every OTHER region that suit the product's fabric, color, formality and season. Pieces must be simple, solid or very subtle, no logos/text/bold prints, and must never repeat the product's own pattern.
-- Match the product's character and formality instead of defaulting to basics: e.g. a romantic floral or tiered piece suits a soft knit or a fitted blouse with ballet flats, Mary Janes or sandals; a sporty denim piece suits sneakers; a flowy maxi suits sandals or espadrilles. Do NOT default to a white t-shirt with white sneakers unless it is genuinely the best match. Use colors that harmonize with the product's palette, not always white.
-- If the product is a bottom, the top must be fully tucked in so the whole waistband stays visible.
-- Add at most one subtle accessory (or none). If the product is a top, a set or a one_piece, do NOT use a necklace or anything worn on the chest.
-- If the product is a set or a one_piece, the product covers the whole body: only choose footwear, socks/tights and at most one hair accessory.
-- Pick exactly {$c['extra_poses']} poses from the list below that best show THIS product. Avoid poses where hands/arms would hide the product and poses that need features the product does not have (e.g. pockets).
-Poses:
+The attached image is the PRODUCT we sell. It covers the "{$c['region']}" body region (bottom | top | one_piece | set = matching two-piece) and its length is "{$c['length']}" (if "unknown": judge it from the garment's own proportions — mini | knee | midi | maxi; ankle-length is maxi — and return it as "length").
+Style a realistic, age-appropriate outfit AROUND the product by choosing ONLY from the option lists below. For every list, return your 3 best keys in order of preference.
+- Match the product's character, formality, colors and season (e.g. a romantic tiered piece → a soft knit or blouse with ballet flats or Mary Janes; a sporty denim piece → sneakers; a flowy maxi → sandals or espadrilles). Do not default to white basics unless they are genuinely the best match.
+- COLOR is the color of the complementary garment: it must harmonize with the product's palette and must not copy the product's own color.
+- Prefer "none" for the accessory unless one clearly improves the look.
+Options:
+{$options}
+
+Also pick exactly {$c['extra_poses']} poses from the list below that best show THIS product (avoid poses where hands/arms would hide it):
 {$poses}
 
+List the product's visible construction features from: {$features}.
+
 Answer ONLY with JSON, no markdown:
-{"product_summary": "...", "outfit_pieces": {"top": "...", "bottom": "...", "footwear": "...", "socks_or_tights": "...", "accessory": "..."},
- "outfit_sentence": "one English sentence describing the full outfit EXCEPT the product, very concrete (colors, materials, fit)",
- "poses": ["pose_key"], "length": "mini|knee|midi|maxi", "reasoning_tr": "kısa Türkçe gerekçe"}
+{"product_summary": "short English description of the product", "picks": { {$kinds} },
+ "poses": ["pose_key"], "features": ["..."], "length": "mini|knee|midi|maxi", "confidence": 0.0-1.0, "reasoning_tr": "kısa Türkçe gerekçe"}
 TXT;
     }
 

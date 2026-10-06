@@ -9,10 +9,11 @@ namespace Modules\Creative\Services\Ai\Contracts;
 interface MockupGeneratorContract
 {
     /**
-     * Ürün fotoğrafına bakıp kombin + poz önerisi döndürür (doğrulanmamış ham öneri —
-     * MockupStylistService doğrular).
+     * Ürün fotoğrafına bakıp seçenek listelerinden sıralı anahtarlar + poz önerisi döndürür (doğrulanmamış
+     * ham öneri — MockupStylistRuleEngine doğrular): {product_summary, picks:{kind:[key...]}, poses, features,
+     * length, confidence, reasoning_tr}.
      *
-     * @param  array{region:string,length:string,age:?string,gender:?string,poses:array<string,string>,extra_poses:int}  $context
+     * @param  array{region:string,length:string,age:?string,gender:?string,poses:array<string,string>,extra_poses:int,options:array<string,array<string,string>>}  $context
      * @return array<string,mixed>
      */
     public function stylist(string $productImagePath, array $context): array;

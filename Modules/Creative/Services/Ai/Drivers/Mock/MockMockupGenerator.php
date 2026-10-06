@@ -15,11 +15,13 @@ class MockMockupGenerator implements MockupGeneratorContract
 
     public function stylist(string $productImagePath, array $context): array
     {
+        // Her listeden gösterilen sırayla ilk 3 anahtar (kural motoru doğrular).
         return [
             'product_summary' => 'mock product',
-            'outfit_pieces'   => ['top' => 'white tee', 'footwear' => 'white sneakers'],
-            'outfit_sentence' => 'A fitted white t-shirt and white sneakers.',
+            'picks'           => array_map(fn ($opts) => array_slice(array_keys($opts), 0, 3), $context['options'] ?? []),
             'poses'           => array_slice(array_keys($context['poses']), 0, $context['extra_poses']),
+            'features'        => [],
+            'confidence'      => 0.9,
             'reasoning_tr'    => 'Test kombini.',
         ];
     }

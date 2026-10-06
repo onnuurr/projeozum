@@ -4,76 +4,134 @@ namespace Modules\Creative\Services\Mockup;
 
 use Modules\Creative\Models\MockupOutfit;
 use Modules\Creative\Models\Pose;
+use Modules\Creative\Models\StylistOption;
 use Modules\Creative\Services\Ai\Contracts\MockupGeneratorContract;
 use Modules\Creative\Services\Ai\Drivers\Gemini\MockupPromptBuilder;
 use Modules\Product\Models\Product;
-use RuntimeException;
 
 /**
- * Ürüne özel kombini ve pozları kurar. AI'nın önerisi doğrudan kullanılmaz: poz anahtarları
- * izinli listeye karşı doğrulanır, boy yalnız ürün özelliği yoksa AI'dan alınır, eksik alanlar
- * güvenli varsayılanla doldurulur. (Faz 3'te seçenek listeleri + kural motoru bunun yerini alacak.)
+ * Ürüne özel kombini ve pozları kurar (Faz 3). Stilist (AI) yalnız seçenek listesinden ANAHTAR seçer;
+ * MockupStylistRuleEngine anahtarları doğrular, uyumsuzları eler, çeşitlilik kuralını uygular ve kombin
+ * cümlesini seçeneklerin prompt_en alanlarından kurar. Boy yalnız ürün özelliği yoksa AI'dan alınır.
  */
 class MockupStylistService
 {
-    public function __construct(private MockupGeneratorContract $generator) {}
+    public function __construct(
+        private MockupGeneratorContract $generator,
+        private MockupStylistRuleEngine $rules,
+    ) {}
 
-    /** Hazır ve mokapta kullanılabilir pozlar (ana kare hariç): pose_key => prompt. */
-    public function allowedPoses(): array
+    /**
+     * Mokapta bu bölge için kullanılabilir pozlar (ana kare hariç), sıralı:
+     * pose_key => {prompt, regions, requires}.
+     *
+     * @return array<string,array{prompt:string,regions:array<int,string>,requires:array<int,string>}>
+     */
+    public function allowedPoses(string $region): array
     {
-        $excluded = [...(array) config('creative.mockup.excluded_poses', []), (string) config('creative.mockup.master_pose')];
-
-        return Pose::query()->where('status', Pose::STATUS_READY)->whereNotIn('pose_key', $excluded)
-            ->whereNotNull('preview_image_path')->orderBy('sort_order')
-            ->pluck('prompt', 'pose_key')->all();
+        return Pose::query()->where('status', Pose::STATUS_READY)
+            ->where('pose_key', '!=', (string) config('creative.mockup.master_pose'))
+            ->whereNotNull('preview_image_path')->orderBy('sort_order')->get()
+            ->filter(fn (Pose $p) => in_array($region, (array) $p->mockup_regions, true))
+            ->mapWithKeys(fn (Pose $p) => [$p->pose_key => ['prompt' => (string) $p->prompt, 'regions' => (array) $p->mockup_regions, 'requires' => (array) $p->requires]])
+            ->all();
     }
 
     public function style(MockupOutfit $outfit, string $productPhotoPath): MockupOutfit
     {
         $product = $outfit->product;
-        $poses = $this->allowedPoses();
+        $poses = $this->allowedPoses($outfit->region);
         $extra = min((int) config('creative.mockup.extra_poses', 2), count($poses));
+        $gender = $this->genderWord($product);
+        $catalog = StylistOption::catalog();
+
+        // Stiliste yalnız bu ürüne uyan seçenekler gösterilir (kural motoru yine de doğrular).
+        $probe = ['region' => $outfit->region, 'length' => $outfit->length ?: '', 'gender' => $gender, 'extra_poses' => $extra, 'recent' => []];
+        $shown = [];
+        foreach ($this->kindsFor($outfit->region, $outfit->length) as $kind) {
+            foreach ($catalog[$kind] ?? [] as $key => $opt) {
+                if ($this->rules->allows($kind, (string) $key, $catalog, $probe)) {
+                    $shown[$kind][$key] = $opt['prompt_en'] !== '' ? $opt['prompt_en'] : 'none';
+                }
+            }
+        }
 
         $raw = $this->generator->stylist($productPhotoPath, [
             'region'      => $outfit->region,
             'length'      => $outfit->length ?: 'unknown',
             'age'         => $this->attributeName($product, 'yas_grubu'),
-            'gender'      => $this->genderWord($product),
-            'poses'       => $poses,
+            'gender'      => $gender,
+            'poses'       => array_map(fn ($p) => $p['prompt'], $poses),
             'extra_poses' => $extra,
+            'options'     => $shown,
         ]);
 
-        $sentence = trim((string) ($raw['outfit_sentence'] ?? ''));
-        if ($sentence === '') {
-            throw new RuntimeException(__('creative::messages.mockup.stylist_invalid'));
-        }
-
-        $chosen = array_values(array_unique(array_filter((array) ($raw['poses'] ?? []), fn ($k) => is_string($k) && isset($poses[$k]))));
-        foreach (array_keys($poses) as $k) {            // eksikse sıradaki izinli pozla tamamla
-            if (count($chosen) >= $extra) {
-                break;
-            }
-            if (! in_array($k, $chosen, true)) {
-                $chosen[] = $k;
-            }
-        }
-
         $length = $outfit->length;
+        $lengthGuessed = false;
         if (! $length) {
+            $lengthGuessed = true;
             $length = in_array($raw['length'] ?? null, MockupOutfit::LENGTHS, true) ? $raw['length'] : 'knee';
+        }
+
+        $resolved = $this->rules->resolve($raw, $catalog, $poses, [
+            'region'      => $outfit->region,
+            'length'      => $length,
+            'gender'      => $gender,
+            'extra_poses' => $extra,
+            'recent'      => $this->recentCombos($outfit),
+        ]);
+        $warnings = $resolved['warnings'];
+        if ($lengthGuessed) {
+            $warnings[] = 'Ürünün boyu özellikten okunamadı; stilist tahmin etti (' . $length . ').';
         }
 
         $outfit->update([
             'length'                 => $length,
-            'pieces'                 => is_array($raw['outfit_pieces'] ?? null) ? $raw['outfit_pieces'] : null,
-            'outfit_sentence'        => $sentence,
-            'poses'                  => array_slice($chosen, 0, $extra),
+            'pieces'                 => $resolved['pieces'],
+            'outfit_sentence'        => $resolved['sentence'],
+            'poses'                  => $resolved['poses'],
             'reasoning_tr'           => trim((string) ($raw['reasoning_tr'] ?? '')) ?: null,
             'stylist_prompt_version' => MockupPromptBuilder::STYLIST_VERSION,
-            'meta'                   => [...($outfit->meta ?? []), 'product_summary' => trim((string) ($raw['product_summary'] ?? '')) ?: $product->name],
+            'meta'                   => [...($outfit->meta ?? []),
+                'product_summary'    => trim((string) ($raw['product_summary'] ?? '')) ?: $product->name,
+                'stylist_confidence' => $resolved['confidence'],
+                'stylist_warnings'   => $warnings,
+                'product_features'   => array_values(array_intersect((array) ($raw['features'] ?? []), MockupPromptBuilder::PRODUCT_FEATURES)),
+            ],
         ]);
 
         return $outfit->fresh();
+    }
+
+    /** @return array<int,string> */
+    private function kindsFor(string $region, ?string $length): array
+    {
+        $long = in_array($length, ['midi', 'maxi'], true);
+
+        return array_values(array_filter(match ($region) {
+            'bottom' => ['top', 'color', 'footwear', $long ? null : 'socks', 'accessory'],
+            'top'    => ['bottom', 'color', 'footwear', 'socks', 'accessory'],
+            default  => ['footwear', $long ? null : 'socks', 'accessory'],
+        }));
+    }
+
+    /**
+     * Çeşitlilik kuralı için aynı kategorideki son kombinlerin (tamamlayıcı parça, ayakkabı) ikilileri.
+     *
+     * @return array<int,array{0:?string,1:?string}>
+     */
+    private function recentCombos(MockupOutfit $outfit): array
+    {
+        $categoryId = $outfit->product?->category_id;
+        if (! $categoryId) {
+            return [];
+        }
+
+        return MockupOutfit::query()->whereKeyNot($outfit->id)->whereNotNull('pieces')
+            ->whereHas('product', fn ($q) => $q->where('category_id', $categoryId))
+            ->latest('id')->limit((int) config('creative.mockup.stylist_diversity_window', 5))->get()
+            ->map(fn (MockupOutfit $o) => [($o->pieces['top'] ?? $o->pieces['bottom'] ?? null), ($o->pieces['footwear'] ?? null)])
+            ->all();
     }
 
     private function attributeName(Product $product, string $code): ?string

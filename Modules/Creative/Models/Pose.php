@@ -24,11 +24,18 @@ class Pose extends Model
         'status',
         'error',
         'meta',
+        'mockup_regions',
+        'requires',
+        'view',
     ];
 
     protected $casts = [
-        'sort_order' => 'integer',
-        'meta'       => 'array',
+        'sort_order'     => 'integer',
+        'meta'           => 'array',
+        // Mokap etiketleri: kullanılabileceği ürün bölgeleri (boş = mokap dışı), ürün gereksinimleri
+        // (ör. pockets) ve kamera yönü (front|side|back|three_quarter).
+        'mockup_regions' => 'array',
+        'requires'       => 'array',
     ];
 
     public const STATUS_DRAFT      = 'draft';

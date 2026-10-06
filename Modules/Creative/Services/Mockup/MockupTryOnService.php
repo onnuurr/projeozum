@@ -116,7 +116,7 @@ class MockupTryOnService
             $enabled = (bool) config('creative.mockup.qa.enabled', true);
             $max = $enabled ? max(0, (int) config('creative.mockup.qa.max_retries', 1)) : 0;
             $restore = (bool) ($base->masks['long'] ?? false) && $outfit->region !== 'top';
-            $view = (string) (config('creative.mockup.pose_views', [])[$base->pose?->pose_key] ?? 'front');
+            $view = (string) ($base->pose?->view ?: 'front');
 
             // Batch modunda giydirme sonucu gelene kadar iş biter; deneme no + düzeltme talimatı
             // meta.mockup_run'da kalır, iş yeniden çalışınca aynı denemeden (aynı batch anahtarı) devam eder.

@@ -81,11 +81,37 @@ class MockupPipelineTest extends TestCase
         foreach (['standing_front', 'walking_stride', 'standing_three_qtr', 'seated_floor'] as $i => $key) {
             $this->png("mannequins/poses/{$key}.png");
             Pose::create(['pose_key' => $key, 'label' => $key, 'prompt' => "pose {$key}", 'status' => Pose::STATUS_READY,
+                'mockup_regions' => $key === 'seated_floor' ? null : ['bottom', 'top', 'one_piece', 'set'],
                 'sort_order' => $i, 'preview_image_path' => "mannequins/poses/{$key}.png"]);
         }
 
         return Mannequin::create(['name' => 'M', 'status' => Mannequin::STATUS_READY, 'review_status' => Mannequin::REVIEW_APPROVED,
             'reference_image_path' => 'mannequins/1/reference.png']);
+    }
+
+    public function test_stylist_picks_from_option_list_and_varies_combos_within_a_category(): void
+    {
+        Queue::fake();
+        $mannequin = $this->mannequinAndPoses();
+        $pipeline = app(MockupPipelineService::class);
+        $first = $this->product();
+        $cat = $first->category_id;
+
+        $a = $pipeline->run($pipeline->start($first, $mannequin));
+        $this->assertSame(\Modules\Creative\Services\Ai\Drivers\Gemini\MockupPromptBuilder::STYLIST_VERSION, (int) $a->stylist_prompt_version);
+        // Parçalar seçenek anahtarı; cümle seçeneklerin prompt_en metinlerinden (AI metni değil).
+        $this->assertSame('fitted_rib_tee', $a->pieces['top']);
+        $this->assertStringStartsWith('A fitted short-sleeve ribbed cotton t-shirt in ', $a->outfit_sentence);
+        $this->assertStringContainsString('fully tucked in', $a->outfit_sentence);
+        $this->assertStringNotContainsString('mock', $a->outfit_sentence);
+        $this->assertSame(0.9, $a->meta['stylist_confidence']);
+
+        // Aynı kategoride ikinci ürün: aynı stilist önerisi gelse de (sahte sürücü hep aynı) ikili tekrarlanmaz.
+        $second = $this->product();
+        $second->update(['category_id' => $cat]);
+        $b = $pipeline->run($pipeline->start($second->fresh(), $mannequin));
+        $this->assertNotSame([$a->pieces['top'], $a->pieces['footwear']], [$b->pieces['top'], $b->pieces['footwear']]);
+        $this->assertStringContainsString('Çeşitlilik', implode(' ', $b->meta['stylist_warnings']));
     }
 
     public function test_resolver_reads_region_from_category_and_length_from_boy_attribute(): void
