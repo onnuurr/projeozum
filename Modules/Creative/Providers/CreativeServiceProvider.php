@@ -8,8 +8,10 @@ use Modules\Creative\Console\Commands\TrainGarmentDetectorCommand;
 use Modules\Creative\Console\Commands\TryonPromptCompareCommand;
 use Modules\Creative\Console\Commands\MockupGenerateCommand;
 use Modules\Creative\Console\Commands\AiUsageReportCommand;
+use Modules\Creative\Console\Commands\AiBatchCommand;
 use Modules\Creative\Services\Ai\Contracts\MockupGeneratorContract;
 use Modules\Creative\Services\Ai\Support\AiUsageRecorder;
+use Modules\Creative\Services\AiBatchService;
 use Modules\Creative\Services\Ai\Contracts\AiUsageStoreContract;
 use Modules\Creative\Services\DatabaseAiUsageStore;
 use Modules\Creative\Services\Ai\Contracts\MockupVisionContract;
@@ -92,6 +94,7 @@ class CreativeServiceProvider extends ModuleServiceProvider
         TryonPromptCompareCommand::class,
         MockupGenerateCommand::class,
         AiUsageReportCommand::class,
+        AiBatchCommand::class,
     ];
 
     public function register(): void
@@ -239,6 +242,8 @@ class CreativeServiceProvider extends ModuleServiceProvider
 
         // AI maliyet kaydı: iş bağlamı (forSubject) kuyruk işi başına sıfırlansın diye scoped.
         $this->app->scoped(AiUsageRecorder::class);
+        // Gemini Batch API bağlam yığını (defer) da iş başına sıfırlansın diye scoped.
+        $this->app->scoped(AiBatchService::class);
         $this->app->bind(AiUsageStoreContract::class, DatabaseAiUsageStore::class);
 
         // Mokap giydirme: AI adımları gemini (anahtar varsa) / mock; görüntü adımları Python

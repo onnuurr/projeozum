@@ -43,10 +43,11 @@ class AiUsageRecorder
      *
      * @param  array<string,mixed>  $payload   İstek gövdesi (imageConfig.imageSize buradan)
      * @param  array<string,mixed>  $response  Yanıt JSON'u (usageMetadata buradan)
+     * @param  bool  $batch  Batch API yanıtı: tüm kalemler pricing.batch_multiplier ile (%50), işlem adı "_batch" ekli
      */
-    public function recordGemini(string $operation, string $model, array $payload, array $response): void
+    public function recordGemini(string $operation, string $model, array $payload, array $response, bool $batch = false): void
     {
-        $this->safely(function () use ($operation, $model, $payload, $response) {
+        $this->safely(function () use ($operation, $model, $payload, $response, $batch) {
             $price = $this->geminiPrice($model);
             $usage = (array) ($response['usageMetadata'] ?? []);
             $in  = (int) ($usage['promptTokenCount'] ?? 0);
@@ -70,6 +71,11 @@ class AiUsageRecorder
                 $cost += $this->nonImageOutputTokens($usage) / 1e6 * (float) ($price['text_output_per_mtok'] ?? 0);
             } else {
                 $cost += $out / 1e6 * (float) ($price['output_per_mtok'] ?? 0);
+            }
+
+            if ($batch) {
+                $cost *= (float) config('creative.ai.pricing.batch_multiplier', 0.5);
+                $operation .= '_batch';
             }
 
             $this->store('gemini', $model, $operation, $size, $in, $out, $images, $cost);

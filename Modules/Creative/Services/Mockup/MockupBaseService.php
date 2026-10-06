@@ -6,6 +6,7 @@ use App\Support\Media;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Modules\Creative\Jobs\GenerateMockupJob;
 use Modules\Creative\Models\Mannequin;
 use Modules\Creative\Models\MockupBase;
 use Modules\Creative\Models\MockupOutfit;
@@ -14,6 +15,7 @@ use Modules\Creative\Services\Ai\Contracts\MockupGeneratorContract;
 use Modules\Creative\Services\Ai\Contracts\MockupVisionContract;
 use Modules\Creative\Services\Ai\Support\AiUsageRecorder;
 use Modules\Creative\Services\Ai\Support\ImageFile;
+use Modules\Creative\Services\AiBatchService;
 use RuntimeException;
 
 /**
@@ -27,10 +29,17 @@ class MockupBaseService
     public function __construct(
         private MockupGeneratorContract $generator,
         private MockupVisionContract $vision,
+        private AiBatchService $batch,
     ) {}
 
-    /** @return Collection<int,MockupBase> hazır bazlar (ana kare ilk sırada) */
-    public function generate(MockupOutfit $outfit): Collection
+    /**
+     * Bazları üretir ya da kaldığı yerden sürdürür. Batch modunda (outfit meta.batch) görsel
+     * çağrıları kuyruğa yazılır ve null döner; sonuç gelince GenerateMockupJob yeniden çalışır,
+     * hazır/bitmiş bazlar atlanır. Türetilen pozlar aynı turda gönderilir (tek batch).
+     *
+     * @return Collection<int,MockupBase>|null hazır bazlar (ana kare ilk sırada); null = bekleniyor
+     */
+    public function generate(MockupOutfit $outfit): ?Collection
     {
         $mannequin = $outfit->mannequin;
         if (! $mannequin || $mannequin->status !== Mannequin::STATUS_READY || ! $mannequin->reference_image_path) {
@@ -50,46 +59,69 @@ class MockupBaseService
             'length'   => $outfit->length,
         ];
 
-        $master = $this->buildChecked($outfit, $masterPose, null, fn ($poseTpl) => $this->generator->masterBase(
+        $master = $this->settle($outfit, $masterPose, null, fn ($poseTpl) => $this->generator->masterBase(
             $this->local($mannequin->reference_image_path), $poseTpl, $spec,
         ));
+        if ($master === null) {
+            return null;
+        }
         if ($master->status !== MockupBase::STATUS_READY) {
             throw new RuntimeException(__('creative::messages.mockup.master_failed', ['error' => $master->error]));
         }
 
         $ready = collect([$master]);
+        $waiting = false;
         $masterPath = $this->disk()->path($master->image_path);
         foreach ($others as $pose) {
-            $base = $this->buildChecked($outfit, $pose, $master, fn ($poseTpl) => $this->generator->derivedBase($masterPath, $poseTpl, $spec));
-            if ($base->status === MockupBase::STATUS_READY) {
+            $base = $this->settle($outfit, $pose, $master, fn ($poseTpl) => $this->generator->derivedBase($masterPath, $poseTpl, $spec));
+            if ($base === null) {
+                $waiting = true;
+            } elseif ($base->status === MockupBase::STATUS_READY) {
                 $ready->push($base);
             }
         }
 
-        return $ready;
+        return $waiting ? null : $ready;
     }
 
     /**
-     * Faz 2 baz kontrolü ile üretim: ayakkabı (ücretsiz, segmentasyondan) + türetilen pozda ana kareyle
-     * tutarlılık (analiz çağrısı). Kalırsa EN FAZLA qa.max_retries kez yeniden üretilir; yine kalırsa
-     * baz "warn" ile kullanılır (bulgular giydirme sonucuna taşınır, onaycı görür).
+     * Tek bazı sonuçlanana kadar ilerletir: üret → segmente et → Faz 2 baz kontrolü (ayakkabı:
+     * ücretsiz, segmentasyondan; türetilen pozda ana kareyle tutarlılık: analiz çağrısı). Kalırsa EN
+     * FAZLA qa.max_retries kez yeniden üretilir; yine kalırsa baz "warn" ile kullanılır (bulgular
+     * giydirme sonucuna taşınır, onaycı görür). Durum satırda tutulur (attempts = deneme no):
+     * queued → generating → ready|failed; yeniden deneme → queued. Batch sonucu bekleniyorsa null.
      *
-     * @param  callable(string):string  $render
+     * @param  callable(string):string  $render  poz şablonu yolu → üretilen geçici görsel
      */
-    private function buildChecked(MockupOutfit $outfit, Pose $pose, ?MockupBase $master, callable $render): MockupBase
+    private function settle(MockupOutfit $outfit, Pose $pose, ?MockupBase $master, callable $render): ?MockupBase
     {
         $enabled = (bool) config('creative.mockup.qa.enabled', true);
         $max = $enabled ? max(0, (int) config('creative.mockup.qa.max_retries', 1)) : 0;
+        $base = MockupBase::firstOrCreate(
+            ['outfit_id' => $outfit->id, 'pose_id' => $pose->id],
+            ['derived_from_base_id' => $master?->id, 'status' => MockupBase::STATUS_QUEUED, 'attempts' => 0],
+        );
 
-        for ($try = 0; ; $try++) {
-            $base = $this->build($outfit, $pose, $master, $render);
+        while (true) {
+            if (in_array($base->status, [MockupBase::STATUS_READY, MockupBase::STATUS_FAILED], true)) {
+                return $base;
+            }
+            if ($base->status !== MockupBase::STATUS_GENERATING) {
+                $base->update(['status' => MockupBase::STATUS_GENERATING, 'error' => null, 'attempts' => $base->attempts + 1]);
+            }
+
+            if (! $this->build($outfit, $base, $pose, $render)) {
+                return null;
+            }
             if ($base->status !== MockupBase::STATUS_READY || ! $enabled) {
                 return $base;
             }
 
             $qa = $this->check($base, $master);
-            $base->update(['qa' => [...$qa, 'retries' => $try]]);
-            if (! $qa['retry'] || $try >= $max) {
+            $try = $base->attempts - 1;
+            $retry = $qa['retry'] && $try < $max;
+            $base->update(['qa' => [...$qa, 'retries' => $try], 'status' => $retry ? MockupBase::STATUS_QUEUED : MockupBase::STATUS_READY]);
+            if (! $retry) {
                 return $base->fresh();
             }
         }
@@ -127,21 +159,29 @@ class MockupBaseService
         ];
     }
 
-    /** @param callable(string):string $render poz şablonu yolu → üretilen geçici görsel */
-    private function build(MockupOutfit $outfit, Pose $pose, ?MockupBase $master, callable $render): MockupBase
+    /**
+     * Bazın görselini üretir (batch modunda kuyruktan alır), büyütür, segmente eder ve maskelerini
+     * çıkarır. Batch sonucu henüz yoksa false (baz "generating" kalır).
+     *
+     * @param  callable(string):string  $render
+     */
+    private function build(MockupOutfit $outfit, MockupBase $base, Pose $pose, callable $render): bool
     {
-        $base = MockupBase::updateOrCreate(
-            ['outfit_id' => $outfit->id, 'pose_id' => $pose->id],
-            ['derived_from_base_id' => $master?->id, 'status' => MockupBase::STATUS_GENERATING, 'error' => null],
-        );
-        $base->increment('attempts');
-
         $dir = trim((string) config('creative.mockup.work_dir', 'creative/mockup'), '/') . "/{$outfit->product_id}/outfit_{$outfit->id}";
         $rel = "{$dir}/{$pose->pose_key}";
         $tmp = null;
 
         try {
-            $tmp = app(AiUsageRecorder::class)->forSubject($base, fn () => $render($this->local($pose->preview_image_path)));
+            $batch = (bool) ($outfit->meta['batch'] ?? false);
+            $tmp = $this->batch->defer(
+                $batch ? "mockup_base:{$base->id}:{$base->attempts}" : null,
+                $base,
+                ['job' => GenerateMockupJob::class, 'args' => [$outfit->id]],
+                fn () => app(AiUsageRecorder::class)->forSubject($base, fn () => $render($this->local($pose->preview_image_path))),
+            );
+            if ($tmp === null) {
+                return false;
+            }
             $this->disk()->makeDirectory($dir);
             // Düşük çözünürlükte (1K) üretilen baz, sunucuda ücretsiz büyütülüp saklanır.
             $this->vision->upscale($tmp, $this->disk()->path("{$rel}.png"),
@@ -168,7 +208,7 @@ class MockupBaseService
             ImageFile::delete([$tmp]);
         }
 
-        return $base->fresh();
+        return true;
     }
 
     private function local(?string $path): string

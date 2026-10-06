@@ -3,11 +3,11 @@
 namespace Modules\Creative\Services\Ai\Drivers\Gemini;
 
 use Illuminate\Http\Client\ConnectionException;
-use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Modules\Creative\Services\Ai\Support\ImageFile;
 use Modules\Creative\Services\Ai\Support\AiUsageRecorder;
+use Modules\Creative\Services\AiBatchService;
 
 /**
  * Google Gemini görsel üretim istemcisi (generateContent).
@@ -61,7 +61,7 @@ class GeminiClient
             'generationConfig' => $generationConfig,
         ]);
 
-        return $this->extractImage($response->json() ?? []);
+        return $this->extractImage($response);
     }
 
     /**
@@ -109,7 +109,7 @@ class GeminiClient
             'contents' => [['parts' => [['text' => $prompt]]]],
         ]);
 
-        return $this->extractText($response->json() ?? []);
+        return $this->extractText($response);
     }
 
     /**
@@ -139,20 +139,27 @@ class GeminiClient
             'contents' => [['parts' => $parts]],
         ]);
 
-        return $this->extractText($response->json() ?? []);
+        return $this->extractText($response);
     }
 
     /**
      * generateContent çağrısı: anahtar kontrolü, bağlantı hatası ve HTTP hatası burada
      * GeminiRequestException'a çevrilir; ham ayrıntı (Google mesajı, gövde) loglanır.
+     * Görsel çağrısı AiBatchService::defer() içindeyse HTTP çağrısı yapılmaz: hazır batch yanıtı
+     * döner ya da istek batch kuyruğuna yazılır (AiBatchPending).
      *
      * @param  array<string,mixed>  $payload
+     * @return array<string,mixed>  Yanıt JSON'u
      */
-    private function generateContent(string $operation, string $model, array $payload): Response
+    private function generateContent(string $operation, string $model, array $payload): array
     {
         $apiKey = (string) config('creative.ai.gemini.api_key');
         if ($apiKey === '') {
             throw new GeminiRequestException(GeminiRequestException::MISSING_KEY);
+        }
+
+        if ($operation === 'image' && ($batched = app(AiBatchService::class)->intercept($operation, $model, $payload)) !== null) {
+            return $batched;
         }
 
         $base = rtrim((string) config('creative.ai.gemini.base_url'), '/');
@@ -181,9 +188,10 @@ class GeminiClient
         }
 
         // Maliyet kaydı (yalnız başarılı çağrılar faturalanır) — bkz. AiUsageRecorder.
-        app(AiUsageRecorder::class)->recordGemini($operation, $model, $payload, $response->json() ?? []);
+        $json = $response->json() ?? [];
+        app(AiUsageRecorder::class)->recordGemini($operation, $model, $payload, $json);
 
-        return $response;
+        return $json;
     }
 
     /**

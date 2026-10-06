@@ -5,12 +5,14 @@ namespace Modules\Creative\Services\Mockup;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Modules\Creative\Jobs\GenerateOnModelJob;
 use Modules\Creative\Models\MockupBase;
 use Modules\Creative\Models\MockupOutfit;
 use Modules\Creative\Models\TryonResult;
 use Modules\Creative\Services\Ai\Contracts\MockupGeneratorContract;
 use Modules\Creative\Services\Ai\Contracts\MockupVisionContract;
 use Modules\Creative\Services\Ai\Support\ImageFile;
+use Modules\Creative\Services\AiBatchService;
 use Modules\Creative\Services\CanvasAssetResolver;
 use Modules\Creative\Services\ProductOnModelService;
 use Modules\Creative\Services\ReviewNotifier;
@@ -29,6 +31,7 @@ class MockupTryOnService
         private ProductOnModelService $onModel,
         private CanvasAssetResolver $resolver,
         private ReviewNotifier $notifier,
+        private AiBatchService $batch,
     ) {}
 
     /**
@@ -46,7 +49,8 @@ class MockupTryOnService
                 'shot' => TryonResult::SHOT_FULL, 'pipeline' => TryonResult::PIPELINE_MOCKUP,
             ])->first();
             $meta = $existing?->meta ?? [];
-            unset($meta['extra_instructions']);           // yeni baz → eski düzeltme talimatı geçersiz
+            unset($meta['extra_instructions'], $meta['mockup_run']);   // yeni baz → eski düzeltme talimatı geçersiz
+            $meta['batch'] = (bool) ($outfit->meta['batch'] ?? false);
 
             return TryonResult::updateOrCreate(
                 ['product_id' => $outfit->product_id, 'pose_id' => $base->pose_id, 'shot' => TryonResult::SHOT_FULL, 'pipeline' => TryonResult::PIPELINE_MOCKUP],
@@ -58,7 +62,7 @@ class MockupTryOnService
                     'generation_token'   => (string) Str::uuid(),
                     'error'              => null,
                     'qa'                 => null,
-                    'meta'               => $meta !== [] ? $meta : null,
+                    'meta'               => $meta,
                     'created_by'         => $creatorId,
                     'review_status'      => null,
                     'review_note'        => null,
@@ -111,12 +115,31 @@ class MockupTryOnService
             // onaya düşer (insan onayı hiçbir durumda atlanmaz).
             $enabled = (bool) config('creative.mockup.qa.enabled', true);
             $max = $enabled ? max(0, (int) config('creative.mockup.qa.max_retries', 1)) : 0;
-            $correction = trim((string) ($result->meta['extra_instructions'] ?? '')) ?: null;
             $restore = (bool) ($base->masks['long'] ?? false) && $outfit->region !== 'top';
             $view = (string) (config('creative.mockup.pose_views', [])[$base->pose?->pose_key] ?? 'front');
 
-            for ($attempt = 0; ; $attempt++) {
-                $temps[] = $out = $this->generator->tryOn($crop, $images, $outfit->region, $outfit->length, $correction);
+            // Batch modunda giydirme sonucu gelene kadar iş biter; deneme no + düzeltme talimatı
+            // meta.mockup_run'da kalır, iş yeniden çalışınca aynı denemeden (aynı batch anahtarı) devam eder.
+            $run = (array) ($result->meta['mockup_run'] ?? []);
+            $resumed = ($run['token'] ?? null) === $result->generation_token;
+            $attempt = $resumed ? (int) ($run['attempt'] ?? 0) : 0;
+            $correction = $resumed ? ($run['correction'] ?? null) : (trim((string) ($result->meta['extra_instructions'] ?? '')) ?: null);
+            $batch = (bool) ($result->meta['batch'] ?? false);
+
+            for (; ; $attempt++) {
+                $out = $this->batch->defer(
+                    $batch ? "mockup_tryon:{$result->id}:{$result->generation_token}:{$attempt}" : null,
+                    $result,
+                    ['job' => GenerateOnModelJob::class, 'args' => [$result->id, $result->generation_token]],
+                    fn () => $this->generator->tryOn($crop, $images, $outfit->region, $outfit->length, $correction),
+                );
+                if ($out === null) {
+                    $result->update(['meta' => [...($result->meta ?? []),
+                        'mockup_run' => ['token' => $result->generation_token, 'attempt' => $attempt, 'correction' => $correction]]]);
+
+                    return $result;
+                }
+                $temps[] = $out;
                 $temps[] = $composite = $this->tempPath();
                 $metrics = $this->vision->composite($basePath, $out, $prefix, $box, $composite, $restore);
 
@@ -141,7 +164,10 @@ class MockupTryOnService
             }
 
             $model = $this->generator->modelIdentifier();
+            $meta = $result->meta ?? [];
+            unset($meta['mockup_run']);
             $result->update([
+                'meta'                   => $meta,
                 'staged_image_path'      => $this->onModel->persistStaged($composite, $product, $result),
                 'status'                 => TryonResult::STATUS_DONE,
                 'tryon_driver'           => $model === 'mock' ? 'mock' : 'gemini',

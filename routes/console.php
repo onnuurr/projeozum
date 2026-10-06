@@ -1,5 +1,6 @@
 <?php
 
+use Modules\Creative\Models\AiBatchRequest;
 use Modules\Creative\Models\AiUsage;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -45,6 +46,7 @@ Schedule::command('model:prune', [
         BackupRun::class,
         PatternGenerationJob::class,
         AiUsage::class,
+        AiBatchRequest::class,
     ],
 ])->daily()->onOneServer()->runInBackground();
 
@@ -77,6 +79,12 @@ Schedule::command('categories:sync-status')->dailyAt('04:15')->onOneServer();
 | CreativeReviewReportCommand).
 */
 Schedule::command('creative:review-report')->daily()->onOneServer();
+
+/*
+| Gemini Batch API kuyruğu (mokap görselleri, %50 indirim): kuyruktaki istekleri toplu gönderir,
+| bitenleri toplar, bekleyen işleri sürdürür. Yeni ücretli istek üretmez (bkz. AiBatchCommand).
+*/
+Schedule::command('creative:ai-batch')->everyMinute()->withoutOverlapping(10)->onOneServer()->runInBackground();
 
 /*
 |--------------------------------------------------------------------------

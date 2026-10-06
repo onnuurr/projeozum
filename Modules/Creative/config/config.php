@@ -427,6 +427,8 @@ return [
                 'gemini-2.5-flash'       => ['input_per_mtok' => 0.30, 'output_per_mtok' => 2.50],
                 'gemini-2.5-flash-lite'  => ['input_per_mtok' => 0.10, 'output_per_mtok' => 0.40],
             ],
+            // Gemini Batch API: tüm kalemler (girdi, görsel, metin) liste fiyatının yarısı.
+            'batch_multiplier' => 0.5,
             'fal' => [
                 'fal-ai/fashn/tryon/v1.6' => 0.075,
                 'default'                 => 0.05,
@@ -453,6 +455,12 @@ return [
             'mannequin_model' => env('GEMINI_MANNEQUIN_MODEL', env('GEMINI_IMAGE_MODEL', 'gemini-2.5-flash-image')),
             // Caption gibi salt-metin üretiminde kullanılan model.
             'text_model' => env('GEMINI_TEXT_MODEL', 'gemini-2.5-flash'),
+            // Batch API (%50 indirim, sonuç dakikalar–24 saat): istek/yanıt dosyaları iş diskinde;
+            // tek gönderimin inline gövde sınırı Google'da 20 MB. Bkz. AiBatchService, creative:ai-batch.
+            'batch' => [
+                'dir'              => 'creative/ai-batch',
+                'max_inline_bytes' => 18_000_000,
+            ],
             // Görsel üretiminde her ikisi de zorunlu; yalnız IMAGE → 400.
             'modalities' => ['TEXT', 'IMAGE'],
 
@@ -923,6 +931,9 @@ return [
 
         // Baz ve giydirme görsel modeli (pilotta en sadık sonuç; fal fashn bu hatta kullanılmaz).
         'image_model'  => env('CREATIVE_MOCKUP_IMAGE_MODEL', 'gemini-3.1-flash-image'),
+        // Görsel çağrıları (baz + giydirme) Gemini Batch API ile: %50 ucuz, sonuç dakikalar–24 saat
+        // sonra gelir; zamanlayıcı (creative:ai-batch) işi kaldığı yerden sürdürür. Komutta --now anlık.
+        'batch'        => (bool) env('CREATIVE_MOCKUP_BATCH', true),
         'aspect_ratio' => '3:4',
         // Maliyet: 1K görsel 0,067 $, 2K 0,101 $ (%34 fark). Bazlar 1K üretilip sunucuda FSRCNN ile
         // base_width × base_height'a büyütülür (ücretsiz, ~2 sn); giydirme kırpılmış bölgeye yapıldığı
