@@ -76,7 +76,7 @@ class ProductService
             return $product;
         });
 
-        $this->storeImages($product, $images);
+        $this->storeImages($product, $images, (array) ($data['image_colors'] ?? []));
 
         $this->dispatchWriteEvents(new ProductCreated($product), $product, $data, $images);
 
@@ -98,7 +98,7 @@ class ProductService
             $this->materialLinks->syncMaterials($product, $data['description_materials'] ?? []);
         });
 
-        $this->storeImages($product, $images);
+        $this->storeImages($product, $images, (array) ($data['image_colors'] ?? []));
 
         $this->dispatchWriteEvents(new ProductUpdated($product), $product, $data, $images);
 
@@ -383,10 +383,12 @@ class ProductService
 
     /**
      * Yüklenen görselleri ürüne kaydeder. Üründe kapak yoksa ilk yüklenen kapak olur.
+     * $colors images ile aynı sırada: fotoğrafın rengi (boş = bütün renkler → variant_colors null).
      *
      * @param  array<int, UploadedFile>  $images
+     * @param  array<int, string|null>  $colors
      */
-    private function storeImages(Product $product, array $images): void
+    private function storeImages(Product $product, array $images, array $colors = []): void
     {
         if ($images === []) {
             return;
@@ -397,11 +399,13 @@ class ProductService
 
         // Çağıran create()/update() hemen ardından ProductCreated/ProductUpdated fırlatır —
         // görsel başına ayrı ProductImagesChanged duyurusu gereksiz (ve sırayı bozar).
-        ProductImage::withoutChangeAnnouncements(function () use ($product, $images, &$hasCover, &$sort) {
-            foreach ($images as $file) {
+        ProductImage::withoutChangeAnnouncements(function () use ($product, $images, $colors, &$hasCover, &$sort) {
+            foreach (array_values($images) as $i => $file) {
                 $path = $file->store('products/' . $product->id, Media::disk());
+                $color = trim((string) ($colors[$i] ?? ''));
 
                 $product->images()->create([
+                    'variant_colors' => $color !== '' ? [$color] : null,
                     'path'       => $path,
                     'sort_order' => ++$sort,
                     'is_cover'   => ! $hasCover,

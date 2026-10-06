@@ -142,7 +142,7 @@ const existingImages = ref([]) // { id, url, is_cover }
 function onPickImages(e) {
 	const files = Array.from(e.target.files || [])
 	for (const f of files) {
-		newImages.value.push({ file: f, preview: URL.createObjectURL(f) })
+		newImages.value.push({ file: f, preview: URL.createObjectURL(f), color: '' })
 	}
 	e.target.value = ''
 }
@@ -497,6 +497,8 @@ function buildPayload() {
 		public_description: form.public_description?.trim() || null,
 		tenant_description: form.tenant_description?.trim() || null,
 		images: newImages.value.map((x) => x.file),
+		// images ile aynı sırada: yüklenen fotoğrafın rengi ('' = bütün renkler)
+		image_colors: newImages.value.map((x) => x.color || ''),
 	}
 }
 
@@ -849,11 +851,14 @@ onMounted(() => {
 						<div v-for="img in existingImages" :key="'e' + img.id" class="img-thumb" :class="{ cover: img.is_cover }">
 							<img :src="img.url" alt="" />
 							<span v-if="img.is_cover" class="img-badge cover-badge">Kapak</span>
-							<select v-if="productColors.length > 1 && !isOnModel(img)" class="img-color" :value="img.variant_colors?.[0] ?? ''"
-								:title="'Bu fotoğraf hangi rengin? (mokap giydirmesi bu fotoğrafla yapılır)'" @change="setImageColor(img, $event.target.value)">
-								<option value="">Tüm renkler</option>
-								<option v-for="c in productColors" :key="c" :value="c">{{ c }}</option>
-							</select>
+							<label v-if="productColors.length > 1 && !isOnModel(img)" class="img-color" :class="{ set: img.variant_colors?.length }"
+								title="Bu fotoğraf hangi rengin? Mokap giydirmesi bu fotoğrafla yapılır.">
+								<span class="img-color-label">Renk</span>
+								<select :value="img.variant_colors?.[0] ?? ''" @change="setImageColor(img, $event.target.value)">
+									<option value="">Tüm renkler</option>
+									<option v-for="c in productColors" :key="c" :value="c">{{ c }}</option>
+								</select>
+							</label>
 							<div class="img-actions">
 								<button v-if="!img.is_cover" type="button" class="img-act" title="Kapak yap" @click="setCover(img)"><Star :size="13" /></button>
 								<button type="button" class="img-act del" title="Sil" @click="deleteExisting(img)"><X :size="13" /></button>
@@ -865,6 +870,13 @@ onMounted(() => {
 							<div class="img-actions">
 								<button type="button" class="img-act del" title="Kaldır" @click="removeNewImage(i)"><X :size="13" /></button>
 							</div>
+							<label v-if="productColors.length > 1" class="img-color" :class="{ set: img.color }" title="Bu fotoğraf hangi rengin? Kaydedince uygulanır.">
+								<span class="img-color-label">Renk</span>
+								<select v-model="img.color">
+									<option value="">Tüm renkler</option>
+									<option v-for="c in productColors" :key="c" :value="c">{{ c }}</option>
+								</select>
+							</label>
 						</div>
 					</div>
 					<label class="img-upload">
@@ -1149,5 +1161,8 @@ onMounted(() => {
 	.savebar-actions { margin-left: 0; }
 	.savebar-actions > * { flex: 1; }
 }
-.img-color { position: absolute; left: 6px; right: 6px; bottom: 6px; font-size: 11px; padding: 2px 4px; border-radius: 6px; border: 1px solid var(--oz-border); background: var(--oz-surface); color: var(--oz-ink-soft); }
+.img-color { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 6px; padding: 5px 7px; background: var(--oz-surface); border-top: 1px solid var(--oz-border); font-size: 11.5px; }
+.img-color.set { background: var(--oz-primary-soft, var(--oz-surface-2)); }
+.img-color-label { font-weight: 700; color: var(--oz-ink-soft); }
+.img-color select { flex: 1; min-width: 0; font-size: 11.5px; padding: 2px 4px; border-radius: 6px; border: 1px solid var(--oz-border); background: var(--oz-surface); color: var(--oz-ink); }
 </style>

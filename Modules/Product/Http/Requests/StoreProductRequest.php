@@ -73,6 +73,9 @@ class StoreProductRequest extends FormRequest
 
             'images'            => ['nullable', 'array', 'max:10'],
             'images.*'          => ['file', 'mimes:jpeg,jpg,png,webp,gif', 'max:5120'], // her görsel 5MB (webp dahil)
+            // images ile aynı sırada: yüklenen fotoğrafın rengi (boş = bütün renkler) — Creative mokap o rengi bundan giydirir.
+            'image_colors'      => ['nullable', 'array', 'max:10'],
+            'image_colors.*'    => ['nullable', 'string', 'max:60'],
 
             'variants'                  => ['required', 'array', 'min:1'],
             'variants.*.size'           => ['nullable', 'string', 'max:16'],

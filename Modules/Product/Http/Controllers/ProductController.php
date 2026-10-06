@@ -335,6 +335,8 @@ class ProductController extends Controller
                 'id'       => $img->id,
                 'url'      => $img->url,
                 'is_cover' => (bool) $img->is_cover,
+                // Yalın fotoğrafın rengi (null = bütün renkler) — görsel kartındaki renk seçimi.
+                'variant_colors' => $img->variant_colors,
             ])->values()->all(),
             'variants'         => $product->variants->map(fn ($v) => [
                 'id'         => $v->id,
