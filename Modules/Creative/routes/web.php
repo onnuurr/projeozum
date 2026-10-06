@@ -116,6 +116,8 @@ Route::middleware(['auth', 'verified'])
         ->middleware(['can:creative.asset.manage', 'throttle:15,1'])->name('tryon.mockup.store');
     Route::post('/tryon/mockup/bulk', [MockupController::class, 'bulk'])
         ->middleware(['can:creative.asset.manage', 'throttle:5,1'])->name('tryon.mockup.bulk');
+    Route::post('/tryon/{result}/mockup-rerun', [MockupController::class, 'rerun'])
+        ->middleware(['can:creative.asset.manage', 'throttle:15,1'])->whereNumber('result')->name('tryon.mockup.rerun');
     Route::post('/tryon/classify-detail', [TryonController::class, 'classifyDetail'])
         ->middleware(['can:creative.asset.manage', 'throttle:15,1'])->name('tryon.classify-detail');
     Route::get('/tryon/{result}', [TryonController::class, 'show'])

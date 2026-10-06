@@ -57,6 +57,8 @@ class MockupBaseService
             'summary'  => (string) ($outfit->meta['product_summary'] ?? ''),
             'region'   => $outfit->region,
             'length'   => $outfit->length,
+            // Faz 5: baz aşamasından ret → onaycının düzeltmesi (MockupRerunService).
+            'correction' => (string) ($outfit->meta['base_correction'] ?? ''),
         ];
 
         $master = $this->settle($outfit, $masterPose, null, fn ($poseTpl) => $this->generator->masterBase(

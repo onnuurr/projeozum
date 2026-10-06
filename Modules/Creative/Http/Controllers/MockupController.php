@@ -4,10 +4,13 @@ namespace Modules\Creative\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
+use Modules\Creative\Http\Requests\RerunMockupRequest;
 use Modules\Creative\Http\Requests\StartBulkMockupRequest;
 use Modules\Creative\Http\Requests\StartMockupRequest;
 use Modules\Creative\Models\Mannequin;
+use Modules\Creative\Models\TryonResult;
 use Modules\Creative\Services\Mockup\MockupPipelineService;
+use Modules\Creative\Services\Mockup\MockupRerunService;
 use Modules\Product\Models\Product;
 use RuntimeException;
 
@@ -30,6 +33,18 @@ class MockupController extends Controller
         }
 
         return back()->with('success', __('creative::messages.mockup.groups_queued', ['product' => $product->name, 'count' => count($started)]));
+    }
+
+    /** Faz 5: reddedilen mokap sonucunu ret nedeninin aşamasından düzeltme talimatıyla yeniden üretir. */
+    public function rerun(TryonResult $result, RerunMockupRequest $request, MockupRerunService $rerun): RedirectResponse
+    {
+        try {
+            $plan = $rerun->rerun($result);
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', __('creative::messages.mockup.rerun_queued', ['stage' => $plan['label']]));
     }
 
     public function bulk(StartBulkMockupRequest $request, MockupPipelineService $pipeline): RedirectResponse

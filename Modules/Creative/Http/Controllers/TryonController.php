@@ -27,6 +27,7 @@ use Modules\Creative\Services\Ai\TryOnDriverResolver;
 use Modules\Creative\Services\Enhancement\GarmentDetailClassifierContract;
 use Modules\Creative\Services\FalBalanceService;
 use Modules\Creative\Services\GeminiSpendService;
+use Modules\Creative\Services\Mockup\MockupRerunService;
 use Modules\Creative\Services\Mockup\MockupSettings;
 use Modules\Creative\Services\ProductCloseupService;
 use Modules\Creative\Services\ProductOnModelService;
@@ -177,6 +178,8 @@ class TryonController extends Controller
         $labels = $results->contains(fn ($r) => $r->mockupBase?->outfit) ? StylistOption::query()->get(['kind', 'key', 'label_tr'])
             ->mapWithKeys(fn ($o) => ["{$o->kind}.{$o->key}" => $o->label_tr])->all() : [];
 
+        $rerun = app(MockupRerunService::class);
+
         return $results->map(fn (TryonResult $r) => [
             'id'              => $r->id,
             'status'          => $r->status,
@@ -238,6 +241,9 @@ class TryonController extends Controller
                 'created_at' => $c->created_at?->toDateTimeString(),
             ]),
             'chat_suggestion' => $r->meta['chat_suggested_instruction'] ?? null,
+            // Faz 5: reddedilen mokap → hangi aşamadan, tahmini kaça yeniden üretilir.
+            'rerun'           => $r->isMockup() && $r->review_status === TryonResult::REVIEW_REJECTED && $r->mockupBase
+                ? $rerun->plan($r) : null,
         ]);
     }
 

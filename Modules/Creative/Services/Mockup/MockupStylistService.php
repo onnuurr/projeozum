@@ -122,16 +122,18 @@ class MockupStylistService
      */
     private function recentCombos(MockupOutfit $outfit): array
     {
+        // Faz 5: stilist aşamasından reddedilen kombinler bu ürün için yasak (MockupRerunService).
+        $avoid = array_values(array_filter((array) ($outfit->meta['avoid_combos'] ?? []), 'is_array'));
         $categoryId = $outfit->product?->category_id;
         if (! $categoryId) {
-            return [];
+            return $avoid;
         }
 
-        return MockupOutfit::query()->whereKeyNot($outfit->id)->whereNotNull('pieces')
+        return [...$avoid, ...MockupOutfit::query()->whereKeyNot($outfit->id)->whereNotNull('pieces')
             ->whereHas('product', fn ($q) => $q->where('category_id', $categoryId))
             ->latest('id')->limit((int) config('creative.mockup.stylist_diversity_window', 5))->get()
             ->map(fn (MockupOutfit $o) => [($o->pieces['top'] ?? $o->pieces['bottom'] ?? null), ($o->pieces['footwear'] ?? null)])
-            ->all();
+            ->all()];
     }
 
     private function attributeName(Product $product, string $code): ?string

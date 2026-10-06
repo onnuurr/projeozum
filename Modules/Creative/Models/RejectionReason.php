@@ -30,9 +30,22 @@ class RejectionReason extends Model
         'tryon'      => 'Model Giydirme',
     ];
 
+    /**
+     * Mokap aşaması (Faz 5): ret bu aşamadan yeniden üretilir (MockupRerunService) ve raporda aşama
+     * dağılımı çıkar. Sıra = akıştaki yukarıdan aşağı sıra (yukarıdaki aşama önce düzeltilir).
+     */
+    public const STAGES = [
+        'stylist'   => 'Kombin (stilist)',
+        'base'      => 'Manken / baz görsel',
+        'mask'      => 'Maske',
+        'tryon'     => 'Ürün giydirme',
+        'composite' => 'Birleştirme',
+    ];
+
     protected $fillable = [
         'category',
         'context',
+        'stage',
         'label',
         'hint',
         'sort_order',

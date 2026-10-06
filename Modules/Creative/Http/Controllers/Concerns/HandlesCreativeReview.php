@@ -72,12 +72,16 @@ trait HandlesCreativeReview
      */
     private function rejectionReasonGroups(string $context): array
     {
+        // Giydirme ekranında nedenler mokap aşamasına göre gruplanır (Faz 5); aşamasız olanlar kendi kategorisinde.
+        $byStage = $context === 'tryon';
+
         return RejectionReason::query()
             ->active()
             ->forContext($context)
             ->ordered()
-            ->get(['category', 'label'])
-            ->groupBy('category')
+            ->get(['category', 'label', 'stage'])
+            ->sortBy(fn ($r) => $byStage && $r->stage ? array_search($r->stage, array_keys(RejectionReason::STAGES), true) : 99)
+            ->groupBy(fn ($r) => $byStage && $r->stage ? RejectionReason::STAGES[$r->stage] ?? $r->category : $r->category)
             ->map(fn ($rows, $category) => [
                 'category' => $category,
                 'items'    => $rows->pluck('label')->values()->all(),

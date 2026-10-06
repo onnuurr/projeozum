@@ -64,10 +64,13 @@ class GeminiMockupGenerator implements MockupGeneratorContract
         return $this->image($this->prompts->derivedBase($this->outfitText($outfit)), [$masterPath, $poseTemplatePath], 'base_image_size');
     }
 
-    /** @param array{sentence:string,summary:string,region:string,length:string} $o */
+    /** @param array{sentence:string,summary:string,region:string,length:string,correction?:string} $o */
     private function outfitText(array $o): string
     {
-        return $this->prompts->outfitText($o['sentence'], $o['summary'], $o['region'], $o['length']);
+        $text = $this->prompts->outfitText($o['sentence'], $o['summary'], $o['region'], $o['length']);
+        $fix = trim((string) ($o['correction'] ?? ''));
+
+        return $fix === '' ? $text : "{$text} A reviewer rejected the previous version of this photo — correct it: {$fix}";
     }
 
     public function tryOn(string $cropPath, array $productImagePaths, string $region, string $length, ?string $correction = null): string

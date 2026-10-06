@@ -490,6 +490,10 @@
 					<Link v-if="r.can_chat" :href="`/creative/tryon/${r.id}/review-chat`" class="chat-link">
 						<MessageCircle :size="13" /> AI ile Konuş <span v-if="r.review_chats?.length">({{ r.review_chats.length }} mesaj)</span>
 					</Link>
+					<!-- Faz 5: reddedilen mokap → ret nedeninin aşamasından düzeltmeyle yeniden üret -->
+					<button v-if="r.rerun && can('creative.asset.manage')" type="button" class="chat-link rerun-btn" :disabled="mockupBusy" @click="rerunMockup(r)">
+						<RefreshCw :size="13" /> {{ r.rerun.label }} aşamasından yeniden üret
+					</button>
 				</div>
 			</div>
 		</Card>
@@ -1040,6 +1044,22 @@ async function startMockup() {
 	mockupRequest('/creative/tryon/mockup', { product_id: selectedProduct.value }, () => { currentStep.value = 4 })
 }
 
+async function rerunMockup(r) {
+	if (mockupBusy.value) return
+	const scope = {
+		stylist: 'Ürünün kombini yeniden seçilir (reddedilen kombin kullanılmaz); bütün beden gruplarının baz görselleri ve giydirmeleri yeniden üretilir.',
+		base: 'Bu beden grubunun manken/baz görselleri düzeltme talimatıyla yeniden üretilir, ardından giydirmeleri.',
+	}[r.rerun.stage] ?? 'Yalnız bu giydirme, ret nedenleri düzeltme talimatı olarak verilip yeniden üretilir.'
+	const ok = await $swal.confirm({
+		title: `${r.rerun.label} Aşamasından Yeniden Üret`,
+		html: `${scope} Tahmini maliyet ~${r.rerun.usd.toLocaleString('tr-TR')} $. Sonuç yeniden onaya düşer.`,
+		confirmText: 'Yeniden Üret',
+		cancelText: 'Vazgeç',
+	})
+	if (!ok) return
+	mockupRequest(`/creative/tryon/${r.id}/mockup-rerun`, {})
+}
+
 async function startBulkMockup() {
 	if (mockupBusy.value) return
 	const limit = Math.min(props.mockup.remaining_today, 10)
@@ -1530,6 +1550,8 @@ onUnmounted(() => {
 .result-actions { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
 .link-btn.danger { color: var(--color-danger); margin-left: auto; }
 .is-cover-note { font-size: 11px; color: var(--color-success); font-weight: 600; }
+.rerun-btn { width: calc(100% - 24px); border: none; cursor: pointer; font-family: inherit; }
+.rerun-btn:disabled { opacity: .6; cursor: default; }
 .chat-link { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 12px; margin: 0 12px 12px; background: var(--color-primary-soft); color: var(--color-primary-hover); border-radius: 8px; font-size: 12px; font-weight: 600; text-decoration: none; }
 .chat-link:hover { background: color-mix(in srgb, var(--color-primary-soft) 60%, var(--color-primary) 10%); }
 

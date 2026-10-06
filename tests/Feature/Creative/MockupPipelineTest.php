@@ -132,6 +132,84 @@ class MockupPipelineTest extends TestCase
         $pipeline->startFor($product->fresh());
     }
 
+    /** Tam akışı çalıştırıp ana kare sonucunu verilen etiketlerle reddeder. */
+    private function rejectedMockup(array $tags, string $note = ''): array
+    {
+        $pipeline = app(MockupPipelineService::class);
+        $outfit = $pipeline->run($pipeline->start($this->product(), $this->mannequinAndPoses()));
+        $r = TryonResult::where('pipeline', TryonResult::PIPELINE_MOCKUP)->whereHas('mockupBase', fn ($q) => $q->whereNull('derived_from_base_id'))->sole();
+        (new GenerateOnModelJob($r->id, $r->generation_token))->handle(app(\Modules\Creative\Services\ProductOnModelService::class),
+            app(\Modules\Creative\Services\ProductCloseupService::class), app(MockupTryOnService::class));
+        $r->refresh()->update(['review_status' => TryonResult::REVIEW_REJECTED, 'review_tags' => $tags, 'review_note' => $note]);
+
+        return [$outfit->fresh(), $r->fresh()];
+    }
+
+    public function test_rejection_stage_decides_what_is_regenerated(): void
+    {
+        Queue::fake();
+        $rerun = app(\Modules\Creative\Services\Mockup\MockupRerunService::class);
+
+        // Ürün nedeni → yalnız giydirme, ret ipuçları düzeltme talimatı olur.
+        [$outfit, $r] = $this->rejectedMockup(['Renk uyumu'], 'daha koyu yıkama');
+        $this->assertSame('tryon', $rerun->plan($r)['stage']);
+        $rerun->rerun($r);
+        $r->refresh();
+        $this->assertSame(TryonResult::STATUS_QUEUED, $r->status);
+        $this->assertNull($r->review_status);
+        $this->assertStringContainsString('garment color does not match', $r->meta['extra_instructions']);
+        $this->assertStringContainsString('daha koyu yıkama', $r->meta['extra_instructions']);
+        Queue::assertPushed(GenerateOnModelJob::class, fn ($j) => $j->resultId === $r->id && $j->generationToken === $r->generation_token);
+        $this->assertSame(3, MockupBase::where('outfit_id', $outfit->id)->count());     // bazlara dokunulmadı
+    }
+
+    public function test_base_stage_regenerates_the_group_bases_with_the_correction(): void
+    {
+        Queue::fake();
+        $rerun = app(\Modules\Creative\Services\Mockup\MockupRerunService::class);
+        [$outfit, $r] = $this->rejectedMockup(['Saç', 'Renk uyumu']);       // baz > giydirme
+
+        $this->assertSame('base', $rerun->rerun($r)['stage']);
+        $outfit->refresh();
+        $this->assertSame(MockupOutfit::STATUS_QUEUED, $outfit->status);
+        $this->assertSame(0, MockupBase::where('outfit_id', $outfit->id)->count());
+        $this->assertStringContainsString('hair style', $outfit->meta['base_correction']);
+        Queue::assertPushed(GenerateMockupJob::class, fn ($j) => $j->outfitId === $outfit->id);
+
+        // Yeniden çalışınca kombin korunur, bazlar ve giydirme satırları yenilenir.
+        $sentence = $outfit->outfit_sentence;
+        $outfit = app(MockupPipelineService::class)->run($outfit);
+        $this->assertSame($sentence, $outfit->outfit_sentence);
+        $this->assertSame(3, MockupBase::where('outfit_id', $outfit->id)->count());
+        $this->assertSame(TryonResult::STATUS_QUEUED, $r->fresh()->status);
+    }
+
+    public function test_stylist_stage_reselects_the_look_and_avoids_the_rejected_combo(): void
+    {
+        Queue::fake();
+        $rerun = app(\Modules\Creative\Services\Mockup\MockupRerunService::class);
+        [$outfit, $r] = $this->rejectedMockup(['Kombin ürüne uymuyor', 'Saç']);   // stilist > baz
+        $old = [$outfit->pieces['top'], $outfit->pieces['footwear']];
+
+        $this->assertSame('stylist', $rerun->rerun($r)['stage']);
+        $outfit->refresh();
+        $this->assertNull($outfit->outfit_sentence);
+        $this->assertSame([$old], $outfit->meta['avoid_combos']);
+
+        $outfit = app(MockupPipelineService::class)->run($outfit);
+        $this->assertNotSame($old, [$outfit->pieces['top'], $outfit->pieces['footwear']]);
+    }
+
+    public function test_only_rejected_mockup_results_can_be_rerun(): void
+    {
+        Queue::fake();
+        [, $r] = $this->rejectedMockup(['Renk uyumu']);
+        $r->update(['review_status' => TryonResult::REVIEW_PENDING]);
+
+        $this->expectException(\RuntimeException::class);
+        app(\Modules\Creative\Services\Mockup\MockupRerunService::class)->rerun($r->fresh());
+    }
+
     public function test_stylist_picks_from_option_list_and_varies_combos_within_a_category(): void
     {
         Queue::fake();
