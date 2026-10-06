@@ -140,6 +140,9 @@ class MockupTryOnService
                     return $result;
                 }
                 $temps[] = $out;
+                // Ham model çıktısı iş diskinde saklanır (sonuç başına son deneme): birleştirme ayarları
+                // yeni ücretli çağrı yapmadan yeniden denenebilsin (bkz. mockup_composite.py).
+                $disk->put($base->masks['prefix'] . "_raw_{$result->id}.png", (string) file_get_contents($out));
                 $temps[] = $composite = $this->tempPath();
                 $metrics = $this->vision->composite($basePath, $out, $prefix, $box, $composite, $restore);
 

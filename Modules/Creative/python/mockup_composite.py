@@ -33,11 +33,13 @@ def load(p):
 
 
 ARMS = 14                 # mockup_segment etiketi (kol + el teni)
-SKIN_CHROMA = (15, 35)    # max(RGB)-min(RGB): bu aralıkta tenlik 0 → 1 (ten ≥ ~43, arka plan/yer tutucu ≤ ~22)
+SKIN_CHROMA = (28, 45)    # max(RGB)-min(RGB): bu aralıkta tenlik 0 → 1 (ten iç ≥ ~43, arka plan/yer tutucu ≤ ~22)
+ARM_ERODE = 3             # px: bazdaki elin dış kenarı arka planla karışık (açık renkli) — alınmaz
 
 
 def arm_matte(Bb, occl_c, lab_c):
-    """Önde kalan maskesi (0–1): kol/el piksellerinde bazın ten rengine göre yumuşak, 1 px içeriden;
+    """Önde kalan maskesi (0–1): kol/el piksellerinde bazın ten rengine göre yumuşak, ARM_ERODE px içeriden
+    (2026-10-06 ölçümü: dış 2 px'in parlaklığı arka planla karışık, ~205 / iç ten ~178 — beyaz kontur yapıyordu);
     diğer önde kalanlar (saç, üst, ayakkabı) olduğu gibi."""
     occ = occl_c.astype(np.float32)
     if lab_c is None:
@@ -47,7 +49,7 @@ def arm_matte(Bb, occl_c, lab_c):
         return occ
     chroma = Bb.max(2) - Bb.min(2)
     skin = np.clip((chroma - SKIN_CHROMA[0]) / (SKIN_CHROMA[1] - SKIN_CHROMA[0]), 0, 1)
-    inner = np.asarray(Image.fromarray(arm.astype(np.uint8) * 255).filter(ImageFilter.MinFilter(3))) > 127
+    inner = np.asarray(Image.fromarray(arm.astype(np.uint8) * 255).filter(ImageFilter.MinFilter(2 * ARM_ERODE + 1))) > 127
     occ[arm] = (inner * skin)[arm]
     return occ
 
