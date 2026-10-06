@@ -102,6 +102,39 @@ class StockService
         return $movement;
     }
 
+    /** Açılış stoğu hareketlerinin notu (bkz. openingBalance() ve 2026_10_07 geçiş migration'ı). */
+    public const OPENING_NOTE = 'Açılış stoğu';
+
+    /**
+     * Varsayılan depo: is_default işaretli aktif depo, yoksa en eski aktif depo.
+     */
+    public function defaultWarehouseId(): ?int
+    {
+        return Warehouse::query()->where('is_active', true)
+            ->orderByDesc('is_default')->orderBy('id')
+            ->value('id');
+    }
+
+    /**
+     * Yeni varyantın formda girilen başlangıç stoğunu varsayılan depoya giriş hareketi
+     * olarak yazar — stok sayfası, sipariş tahsisi ve variants.stock önbelleği aynı
+     * kaynaktan (stocks) beslensin. Aktif depo yoksa false döner (çağıran karar verir).
+     */
+    public function openingBalance(int $variantId, int $qty, ?int $userId = null): bool
+    {
+        if ($qty <= 0) {
+            return true;
+        }
+        $warehouseId = $this->defaultWarehouseId();
+        if ($warehouseId === null) {
+            return false;
+        }
+
+        $this->move($variantId, $warehouseId, StockMovement::TYPE_IN, $qty, note: self::OPENING_NOTE, userId: $userId);
+
+        return true;
+    }
+
     /**
      * Bir varyant için tüm depolardaki satılabilir miktar = Σ(quantity - reserved_quantity).
      */

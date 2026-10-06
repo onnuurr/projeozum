@@ -330,7 +330,13 @@ class ProductService
             if ($variant = $existing->get($v['sku'])) {
                 $variant->update($attributes);
             } else {
-                $product->variants()->create($attributes + ['sku' => $v['sku'], 'stock' => $v['stock'] ?? 0]);
+                // Başlangıç stoğu varsayılan depoya giriş hareketi olarak yazılır (stok sayfası ve
+                // sipariş tahsisi stocks tablosunu okur). Aktif depo yoksa yalnız önbelleğe yazılır.
+                $initial = (int) ($v['stock'] ?? 0);
+                $variant = $product->variants()->create($attributes + ['sku' => $v['sku'], 'stock' => 0]);
+                if (! app(StockService::class)->openingBalance($variant->id, $initial, auth()->id())) {
+                    $variant->update(['stock' => $initial]);
+                }
             }
 
             $keep[] = $v['sku'];
