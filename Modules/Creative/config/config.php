@@ -397,10 +397,6 @@ return [
         // fashn/tryon v1.6 (logo/desen/yazı sadakatinde bağımsız incelemelerde
         // kategori lideri — bkz. yukarıdaki not).
         'tryon_driver'   => env('AI_STUDIO_TRYON_DRIVER', 'fal'),
-        // Kombin tamamlama: tek parça ürün (ör. etek) giydirilirken manken poz adımında
-        // ürüne uygun bir kombinle (üst, ayakkabı, çorap vb. — AI seçer) pozlanır, ürün
-        // sonra giydirilir. Her iki sürücüde de çalışır (bkz. MannequinPosePromptBuilder::stylingLines).
-        'tryon_styling'  => (bool) env('CREATIVE_TRYON_STYLING', true),
         // gemini | mock — caption/hashtag üretimi
         'caption_driver' => env('CREATIVE_CAPTION_DRIVER', 'gemini'),
         // gemini | mock — görsel-üstü metin (headline/sub-headline/CTA) üretimi

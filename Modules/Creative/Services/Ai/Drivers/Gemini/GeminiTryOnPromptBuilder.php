@@ -47,8 +47,7 @@ class GeminiTryOnPromptBuilder implements TryOnPromptBuilderContract
             'The SECOND image is the main photo of a GARMENT/PRODUCT (a piece of clothing or wearable item).',
             'Task: dress the person from the first image in the garment shown in the second (and any further) image — a virtual try-on.',
             'Keep the person strictly consistent with the first image: same face, hairstyle, skin tone, body type, exact pose, body orientation, framing, lighting and background. Do not change the person or the scene.',
-            // Kombin tamamlama (creative.ai.tryon_styling): kişi poz adımında ürüne uygun bir
-            // kombinle gelir — yalnız ürünün bölgesi değişmeli, diğer parçalar (üst/ayakkabı/çorap) kalmalı.
+            // Yalnız ürünün bölgesi değişmeli; kişinin diğer parçaları (taban kıyafet, ayakkabı) kalmalı.
             'Replace ONLY the clothing on the product\'s own body region (top, bottom, dress, outerwear, etc.) with the product so it is naturally worn there; keep every other piece of the person\'s outfit (other garments, footwear, tights, accessories) exactly as in the first image so the result reads as one coordinated outfit.',
             'Preserve the product\'s real cut, silhouette, colors, fabric, texture, patterns, prints, logos, branding and any text EXACTLY as shown — do not redesign, recolor, restyle or invent a different product.',
             // Renk sadakati (Faz Q): rengi İSİMLENDİRMEDEN (ör. "lacivert") negatif bir

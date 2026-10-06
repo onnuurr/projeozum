@@ -239,9 +239,6 @@ class ProductOnModelService
                 label:              (string) ($pose->label ?: $pose->pose_key),
                 directive:          $directive,
                 posePreviewPath:    $posePreview,
-                // Kombin tamamlama: ürün görseli stil referansı olur, eksik parçaları AI seçer;
-                // ürünün kendisi aşağıdaki try-on adımında giydirilir.
-                stylingGarmentPath: config('creative.ai.tryon_styling') ? $garmentPath : null,
             ));
 
             // 2) Ürünü bu poza giydir (destekleyen sürücülerde ek açı/detay görselleri VE
