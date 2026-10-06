@@ -74,11 +74,26 @@ class MockupRerunService
         $plan = $this->plan($result);
         $correction = $this->correctionFor($result);
 
+        // Ret, yeniden üretimde satırdan silinir; rapor (MockupReviewSummary) için geçmişe yazılır.
+        $result->update(['meta' => [...($result->meta ?? []), 'rejection_history' => [
+            ...((array) ($result->meta['rejection_history'] ?? [])),
+            ['at' => ($result->reviewed_at ?? now())->toIso8601String(), 'tags' => array_values((array) $result->review_tags),
+                'note' => $result->review_note, 'stage' => $plan['stage'], 'qa' => $result->qa['status'] ?? null,
+                'outfit_id' => $outfit->id, 'mannequin_id' => $result->mannequin_id],
+        ]]]);
+        $result->refresh();
+
         match ($plan['stage']) {
             'stylist' => $this->rerunStylist($result, $outfit),
             'base'    => $this->rerunBases($outfit, $correction),
             default   => $this->rerunTryon($result, $correction),
         };
+        if ($plan['stage'] !== 'tryon' && $plan['stage'] !== 'composite') {
+            // Bazlar hazır olunca satır zaten yeniden kuyruğa alınır; o zamana kadar "sırada" görünsün
+            // (kartta tekrar yeniden üret düğmesi çıkmasın, ret raporda iki kez sayılmasın).
+            $result->update(['status' => TryonResult::STATUS_QUEUED, 'review_status' => null, 'review_note' => null,
+                'reviewed_by' => null, 'reviewed_at' => null]);
+        }
 
         return $plan;
     }

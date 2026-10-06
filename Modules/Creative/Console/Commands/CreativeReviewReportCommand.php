@@ -12,6 +12,7 @@ use Modules\Creative\Models\TryonResult;
 use Modules\Creative\Notifications\CreativeReviewAlertNotification;
 use Modules\Creative\Notifications\CreativeReviewReportReadyNotification;
 use Modules\Creative\Services\Ai\Contracts\RejectionInsightContract;
+use Modules\Creative\Services\Mockup\MockupReviewSummary;
 use Modules\Creative\Services\ReviewAlertEvaluator;
 use Throwable;
 
@@ -56,6 +57,8 @@ class CreativeReviewReportCommand extends Command
             'creative_assets'     => $assets,
             'detection_summary'   => $detections,
             'color_audit_summary' => $colorAudit,
+            // Faz 5: mokap — aşama dağılımı, otomatik kontrol ↔ insan, kombin/manken ret oranı.
+            'mockup'              => $mockup = app(MockupReviewSummary::class)->summarize($since),
             'ai_insight'          => $this->generateInsight($tryon, $mannequins, $assets),
         ];
 
@@ -68,6 +71,7 @@ class CreativeReviewReportCommand extends Command
         File::put($path, json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
 
         $this->renderConsole($tryon, $mannequins, $assets, $detections, $colorAudit, $alerts);
+        $this->renderMockup($mockup);
         $this->info("Tam rapor: {$path}");
 
         if (! $this->option('no-notify')) {
@@ -244,6 +248,31 @@ class CreativeReviewReportCommand extends Command
             $this->components->warn("AI önerisi üretilemedi: {$e->getMessage()}");
 
             return null;
+        }
+    }
+
+    /** @param array<string,mixed> $m */
+    private function renderMockup(array $m): void
+    {
+        $this->newLine();
+        $this->components->info('Mokap giydirme ret özeti');
+        $this->line("  İncelenen: {$m['total_reviewed']}  |  Reddedilen: {$m['total_rejected']}"
+            . ($m['rejection_rate'] !== null ? sprintf(' (%%%d)', $m['rejection_rate'] * 100) : ''));
+        if ($m['total_reviewed'] === 0) {
+            return;
+        }
+        if ($m['stage_counts'] !== []) {
+            $this->table(['Aşama', 'Ret'], collect($m['stage_counts'])->map(fn ($c, $s) => [$s, $c])->values()->all());
+        }
+        $q = $m['qa_vs_human'];
+        $this->line(sprintf('  Otomatik kontrol ↔ insan: kaçan hata (kontrol geçti, reddedildi) %d%s · yanlış alarm (kontrol kaldı, onaylandı) %d%s',
+            $q['missed'], $q['missed_rate'] !== null ? sprintf(' (%%%d)', $q['missed_rate'] * 100) : '',
+            $q['false_alarm'], $q['false_alarm_rate'] !== null ? sprintf(' (%%%d)', $q['false_alarm_rate'] * 100) : ''));
+        foreach (['by_combo' => 'Kombin', 'by_mannequin' => 'Manken'] as $key => $title) {
+            if ($m[$key] !== []) {
+                $this->table([$title, 'Toplam', 'Ret', 'Oran'], collect($m[$key])->take(8)
+                    ->map(fn ($v, $k) => [$k, $v['total'], $v['rejected'], sprintf('%%%d', $v['rate'] * 100)])->values()->all());
+            }
         }
     }
 

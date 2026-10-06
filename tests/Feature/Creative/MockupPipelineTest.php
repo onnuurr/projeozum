@@ -200,6 +200,27 @@ class MockupPipelineTest extends TestCase
         $this->assertNotSame($old, [$outfit->pieces['top'], $outfit->pieces['footwear']]);
     }
 
+    public function test_review_summary_reports_stages_and_qa_vs_human(): void
+    {
+        Queue::fake();
+        [$outfit, $r] = $this->rejectedMockup(['Saç', 'Renk uyumu']);
+        $r->update(['qa' => ['status' => 'pass'], 'reviewed_at' => now()]);                    // kaçan hata
+        $other = TryonResult::where('pipeline', TryonResult::PIPELINE_MOCKUP)->whereKeyNot($r->id)->first();
+        $other->update(['review_status' => TryonResult::REVIEW_APPROVED, 'reviewed_at' => now(), 'qa' => ['status' => 'fail']]);   // yanlış alarm
+
+        // Yeniden üretim reti satırdan siler ama geçmişte kalır → raporda sayılır.
+        app(\Modules\Creative\Services\Mockup\MockupRerunService::class)->rerun($r->fresh());
+        $this->assertNull($r->fresh()->review_status);
+
+        $m = app(\Modules\Creative\Services\Mockup\MockupReviewSummary::class)->summarize(now()->subDay());
+        $this->assertSame(2, $m['total_reviewed']);
+        $this->assertSame(1, $m['total_rejected']);
+        $this->assertSame(['Manken / baz görsel' => 1, 'Ürün giydirme' => 1], $m['stage_counts']);
+        $this->assertSame(1, $m['qa_vs_human']['missed']);
+        $this->assertSame(1, $m['qa_vs_human']['false_alarm']);
+        $this->assertSame(1, array_values($m['by_combo'])[0]['rejected']);
+    }
+
     public function test_only_rejected_mockup_results_can_be_rerun(): void
     {
         Queue::fake();
