@@ -182,6 +182,61 @@ class MockupBatchTest extends TestCase
         $this->assertSame(4, AiBatchRequest::where('status', AiBatchRequest::STATUS_SUCCEEDED)->count());
     }
 
+    private function stopper(): \App\Models\User
+    {
+        Permission::firstOrCreate(['name' => 'creative.asset.manage', 'guard_name' => 'web']);
+        $u = \App\Models\User::factory()->create();
+        $u->givePermissionTo('creative.asset.manage');
+
+        return $u;
+    }
+
+    public function test_stopping_a_product_halts_its_mockup_and_cancels_pending_ai_requests(): void
+    {
+        Queue::fake();
+        [$product, $mannequin] = $this->setUpProduct();
+        $pipeline = app(MockupPipelineService::class);
+        $outfit = $pipeline->run($pipeline->start($product, $mannequin, length: 'mini', dispatch: false, batch: true));
+        app(\Modules\Creative\Services\AiBatchService::class)->submitQueued();          // ana kare Google'da (batches/b1)
+        $other = TryonResult::create(['product_id' => Product::factory()->create()->id, 'mannequin_id' => $mannequin->id,
+            'pose_id' => Pose::first()->id, 'status' => TryonResult::STATUS_QUEUED]);
+
+        $this->actingAs($this->stopper())->post('/creative/tryon/stop', ['product_id' => $product->id])->assertSessionHas('success');
+
+        $this->assertSame(MockupOutfit::STATUS_FAILED, $outfit->fresh()->status);
+        $this->assertSame(MockupBase::STATUS_FAILED, MockupBase::where('outfit_id', $outfit->id)->sole()->status);
+        $this->assertSame([AiBatchRequest::STATUS_FAILED], AiBatchRequest::pluck('status')->unique()->values()->all());
+        Http::assertSent(fn (Request $req) => str_ends_with($req->url(), 'batches/b1:cancel'));
+        $this->assertSame(TryonResult::STATUS_QUEUED, $other->fresh()->status);                 // başka ürün etkilenmez
+
+        // Sonradan gelen toplama hiçbir şeyi sürdürmez.
+        $this->tick();
+        Queue::assertNotPushed(GenerateMockupJob::class);
+    }
+
+    public function test_stopped_result_ignores_its_already_queued_job_and_nothing_to_stop_is_reported(): void
+    {
+        Queue::fake();
+        [$product, $mannequin] = $this->setUpProduct();
+        $r = TryonResult::create(['product_id' => $product->id, 'mannequin_id' => $mannequin->id, 'pose_id' => Pose::first()->id,
+            'status' => TryonResult::STATUS_QUEUED, 'generation_token' => 'old-token']);
+
+        $this->actingAs($this->stopper())->post("/creative/tryon/{$r->id}/stop")->assertSessionHas('success');
+        (new GenerateOnModelJob($r->id, 'old-token'))->handle(app(ProductOnModelService::class), app(ProductCloseupService::class), app(MockupTryOnService::class));
+
+        $r->refresh();
+        $this->assertSame(TryonResult::STATUS_FAILED, $r->status);
+        $this->assertSame(\Modules\Creative\Services\GenerationStopService::REASON, $r->error);
+        $this->actingAs($this->stopper())->post('/creative/tryon/stop')->assertSessionHas('error', __('creative::messages.stop.nothing'));
+    }
+
+    public function test_stopping_requires_the_asset_manage_permission(): void
+    {
+        $u = \App\Models\User::factory()->create();
+        $u->givePermissionTo('creative.view');
+        $this->actingAs($u)->post('/creative/tryon/stop')->assertForbidden();
+    }
+
     public function test_failed_batch_request_fails_the_base_with_a_readable_reason(): void
     {
         Queue::fake();

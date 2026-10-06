@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use Modules\Creative\Http\Controllers\BrandKitController;
 use Modules\Creative\Http\Controllers\CreativeSettingsController;
+use Modules\Creative\Http\Controllers\GenerationStopController;
 use Modules\Creative\Http\Controllers\MockupController;
 use Modules\Creative\Http\Controllers\CreativeStudioController;
 use Modules\Creative\Http\Controllers\CreativeTemplateController;
@@ -116,6 +117,11 @@ Route::middleware(['auth', 'verified'])
         ->middleware(['can:creative.asset.manage', 'throttle:15,1'])->name('tryon.mockup.store');
     Route::post('/tryon/mockup/bulk', [MockupController::class, 'bulk'])
         ->middleware(['can:creative.asset.manage', 'throttle:5,1'])->name('tryon.mockup.bulk');
+    // Arka plandaki üretimleri durdur: tek sonuç / bir ürün / hepsi (token yenilenir, bekleyen batch gönderilmez).
+    Route::post('/tryon/stop', [GenerationStopController::class, 'many'])
+        ->middleware(['can:creative.asset.manage', 'throttle:15,1'])->name('tryon.stop');
+    Route::post('/tryon/{result}/stop', [GenerationStopController::class, 'result'])
+        ->middleware(['can:creative.asset.manage', 'throttle:30,1'])->whereNumber('result')->name('tryon.stop-result');
     Route::post('/tryon/{result}/mockup-rerun', [MockupController::class, 'rerun'])
         ->middleware(['can:creative.asset.manage', 'throttle:15,1'])->whereNumber('result')->name('tryon.mockup.rerun');
     Route::post('/tryon/classify-detail', [TryonController::class, 'classifyDetail'])

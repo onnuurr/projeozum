@@ -239,6 +239,21 @@ class AiBatchService
         return $done;
     }
 
+    /**
+     * Google'daki batch'i iptal eder (Durdur). En iyi çaba: başarısızlık üretimi etkilemez, işlenmekte
+     * olan istek yine ücretlenebilir. @return bool iptal isteği kabul edildi mi
+     */
+    public function cancelBatch(string $name): bool
+    {
+        try {
+            return $this->http()->post($this->base() . '/' . ltrim($name, '/') . ':cancel')->successful();
+        } catch (\Throwable $e) {
+            Log::warning('Gemini batch iptal edilemedi.', ['batch' => $name, 'error' => $e->getMessage()]);
+
+            return false;
+        }
+    }
+
     /** @param array<string,mixed> $response */
     private function succeed(AiBatchRequest $row, array $response): void
     {

@@ -42,6 +42,11 @@
 					:label="geminiSpendFormatted ? `Gemini (bu ay): ${geminiSpendFormatted}` : 'Gemini harcaması alınamadı'"
 					:title="geminiSpend.error ?? undefined"
 				/>
+				<!-- Arka plandaki üretimleri durdur: ürün seçiliyse yalnız o ürünün, değilse hepsi. -->
+				<Button v-if="can('creative.asset.manage')" variant="ghost" with-icon :loading="stopBusy" @click="stopGenerations">
+					<template #leading><Square :size="14" /></template>
+					{{ selectedProduct ? 'Bu ürünün üretimini durdur' : 'Üretimleri durdur' }}
+				</Button>
 				<!-- Mokap (Faz 4): mokap kategorisinde, yalın fotoğraflı ve henüz mokapı olmayan ürünler için toplu başlat. -->
 				<Button v-if="can('creative.asset.manage')" variant="ghost" with-icon :loading="mockupBusy" :disabled="!mockup.has_mannequins || mockup.remaining_today <= 0"
 					:title="!mockup.has_mannequins ? 'Önce Creative ayarlarında varsayılan manken seçin' : `Bugün kalan hak: ${mockup.remaining_today}/${mockup.daily_limit}`"
@@ -475,6 +480,9 @@
 							<Button variant="success" size="sm" :disabled="busyReview === r.id" @click="approve(r)"><template #leading><Check :size="11" /></template>Onayla</Button>
 							<Button variant="danger" size="sm" :disabled="busyReview === r.id" @click="reject(r)"><template #leading><X :size="11" /></template>Reddet</Button>
 						</div>
+						<div v-if="(r.status === 'queued' || r.status === 'generating') && can('creative.asset.manage')" class="result-actions">
+							<button type="button" class="link-btn danger" :disabled="stopBusy" @click="stopResult(r)">Durdur</button>
+						</div>
 						<div v-if="(r.status === 'done' || r.status === 'failed') && can('creative.asset.manage')" class="result-actions">
 							<template v-if="r.status === 'done' && r.review_status === 'approved'">
 								<button v-if="!r.is_cover" type="button" class="link-btn" @click="setCover(r)">Kapak yap</button>
@@ -584,7 +592,7 @@ import { Head, Link, router } from '@inertiajs/vue3'
 import {
 	RefreshCw, Play, Maximize2, Star, AlertTriangle, Check, X, ClipboardList, MessageCircle, Download,
 	Search, Loader2, PackageSearch, Users, Footprints, ImageOff, ShieldCheck, Info, ChevronRight, ChevronLeft, ImagePlus,
-	CreditCard, ZoomIn, Sparkles,
+	CreditCard, ZoomIn, Sparkles, Square,
 } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Breadcrumb from '@/Components/Breadcrumb.vue'
@@ -1242,6 +1250,35 @@ function setCover(r) {
 		onError: (errs) => showToast?.({ type: 'error', title: 'Yapılamadı', message: Object.values(errs)[0] || 'Hata.' }),
 		onFinish: () => refetchProductResultsIfActive(),
 	})
+}
+
+/* ── Arka plandaki üretimleri durdur (token yenilenir; bekleyen AI istekleri gönderilmez) ── */
+const stopBusy = ref(false)
+
+function stopRequest(url, data) {
+	stopBusy.value = true
+	router.post(url, data, {
+		preserveScroll: true,
+		onFinish: () => { stopBusy.value = false; refetchProductResultsIfActive() },
+	})
+}
+
+async function stopGenerations() {
+	if (stopBusy.value) return
+	const product = selectedProduct.value ? (selectedProductObj.value?.name ?? 'Seçili ürün') : null
+	const ok = await $swal.dangerConfirm({
+		title: product ? 'Bu Ürünün Üretimini Durdur' : 'Bütün Üretimleri Durdur',
+		html: `${product ? `<strong>${product}</strong> için` : 'Bütün ürünlerde'} sırada ve üretimde olan görseller (mokap dahil) durdurulacak. Henüz gönderilmemiş AI istekleri gönderilmez; o an işlenmekte olan bir istek yine ücretlendirilebilir. Hazır ve onaylı görsellere dokunulmaz.`,
+		confirmText: 'Durdur',
+		cancelText: 'Vazgeç',
+	})
+	if (!ok) return
+	stopRequest('/creative/tryon/stop', { product_id: selectedProduct.value })
+}
+
+function stopResult(r) {
+	if (stopBusy.value) return
+	stopRequest(`/creative/tryon/${r.id}/stop`, {})
 }
 
 async function destroyResult(r) {

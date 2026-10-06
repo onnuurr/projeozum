@@ -91,6 +91,10 @@ return [
         'bulk_none' => 'Mokap bekleyen uygun ürün yok (mokap kategorisinde, yalın fotoğraflı ve henüz mokapı olmayan ürün).',
         'settings_saved' => 'Mokap ayarları kaydedildi.',
     ],
+    'stop' => [
+        'done' => ':results görsel ve :outfits mokap durduruldu; :batch bekleyen AI isteği iptal edildi.',
+        'nothing' => 'Durdurulacak devam eden üretim yok.',
+    ],
     'closeup' => [
         'source_not_approved' => 'Yakın plan yalnızca onaylanmış bir tam boy giydirmeden üretilebilir.',
         'source_missing' => 'Yakın planın kaynağı olan giydirme görseli bulunamadı.',
