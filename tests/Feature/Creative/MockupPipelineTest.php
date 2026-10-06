@@ -241,6 +241,25 @@ class MockupPipelineTest extends TestCase
         Storage::disk(Media::disk())->assertExists($byShot['product']->staged_image_path);
     }
 
+    public function test_color_lock_is_applied_and_a_large_remaining_difference_warns(): void
+    {
+        Queue::fake();
+        config(['creative.mockup.color_lock' => true]);
+        $this->app->instance(\Modules\Creative\Services\Vision\PythonColorAuditor::class, new class extends \Modules\Creative\Services\Vision\PythonColorAuditor {
+            private int $n = 0;
+            public function measure(string $o, string $p, string $out): ?array { return ['delta_e' => [14.0, 11.5][$this->n++ % 2], 'confidence' => 'high']; }
+        });
+        $this->app->instance(\Modules\Creative\Services\Enhancement\PythonColorLock::class, new class extends \Modules\Creative\Services\Enhancement\PythonColorLock {
+            public function apply(string $out, string $o, string $p): string { $t = $out . '.locked.png'; copy($out, $t); return $t; }
+        });
+
+        [, $r] = $this->rejectedMockup([]);   // akışı çalıştırır (ret etiketi yok)
+
+        $this->assertEquals(['before' => 14.0, 'after' => 11.5, 'locked' => true], $r->qa['color']);   // JSON: 14.0 → 14
+        $this->assertSame('warn', $r->qa['status']);
+        $this->assertStringContainsString('Renk farkı', collect($r->qa['fidelity']['issues'])->pluck('detail_tr')->implode(' '));
+    }
+
     public function test_only_rejected_mockup_results_can_be_rerun(): void
     {
         Queue::fake();

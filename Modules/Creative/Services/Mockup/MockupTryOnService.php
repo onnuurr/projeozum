@@ -14,8 +14,10 @@ use Modules\Creative\Services\Ai\Contracts\MockupVisionContract;
 use Modules\Creative\Services\Ai\Support\ImageFile;
 use Modules\Creative\Services\AiBatchService;
 use Modules\Creative\Services\CanvasAssetResolver;
+use Modules\Creative\Services\Enhancement\PythonColorLock;
 use Modules\Creative\Services\ProductOnModelService;
 use Modules\Creative\Services\ReviewNotifier;
+use Modules\Creative\Services\Vision\PythonColorAuditor;
 use RuntimeException;
 
 /**
@@ -145,6 +147,7 @@ class MockupTryOnService
                 $disk->put($base->masks['prefix'] . "_raw_{$result->id}.png", (string) file_get_contents($out));
                 $temps[] = $composite = $this->tempPath();
                 $metrics = $this->vision->composite($basePath, $out, $prefix, $box, $composite, $restore);
+                [$composite, $color] = $this->lockColor($images[0], $basePath, $composite, $temps);
 
                 $alignBad = (float) ($metrics['align_mae'] ?? 0) > (float) config('creative.mockup.qa.max_align_mae', 8.0);
                 $fidelity = $enabled ? $this->checkFidelity($images[0], $composite, $outfit->region, $view, $temps) : null;
@@ -156,9 +159,10 @@ class MockupTryOnService
             }
 
             $baseStatus = $base->qa['status'] ?? null;
+            $colorOff = ($color['after'] ?? null) !== null && $color['after'] > (float) config('creative.mockup.color_warn_de', 10.0);
             $status = match (true) {
                 $failed => 'fail',
-                in_array($fidelity['verdict'] ?? 'pass', ['warn', 'unknown'], true), $baseStatus === 'warn' => 'warn',
+                in_array($fidelity['verdict'] ?? 'pass', ['warn', 'unknown'], true), $baseStatus === 'warn', $colorOff => 'warn',
                 default => 'pass',
             };
 
@@ -181,7 +185,9 @@ class MockupTryOnService
                     'status'      => $status,
                     'attempts'    => $attempt + 1,
                     'composite'   => $metrics,
-                    'fidelity'    => $fidelity,
+                    'fidelity'    => $colorOff ? [...($fidelity ?? []), 'issues' => [...((array) ($fidelity['issues'] ?? [])),
+                        ['severity' => 'minor', 'detail_tr' => sprintf('Renk farkı yüksek (ΔE %.1f) — ürünün tonu orijinalden belirgin farklı olabilir.', $color['after'])]]] : $fidelity,
+                    'color'       => $color,
                     'view'        => $view,
                     'base_status' => $baseStatus,
                     'base_issues' => array_values(array_filter([
@@ -201,6 +207,33 @@ class MockupTryOnService
         } finally {
             ImageFile::delete($temps);
             $this->resolver->cleanup();
+        }
+    }
+
+    /**
+     * Faz 6 renk kilidi: ürün alanının tonunu orijinal ürüne kaydırır (Python, ücretsiz) ve Delta E'yi
+     * önce/sonra ölçer. Kapalıysa ya da başarısızsa birleşik görsel aynen döner — üretimi asla durdurmaz.
+     *
+     * @param  array<int,string>  $temps
+     * @return array{0:string, 1:?array{before:?float, after:?float, locked:bool}}
+     */
+    private function lockColor(string $garment, string $basePath, string $composite, array &$temps): array
+    {
+        if (! config('creative.mockup.color_lock', true)) {
+            return [$composite, null];
+        }
+        try {
+            $auditor = app(PythonColorAuditor::class);
+            $before = $auditor->measure($garment, $basePath, $composite);
+            $locked = app(PythonColorLock::class)->apply($composite, $garment, $basePath);
+            if ($locked !== $composite) {
+                $temps[] = $locked;
+            }
+            $after = $locked !== $composite ? $auditor->measure($garment, $basePath, $locked) : $before;
+
+            return [$locked, ['before' => $before['delta_e'] ?? null, 'after' => $after['delta_e'] ?? null, 'locked' => $locked !== $composite]];
+        } catch (\Throwable $e) {
+            return [$composite, ['before' => null, 'after' => null, 'locked' => false, 'error' => $e->getMessage()]];
         }
     }
 

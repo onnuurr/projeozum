@@ -45,6 +45,8 @@
         <env name="BAGISTO_SYNC_WEBHOOK_SECRET" value="" force="true"/>
         <env name="SESSION_DRIVER" value="array" force="true"/>
         <env name="PULSE_ENABLED" value="false" force="true"/>
+        <!-- Mokap renk kilidi Python çalıştırır; testler sahte görüntü sürücüsüyle hermetik kalsın. -->
+        <env name="CREATIVE_MOCKUP_COLOR_LOCK" value="false" force="true"/>
         <env name="TELESCOPE_ENABLED" value="false" force="true"/>
         <env name="NIGHTWATCH_ENABLED" value="false" force="true"/>
         <env name="PORTAL_DOMAIN" value="bizimsite.test" force="true"/>

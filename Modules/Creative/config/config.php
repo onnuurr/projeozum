@@ -950,6 +950,13 @@ return [
         // tablosunda (mockup_regions, requires, view). Çeşitlilik: aynı kategoride son N kombinde
         // kullanılan (tamamlayıcı parça + ayakkabı) ikilisi tekrarlanmaz (MockupStylistRuleEngine).
         'stylist_diversity_window' => (int) env('CREATIVE_MOCKUP_DIVERSITY_WINDOW', 5),
+        // Faz 6 renk kilidi: birleşik görseldeki ürünün renk tonunu (LAB a/b) orijinal ürün fotoğrafına
+        // kaydırır, parlaklığa (gölge/doku) dokunmaz; ürün alanı = baz ↔ birleşik farkı. Ölçüm (Delta E)
+        // kilit öncesi/sonrası qa.color'a yazılır; kilitten sonra eşik üstü → onaycıya uyarı.
+        // 2026-10-06 ölçümü: #12 ΔE 4,1→2,5, #15 11,6→9,5 (kalan fark parlaklık). Eski hattın
+        // creative.color_fidelity.* bayraklarından bağımsız; güç/yumuşatma oradan.
+        'color_lock'    => (bool) env('CREATIVE_MOCKUP_COLOR_LOCK', true),
+        'color_warn_de' => (float) env('CREATIVE_MOCKUP_COLOR_WARN_DE', 10.0),
 
         // Kategori → bölge eşleştirmesi creative_category_regions tablosunda (Creative ayarlar › Mokap).
 
