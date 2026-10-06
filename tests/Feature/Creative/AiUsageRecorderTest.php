@@ -46,10 +46,9 @@ class AiUsageRecorderTest extends TestCase
     public function test_image_call_adds_thinking_and_text_output_at_text_price(): void
     {
         $response = $this->imageResponse();
-        $response['usageMetadata'] += [
-            'thoughtsTokenCount'      => 200_000,
-            'candidatesTokensDetails' => [['modality' => 'IMAGE', 'tokenCount' => 1680], ['modality' => 'TEXT', 'tokenCount' => 100_000]],
-        ];
+        // Gerçek yanıt biçimi: ayrıntıda yalnız IMAGE; metin farkı toplamda (candidatesTokenCount).
+        $response['usageMetadata'] = ['promptTokenCount' => 4000, 'candidatesTokenCount' => 101_680, 'thoughtsTokenCount' => 200_000,
+            'candidatesTokensDetails' => [['modality' => 'IMAGE', 'tokenCount' => 1680]]];
         app(AiUsageRecorder::class)->recordGemini('image', 'gemini-3.1-flash-image',
             ['generationConfig' => ['imageConfig' => ['imageSize' => '2K']]], $response);
 

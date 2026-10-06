@@ -66,8 +66,7 @@ class AiUsageRecorder
                 $size = (string) ($payload['generationConfig']['imageConfig']['imageSize'] ?? ($price['default_size'] ?? '1K'));
                 $cost += $images * (float) ($price['image'][$size] ?? max($price['image']));
                 // Görsel çağrısı da düşünür / metin yazar; bunlar görsel değil metin fiyatıyla
-                // faturalanır (≈ %1). Metin kısmı candidatesTokensDetails'ten ayrılır; detay
-                // yoksa yalnız düşünme token'ları sayılır (görsel token'ı ikinci kez fiyatlanmasın).
+                // faturalanır (≈ %1). Bkz. nonImageOutputTokens().
                 $cost += $this->nonImageOutputTokens($usage) / 1e6 * (float) ($price['text_output_per_mtok'] ?? 0);
             } else {
                 $cost += $out / 1e6 * (float) ($price['output_per_mtok'] ?? 0);
@@ -82,17 +81,30 @@ class AiUsageRecorder
         });
     }
 
-    /** @param  array<string,mixed>  $usage */
+    /**
+     * Görsel çağrısının görsel olmayan çıktısı: toplam aday token'ı − görsel token'ları + düşünme.
+     * Gerçek yanıtta candidatesTokensDetails yalnız IMAGE satırı taşıyor; metin/düşünme farkı
+     * (1K'da ~300 token) ayrıntıda görünmüyor ama faturada "Text Output" olarak geliyor (2026-10-06).
+     * Ayrıntı yoksa yalnız düşünme sayılır (görsel token'ı metin fiyatıyla sayılmasın).
+     *
+     * @param  array<string,mixed>  $usage
+     */
     private function nonImageOutputTokens(array $usage): int
     {
-        $text = 0;
-        foreach ((array) ($usage['candidatesTokensDetails'] ?? []) as $detail) {
-            if (strtoupper((string) ($detail['modality'] ?? '')) !== 'IMAGE') {
-                $text += (int) ($detail['tokenCount'] ?? 0);
+        $thoughts = (int) ($usage['thoughtsTokenCount'] ?? 0);
+        $details = (array) ($usage['candidatesTokensDetails'] ?? []);
+        if ($details === []) {
+            return $thoughts;
+        }
+
+        $image = 0;
+        foreach ($details as $detail) {
+            if (strtoupper((string) ($detail['modality'] ?? '')) === 'IMAGE') {
+                $image += (int) ($detail['tokenCount'] ?? 0);
             }
         }
 
-        return $text + (int) ($usage['thoughtsTokenCount'] ?? 0);
+        return max(0, (int) ($usage['candidatesTokenCount'] ?? 0) - $image) + $thoughts;
     }
 
     public function recordFal(string $model): void
