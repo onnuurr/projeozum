@@ -82,6 +82,8 @@ return [
         'no_default_mannequin' => 'Bu ürüne uygun manken yok: cinsiyeti uyan, hazır ve onaylı bir manken üretin (Creative › Mankenler) ya da Creative ayarlar › Mokap listesini kontrol edin.',
         'daily_limit' => 'Günlük mokap limiti doldu (:limit ürün). Yarın devam eder ya da limiti Creative ayarlarından artırın.',
         'already_running' => 'Bu ürün için devam eden bir mokap üretimi var.',
+        'already_complete' => 'Bu ürünün bütün beden gruplarının mokapı zaten var.',
+        'groups_queued' => ':product için :count beden grubunun mokapı kuyruğa alındı.',
         'bulk_queued' => ':count ürün için mokap kuyruğa alındı.',
         'bulk_none' => 'Mokap bekleyen uygun ürün yok (mokap kategorisinde, yalın fotoğraflı ve henüz mokapı olmayan ürün).',
         'settings_saved' => 'Mokap ayarları kaydedildi.',

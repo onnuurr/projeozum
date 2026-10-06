@@ -45,7 +45,7 @@ class MockupTryOnService
     {
         return $bases->map(function (MockupBase $base) use ($outfit, $creatorId) {
             $existing = TryonResult::query()->where([
-                'product_id' => $outfit->product_id, 'pose_id' => $base->pose_id,
+                'product_id' => $outfit->product_id, 'mannequin_id' => $outfit->mannequin_id, 'pose_id' => $base->pose_id,
                 'shot' => TryonResult::SHOT_FULL, 'pipeline' => TryonResult::PIPELINE_MOCKUP,
             ])->first();
             $meta = $existing?->meta ?? [];
@@ -53,9 +53,9 @@ class MockupTryOnService
             $meta['batch'] = (bool) ($outfit->meta['batch'] ?? false);
 
             return TryonResult::updateOrCreate(
-                ['product_id' => $outfit->product_id, 'pose_id' => $base->pose_id, 'shot' => TryonResult::SHOT_FULL, 'pipeline' => TryonResult::PIPELINE_MOCKUP],
+                // Beden grubu başına ayrı satır (manken anahtarın parçası) — bkz. sizeGroups.
+                ['product_id' => $outfit->product_id, 'mannequin_id' => $outfit->mannequin_id, 'pose_id' => $base->pose_id, 'shot' => TryonResult::SHOT_FULL, 'pipeline' => TryonResult::PIPELINE_MOCKUP],
                 [
-                    'mannequin_id'       => $outfit->mannequin_id,
                     'mockup_base_id'     => $base->id,
                     'garment_image_path' => $outfit->meta['garment_path'] ?? null,
                     'status'             => TryonResult::STATUS_QUEUED,

@@ -93,12 +93,7 @@ class MockupSettings
      */
     public function pickMannequin(Product $product): ?array
     {
-        $gender = match (mb_strtolower((string) $product->gender)) {
-            'kız'   => 'female',
-            'erkek' => 'male',
-            default => null,
-        };
-        $pool = $this->mannequinPool()->filter(fn (Mannequin $m) => $gender === null || in_array($m->gender, [$gender, null, ''], true))->values();
+        $pool = $this->genderPool($product);
         if ($pool->isEmpty()) {
             return null;
         }
@@ -115,6 +110,84 @@ class MockupSettings
             $ages[0] === $ages[1] ? $ages[0] : "{$ages[0]}–{$ages[1]}", $chosen->name, $chosen->age_range ?: '?') : null;
 
         return ['mannequin' => $chosen, 'note' => $note];
+    }
+
+    /**
+     * Ürünün beden grupları (sitede beden seçilince o yaştaki mankenin görselleri): her yaş bedeni,
+     * cinsiyeti uyan mankenlerden yaşça en yakın olanların kümesine gider; aynı kümeye düşen bedenler
+     * tek grup → tek manken. Grubun mankeni: ürünün o küme için zaten bir kombini varsa o (kararlılık),
+     * yoksa son 30 günde en az kullanılan (rotasyon). Yaş bedeni yoksa tek grup (pickMannequin).
+     *
+     * @return list<array{mannequin:Mannequin, sizes:list<string>, ages:?array{0:int,1:int}, note:?string}>
+     */
+    public function sizeGroups(Product $product): array
+    {
+        $pool = $this->genderPool($product);
+        if ($pool->isEmpty()) {
+            return [];
+        }
+
+        $byAge = [];
+        foreach ($product->variants()->pluck('size')->unique() as $size) {
+            if (preg_match('/(\d+)\s*ya[şs]/iu', (string) $size, $m)) {
+                $byAge[(int) $m[1]][] = (string) $size;
+            }
+        }
+        if ($byAge === []) {
+            $pick = $this->pickMannequin($product);
+
+            return $pick ? [['mannequin' => $pick['mannequin'], 'sizes' => $product->variants()->pluck('size')->unique()->values()->all(), 'ages' => null, 'note' => $pick['note']]] : [];
+        }
+        ksort($byAge);
+
+        // Yaş → en yakın manken kümesi; aynı kümedeki yaşlar bir grup.
+        $groups = [];
+        foreach ($byAge as $age => $sizes) {
+            $dist = fn (Mannequin $m) => $this->ageDistance((string) $m->age_range, $age, $age);
+            $best = $pool->min($dist);
+            $tied = $pool->filter(fn ($m) => $dist($m) === $best)->pluck('id')->sort()->values()->all();
+            $key = implode(',', $tied);
+            $groups[$key] ??= ['tied' => $tied, 'ages' => [], 'sizes' => [], 'best' => 0];
+            $groups[$key]['ages'][] = $age;
+            $groups[$key]['sizes'] = [...$groups[$key]['sizes'], ...$sizes];
+            $groups[$key]['best'] = max($groups[$key]['best'], $best);
+        }
+
+        $existing = MockupOutfit::where('product_id', $product->id)->where('status', '!=', MockupOutfit::STATUS_FAILED)->pluck('mannequin_id')->all();
+        $usage = MockupOutfit::query()->where('created_at', '>=', now()->subDays(30))
+            ->selectRaw('mannequin_id, count(*) as n')->groupBy('mannequin_id')->pluck('n', 'mannequin_id');
+
+        // Grup mankenini seç; farklı kümeler aynı mankene düşerse tek grupta birleşir.
+        $byMannequin = [];
+        foreach ($groups as $g) {
+            $tied = $pool->whereIn('id', $g['tied']);
+            $chosen = $tied->first(fn ($m) => in_array($m->id, $existing, true))
+                ?? $tied->sortBy(fn (Mannequin $m) => ((int) ($usage[$m->id] ?? 0)) * 1_000_000 + $m->id)->first();
+            $acc = $byMannequin[$chosen->id] ?? ['mannequin' => $chosen, 'ages' => [], 'sizes' => [], 'best' => 0];
+            $byMannequin[$chosen->id] = ['mannequin' => $chosen, 'ages' => [...$acc['ages'], ...$g['ages']],
+                'sizes' => [...$acc['sizes'], ...$g['sizes']], 'best' => max($acc['best'], $g['best'])];
+        }
+
+        return array_values(array_map(function (array $g) {
+            $ages = [min($g['ages']), max($g['ages'])];
+            $m = $g['mannequin'];
+            $note = $g['best'] > 0 ? sprintf('Bedenler %s yaş; tam uyan manken yok, en yakın kullanıldı: %s (%s yaş).',
+                $ages[0] === $ages[1] ? $ages[0] : "{$ages[0]}–{$ages[1]}", $m->name, $m->age_range ?: '?') : null;
+
+            return ['mannequin' => $m, 'sizes' => array_values(array_unique($g['sizes'])), 'ages' => $ages, 'note' => $note];
+        }, $byMannequin));
+    }
+
+    /** @return \Illuminate\Support\Collection<int,Mannequin> havuzdan ürünün cinsiyetine uyanlar */
+    private function genderPool(Product $product): \Illuminate\Support\Collection
+    {
+        $gender = match (mb_strtolower((string) $product->gender)) {
+            'kız'   => 'female',
+            'erkek' => 'male',
+            default => null,
+        };
+
+        return $this->mannequinPool()->filter(fn (Mannequin $m) => $gender === null || in_array($m->gender, [$gender, null, ''], true))->values();
     }
 
     /** Varyant bedenlerinden yaş aralığı ("3 Yaş" … "15 Yaş"); yaş bedeni yoksa null. @return array{0:int,1:int}|null */

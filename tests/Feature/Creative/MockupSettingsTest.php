@@ -229,6 +229,25 @@ class MockupSettingsTest extends TestCase
         $this->assertNull($s->pickMannequin($product($optErkek, ['5 Yaş'])));
     }
 
+    public function test_new_mannequin_approval_fills_coverage_when_auto_trigger_is_on(): void
+    {
+        Permission::firstOrCreate(['name' => 'creative.approve', 'guard_name' => 'web']);
+        $u = $this->user(['creative.approve']);
+        $m = Mannequin::create(['name' => 'Yeni', 'gender' => 'female', 'age_range' => '14-17', 'status' => Mannequin::STATUS_READY,
+            'review_status' => Mannequin::REVIEW_PENDING, 'reference_image_path' => 'm/y.png', 'created_by' => User::factory()->create()->id]);
+
+        $this->actingAs($u)->post("/creative/mannequins/{$m->id}/approve")->assertSessionHas('success');
+        Queue::assertPushed(\Modules\Creative\Jobs\FillMockupCoverageJob::class);
+
+        // İş: ayar kapalıyken hiçbir şey başlatmaz; açıkken eksik grupları başlatır.
+        $p = $this->product();
+        app()->call([new \Modules\Creative\Jobs\FillMockupCoverageJob, 'handle']);
+        $this->assertSame(0, MockupOutfit::count());
+        app(MockupSettings::class)->save(['auto_trigger' => true]);
+        app()->call([new \Modules\Creative\Jobs\FillMockupCoverageJob, 'handle']);
+        $this->assertSame($m->id, MockupOutfit::where('product_id', $p->id)->sole()->mannequin_id);
+    }
+
     public function test_products_endpoint_reports_mockup_region(): void
     {
         $p = $this->product('top');

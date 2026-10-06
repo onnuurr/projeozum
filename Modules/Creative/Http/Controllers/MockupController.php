@@ -24,12 +24,12 @@ class MockupController extends Controller
         $mannequin = $request->validated('mannequin_id') ? Mannequin::find($request->validated('mannequin_id')) : null;
 
         try {
-            $pipeline->startFor($product, $mannequin, $request->user()->id);
+            $started = $pipeline->startFor($product, $mannequin, $request->user()->id);
         } catch (RuntimeException $e) {
             return back()->with('error', $e->getMessage());
         }
 
-        return back()->with('success', __('creative::messages.mockup.queued', ['product' => $product->name]));
+        return back()->with('success', __('creative::messages.mockup.groups_queued', ['product' => $product->name, 'count' => count($started)]));
     }
 
     public function bulk(StartBulkMockupRequest $request, MockupPipelineService $pipeline): RedirectResponse

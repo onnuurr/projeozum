@@ -8,6 +8,7 @@ use Modules\Creative\Jobs\AutoStartMockupJob;
 use Modules\Creative\Services\Mockup\MockupSettings;
 use Modules\Product\Events\ProductCreated;
 use Modules\Product\Events\ProductImagesChanged;
+use Modules\Product\Events\ProductVariantsSynced;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 use Modules\Creative\Console\Commands\CreativeReviewReportCommand;
 use Modules\Creative\Console\Commands\TrainGarmentDetectorCommand;
@@ -109,12 +110,14 @@ class CreativeServiceProvider extends ModuleServiceProvider
 
         // Mokap otomatik tetik (Faz 4): ürüne fotoğraf eklenince — koşullar AutoStartMockupJob'da
         // (ayar kapalıysa hiçbir şey yapmaz). Ürün oluşturma görselleri sessiz yazıp ProductCreated fırlatır.
-        Event::listen([ProductCreated::class, ProductImagesChanged::class], function (ProductCreated|ProductImagesChanged $event) {
-            if (app(MockupSettings::class)->autoTrigger()) {
-                AutoStartMockupJob::dispatch($event instanceof ProductCreated ? $event->product->id : $event->productId)
-                    ->delay(now()->addMinutes(2));
-            }
-        });
+        // Bedenler değişince (ProductVariantsSynced) eksik beden grupları da tamamlanır.
+        Event::listen([ProductCreated::class, ProductImagesChanged::class, ProductVariantsSynced::class],
+            function (ProductCreated|ProductImagesChanged|ProductVariantsSynced $event) {
+                if (app(MockupSettings::class)->autoTrigger()) {
+                    AutoStartMockupJob::dispatch($event instanceof ProductImagesChanged ? $event->productId : $event->product->id)
+                        ->delay(now()->addMinutes(2));
+                }
+            });
 
         // Tek Creative ayar sayfası (mokap: kategori eşleştirme, stilist seçenekleri, poz etiketleri,
         // otomatik tetik, günlük limit): Creative menüsünün sekme satırında çark.

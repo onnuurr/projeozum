@@ -67,34 +67,67 @@ class MockupPipelineService
     }
 
     /**
-     * Arayüzden / otomatik tetikten başlatma: manken verilmezse ürünün cinsiyetine + yaşına (varyant
-     * bedenleri) en yakın, eşitler arasında en az kullanılan manken (MockupSettings::pickMannequin), günlük
-     * limit ve devam eden üretim kontrolü. Komut (creative:mockup) limiti kullanmaz —
-     * orada maliyet her seferinde elle onaylanıyor.
+     * Arayüzden / otomatik tetikten başlatma. Manken verilirse yalnız o manken için tek kombin; verilmezse
+     * ürünün EKSİK beden grupları (MockupSettings::sizeGroups — sitede beden seçilince o yaştaki mankenin
+     * görselleri) için birer kombin. Her kombin günlük limitten bir hak düşer; devam eden / hazır grup atlanır.
+     *
+     * @return list<MockupOutfit> başlatılan kombinler
      */
-    public function startFor(Product $product, ?Mannequin $mannequin = null, ?int $creatorId = null): MockupOutfit
+    public function startFor(Product $product, ?Mannequin $mannequin = null, ?int $creatorId = null, ?int $max = null): array
     {
-        $note = null;
-        if (! $mannequin) {
-            $pick = $this->settings->pickMannequin($product);
-            if (! $pick) {
-                throw new RuntimeException(__('creative::messages.mockup.no_default_mannequin'));
-            }
-            [$mannequin, $note] = [$pick['mannequin'], $pick['note']];
-        }
-        if ($this->settings->remainingToday() <= 0) {
-            throw new RuntimeException(__('creative::messages.mockup.daily_limit', ['limit' => $this->settings->dailyLimit()]));
-        }
-        if (MockupOutfit::where('product_id', $product->id)->whereIn('status', [MockupOutfit::STATUS_QUEUED, MockupOutfit::STATUS_GENERATING])->exists()) {
-            throw new RuntimeException(__('creative::messages.mockup.already_running'));
+        $groups = $mannequin
+            ? [['mannequin' => $mannequin, 'sizes' => [], 'ages' => null, 'note' => null]]
+            : $this->missingGroups($product);
+        if ($groups === []) {
+            throw new RuntimeException(__($this->settings->sizeGroups($product) === []
+                ? 'creative::messages.mockup.no_default_mannequin' : 'creative::messages.mockup.already_complete'));
         }
 
-        return $this->start($product, $mannequin, creatorId: $creatorId, meta: array_filter(['mannequin_note' => $note]));
+        $started = [];
+        foreach ($groups as $g) {
+            if (($max !== null && count($started) >= $max) || $this->settings->remainingToday() <= 0) {
+                break;
+            }
+            if ($this->hasActiveOutfit($product, $g['mannequin'])) {
+                continue;
+            }
+            $started[] = $this->start($product, $g['mannequin'], creatorId: $creatorId, meta: array_filter([
+                'mannequin_note' => $g['note'],
+                'sizes'          => $g['sizes'] ?: null,
+                'ages'           => $g['ages'],
+            ]));
+        }
+
+        if ($started === []) {
+            throw new RuntimeException($this->settings->remainingToday() <= 0
+                ? __('creative::messages.mockup.daily_limit', ['limit' => $this->settings->dailyLimit()])
+                : __('creative::messages.mockup.already_running'));
+        }
+
+        return $started;
     }
 
     /**
-     * Toplu başlatma: mokap kategorisinde, yalın fotoğrafı olan ve henüz hiç mokap kombini olmayan
-     * ürünlerden en fazla $limit (ve günlük kalan hak) kadarı. Başlatılamayanlar atlanır.
+     * Ürünün henüz kombini olmayan (ya da yalnız başarısız kombini olan) beden grupları.
+     *
+     * @return list<array{mannequin:Mannequin, sizes:list<string>, ages:?array{0:int,1:int}, note:?string}>
+     */
+    public function missingGroups(Product $product): array
+    {
+        $have = MockupOutfit::where('product_id', $product->id)->where('status', '!=', MockupOutfit::STATUS_FAILED)->pluck('mannequin_id')->all();
+
+        return array_values(array_filter($this->settings->sizeGroups($product), fn ($g) => ! in_array($g['mannequin']->id, $have, true)));
+    }
+
+    private function hasActiveOutfit(Product $product, Mannequin $mannequin): bool
+    {
+        return MockupOutfit::where(['product_id' => $product->id, 'mannequin_id' => $mannequin->id])
+            ->where('status', '!=', MockupOutfit::STATUS_FAILED)->exists();
+    }
+
+    /**
+     * Toplu başlatma / kapsam doldurma: eksik beden grubu olan ürünlerin gruplarını, en fazla $limit
+     * kombin (ve günlük kalan hak) kadar başlatır.
      *
      * @return array{started:int, skipped:int}
      */
@@ -107,8 +140,7 @@ class MockupPipelineService
                 break;
             }
             try {
-                $this->startFor($product, null, $creatorId);
-                $started++;
+                $started += count($this->startFor($product, null, $creatorId, $limit - $started));
             } catch (RuntimeException) {
                 $skipped++;
             }
@@ -118,17 +150,17 @@ class MockupPipelineService
     }
 
     /**
-     * Mokap bekleyen ürünler: fotoğraflı, kategorisi (ya da üstü) eşleştirilmiş, yalın fotoğraflı,
-     * hiç mokap kombini olmayan. Eski ürünler önce.
+     * Eksik beden grubu olan ürünler: fotoğraflı, kategorisi (ya da üstü) eşleştirilmiş, yalın
+     * fotoğraflı. Eski ürünler önce.
      *
      * @return \Illuminate\Support\Collection<int,Product>
      */
     public function candidates(int $max = 200): \Illuminate\Support\Collection
     {
         return Product::query()->whereHas('images')
-            ->whereNotIn('id', MockupOutfit::query()->select('product_id'))
             ->with(['images', 'category.parent'])->orderBy('id')->limit($max)->get()
-            ->filter(fn (Product $p) => $this->settings->regionFor($p->category) !== null && $this->onModel->pickPlainProductPhoto($p))
+            ->filter(fn (Product $p) => $this->settings->regionFor($p->category) !== null && $this->onModel->pickPlainProductPhoto($p)
+                && $this->missingGroups($p) !== [])
             ->values();
     }
 
@@ -178,6 +210,31 @@ class MockupPipelineService
         throw new RuntimeException(__('creative::messages.mockup.garment_not_found', ['path' => $path]));
     }
 
+    /** Ürünün stilistten geçmiş başka kombininin parçalarını, cümlesini ve pozlarını bu kombine kopyalar. */
+    private function copyLookFromSibling(MockupOutfit $outfit): ?MockupOutfit
+    {
+        $sibling = MockupOutfit::query()->where('product_id', $outfit->product_id)->whereKeyNot($outfit->id)
+            ->where('region', $outfit->region)->whereNotNull('outfit_sentence')->where('outfit_sentence', '!=', '')
+            ->where('status', '!=', MockupOutfit::STATUS_FAILED)->oldest('id')->first();
+        if (! $sibling) {
+            return null;
+        }
+
+        $outfit->update([
+            'length'                 => $outfit->length ?: $sibling->length,
+            'pieces'                 => $sibling->pieces,
+            'outfit_sentence'        => $sibling->outfit_sentence,
+            'poses'                  => $sibling->poses,
+            'reasoning_tr'           => $sibling->reasoning_tr,
+            'stylist_prompt_version' => $sibling->stylist_prompt_version,
+            'meta'                   => [...($outfit->meta ?? []),
+                ...array_intersect_key((array) $sibling->meta, array_flip(['product_summary', 'stylist_confidence', 'stylist_warnings', 'product_features'])),
+                'look_from_outfit' => $sibling->id],
+        ]);
+
+        return $outfit->fresh();
+    }
+
     /**
      * Kuyruk işinin gövdesi: stilist → bazlar → giydirme işleri. Batch modunda bazlar beklenirken
      * kombin "generating" kalır; sonuç gelince iş yeniden çalışır ve kaldığı yerden devam eder
@@ -204,7 +261,9 @@ class MockupPipelineService
             }
 
             if (trim((string) $outfit->outfit_sentence) === '') {
-                $outfit = $this->stylist->style($outfit, $photo);
+                // Aynı ürünün başka beden grubu stilistten geçtiyse kombin + pozlar aynen kullanılır
+                // (sitede beden değişince yalnız manken değişir); yoksa stilist çalışır.
+                $outfit = $this->copyLookFromSibling($outfit) ?? $this->stylist->style($outfit, $photo);
             }
             $ready = $this->bases->generate($outfit);
             if ($ready === null) {

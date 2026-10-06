@@ -94,6 +94,44 @@ class MockupPipelineTest extends TestCase
             'reference_image_path' => 'mannequins/1/reference.png']);
     }
 
+    public function test_each_size_group_gets_its_own_mannequin_set_with_the_same_look(): void
+    {
+        Queue::fake();
+        $this->mannequinAndPoses();                     // yaşsız manken (havuzda en sona düşer)
+        $mk = fn (string $name, string $age) => Mannequin::create(['name' => $name, 'gender' => 'female', 'age_range' => $age,
+            'status' => Mannequin::STATUS_READY, 'review_status' => Mannequin::REVIEW_APPROVED, 'reference_image_path' => 'mannequins/1/reference.png']);
+        $small = $mk('Kız6', '6-9');
+        $big = $mk('Kız10', '10-13');
+        $product = $this->product();
+        foreach (['7 Yaş', '8 Yaş', '11 Yaş', '14 Yaş'] as $i => $size) {
+            $product->variants()->create(['size' => $size, 'sku' => "V{$product->id}-{$i}", 'price' => 1, 'stock' => 0, 'sort_order' => $i]);
+        }
+        $pipeline = app(MockupPipelineService::class);
+
+        $outfits = collect($pipeline->startFor($product->fresh()));
+        $this->assertEqualsCanonicalizing([$small->id, $big->id], $outfits->pluck('mannequin_id')->all());
+        $bigOutfit = $outfits->firstWhere('mannequin_id', $big->id);
+        $this->assertSame(['11 Yaş', '14 Yaş'], $bigOutfit->meta['sizes']);
+        $this->assertNotNull($bigOutfit->meta['mannequin_note']);   // 14 yaş: tam uyan yok
+        $this->assertSame([], $pipeline->missingGroups($product->fresh()));
+
+        // İlk grup stilistten geçer; ikincisi aynı kombini + pozları kopyalar.
+        $a = $pipeline->run($outfits[0]);
+        $b = $pipeline->run($outfits[1]);
+        $this->assertSame($a->outfit_sentence, $b->outfit_sentence);
+        $this->assertSame($a->poses, $b->poses);
+        $this->assertSame($a->id, $b->meta['look_from_outfit']);
+
+        // Sonuç satırları manken başına ayrı (aynı poz iki kez).
+        $results = TryonResult::where('pipeline', TryonResult::PIPELINE_MOCKUP)->get();
+        $this->assertCount(6, $results);
+        $this->assertSame(3, $results->where('mannequin_id', $small->id)->count());
+
+        // Hepsi hazır → yeniden başlatma okunur hata.
+        $this->expectException(\RuntimeException::class);
+        $pipeline->startFor($product->fresh());
+    }
+
     public function test_stylist_picks_from_option_list_and_varies_combos_within_a_category(): void
     {
         Queue::fake();

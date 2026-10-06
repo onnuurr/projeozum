@@ -87,6 +87,12 @@ Schedule::command('creative:review-report')->daily()->onOneServer();
 Schedule::command('creative:ai-batch')->everyMinute()->withoutOverlapping(10)->onOneServer()->runInBackground();
 
 /*
+| Mokap kapsamı (otomatik tetik açıksa): eksik beden gruplarını günlük limit kadar başlatır — limit
+| dolduğu için kalan ürünler ertesi gün devam eder (bkz. FillMockupCoverageJob).
+*/
+Schedule::job(new \Modules\Creative\Jobs\FillMockupCoverageJob)->dailyAt('03:30')->onOneServer();
+
+/*
 |--------------------------------------------------------------------------
 | Mimari sağlık denetimi
 |--------------------------------------------------------------------------

@@ -463,6 +463,7 @@
 						</div>
 						<!-- Mokap kombin özeti: stilistin seçtiği parçalar + Türkçe gerekçe + kural motoru uyarıları -->
 						<div v-if="r.outfit" class="outfit-line" :title="r.outfit.reasoning || ''">
+							<span v-if="r.outfit.sizes" class="outfit-sizes">Bedenler: {{ r.outfit.sizes }}</span>
 							<span class="outfit-head">Kombin:</span> {{ r.outfit.pieces.join(' · ') }}
 							<span v-if="r.outfit.warnings.length" class="outfit-warn" :title="r.outfit.warnings.join('\n')"><AlertTriangle :size="10" /> {{ r.outfit.warnings.length }} uyarı</span>
 						</div>
@@ -1361,6 +1362,7 @@ onUnmounted(() => {
 .mockup-panel__quota { display: block; margin-top: 2px; font-size: 11.5px; }
 .outfit-line { margin-top: 4px; font-size: 11px; line-height: 1.4; color: var(--color-muted); }
 .outfit-head { font-weight: 600; }
+.outfit-sizes { display: block; font-weight: 600; color: var(--color-primary); }
 .outfit-warn { margin-left: 6px; color: var(--color-warning); display: inline-flex; align-items: center; gap: 2px; }
 .qa-line { margin-top: 4px; padding: 5px 8px; border-radius: 6px; font-size: 11px; line-height: 1.4; background: var(--color-surface-container-low); color: var(--color-muted); }
 .qa-line.is-pass { color: var(--color-success); }

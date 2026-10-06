@@ -205,6 +205,9 @@ class TryonController extends Controller
                 'reasoning'  => $o->reasoning_tr,
                 'warnings'   => array_values(array_filter([$o->meta['mannequin_note'] ?? null, ...((array) ($o->meta['stylist_warnings'] ?? []))])),
                 'confidence' => $o->meta['stylist_confidence'] ?? null,
+                // Beden grubu (sitede bu bedenler seçilince bu mankenin görselleri gösterilecek).
+                'sizes'      => isset($o->meta['ages'][0]) ? ($o->meta['ages'][0] === $o->meta['ages'][1]
+                    ? "{$o->meta['ages'][0]} Yaş" : "{$o->meta['ages'][0]}–{$o->meta['ages'][1]} Yaş") : null,
             ] : null,
             'shot_label'      => $r->isCloseup() ? (ProductCloseupService::shotOptions()[$r->shot] ?? $r->shot) : null,
             'source_result_id' => $r->source_result_id,

@@ -11,6 +11,7 @@ use Inertia\Response;
 use Modules\Creative\Http\Controllers\Concerns\HandlesCreativeReview;
 use Modules\Creative\Http\Requests\StoreMannequinRequest;
 use Modules\Creative\Jobs\GenerateMannequinJob;
+use Modules\Creative\Jobs\FillMockupCoverageJob;
 use Modules\Creative\Models\Mannequin;
 use Modules\Creative\Services\ReviewNotifier;
 
@@ -123,6 +124,9 @@ class MannequinController extends Controller
         ]);
 
         $notifier->notifyDecision($mannequin, true);
+
+        // Yeni yaş grubuna uygun manken: ürünlerin eksik beden grupları (otomatik tetik açıksa) doldurulur.
+        FillMockupCoverageJob::dispatch()->delay(now()->addMinute());
 
         return back()->with('success', __('creative::messages.mannequin.approved'));
     }
