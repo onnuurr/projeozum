@@ -27,6 +27,8 @@ class ProductImage extends Model
     protected $fillable = [
         'product_id',
         'product_variant_id',
+        // Bedene özel görsel: ait olduğu beden adları; null = genel (bkz. migration 2026_10_06_180000).
+        'variant_sizes',
         'path',
         'alt_text',
         'sort_order',
@@ -36,7 +38,16 @@ class ProductImage extends Model
     protected $casts = [
         'sort_order' => 'integer',
         'is_cover'   => 'boolean',
+        'variant_sizes' => 'array',
     ];
+
+    /** variant_sizes kolonu var mı (migration çalışmadan yazan kod canlıyı kırmasın). */
+    public static function supportsVariantSizes(): bool
+    {
+        static $has = null;
+
+        return $has ??= \Illuminate\Support\Facades\Schema::hasColumn((new static)->getTable(), 'variant_sizes');
+    }
 
     /** Frontend, görseli `url` anahtarından okur; relative path'ten türetilir. */
     protected $appends = ['url'];

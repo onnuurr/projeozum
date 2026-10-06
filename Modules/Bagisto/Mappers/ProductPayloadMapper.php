@@ -31,16 +31,37 @@ class ProductPayloadMapper
             'status'                => $product->status === Product::STATUS_PUBLISHED,
             'category_codes'        => $product->category ? [$product->category->slug] : [],
             'category_name'         => $product->category?->name,
-            'images'                => $product->images->pluck('url')->all(),
+            // Bedene özel görseller (variant_sizes dolu — Creative mokap beden setleri) genel galeriye
+            // girmez; yalnız o bedenlerin varyantlarına gider (mağazada beden seçilince galeri değişir).
+            'images'                => $product->images->filter(fn ($img) => $img->variant_sizes === null)->pluck('url')->values()->all(),
             'variants'              => $product->variants->map(fn ($variant) => [
                 'sku'      => $variant->sku,
                 'price'    => (float) $variant->price,
                 'quantity' => (int) $variant->stock,
                 'color'    => $variant->color_name,
                 'size'     => $variant->size,
-                'images'   => $variant->images->pluck('url')->all() ?: null,
+                'images'   => $this->variantImages($product, $variant),
             ])->all(),
         ];
+    }
+
+    /**
+     * Varyantın görselleri: doğrudan bağlı olanlar + bedeni variant_sizes'ta geçen bedene özel görseller.
+     * Bedene özel görseli olan üründe liste boşsa [] gider (Bagisto varyantın eski setini temizler);
+     * hiç bedene özel görseli olmayan üründe null (Bagisto mevcut görsellere dokunmaz — eski davranış).
+     *
+     * @param  \Modules\Product\Models\ProductVariant  $variant
+     * @return list<string>|null
+     */
+    private function variantImages(Product $product, $variant): ?array
+    {
+        $scoped = $product->images->filter(fn ($img) => $img->variant_sizes !== null);
+        $urls = $product->images
+            ->filter(fn ($img) => $img->product_variant_id === $variant->id
+                || in_array($variant->size, (array) $img->variant_sizes, true))
+            ->sortBy('sort_order')->pluck('url')->unique()->values()->all();
+
+        return $urls !== [] ? $urls : ($scoped->isNotEmpty() ? [] : null);
     }
 
     /**

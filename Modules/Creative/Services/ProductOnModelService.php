@@ -347,7 +347,10 @@ class ProductOnModelService
         $oldImageId = $result->product_image_id;
         $sortOrder  = (int) $product->images()->max('sort_order') + 1;
 
+        // Mokap beden grubu → görsel yalnız o bedenlere ait (mağazada beden seçilince gösterilir).
+        $sizes = $this->variantSizesFor($result);
         $image = $product->images()->create([
+            ...($sizes !== null && ProductImage::supportsVariantSizes() ? ['variant_sizes' => $sizes] : []),
             'path'       => $result->staged_image_path,
             'alt_text'   => trim($product->name . ' — ' . ($pose?->label ?: $pose?->pose_key)
                 . ($result->isCloseup() ? ' — ' . (config("creative.closeup.shots.{$result->shot}.label") ?? $result->shot) : '')),
@@ -356,6 +359,9 @@ class ProductOnModelService
         ]);
 
         $result->update(['product_image_id' => $image->id]);
+        if ($sizes !== null && ProductImage::supportsVariantSizes()) {
+            $this->releaseSizesFromOtherSets($product->id, $image->id, $sizes);
+        }
 
         // Aynı sonuç daha önce yayınlanmışsa (örn. çift onay), eski satırı temizle.
         // Dosyayı SİLME: staged_image_path ile aynı fiziksel dosyayı paylaşıyor olabilir.
@@ -364,6 +370,39 @@ class ProductOnModelService
         }
 
         return $result->fresh();
+    }
+
+    /**
+     * Mokap sonucunun (ya da yakın planının kaynağının) beden grubu: kombin meta.sizes. Eski hat ve
+     * bedensiz ürünler → null (genel görsel).
+     *
+     * @return list<string>|null
+     */
+    private function variantSizesFor(TryonResult $result): ?array
+    {
+        $outfit = ($result->mockupBase ?? $result->sourceResult?->mockupBase)?->outfit;
+        $sizes = array_values(array_filter((array) ($outfit?->meta['sizes'] ?? []), 'is_string'));
+
+        return $result->isMockup() && $sizes !== [] ? $sizes : null;
+    }
+
+    /**
+     * Bu bedenler artık yeni sete ait: ürünün BAŞKA setlerine ait görsellerinden çıkarılır (aynı setin
+     * diğer pozları — aynı beden listesi — korunur). Hiç bedeni kalmayan görsel [] olur: mağazaya gitmez.
+     *
+     * @param  list<string>  $sizes
+     */
+    private function releaseSizesFromOtherSets(int $productId, int $imageId, array $sizes): void
+    {
+        $key = fn (array $s) => implode('|', collect($s)->sort()->values()->all());
+        ProductImage::where('product_id', $productId)->whereKeyNot($imageId)->whereNotNull('variant_sizes')->get()
+            ->each(function (ProductImage $img) use ($sizes, $key) {
+                $current = (array) $img->variant_sizes;
+                if ($key($current) === $key($sizes) || array_intersect($current, $sizes) === []) {
+                    return;
+                }
+                $img->update(['variant_sizes' => array_values(array_diff($current, $sizes))]);
+            });
     }
 
     /**

@@ -24,6 +24,7 @@ use Modules\Creative\Services\Mockup\MockupProductTypeResolver;
 use Modules\Creative\Services\Mockup\MockupTryOnService;
 use Modules\Product\Models\Category;
 use Modules\Product\Models\Product;
+use Modules\Product\Models\ProductImage;
 use Modules\Product\Models\ProductAttribute;
 use Modules\Product\Models\ProductAttributeOption;
 use Spatie\Permission\Models\Permission;
@@ -268,6 +269,36 @@ class MockupPipelineTest extends TestCase
 
         $this->expectException(\RuntimeException::class);
         app(\Modules\Creative\Services\Mockup\MockupRerunService::class)->rerun($r->fresh());
+    }
+
+    public function test_approved_size_group_images_are_scoped_to_their_sizes_and_take_over_from_other_sets(): void
+    {
+        Queue::fake();
+        $product = $this->product();
+        $mannequin = $this->mannequinAndPoses();
+        $pipeline = app(MockupPipelineService::class);
+        $outfit = $pipeline->run($pipeline->start($product, $mannequin, meta: ['sizes' => ['10 Yaş', '11 Yaş', '14 Yaş']]));
+        $results = TryonResult::where('pipeline', TryonResult::PIPELINE_MOCKUP)->get();
+        $onModel = app(\Modules\Creative\Services\ProductOnModelService::class);
+        foreach ($results as $r) {
+            $r->update(['staged_image_path' => "products/{$product->id}/onmodel_staged_{$r->id}.webp", 'status' => TryonResult::STATUS_DONE]);
+            $onModel->publish($r->fresh());
+        }
+        $images = $product->fresh()->images;
+        $this->assertCount(3, $images->whereNotNull('variant_sizes'));
+        $this->assertSame(['10 Yaş', '11 Yaş', '14 Yaş'], $images->firstWhere('variant_sizes', '!=', null)->variant_sizes);
+
+        // Yeni (14–17) set 14 Yaş'ı devralır: eski setin görsellerinden çıkar, aynı setin pozları korunur.
+        $teen = Mannequin::create(['name' => 'Genç', 'status' => Mannequin::STATUS_READY, 'review_status' => Mannequin::REVIEW_APPROVED,
+            'reference_image_path' => 'mannequins/1/reference.png']);
+        $o2 = $pipeline->run($pipeline->start($product, $teen, meta: ['sizes' => ['14 Yaş']]));
+        $r2 = TryonResult::where('mannequin_id', $teen->id)->first();
+        $r2->update(['staged_image_path' => "products/{$product->id}/onmodel_staged_{$r2->id}.webp", 'status' => TryonResult::STATUS_DONE]);
+        $onModel->publish($r2->fresh());
+
+        $old = ProductImage::whereIn('id', $results->pluck('product_image_id')->merge($results->map(fn ($r) => $r->fresh()->product_image_id)))->get();
+        $this->assertTrue($old->every(fn ($i) => $i->variant_sizes === ['10 Yaş', '11 Yaş']));
+        $this->assertSame(['14 Yaş'], ProductImage::find($r2->fresh()->product_image_id)->variant_sizes);
     }
 
     public function test_outerwear_product_gets_an_inner_outfit_and_goes_through_the_pipeline(): void
