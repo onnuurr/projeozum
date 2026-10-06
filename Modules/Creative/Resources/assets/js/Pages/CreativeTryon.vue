@@ -387,123 +387,93 @@
 			</div>
 		</Card>
 
-		<!-- Sonuçlar -->
-		<Card :title="resultsProductObj ? `${resultsProductObj.name} — Giydirmeler` : 'Son Giydirmeler (tüm ürünler)'">
+		<!-- Sonuçlar: ürün listesi → ürün detayı (setlere göre gruplu) -->
+		<Card :title="resultsProductObj ? resultsProductObj.name : 'Giydirmeler — Ürünler'">
 			<template #actions>
-				<button v-if="resultsProductObj !== null" type="button" class="link-btn" @click="clearProductFilter">
-					Tüm ürünleri göster
+				<button v-if="resultsProductObj !== null" type="button" class="link-btn back-link" @click="clearProductFilter">
+					<ChevronLeft :size="13" /> Ürünler
 				</button>
 				<Loader2 v-if="productResultsLoading" :size="13" class="search-spin" />
-				<span class="hint">{{ filteredResults.length }}/{{ displayResults.length }} kayıt</span>
+				<span v-if="resultsProductObj" class="hint">{{ filteredResults.length }}/{{ displayResults.length }} kayıt</span>
+				<span v-else class="hint">{{ summaries.length }} ürün</span>
 			</template>
 
-			<div v-if="displayResults.length" class="filter-row">
-				<button
-					v-for="f in STATUS_FILTERS"
-					:key="f.key"
-					type="button"
-					class="filter-chip"
-					:class="{ active: statusFilter === f.key }"
-					@click="statusFilter = f.key"
-				>{{ f.label }}</button>
-				<span class="filter-sep"></span>
-				<button
-					v-for="f in SHOT_FILTERS"
-					:key="f.key"
-					type="button"
-					class="filter-chip"
-					:class="{ active: shotFilter === f.key }"
-					@click="shotFilter = f.key"
-				>{{ f.label }}</button>
-				<span class="filter-sep"></span>
-				<button
-					v-for="f in REVIEW_FILTERS"
-					:key="f.key"
-					type="button"
-					class="filter-chip"
-					:class="{ active: reviewFilter === f.key }"
-					@click="reviewFilter = f.key"
-				>{{ f.label }}</button>
-			</div>
-
-			<EmptyState
-				v-if="displayResults.length === 0"
-				:icon="ImageOff"
-				:title="resultsProductObj ? `${resultsProductObj.name} için henüz giydirme yok.` : 'Henüz giydirme yok.'"
-			/>
-			<EmptyState
-				v-else-if="filteredResults.length === 0"
-				:icon="ImageOff"
-				title="Filtreyle eşleşen kayıt yok."
-				hint="Farklı bir durum/onay filtresi deneyin."
-			/>
-			<div v-else class="result-grid">
-				<div v-for="r in filteredResults" :key="r.id" class="result-card">
-					<div class="result-thumb">
-						<img v-if="r.image_url" class="clickable" :src="r.image_url" :alt="r.product_name" loading="lazy" decoding="async" @click="openPreview(r)" />
-						<span v-else class="no-preview">{{ statusLabel(r.status) }}</span>
-						<button v-if="r.image_url" class="zoom-badge" title="Büyük önizleme" @click="openPreview(r)"><Maximize2 :size="13" /></button>
-						<Badge class="status-badge" :color="statusColor(r.status)" :label="statusLabel(r.status)" variant="filled" />
-						<Badge v-if="r.is_cover" class="cover-badge" :icon="Star" label="Kapak" color="neutral" variant="filled" />
-						<Badge v-if="r.shot_label" class="shot-badge" :icon="ZoomIn" :label="r.shot_label" color="primary" variant="filled" />
-						<Badge
-							v-if="r.review_status"
-							class="review-badge"
-							:color="reviewColor(r.review_status)"
-							:label="reviewLabel(r.review_status)"
-							variant="filled"
-						/>
-					</div>
-					<div class="result-meta">
-						<span class="result-product">{{ r.product_name }}</span>
-						<span class="result-sub">{{ r.mannequin_name }} · {{ r.pose_label }}<template v-if="r.shot_label"> · {{ r.shot_label }}</template></span>
-						<span v-if="r.creator_name" class="result-creator">Üreten: {{ r.creator_name }}{{ r.is_own ? ' (siz)' : '' }}</span>
-						<span v-if="r.tryon_model" class="result-model" :title="r.tryon_model">Model: {{ r.tryon_model }}</span>
-						<!-- Faz 2 otomatik kontrol (mokap): onayın yerine geçmez, onaycıya ipucu verir -->
-						<div v-if="r.qa" class="qa-line" :class="`is-${r.qa.status}`">
-							<span class="qa-head">Kontrol: {{ QA_LABELS[r.qa.status] || r.qa.status }}<template v-if="r.qa.attempts > 1"> · yeniden denendi</template></span>
-							<ul v-if="r.qa.issues.length" class="qa-issues">
-								<li v-for="(i, idx) in r.qa.issues.slice(0, 3)" :key="idx">{{ i }}</li>
-							</ul>
-						</div>
-						<!-- Mokap kombin özeti: stilistin seçtiği parçalar + Türkçe gerekçe + kural motoru uyarıları -->
-						<div v-if="r.outfit" class="outfit-line" :title="r.outfit.reasoning || ''">
-							<span v-if="r.outfit.sizes || r.color" class="outfit-sizes">{{ [r.outfit.sizes ? `Bedenler: ${r.outfit.sizes}` : null, r.color ? `Renk: ${r.color}` : null].filter(Boolean).join(' · ') }}</span>
-							<span class="outfit-head">Kombin:</span> {{ r.outfit.pieces.join(' · ') }}
-							<span v-if="r.outfit.warnings.length" class="outfit-warn" :title="r.outfit.warnings.join('\n')"><AlertTriangle :size="10" /> {{ r.outfit.warnings.length }} uyarı</span>
-						</div>
-						<div v-if="r.review_tags && r.review_tags.length" class="review-tags">
-							<Tag v-for="t in r.review_tags" :key="t" :label="t" color="danger" />
-						</div>
-						<p v-if="r.error" class="result-error" :title="r.error"><AlertTriangle :size="11" /> {{ r.error }}</p>
-						<div v-if="r.can_review" class="review-actions">
-							<Button variant="success" size="sm" :disabled="busyReview === r.id" @click="approve(r)"><template #leading><Check :size="11" /></template>Onayla</Button>
-							<Button variant="danger" size="sm" :disabled="busyReview === r.id" @click="reject(r)"><template #leading><X :size="11" /></template>Reddet</Button>
-						</div>
-						<div v-if="(r.status === 'queued' || r.status === 'generating') && can('creative.asset.manage')" class="result-actions">
-							<button type="button" class="link-btn danger" :disabled="stopBusy" @click="stopResult(r)">Durdur</button>
-						</div>
-						<div v-if="(r.status === 'done' || r.status === 'failed') && can('creative.asset.manage')" class="result-actions">
-							<template v-if="r.status === 'done' && r.review_status === 'approved'">
-								<button v-if="!r.is_cover" type="button" class="link-btn" @click="setCover(r)">Kapak yap</button>
-								<span v-else class="is-cover-note">Kapak</span>
-								<button v-if="r.shot === 'full'" type="button" class="link-btn" @click="openCloseupPicker(r)">Yakın plan üret</button>
-							</template>
-							<button type="button" class="link-btn danger" @click="destroyResult(r)">Sil</button>
-						</div>
-					</div>
-					<Link :href="`/creative/tryon/${r.id}`" class="chat-link">
-						<ClipboardList :size="13" /> Üretim Detayı
-					</Link>
-					<Link v-if="r.can_chat" :href="`/creative/tryon/${r.id}/review-chat`" class="chat-link">
-						<MessageCircle :size="13" /> AI ile Konuş <span v-if="r.review_chats?.length">({{ r.review_chats.length }} mesaj)</span>
-					</Link>
-					<!-- Faz 5: reddedilen mokap → ret nedeninin aşamasından düzeltmeyle yeniden üret -->
-					<button v-if="r.rerun && can('creative.asset.manage')" type="button" class="chat-link rerun-btn" :disabled="mockupBusy" @click="rerunMockup(r)">
-						<RefreshCw :size="13" /> {{ r.rerun.label }} aşamasından yeniden üret
+			<!-- Ürün listesi -->
+			<template v-if="resultsProductObj === null">
+				<div class="filter-row">
+					<button v-for="f in SUMMARY_FILTERS" :key="f.key" type="button" class="filter-chip"
+						:class="{ active: summaryFilter === f.key }" @click="setSummaryFilter(f.key)">{{ f.label }}</button>
+				</div>
+				<EmptyState v-if="!summaries.length && !productResultsLoading" :icon="ImageOff"
+					:title="summaryFilter === 'all' ? 'Henüz giydirme yok.' : 'Bu filtreyle eşleşen ürün yok.'" />
+				<div v-else class="summary-list">
+					<button v-for="s in summaries" :key="s.product_id" type="button" class="summary-row" @click="openProductResults(s)">
+						<span class="summary-thumb">
+							<img v-if="s.thumb_url" :src="s.thumb_url" :alt="s.name" loading="lazy" decoding="async" />
+							<ImageOff v-else :size="16" />
+						</span>
+						<span class="summary-main">
+							<span class="summary-name">{{ s.name }}</span>
+							<span class="summary-meta">{{ s.total }} görsel · {{ relativeTime(s.last_at) }}</span>
+						</span>
+						<span class="summary-counts">
+							<span v-if="s.running" class="cnt is-run" title="Sırada / üretimde">{{ s.running }} üretimde</span>
+							<span v-if="s.pending" class="cnt is-pending" title="Onay bekliyor">{{ s.pending }} onay bekliyor</span>
+							<span v-if="s.approved" class="cnt is-ok" title="Onaylı">{{ s.approved }} onaylı</span>
+							<span v-if="s.rejected" class="cnt is-rej" title="Reddedildi">{{ s.rejected }} red</span>
+							<span v-if="s.failed" class="cnt is-fail" title="Başarısız">{{ s.failed }} hata</span>
+						</span>
+						<ChevronRight :size="15" class="summary-go" />
 					</button>
 				</div>
-			</div>
+			</template>
+
+			<!-- Ürün detayı -->
+			<template v-else>
+				<div v-if="displayResults.length" class="filter-row">
+					<button v-for="f in STATUS_FILTERS" :key="f.key" type="button" class="filter-chip"
+						:class="{ active: statusFilter === f.key }" @click="statusFilter = f.key">{{ f.label }}</button>
+					<span class="filter-sep"></span>
+					<button v-for="f in REVIEW_FILTERS" :key="f.key" type="button" class="filter-chip"
+						:class="{ active: reviewFilter === f.key }" @click="reviewFilter = f.key">{{ f.label }}</button>
+				</div>
+
+				<EmptyState v-if="displayResults.length === 0 && !productResultsLoading" :icon="ImageOff"
+					:title="`${resultsProductObj.name} için henüz giydirme yok.`" />
+				<EmptyState v-else-if="filteredResults.length === 0 && displayResults.length" :icon="ImageOff"
+					title="Filtreyle eşleşen kayıt yok." hint="Farklı bir durum/onay filtresi deneyin." />
+
+				<section v-for="set in resultSets" :key="set.key" class="result-set">
+					<header class="set-head">
+						<button type="button" class="set-toggle" @click="toggleSet(set.key)">
+							<ChevronRight :size="14" class="set-chev" :class="{ open: isSetOpen(set) }" />
+							<span class="set-title">{{ set.title }}</span>
+							<span v-if="set.subtitle" class="set-sub">{{ set.subtitle }}</span>
+						</button>
+						<span class="set-count">{{ set.items.length }}</span>
+						<span v-if="set.pending" class="cnt is-pending">{{ set.pending }} onay bekliyor</span>
+						<button v-if="set.outfit" type="button" class="set-outfit-btn" :class="{ warn: set.outfit.warnings.length }"
+							@click="toggleOutfit(set.key)">
+							<AlertTriangle v-if="set.outfit.warnings.length" :size="11" /> Kombin
+							<ChevronRight :size="12" class="set-chev" :class="{ open: openOutfits.has(set.key) }" />
+						</button>
+					</header>
+					<div v-if="set.outfit && openOutfits.has(set.key)" class="set-outfit">
+						<p><strong>Parçalar:</strong> {{ set.outfit.pieces.join(' · ') || '—' }}</p>
+						<p v-if="set.outfit.reasoning" class="muted">{{ set.outfit.reasoning }}</p>
+						<ul v-if="set.outfit.warnings.length" class="set-warn">
+							<li v-for="(w, i) in set.outfit.warnings" :key="i">{{ w }}</li>
+						</ul>
+					</div>
+					<div v-if="isSetOpen(set)" class="result-grid">
+						<TryonResultCard v-for="r in set.items" :key="r.id" :r="r"
+							:show-product="false" :show-mannequin="!set.mannequinInTitle"
+							:can-manage="can('creative.asset.manage')" :busy-review="busyReview" :stop-busy="stopBusy" :mockup-busy="mockupBusy"
+							@preview="openPreview" @approve="approve" @reject="reject" @stop="stopResult" @cover="setCover"
+							@closeups="openCloseupPicker" @destroy="destroyResult" @rerun="rerunMockup" />
+					</div>
+				</section>
+			</template>
 		</Card>
 
 		<!-- Yakın plan kadraj seçimi: onaylı tam boy giydirmeden aynı çekimin yakın kareleri -->
@@ -590,7 +560,7 @@
 import { ref, reactive, computed, watch, inject, onMounted, onUnmounted, nextTick } from 'vue'
 import { Head, Link, router } from '@inertiajs/vue3'
 import {
-	RefreshCw, Play, Maximize2, Star, AlertTriangle, Check, X, ClipboardList, MessageCircle, Download,
+	RefreshCw, Play, AlertTriangle, Check, X, Download,
 	Search, Loader2, PackageSearch, Users, Footprints, ImageOff, ShieldCheck, Info, ChevronRight, ChevronLeft, ImagePlus,
 	CreditCard, ZoomIn, Sparkles, Square,
 } from 'lucide-vue-next'
@@ -605,6 +575,7 @@ import Alert from '@/Components/Alert.vue'
 import EmptyState from '@/Components/EmptyState.vue'
 import FormField from '@/Components/Form/FormField.vue'
 import FormInput from '@/Components/Form/FormInput.vue'
+import TryonResultCard from '../Components/TryonResultCard.vue'
 import { openRejectDialog } from '../support/rejectDialog'
 import { extOf } from '../support/mediaExt'
 import { useCan } from '@/composables/useCan'
@@ -958,35 +929,103 @@ async function fetchProductResults(productId) {
 	}
 }
 
-// Ürün seçilmeden önceki global akış (bkz. TryonController::results() docblock'u) —
-// index() bunu artık hiç göndermiyor, sayfa açılır açılmaz burada (bloklamadan) çekilir.
-async function fetchGlobalResults() {
+// Ürün seçilmeden önce galeri ürün listesi gösterir (giydirmesi olan ürünler + sayılar,
+// bkz. TryonController::productSummaries()); görseller ürün açılınca çekilir.
+const summaries = ref([])
+const summaryFilter = ref('all')
+const SUMMARY_FILTERS = [
+	{ key: 'all', label: 'Tümü' },
+	{ key: 'pending', label: 'Onay bekleyen' },
+	{ key: 'running', label: 'Üretimde' },
+]
+
+async function fetchSummaries() {
 	productResultsLoading.value = true
 	try {
-		const { data } = await window.axios.get('/creative/tryon/results')
-		productResults.value = data?.data || []
+		const { data } = await window.axios.get('/creative/tryon/product-summaries', { params: { filter: summaryFilter.value } })
+		summaries.value = data?.data || []
 	} catch {
-		productResults.value = []
+		summaries.value = []
 	} finally {
 		productResultsLoading.value = false
 	}
 }
 
+function setSummaryFilter(key) {
+	summaryFilter.value = key
+	fetchSummaries()
+}
+
+// Galeride ürün açmak sihirbazdaki ürün seçimini değiştirmez.
+function openProductResults(s) {
+	resultsProductObj.value = { id: s.product_id, name: s.name }
+	productResults.value = null
+	fetchProductResults(s.product_id)
+}
+
 function clearProductFilter() {
 	resultsProductObj.value = null
-	fetchGlobalResults()
+	productResults.value = null
+	fetchSummaries()
 }
 
 function refetchProductResultsIfActive() {
 	if (resultsProductObj.value !== null) fetchProductResults(resultsProductObj.value.id)
-	else fetchGlobalResults()
+	else fetchSummaries()
 }
 
 onMounted(() => {
-	if (resultsProductObj.value === null) fetchGlobalResults()
+	if (resultsProductObj.value === null) fetchSummaries()
 })
 
 const displayResults = computed(() => productResults.value ?? [])
+
+function relativeTime(at) {
+	if (!at) return ''
+	const mins = Math.round((Date.now() - new Date(at.replace(' ', 'T')).getTime()) / 60000)
+	if (mins < 1) return 'az önce'
+	if (mins < 60) return `${mins} dk önce`
+	if (mins < 1440) return `${Math.round(mins / 60)} sa önce`
+	return `${Math.round(mins / 1440)} gün önce`
+}
+
+// ── Ürün detayı: setler (mokap kombin · manken · renk), sonra eski hat ve yakın planlar ──
+const openSets = reactive(new Map())
+const openOutfits = reactive(new Set())
+function isSetOpen(set) { return openSets.has(set.key) ? openSets.get(set.key) : set.defaultOpen }
+function toggleSet(key) {
+	const set = resultSets.value.find(s => s.key === key)
+	openSets.set(key, !isSetOpen(set))
+}
+function toggleOutfit(key) { openOutfits.has(key) ? openOutfits.delete(key) : openOutfits.add(key) }
+
+const resultSets = computed(() => {
+	const mockup = new Map()
+	const legacy = []
+	const closeups = []
+	for (const r of filteredResults.value) {
+		if (r.shot !== 'full') { closeups.push(r); continue }
+		if (r.pipeline !== 'mockup') { legacy.push(r); continue }
+		const key = `m:${r.outfit_id ?? 0}:${r.mannequin_id ?? 0}:${r.color || ''}`
+		if (!mockup.has(key)) {
+			mockup.set(key, {
+				key,
+				title: [r.mannequin_name, r.outfit?.sizes].filter(Boolean).join(' · ') || 'Mokap seti',
+				subtitle: r.color ? `Renk: ${r.color}` : 'Genel set',
+				outfit: r.outfit,
+				mannequinInTitle: true,
+				defaultOpen: true,
+				items: [],
+			})
+		}
+		mockup.get(key).items.push(r)
+	}
+	const sets = [...mockup.values()]
+	if (legacy.length) sets.push({ key: 'legacy', title: 'Eski hat', subtitle: 'Mokap dışı giydirmeler', mannequinInTitle: false, defaultOpen: !sets.length, items: legacy })
+	if (closeups.length) sets.push({ key: 'closeups', title: 'Yakın planlar', subtitle: null, mannequinInTitle: false, defaultOpen: false, items: closeups })
+	for (const s of sets) s.pending = s.items.filter(r => r.review_status === 'pending').length
+	return sets
+})
 
 // Zaten onaylanmış (ve ürün kapağı olarak yayınlanmış) bir poz yeniden
 // kuyruğa alınırsa ProductOnModelService::queue() onay durumunu sessizce
@@ -1020,10 +1059,10 @@ function clearGarmentFile() {
 
 // Ürün değişince önceki yüklenen görsel(ler) başka bir ürüne taşınmasın.
 watch(selectedProduct, () => { clearGarmentFile(); clearGarmentDetails() })
-const hasPending = computed(() => displayResults.value.some(r => r.status === 'queued' || r.status === 'generating'))
+const hasPending = computed(() => displayResults.value.some(r => r.status === 'queued' || r.status === 'generating')
+	|| (resultsProductObj.value === null && summaries.value.some(s => s.running > 0)))
 
 const STATUS_LABELS = { queued: 'Sırada', generating: 'Üretiliyor', done: 'Hazır', failed: 'Başarısız' }
-const QA_LABELS = { pass: 'geçti', warn: 'uyarı', fail: 'kaldı', unknown: 'yapılamadı' }
 const MOCKUP_REGIONS = { bottom: 'alt', top: 'üst', one_piece: 'tek parça', set: 'takım', outerwear: 'dış giyim' }
 
 /* ── Mokap (Faz 4): tek ürün / toplu başlat. Ücretli AI; sunucu günlük limiti ve varsayılan mankeni uygular. ── */
@@ -1104,17 +1143,10 @@ const REVIEW_FILTERS = [
 	{ key: 'approved', label: 'Onaylı' },
 	{ key: 'rejected', label: 'Reddedildi' },
 ]
-const SHOT_FILTERS = [
-	{ key: 'all', label: 'Tümü' },
-	{ key: 'full', label: 'Tam boy' },
-	{ key: 'closeup', label: 'Yakın plan' },
-]
 const statusFilter = ref('all')
 const reviewFilter = ref('all')
-const shotFilter = ref('all')
 const filteredResults = computed(() => displayResults.value.filter(r =>
 	(statusFilter.value === 'all' || r.status === statusFilter.value)
-	&& (shotFilter.value === 'all' || (shotFilter.value === 'full') === (r.shot === 'full'))
 	&& (reviewFilter.value === 'all' || r.review_status === reviewFilter.value),
 ))
 
@@ -1418,17 +1450,6 @@ onUnmounted(() => {
 .mockup-panel__text { flex: 1; font-size: 12.5px; line-height: 1.5; color: var(--color-muted); }
 .mockup-panel__text strong { color: var(--color-on-surface, inherit); }
 .mockup-panel__quota { display: block; margin-top: 2px; font-size: 11.5px; }
-.outfit-line { margin-top: 4px; font-size: 11px; line-height: 1.4; color: var(--color-muted); }
-.outfit-head { font-weight: 600; }
-.outfit-sizes { display: block; font-weight: 600; color: var(--color-primary); }
-.outfit-warn { margin-left: 6px; color: var(--color-warning); display: inline-flex; align-items: center; gap: 2px; }
-.qa-line { margin-top: 4px; padding: 5px 8px; border-radius: 6px; font-size: 11px; line-height: 1.4; background: var(--color-surface-container-low); color: var(--color-muted); }
-.qa-line.is-pass { color: var(--color-success); }
-.qa-line.is-warn, .qa-line.is-unknown { color: var(--color-warning); }
-.qa-line.is-fail { color: var(--color-danger); }
-.qa-head { font-weight: 600; }
-.qa-issues { margin: 3px 0 0; padding-left: 15px; color: var(--color-ink); }
-.shot-badge { position: absolute; top: 34px; left: 6px; }
 .cu-box { position: relative; width: min(560px, 100%); max-height: 90vh; overflow: auto; background: var(--color-surface); border-radius: 16px; padding: 20px; box-shadow: 0 24px 80px rgba(0,0,0,.4); }
 .cu-head { display: flex; gap: 14px; align-items: flex-start; padding-right: 28px; }
 .cu-head img { width: 72px; height: 96px; object-fit: cover; border-radius: 8px; flex-shrink: 0; }
@@ -1566,32 +1587,37 @@ onUnmounted(() => {
 
 /* Sonuçlar */
 .result-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
-.result-card { border: 1px solid var(--color-outline-variant); border-radius: 12px; overflow: hidden; background: var(--color-surface); content-visibility: auto; contain-intrinsic-size: 0 260px; }
-.result-thumb { position: relative; aspect-ratio: 3/4; background: var(--color-surface-container-low); display: flex; align-items: center; justify-content: center; }
-.result-thumb img { width: 100%; height: 100%; object-fit: cover; }
-.result-thumb img.clickable { cursor: zoom-in; }
-.zoom-badge { position: absolute; bottom: 6px; right: 6px; width: 26px; height: 26px; border: none; border-radius: 8px; background: rgba(26,26,46,.6); color: #fff; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity .15s; z-index: 1; }
-.result-card:hover .zoom-badge { opacity: 1; }
-.zoom-badge:hover { background: rgba(26,26,46,.85); }
+.back-link { display: inline-flex; align-items: center; gap: 2px; }
+.summary-list { display: flex; flex-direction: column; gap: 6px; }
+.summary-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px 10px; border: 1px solid var(--color-outline-variant); border-radius: 10px; background: var(--color-surface); cursor: pointer; font-family: inherit; text-align: left; }
+.summary-row:hover { border-color: var(--color-primary); }
+.summary-thumb { width: 40px; height: 52px; flex-shrink: 0; border-radius: 6px; overflow: hidden; background: var(--color-surface-container-low); display: flex; align-items: center; justify-content: center; color: var(--color-muted); }
+.summary-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.summary-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.summary-name { font-size: 13px; font-weight: 600; color: var(--color-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.summary-meta { font-size: 11px; color: var(--color-muted); }
+.summary-counts { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; }
+.summary-go { color: var(--color-muted); flex-shrink: 0; }
+.cnt { font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 10px; white-space: nowrap; background: var(--color-surface-container-low); color: var(--color-muted); }
+.cnt.is-pending, .cnt.is-run { background: color-mix(in srgb, var(--color-warning) 16%, transparent); color: var(--color-warning); }
+.cnt.is-ok { background: color-mix(in srgb, var(--color-success) 14%, transparent); color: var(--color-success); }
+.cnt.is-rej, .cnt.is-fail { background: color-mix(in srgb, var(--color-danger) 12%, transparent); color: var(--color-danger); }
+.result-set { margin-bottom: 14px; }
+.result-set:last-child { margin-bottom: 0; }
+.set-head { display: flex; align-items: center; gap: 8px; padding: 6px 0; margin-bottom: 8px; border-bottom: 1px solid var(--color-outline-variant); }
+.set-toggle { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; border: none; background: none; padding: 0; cursor: pointer; font-family: inherit; text-align: left; }
+.set-chev { transition: transform .15s; color: var(--color-muted); flex-shrink: 0; }
+.set-chev.open { transform: rotate(90deg); }
+.set-title { font-size: 13px; font-weight: 700; color: var(--color-ink); white-space: nowrap; }
+.set-sub { font-size: 11px; color: var(--color-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.set-count { font-size: 11px; font-weight: 700; color: var(--color-muted); }
+.set-outfit-btn { display: inline-flex; align-items: center; gap: 3px; border: 1px solid var(--color-outline-variant); background: var(--color-surface); border-radius: 14px; padding: 2px 8px; font-size: 11px; font-weight: 600; color: var(--color-ink); cursor: pointer; font-family: inherit; }
+.set-outfit-btn.warn { border-color: color-mix(in srgb, var(--color-warning) 50%, transparent); color: var(--color-warning); }
+.set-outfit { margin: -2px 0 10px; padding: 8px 10px; border-radius: 8px; background: var(--color-surface-container-low); font-size: 12px; line-height: 1.5; color: var(--color-ink); }
+.set-outfit p { margin: 0 0 4px; }
+.set-outfit .muted { color: var(--color-muted); }
+.set-warn { margin: 0; padding-left: 16px; color: var(--color-warning); }
 .no-preview { font-size: 11px; color: var(--color-muted); font-weight: 700; }
-.status-badge { position: absolute; top: 6px; left: 6px; }
-.cover-badge { position: absolute; top: 6px; right: 6px; }
-.review-badge { position: absolute; bottom: 6px; left: 6px; }
-.result-meta { padding: 8px 10px; }
-.result-product { font-size: 12px; font-weight: 700; color: var(--color-ink); display: block; }
-.result-sub { font-size: 11px; color: var(--color-muted); }
-.result-creator { font-size: 10px; color: var(--color-muted); display: block; }
-.result-model { font-size: 10px; color: var(--color-muted); display: block; font-family: monospace; }
-.review-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
-.result-error { display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--color-danger); margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.review-actions { display: flex; gap: 6px; margin-top: 6px; }
-.result-actions { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
-.link-btn.danger { color: var(--color-danger); margin-left: auto; }
-.is-cover-note { font-size: 11px; color: var(--color-success); font-weight: 600; }
-.rerun-btn { width: calc(100% - 24px); border: none; cursor: pointer; font-family: inherit; }
-.rerun-btn:disabled { opacity: .6; cursor: default; }
-.chat-link { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 12px; margin: 0 12px 12px; background: var(--color-primary-soft); color: var(--color-primary-hover); border-radius: 8px; font-size: 12px; font-weight: 600; text-decoration: none; }
-.chat-link:hover { background: color-mix(in srgb, var(--color-primary-soft) 60%, var(--color-primary) 10%); }
 
 /* Lightbox */
 .lightbox { position: fixed; inset: 0; z-index: 9999; background: rgba(15,15,25,.82); display: flex; align-items: center; justify-content: center; padding: 32px; backdrop-filter: blur(3px); }

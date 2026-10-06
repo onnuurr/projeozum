@@ -160,6 +160,63 @@ class TryonController extends Controller
         return response()->json(['data' => $this->mapTryonResults($query->get())]);
     }
 
+    /**
+     * Sonuç galerisinin ürün listesi: giydirmesi olan her ürün için durum/onay sayıları,
+     * son hareket ve küçük görsel. Görseller ancak ürün açılınca {@see results()} ile gelir.
+     * filter: pending (onay bekleyen var) | running (sırada/üretimde var) | all.
+     */
+    public function productSummaries(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'filter' => ['nullable', 'in:all,pending,running'],
+            'q'      => ['nullable', 'string', 'max:100'],
+        ]);
+
+        $count = fn (string $col, string $val) => "SUM(CASE WHEN {$col} = '{$val}' THEN 1 ELSE 0 END)";
+        $query = TryonResult::query()
+            ->selectRaw('product_id, COUNT(*) as total, MAX(updated_at) as last_at')
+            ->selectRaw($count('review_status', TryonResult::REVIEW_PENDING).' as pending')
+            ->selectRaw($count('review_status', TryonResult::REVIEW_APPROVED).' as approved')
+            ->selectRaw($count('review_status', TryonResult::REVIEW_REJECTED).' as rejected')
+            ->selectRaw("SUM(CASE WHEN status IN ('".TryonResult::STATUS_QUEUED."','".TryonResult::STATUS_GENERATING."') THEN 1 ELSE 0 END) as running")
+            ->selectRaw($count('status', TryonResult::STATUS_FAILED).' as failed')
+            ->groupBy('product_id');
+
+        if (! empty($data['q'])) {
+            $query->whereIn('product_id', Product::query()->where('name', 'like', '%'.$data['q'].'%')->select('id'));
+        }
+        match ($data['filter'] ?? 'all') {
+            'pending' => $query->havingRaw($count('review_status', TryonResult::REVIEW_PENDING).' > 0'),
+            'running' => $query->havingRaw("SUM(CASE WHEN status IN ('".TryonResult::STATUS_QUEUED."','".TryonResult::STATUS_GENERATING."') THEN 1 ELSE 0 END) > 0"),
+            default   => null,
+        };
+
+        $rows = $query->orderByDesc('last_at')->limit(100)->get();
+        $ids = $rows->pluck('product_id')->all();
+        $names = Product::query()->whereIn('id', $ids)->pluck('name', 'id');
+
+        // Ürün başına en son hazır tam boy görsel (küçük resim).
+        $thumbs = TryonResult::query()->with('productImage:id,path')
+            ->whereIn('product_id', $ids)->where('status', TryonResult::STATUS_DONE)
+            ->where(fn ($q) => $q->whereNull('shot')->orWhere('shot', TryonResult::SHOT_FULL))
+            ->orderByDesc('id')->get(['id', 'product_id', 'product_image_id', 'staged_image_path', 'updated_at'])
+            ->unique('product_id')
+            ->mapWithKeys(fn (TryonResult $r) => [$r->product_id => $this->versionedUrl($r->productImage?->url ?? Media::url($r->staged_image_path), $r->updated_at)]);
+
+        return response()->json(['data' => $rows->map(fn ($row) => [
+            'product_id' => (int) $row->product_id,
+            'name'       => $names[$row->product_id] ?? "#{$row->product_id}",
+            'thumb_url'  => $thumbs[$row->product_id] ?? null,
+            'total'      => (int) $row->total,
+            'pending'    => (int) $row->pending,
+            'approved'   => (int) $row->approved,
+            'rejected'   => (int) $row->rejected,
+            'running'    => (int) $row->running,
+            'failed'     => (int) $row->failed,
+            'last_at'    => $row->last_at ? \Illuminate\Support\Carbon::parse($row->last_at)->toDateTimeString() : null,
+        ])->values()]);
+    }
+
     private function tryonResultsQuery(): Builder
     {
         return TryonResult::query()->with([
@@ -188,7 +245,10 @@ class TryonController extends Controller
             'error'           => $r->error,
             'product_id'      => $r->product_id,
             'product_name'    => $r->product?->name,
+            'mannequin_id'    => $r->mannequin_id,
             'mannequin_name'  => $r->mannequin?->name,
+            // Ürün detayında set gruplaması (kombin · manken · renk) için.
+            'outfit_id'       => $r->mockupBase?->outfit_id,
             'pose_id'         => $r->pose_id,
             'pose_label'      => $r->pose?->label,
             // 'full' = tam boy giydirme; diğerleri yakın plan kadrajı (bkz. ProductCloseupService).
