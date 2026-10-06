@@ -39,6 +39,9 @@ class MockupRerunService
 
     public function stageFor(TryonResult $result): string
     {
+        if (! RejectionReason::hasStage()) {
+            return 'tryon';
+        }
         $stages = RejectionReason::query()->whereIn('label', (array) $result->review_tags)->whereNotNull('stage')->pluck('stage')->all();
         foreach (array_keys(RejectionReason::STAGES) as $stage) {        // akış sırası: yukarıdaki kazanır
             if (in_array($stage, $stages, true)) {

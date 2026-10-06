@@ -57,6 +57,14 @@ class RejectionReason extends Model
         'sort_order' => 'integer',
     ];
 
+    /** stage kolonu var mı (Faz 5 migration'ı çalışmadan önce kod kırılmasın — istek başına bir kez bakılır). */
+    public static function hasStage(): bool
+    {
+        static $has = null;
+
+        return $has ??= \Illuminate\Support\Facades\Schema::hasColumn((new static)->getTable(), 'stage');
+    }
+
     public function scopeActive(Builder $q): Builder
     {
         return $q->where('is_active', true);

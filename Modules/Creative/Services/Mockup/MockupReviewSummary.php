@@ -49,7 +49,7 @@ class MockupReviewSummary
         $rejected = array_values(array_filter($decisions, fn ($d) => $d['verdict'] === 'rejected'));
         $approved = array_values(array_filter($decisions, fn ($d) => $d['verdict'] === 'approved'));
 
-        $stageOf = RejectionReason::query()->whereNotNull('stage')->pluck('stage', 'label')->all();
+        $stageOf = RejectionReason::hasStage() ? RejectionReason::query()->whereNotNull('stage')->pluck('stage', 'label')->all() : [];
         $stages = [];
         foreach ($rejected as $d) {
             foreach (array_unique(array_map(fn ($t) => $stageOf[$t] ?? 'other', $d['tags'] ?: ['—'])) as $st) {
