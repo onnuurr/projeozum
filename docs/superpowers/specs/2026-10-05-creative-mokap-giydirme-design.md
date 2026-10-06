@@ -232,6 +232,11 @@ Bugünkü hat poz başına 2 görsel çağrısı yapıyor (pozlama + giydirme), 
 - **Faz 2 kalibrasyonu (canlı, 16 analiz ≈ 0,044 $):** tutarlılık kontrolü saç farkını tutarlı yakalıyor; açıdan görünmeyen detaylar ve küçük aksesuarlar artık en fazla `warn`. Sadakat kontrolü `fail`'i yalnız yapısal hatalara veriyor (ton/ışık/pile keskinliği `warn`) — 10 çalıştırmada gereksiz yeniden deneme yok; pass↔warn arasında kararsız (zararsız, warn yalnız onaycıya gösterilir).
 - İlk gerçek ürün: Kot Etek (#10), kombin #3, sonuçlar #12 (yeniden üretildi, onay bekliyor), #13, #14 (yürüyüş bazında saç tutarsız — Faz 2 öncesi üretildi).
 
+- **Batch API (2026-10-06):** mokap görselleri Gemini Batch API ile (%50); `creative:ai-batch` dakikada bir gönderir/toplar/işi sürdürür; `creative:mockup --now` anlık. İlk gerçek çalıştırma: tur başı ~3 dk, ürün ~14 dk, ~0,22 $.
+- **El kenarı (2026-10-06):** birleştirmede baz el yapıştırması beyaz kontur + parmak arası leke bırakıyordu → `arm_matte` (ten rengi + baz↔model uyuşmazlığı); ham model çıktısı `<önek>_raw_<sonuç>.png` olarak saklanır (birleştirme ayarı ücretsiz yeniden denenir).
+- **Faz 3:** `creative_stylist_options` (44 seçenek) + `MockupStylistRuleEngine` (doğrulama, eleme, çeşitlilik, cümle kurma); poz etiketleri `creative_poses.mockup_regions/requires/view`. STYLIST_VERSION=2. Gerçek Gemini ile henüz denenmedi.
+- **Faz 4:** Creative ayarlar sayfası (`/creative/settings`, çark; `creative-settings.view` + `mockup-settings.manage`): Genel (otomatik tetik, günlük limit, cinsiyete göre manken), Kategoriler (`creative_category_regions`), Stilist seçenekleri, Pozlar. Ürün Giydirme: "Mokap üret" (tek ürün), "Mokap bekleyenleri başlat" (toplu), sonuç kartında kombin özeti. Otomatik tetik: `ProductCreated`/`ProductImagesChanged` → `AutoStartMockupJob` (varsayılan kapalı).
+
 **Bilinen açıklar**
 - Arayüz değişiklikleri (403 sayfası, Gemini/fal seçici, yakın plan penceresi, kontrol rozetleri, ₺ rozet) build bekliyor.
 - Gerçek ürün fotoğraflarıyla sadakat teyidi yapılmadı (Faz 0'ın ikinci maddesi).
