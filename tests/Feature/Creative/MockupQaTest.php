@@ -112,6 +112,7 @@ class MockupQaTest extends TestCase
         }
         $mannequin = Mannequin::create(['name' => 'M', 'status' => Mannequin::STATUS_READY, 'review_status' => Mannequin::REVIEW_APPROVED, 'reference_image_path' => 'mannequins/1/reference.png']);
         $cat = Category::create(['name' => 'Etek', 'slug' => 'e-' . uniqid(), 'status' => 'active', 'sort_order' => 0]);
+        \Modules\Creative\Models\CategoryRegion::create(['category_id' => $cat->id, 'region' => 'bottom']);
         $product = Product::factory()->create(['category_id' => $cat->id]);
         $this->png("products/{$product->id}/photo.png");
         $product->images()->create(['path' => "products/{$product->id}/photo.png", 'sort_order' => 0, 'is_cover' => true]);

@@ -2,7 +2,6 @@
 
 namespace Modules\Creative\Services\Mockup;
 
-use Modules\Creative\Models\MockupOutfit;
 use Modules\Product\Models\Product;
 use Modules\Product\Models\ProductAttributeOption;
 use RuntimeException;
@@ -10,13 +9,15 @@ use RuntimeException;
 /**
  * Ürünün mokap bölge tipini ve boyunu çözer.
  *
- * Bölge: kategori adı → config('creative.mockup.category_regions') (eşleşmeyen kategori mokap
- * dışıdır). Boy: ürünün "Boy" özelliği → length_by_option; yoksa kategori varsayılanı; o da
+ * Bölge: kategori (yoksa üst kategori) → creative_category_regions (Creative ayarlar › Mokap;
+ * eşleşmeyen kategori mokap dışıdır). Boy: ürünün "Boy" özelliği → length_by_option; yoksa kategori varsayılanı; o da
  * yoksa null döner ve stilist tahmin eder (length_source=ai, uyarılı). Açık override'lar
  * (komut/ileride ayarlar) her şeyin önündedir.
  */
 class MockupProductTypeResolver
 {
+    public function __construct(private MockupSettings $settings) {}
+
     /**
      * @return array{region:string, length:?string, length_source:string}
      */
@@ -28,8 +29,8 @@ class MockupProductTypeResolver
             if (! $category) {
                 throw new RuntimeException(__('creative::messages.mockup.no_category'));
             }
-            $map = config('creative.mockup.category_regions.' . $this->key($category->name));
-            if (! is_array($map) || ! in_array($map['region'] ?? null, MockupOutfit::REGIONS, true)) {
+            $map = $this->settings->regionFor($category);
+            if ($map === null) {
                 throw new RuntimeException(__('creative::messages.mockup.unsupported_category', ['category' => $category->name]));
             }
             $region = $map['region'];

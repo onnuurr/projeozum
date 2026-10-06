@@ -1,0 +1,60 @@
+<?php
+
+namespace Modules\Creative\Jobs;
+
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Support\Facades\Log;
+use Modules\Creative\Models\MockupOutfit;
+use Modules\Creative\Services\Mockup\MockupPipelineService;
+use Modules\Creative\Services\Mockup\MockupSettings;
+use Modules\Creative\Services\ProductOnModelService;
+use Modules\Product\Models\Product;
+use RuntimeException;
+
+/**
+ * Otomatik tetik (Faz 4): ürüne fotoğraf eklendiğinde (ProductCreated / ProductImagesChanged) mokap
+ * başlatılır — yalnız ayar açıksa (Creative ayarlar › Mokap), ürünün hiç mokap kombini yoksa,
+ * kategorisi eşleştirilmişse, yalın fotoğrafı ve varsayılan mankeni varsa ve günlük hak kalmışsa.
+ * Birkaç fotoğraf arka arkaya eklenince tek başlatma olsun diye ürün başına tekil + gecikmeli.
+ * Sonuç her zaman onay listesine düşer; hiçbir şey onaysız yayınlanmaz.
+ */
+class AutoStartMockupJob implements ShouldQueue, ShouldBeUnique
+{
+    use Dispatchable;
+    use InteractsWithQueue;
+    use Queueable;
+
+    public int $tries = 1;
+
+    public int $uniqueFor = 900;
+
+    public function __construct(public int $productId) {}
+
+    public function uniqueId(): string
+    {
+        return (string) $this->productId;
+    }
+
+    public function handle(MockupSettings $settings, MockupPipelineService $pipeline, ProductOnModelService $onModel): void
+    {
+        if (! $settings->autoTrigger() || MockupOutfit::where('product_id', $this->productId)->exists()) {
+            return;
+        }
+        $product = Product::with(['images', 'category.parent'])->find($this->productId);
+        if (! $product || $product->images->isEmpty() || $settings->regionFor($product->category) === null
+            || ! $onModel->pickPlainProductPhoto($product)) {
+            return;
+        }
+
+        try {
+            $pipeline->startFor($product);
+        } catch (RuntimeException $e) {
+            // Limit dolu / manken tanımsız vb.: sessizce atlanır, toplu başlatma sonra yakalar.
+            Log::info('Mokap otomatik başlatılmadı', ['product_id' => $this->productId, 'reason' => $e->getMessage()]);
+        }
+    }
+}

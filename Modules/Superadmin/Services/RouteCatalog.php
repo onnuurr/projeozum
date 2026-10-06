@@ -180,6 +180,7 @@ class RouteCatalog
         'creative.partner-brandkits.index' => 'İş Ortağı Kreatif Profilleri',
         'creative.mannequins.index'        => 'Mankenler',
         'creative.poses.index'             => 'Pozlar',
+        'creative.settings.index'          => 'Creative Ayarları',
         'creative.garment-scans.index'     => 'Kıyafet Taramaları',
         'creative.tryon.index'             => 'Sanal Deneme',
         'creative.rejection-reasons.index' => 'Ret Seçim Maddeleri',

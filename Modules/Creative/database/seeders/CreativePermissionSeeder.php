@@ -20,6 +20,9 @@ class CreativePermissionSeeder extends Seeder
             'creative.partnerbrandkit.manage' => 'Creative İş Ortağı Kreatif Profili Yönet',
             'creative.rejection-reasons.manage' => 'Creative Ret Seçim Maddeleri Yönet',
             'creative.review-reports.view'      => 'Creative Ret Analiz Raporlarını Görüntüle',
+            // Creative ayar sayfası (çark) + Mokap sekmeleri (2026-10-06, migration ile de seed'li).
+            'creative-settings.view'            => 'Creative Ayarlar Sayfası',
+            'mockup-settings.manage'            => 'Mokap Ayarlarını Yönet',
         ];
 
         $created = [];

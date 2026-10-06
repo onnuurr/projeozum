@@ -951,25 +951,7 @@ return [
         // kullanılan (tamamlayıcı parça + ayakkabı) ikilisi tekrarlanmaz (MockupStylistRuleEngine).
         'stylist_diversity_window' => (int) env('CREATIVE_MOCKUP_DIVERSITY_WINDOW', 5),
 
-        // Kategori adı (küçük harf) → bölge [+ varsayılan boy]. Eşleşmeyen kategori mokap dışıdır
-        // (eski hattan geçer). Faz 4'te ayarlar sayfasına taşınacak.
-        'category_regions' => [
-            'etek'              => ['region' => 'bottom'],
-            'şort'              => ['region' => 'bottom', 'length' => 'mini'],
-            'alt giyim'         => ['region' => 'bottom'],
-            'kot pantolon'      => ['region' => 'bottom', 'length' => 'maxi'],
-            'tayt'              => ['region' => 'bottom', 'length' => 'maxi'],
-            'tişört'            => ['region' => 'top'],
-            'atlet'             => ['region' => 'top'],
-            'sweatshirt'        => ['region' => 'top'],
-            'kazak & hırka'     => ['region' => 'top'],
-            'üst giyim'         => ['region' => 'top'],
-            'takım'             => ['region' => 'set'],
-            'alt üst takım'     => ['region' => 'set'],
-            'ev giyim & pijama' => ['region' => 'set'],
-            'elbise & tulum'    => ['region' => 'one_piece'],
-            'tulum'             => ['region' => 'one_piece'],
-        ],
+        // Kategori → bölge eşleştirmesi creative_category_regions tablosunda (Creative ayarlar › Mokap).
 
         // Faz 2 — otomatik kontroller. Kontroller ucuz analiz çağrılarıdır (~0,002 $); kontrolden
         // kalan baz/giydirme EN FAZLA max_retries kez yeniden üretilir (her biri bir görsel çağrısı),

@@ -63,6 +63,11 @@ class MockupPipelineTest extends TestCase
     private function product(string $category = 'Etek', ?string $boy = 'Kısa / Mini'): Product
     {
         $cat = Category::create(['name' => $category, 'slug' => 'c-' . uniqid(), 'status' => 'active', 'sort_order' => 0]);
+        // Ayarlar › Mokap eşleştirmesi (canlıda migration eski config'ten taşıdı).
+        $map = ['Etek' => ['bottom', null], 'Kot Pantolon' => ['bottom', 'maxi'], 'Takım' => ['set', null]][$category] ?? null;
+        if ($map) {
+            \Modules\Creative\Models\CategoryRegion::create(['category_id' => $cat->id, 'region' => $map[0], 'length' => $map[1]]);
+        }
         $attrs = [];
         if ($boy !== null) {
             $attr = ProductAttribute::firstOrCreate(['code' => 'boy'], ['name' => 'Boy', 'type' => 'select']);

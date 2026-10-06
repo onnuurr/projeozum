@@ -2,6 +2,8 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\Creative\Http\Controllers\BrandKitController;
+use Modules\Creative\Http\Controllers\CreativeSettingsController;
+use Modules\Creative\Http\Controllers\MockupController;
 use Modules\Creative\Http\Controllers\CreativeStudioController;
 use Modules\Creative\Http\Controllers\CreativeTemplateController;
 use Modules\Creative\Http\Controllers\GarmentScanController;
@@ -97,6 +99,23 @@ Route::middleware(['auth', 'verified'])
         ->middleware('can:creative.view')->name('tryon.fal-balance');
     Route::post('/tryon', [TryonController::class, 'store'])
         ->middleware(['can:creative.asset.manage', 'throttle:15,1'])->name('tryon.store');
+    // Creative ayar sayfası (çark): sayfa creative-settings.view, Mokap sekmeleri mockup-settings.manage.
+    Route::get('/settings', [CreativeSettingsController::class, 'index'])
+        ->middleware('can:creative-settings.view')->name('settings.index');
+    Route::prefix('settings/mockup')->name('settings.mockup.')->middleware('can:mockup-settings.manage')->group(function () {
+        Route::put('/general', [CreativeSettingsController::class, 'saveGeneral'])->name('general');
+        Route::put('/categories', [CreativeSettingsController::class, 'saveCategories'])->name('categories');
+        Route::post('/options', [CreativeSettingsController::class, 'storeOption'])->name('options.store');
+        Route::put('/options/{option}', [CreativeSettingsController::class, 'updateOption'])->whereNumber('option')->name('options.update');
+        Route::delete('/options', [CreativeSettingsController::class, 'destroyOptions'])->name('options.destroy');
+        Route::put('/poses/{pose}', [CreativeSettingsController::class, 'updatePose'])->whereNumber('pose')->name('poses.update');
+    });
+
+    // Mokap giydirme (Faz 4): tek ürün / toplu başlat — ücretli AI, günlük limitli.
+    Route::post('/tryon/mockup', [MockupController::class, 'store'])
+        ->middleware(['can:creative.asset.manage', 'throttle:15,1'])->name('tryon.mockup.store');
+    Route::post('/tryon/mockup/bulk', [MockupController::class, 'bulk'])
+        ->middleware(['can:creative.asset.manage', 'throttle:5,1'])->name('tryon.mockup.bulk');
     Route::post('/tryon/classify-detail', [TryonController::class, 'classifyDetail'])
         ->middleware(['can:creative.asset.manage', 'throttle:15,1'])->name('tryon.classify-detail');
     Route::get('/tryon/{result}', [TryonController::class, 'show'])

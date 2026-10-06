@@ -21,11 +21,13 @@ use Modules\Creative\Jobs\GenerateOnModelJob;
 use Modules\Creative\Models\GarmentLabel;
 use Modules\Creative\Models\Mannequin;
 use Modules\Creative\Models\Pose;
+use Modules\Creative\Models\StylistOption;
 use Modules\Creative\Models\TryonResult;
 use Modules\Creative\Services\Ai\TryOnDriverResolver;
 use Modules\Creative\Services\Enhancement\GarmentDetailClassifierContract;
 use Modules\Creative\Services\FalBalanceService;
 use Modules\Creative\Services\GeminiSpendService;
+use Modules\Creative\Services\Mockup\MockupSettings;
 use Modules\Creative\Services\ProductCloseupService;
 use Modules\Creative\Services\ProductOnModelService;
 use Modules\Creative\Services\ReviewNotifier;
@@ -44,12 +46,12 @@ class TryonController extends Controller
      */
     private const PRODUCT_PAGE_SIZE = 60;
 
-    public function index(GeminiSpendService $geminiSpend, TryOnDriverResolver $tryOnDrivers): Response
+    public function index(GeminiSpendService $geminiSpend, TryOnDriverResolver $tryOnDrivers, MockupSettings $mockupSettings): Response
     {
         $productsTotal = Product::query()->count();
 
         $products = $this->mapProducts(
-            $this->searchProducts(null)->take(self::PRODUCT_PAGE_SIZE)->get(['id', 'name']),
+            $this->searchProducts(null)->take(self::PRODUCT_PAGE_SIZE)->get(['id', 'name', 'category_id']),
         );
 
         // Kimliği hazır + referans görseli olan VE ONAYLI mankenler giydirmeye uygundur —
@@ -96,6 +98,13 @@ class TryonController extends Controller
                 'default'   => $tryOnDrivers->defaultDriver(),
                 'available' => $tryOnDrivers->availability(),
             ],
+            // Mokap (Faz 4): günlük kalan hak + varsayılan manken tanımlı mı (Creative ayarlar › Mokap).
+            'mockup'           => [
+                'remaining_today' => $mockupSettings->remainingToday(),
+                'daily_limit'     => $mockupSettings->dailyLimit(),
+                'has_mannequins'  => array_filter($mockupSettings->mannequinIds()) !== [],
+                'batch'           => (bool) config('creative.mockup.batch', true),
+            ],
         ]);
     }
 
@@ -121,7 +130,7 @@ class TryonController extends Controller
         $offset = max(0, $request->integer('offset'));
 
         $products = $this->mapProducts(
-            $this->searchProducts($q)->skip($offset)->take(self::PRODUCT_PAGE_SIZE)->get(['id', 'name']),
+            $this->searchProducts($q)->skip($offset)->take(self::PRODUCT_PAGE_SIZE)->get(['id', 'name', 'category_id']),
         );
 
         return response()->json(['data' => $products]);
@@ -154,7 +163,7 @@ class TryonController extends Controller
     {
         return TryonResult::query()->with([
             'product:id,name', 'mannequin:id,name', 'pose:id,label',
-            'productImage:id,path,is_cover', 'creator:id,name', 'reviewer:id,name',
+            'productImage:id,path,is_cover', 'creator:id,name', 'reviewer:id,name', 'mockupBase.outfit',
             'reviewChats' => fn ($q) => $q->orderBy('created_at')->with('user:id,name'),
         ]);
     }
@@ -165,6 +174,9 @@ class TryonController extends Controller
      */
     private function mapTryonResults(\Illuminate\Support\Collection $results)
     {
+        $labels = $results->contains(fn ($r) => $r->mockupBase?->outfit) ? StylistOption::query()->get(['kind', 'key', 'label_tr'])
+            ->mapWithKeys(fn ($o) => ["{$o->kind}.{$o->key}" => $o->label_tr])->all() : [];
+
         return $results->map(fn (TryonResult $r) => [
             'id'              => $r->id,
             'status'          => $r->status,
@@ -185,6 +197,14 @@ class TryonController extends Controller
                 'attempts' => (int) ($r->qa['attempts'] ?? 1),
                 'issues'   => collect([...((array) ($r->qa['fidelity']['issues'] ?? [])), ...((array) ($r->qa['base_issues'] ?? []))])
                     ->pluck('detail_tr')->filter()->values()->all(),
+            ] : null,
+            // Mokap kombin özeti (Faz 3/4): parçalar (Türkçe etiket), stilistin gerekçesi + uyarıları.
+            'outfit'          => ($o = $r->mockupBase?->outfit) ? [
+                'pieces'     => collect((array) $o->pieces)->reject(fn ($k) => $k === 'none')
+                    ->map(fn ($k, $kind) => $labels["{$kind}.{$k}"] ?? $k)->values()->all(),
+                'reasoning'  => $o->reasoning_tr,
+                'warnings'   => array_values((array) ($o->meta['stylist_warnings'] ?? [])),
+                'confidence' => $o->meta['stylist_confidence'] ?? null,
             ] : null,
             'shot_label'      => $r->isCloseup() ? (ProductCloseupService::shotOptions()[$r->shot] ?? $r->shot) : null,
             'source_result_id' => $r->source_result_id,
@@ -222,7 +242,7 @@ class TryonController extends Controller
     {
         return Product::query()
             ->when($q, fn ($query) => $query->where('name', 'ilike', "%{$q}%"))
-            ->with(['images' => fn ($iq) => $iq->reorder()->orderByDesc('is_cover')->orderBy('sort_order')])
+            ->with(['images' => fn ($iq) => $iq->reorder()->orderByDesc('is_cover')->orderBy('sort_order'), 'category.parent'])
             ->orderBy('name');
     }
 
@@ -235,7 +255,9 @@ class TryonController extends Controller
      */
     private function mapProducts(\Illuminate\Support\Collection $products)
     {
-        return $products->map(function (Product $p) {
+        $settings = app(MockupSettings::class);
+
+        return $products->map(function (Product $p) use ($settings) {
             $garment = $p->images->first();
 
             return [
@@ -243,6 +265,8 @@ class TryonController extends Controller
                 'name'        => $p->name,
                 'cover'       => $garment?->url,
                 'has_garment' => $garment !== null,
+                // Mokap bölgesi (Creative ayarlar › Mokap); null = mokap dışı kategori (eski hat).
+                'mockup_region' => $settings->regionFor($p->category)['region'] ?? null,
             ];
         });
     }

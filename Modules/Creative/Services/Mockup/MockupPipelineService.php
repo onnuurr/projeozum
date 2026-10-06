@@ -25,6 +25,7 @@ class MockupPipelineService
         private MockupTryOnService $tryOn,
         private ProductOnModelService $onModel,
         private CanvasAssetResolver $resolver,
+        private MockupSettings $settings,
     ) {}
 
     /**
@@ -63,6 +64,67 @@ class MockupPipelineService
         }
 
         return $outfit;
+    }
+
+    /**
+     * Arayüzden / otomatik tetikten başlatma: manken verilmezse ürünün cinsiyetine göre varsayılan manken
+     * (ayarlar), günlük limit ve devam eden üretim kontrolü. Komut (creative:mockup) limiti kullanmaz —
+     * orada maliyet her seferinde elle onaylanıyor.
+     */
+    public function startFor(Product $product, ?Mannequin $mannequin = null, ?int $creatorId = null): MockupOutfit
+    {
+        $mannequin ??= $this->settings->mannequinFor($product);
+        if (! $mannequin) {
+            throw new RuntimeException(__('creative::messages.mockup.no_default_mannequin'));
+        }
+        if ($this->settings->remainingToday() <= 0) {
+            throw new RuntimeException(__('creative::messages.mockup.daily_limit', ['limit' => $this->settings->dailyLimit()]));
+        }
+        if (MockupOutfit::where('product_id', $product->id)->whereIn('status', [MockupOutfit::STATUS_QUEUED, MockupOutfit::STATUS_GENERATING])->exists()) {
+            throw new RuntimeException(__('creative::messages.mockup.already_running'));
+        }
+
+        return $this->start($product, $mannequin, creatorId: $creatorId);
+    }
+
+    /**
+     * Toplu başlatma: mokap kategorisinde, yalın fotoğrafı olan ve henüz hiç mokap kombini olmayan
+     * ürünlerden en fazla $limit (ve günlük kalan hak) kadarı. Başlatılamayanlar atlanır.
+     *
+     * @return array{started:int, skipped:int}
+     */
+    public function startBulk(int $limit, ?int $creatorId = null): array
+    {
+        $started = 0;
+        $skipped = 0;
+        foreach ($this->candidates() as $product) {
+            if ($started >= $limit || $this->settings->remainingToday() <= 0) {
+                break;
+            }
+            try {
+                $this->startFor($product, null, $creatorId);
+                $started++;
+            } catch (RuntimeException) {
+                $skipped++;
+            }
+        }
+
+        return ['started' => $started, 'skipped' => $skipped];
+    }
+
+    /**
+     * Mokap bekleyen ürünler: fotoğraflı, kategorisi (ya da üstü) eşleştirilmiş, yalın fotoğraflı,
+     * hiç mokap kombini olmayan. Eski ürünler önce.
+     *
+     * @return \Illuminate\Support\Collection<int,Product>
+     */
+    public function candidates(int $max = 200): \Illuminate\Support\Collection
+    {
+        return Product::query()->whereHas('images')
+            ->whereNotIn('id', MockupOutfit::query()->select('product_id'))
+            ->with(['images', 'category.parent'])->orderBy('id')->limit($max)->get()
+            ->filter(fn (Product $p) => $this->settings->regionFor($p->category) !== null && $this->onModel->pickPlainProductPhoto($p))
+            ->values();
     }
 
     /**

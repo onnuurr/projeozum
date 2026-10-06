@@ -2,6 +2,12 @@
 
 namespace Modules\Creative\Providers;
 
+use App\Support\ModuleSettingsRegistry;
+use Illuminate\Support\Facades\Event;
+use Modules\Creative\Jobs\AutoStartMockupJob;
+use Modules\Creative\Services\Mockup\MockupSettings;
+use Modules\Product\Events\ProductCreated;
+use Modules\Product\Events\ProductImagesChanged;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 use Modules\Creative\Console\Commands\CreativeReviewReportCommand;
 use Modules\Creative\Console\Commands\TrainGarmentDetectorCommand;
@@ -96,6 +102,30 @@ class CreativeServiceProvider extends ModuleServiceProvider
         AiUsageReportCommand::class,
         AiBatchCommand::class,
     ];
+
+    public function boot(): void
+    {
+        parent::boot();
+
+        // Mokap otomatik tetik (Faz 4): ürüne fotoğraf eklenince — koşullar AutoStartMockupJob'da
+        // (ayar kapalıysa hiçbir şey yapmaz). Ürün oluşturma görselleri sessiz yazıp ProductCreated fırlatır.
+        Event::listen([ProductCreated::class, ProductImagesChanged::class], function (ProductCreated|ProductImagesChanged $event) {
+            if (app(MockupSettings::class)->autoTrigger()) {
+                AutoStartMockupJob::dispatch($event instanceof ProductCreated ? $event->product->id : $event->productId)
+                    ->delay(now()->addMinutes(2));
+            }
+        });
+
+        // Tek Creative ayar sayfası (mokap: kategori eşleştirme, stilist seçenekleri, poz etiketleri,
+        // otomatik tetik, günlük limit): Creative menüsünün sekme satırında çark.
+        $this->app->make(ModuleSettingsRegistry::class)->register(
+            key: 'creative',
+            url: '/creative/settings',
+            permission: 'creative-settings.view',
+            menuRoots: ['/creative/gallery', '/creative/tryon'],
+            tabPermissions: ['mockup-settings.manage'],
+        );
+    }
 
     public function register(): void
     {

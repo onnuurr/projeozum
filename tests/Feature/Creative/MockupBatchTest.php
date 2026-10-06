@@ -96,6 +96,7 @@ class MockupBatchTest extends TestCase
     private function setUpProduct(): array
     {
         $cat = Category::create(['name' => 'Etek', 'slug' => 'c-' . uniqid(), 'status' => 'active', 'sort_order' => 0]);
+        \Modules\Creative\Models\CategoryRegion::create(['category_id' => $cat->id, 'region' => 'bottom']);
         $product = Product::factory()->create(['category_id' => $cat->id, 'attributes' => []]);
         $this->png("products/{$product->id}/photo.png");
         $product->images()->create(['path' => "products/{$product->id}/photo.png", 'sort_order' => 0, 'is_cover' => true]);
