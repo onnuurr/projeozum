@@ -221,6 +221,26 @@ class MockupPipelineTest extends TestCase
         $this->assertSame(1, array_values($m['by_combo'])[0]['rejected']);
     }
 
+    public function test_mockup_closeups_are_cropped_without_ai_except_detail_shots(): void
+    {
+        Queue::fake();
+        [, $r] = $this->rejectedMockup([]);
+        $r->update(['review_status' => TryonResult::REVIEW_APPROVED, 'status' => TryonResult::STATUS_DONE]);
+        $closeups = app(\Modules\Creative\Services\ProductCloseupService::class)->queue($r->fresh(), ['product', 'fabric']);
+        $this->assertSame($r->mannequin_id, $closeups[0]->mannequin_id);
+
+        foreach ($closeups as $c) {
+            (new GenerateOnModelJob($c->id, $c->generation_token))->handle(app(\Modules\Creative\Services\ProductOnModelService::class),
+                app(\Modules\Creative\Services\ProductCloseupService::class), app(MockupTryOnService::class));
+        }
+
+        $byShot = TryonResult::whereIn('id', $closeups->pluck('id'))->get()->keyBy('shot');
+        $this->assertSame(['crop', 'crop+fsrcnn'], [$byShot['product']->tryon_driver, $byShot['product']->tryon_model]);
+        $this->assertSame(TryonResult::REVIEW_PENDING, $byShot['product']->review_status);
+        $this->assertNotSame('crop', $byShot['fabric']->tryon_driver);          // detay kadrajı AI ile
+        Storage::disk(Media::disk())->assertExists($byShot['product']->staged_image_path);
+    }
+
     public function test_only_rejected_mockup_results_can_be_rerun(): void
     {
         Queue::fake();

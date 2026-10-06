@@ -12,6 +12,8 @@ Kullanım:
      → <önek>_region.png, <önek>_occluders.png, <önek>_shoes.png ; stdout JSON {crop, long, ...}
   python mockup_mask.py crop <görsel> <x0> <y0> <x1> <y1> <çıktı.png>
   python mockup_mask.py pair <sol> <sağ> <çıktı.jpg>     (kontrol için yan yana, 1200 px yükseklik)
+  python mockup_mask.py closeup <birleşik> <baz> <labels.npy> <shot>
+     → stdout JSON {box}: AI'sız yakın plan kadrajı (product|upper_body|lower_body|neckline|hem), 3:4
 """
 import json
 import sys
@@ -19,7 +21,7 @@ import sys
 import numpy as np
 from PIL import Image
 
-HAIR, UPPER, LOWER, SHOES, FACE, LEGS, ARMS = 2, 4, 6, 9, 11, 12, 14
+BG, HAIR, UPPER, LOWER, SHOES, FACE, LEGS, ARMS = 0, 2, 4, 6, 9, 11, 12, 14
 TUCK_BAND = 0.05      # belin ±%5'i (görsel yüksekliğine göre)
 
 
@@ -104,6 +106,55 @@ def cmd_mask(labels, prefix, region, length):
     return {"crop": crop_box(reg, H, W), "long": long, "region_px": int(reg.sum()), "size": [W, H]}
 
 
+def fit_portrait(x0, y0, x1, y1, H, W, ratio=0.75):
+    """Kutuyu merkezinden tam 3:4 dikey orana genişletir ve görsele sığdırır."""
+    w, h = x1 - x0, y1 - y0
+    if w / max(h, 1) < ratio:
+        w = h * ratio
+    else:
+        h = w / ratio
+    if h > H:
+        h = H; w = h * ratio
+    if w > W:
+        w = W; h = w / ratio
+    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+    left = min(max(0, cx - w / 2), W - w); top = min(max(0, cy - h / 2), H - h)
+    return [int(left), int(top), int(left + w), int(top + h)]
+
+
+def cmd_closeup(composite, base, labels, shot):
+    """Birleşik mokap görselinden AI'sız yakın plan kutusu. Ürün = bazdan farklı pikseller (gerçekten
+    giydirilen alan); bel = bazdaki yer tutucu alt giysinin üst kenarı; kişi = segmentasyon."""
+    import cv2
+    R = np.asarray(Image.open(composite).convert("RGB")).astype(np.int16)
+    B = np.asarray(Image.open(base).convert("RGB").resize((R.shape[1], R.shape[0]))).astype(np.int16)
+    lab = np.load(labels)
+    if lab.shape != R.shape[:2]:
+        lab = np.asarray(Image.fromarray(lab).resize((R.shape[1], R.shape[0]), Image.NEAREST))
+    H, W = lab.shape
+    changed = cv2.morphologyEx((np.abs(R - B).max(2) > 18).astype(np.uint8), cv2.MORPH_OPEN, np.ones((7, 7), np.uint8)) > 0
+    if changed.sum() < H * W * 0.005:
+        raise RuntimeError("Ürün alanı bulunamadı (birleşik görsel bazla aynı).")
+    ys, xs = np.where(changed)
+    py0, py1 = np.percentile(ys, [1, 99]); px0, px1 = np.percentile(xs, [1, 99])
+    pys, pxs = np.where(lab != BG)
+    top, bot, left, right = pys.min(), pys.max(), pxs.min(), pxs.max()
+    lower = np.where(lab == LOWER)[0]
+    waist = lower.min() if lower.size else (py0 + py1) / 2
+    ph, body = py1 - py0, bot - top
+    m = 0.06 * body
+    boxes = {
+        "product":    (px0 - m, py0 - m, px1 + m, py1 + m),
+        "neckline":   (px0, py0 - 0.12 * ph, px1, py0 + 0.30 * ph),
+        "hem":        (px0, py1 - 0.30 * ph, px1, py1 + 0.12 * ph),
+        "upper_body": (left - m, top - m, right + m, waist + 0.12 * body),
+        "lower_body": (left - m, waist - 0.06 * body, right + m, bot + m),
+    }
+    if shot not in boxes:
+        raise RuntimeError(f"Kırpılamayan kadraj: {shot}")
+    return {"box": fit_portrait(*boxes[shot], H, W), "product_box": [int(px0), int(py0), int(px1), int(py1)]}
+
+
 def cmd_pair(left, right, out, height=1200):
     ims = [Image.open(p).convert("RGB") for p in (left, right)]
     ims = [im.resize((int(im.width * height / im.height), height), Image.LANCZOS) for im in ims]
@@ -121,7 +172,7 @@ def cmd_crop(src, x0, y0, x1, y1, out):
 if __name__ == "__main__":
     try:
         cmd, args = sys.argv[1], sys.argv[2:]
-        res = {"mask": cmd_mask, "crop": cmd_crop, "pair": cmd_pair}[cmd](*args)
+        res = {"mask": cmd_mask, "crop": cmd_crop, "pair": cmd_pair, "closeup": cmd_closeup}[cmd](*args)
         print(json.dumps({"ok": True, **res}))
     except Exception as e:
         print(json.dumps({"ok": False, "error": str(e)}))

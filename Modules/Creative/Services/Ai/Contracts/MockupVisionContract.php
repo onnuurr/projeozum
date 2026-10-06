@@ -32,6 +32,14 @@ interface MockupVisionContract
     public function crop(string $imagePath, array $box, string $outPath): void;
 
     /**
+     * Faz 6: birleşik mokap görselinden AI'sız yakın plan kadrajı (3:4). Ürün alanı = bazdan farklı
+     * pikseller; bel = bazdaki yer tutucu alt giysinin üstü. Kadraj: product|upper_body|lower_body|neckline|hem.
+     *
+     * @return array{box: array{0:int,1:int,2:int,3:int}}
+     */
+    public function closeupBox(string $compositePath, string $basePath, string $labelsPath, string $shot): array;
+
+    /**
      * Model çıktısını baz görselle birleştirip $resultPath'e yazar.
      *
      * @param  array{0:int,1:int,2:int,3:int}  $box

@@ -41,6 +41,11 @@ class FakeMockupVision implements MockupVisionContract
         copy($imagePath, $outPath);
     }
 
+    public function closeupBox(string $compositePath, string $basePath, string $labelsPath, string $shot): array
+    {
+        return ['box' => [0, 0, 30, 40]];
+    }
+
     public function composite(string $basePath, string $modelOutPath, string $prefix, array $box, string $resultPath, bool $restoreShoes): array
     {
         copy($modelOutPath, $resultPath);

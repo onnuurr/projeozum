@@ -898,6 +898,10 @@ return [
             'hardware'    => ['label' => 'Düğme / fermuar', 'prompt' => 'a detail close-up of the product\'s most prominent closure or hardware (buttons, zipper, buckle, drawstring or similar); if the product has none, its most distinctive construction detail'],
             'fabric'      => ['label' => 'Kumaş dokusu',  'prompt' => 'a macro close-up of the product\'s fabric as worn on the body, showing the weave/knit texture, any print or pattern at true scale, and a natural fold'],
         ],
+        // Mokap sonuçlarında bu kadrajlar AI'sız: yüksek çözünürlüklü birleşik görselden kırp + FSRCNN
+        // büyüt (birebir, ücretsiz). Diğerleri (düğme/fermuar, kumaş makro) gerçek detay için AI ile.
+        'crop_shots'     => ['product', 'upper_body', 'lower_body', 'neckline', 'hem'],
+        'crop_max_scale' => 2.0,
     ],
 
     /*

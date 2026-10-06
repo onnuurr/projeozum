@@ -3,10 +3,12 @@
 namespace Modules\Creative\Services;
 
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Modules\Creative\Models\TryonResult;
 use Modules\Creative\Services\Ai\CloseupRequest;
 use Modules\Creative\Services\Ai\Contracts\CloseupComposerContract;
+use Modules\Creative\Services\Ai\Contracts\MockupVisionContract;
 use Modules\Creative\Services\Ai\Support\ImageFile;
 use Modules\Creative\Services\Enhancement\ImageEnhancerContract;
 use Modules\Product\Models\Product;
@@ -30,6 +32,7 @@ class ProductCloseupService
         private CanvasAssetResolver $resolver,
         private ImageEnhancerContract $enhancer,
         private ReviewNotifier $notifier,
+        private MockupVisionContract $vision,
     ) {}
 
     /** @return array<string,string> kadraj anahtarı => etiket */
@@ -61,8 +64,10 @@ class ProductCloseupService
         return collect(array_values(array_unique($shots)))
             ->filter(fn ($shot) => in_array($shot, $valid, true))
             ->map(function (string $shot) use ($source, $creatorId) {
+                // Manken anahtarın parçası: beden grubu başına ayrı mokap seti (aynı poz, farklı manken).
                 $existing = TryonResult::query()
                     ->where('product_id', $source->product_id)
+                    ->where('mannequin_id', $source->mannequin_id)
                     ->where('pose_id', $source->pose_id)
                     ->where('shot', $shot)
                     ->where('pipeline', $source->pipeline ?? TryonResult::PIPELINE_LEGACY)
@@ -78,9 +83,8 @@ class ProductCloseupService
                 }
 
                 return TryonResult::updateOrCreate(
-                    ['product_id' => $source->product_id, 'pose_id' => $source->pose_id, 'shot' => $shot, 'pipeline' => $source->pipeline ?? TryonResult::PIPELINE_LEGACY],
+                    ['product_id' => $source->product_id, 'mannequin_id' => $source->mannequin_id, 'pose_id' => $source->pose_id, 'shot' => $shot, 'pipeline' => $source->pipeline ?? TryonResult::PIPELINE_LEGACY],
                     [
-                        'mannequin_id'       => $source->mannequin_id,
                         'source_result_id'   => $source->id,
                         'garment_image_path' => $source->garment_image_path,
                         'status'             => TryonResult::STATUS_QUEUED,
@@ -129,6 +133,16 @@ class ProductCloseupService
                 throw new RuntimeException(__('creative::messages.closeup.source_missing'));
             }
 
+            // Faz 6: mokap kaynağında bazı kadrajlar AI'sız — birleşik görselden kırp + büyüt (birebir, ücretsiz).
+            if ($crop = $this->cropFromMockup($source, $result->shot, $sourcePath, $preparedTemps)) {
+                if ($expectedToken !== null && $result->fresh()?->generation_token !== $expectedToken) {
+                    return $result;
+                }
+                $this->finish($result, $product, $crop, 'crop', 'crop+fsrcnn', $startedAt);
+
+                return $result;
+            }
+
             $garmentSrc = $result->garment_image_path ?: $this->onModel->pickPlainProductPhoto($product);
             $garmentPath = $garmentSrc ? $this->resolver->toLocalPath($garmentSrc) : null;
             if (! $garmentPath) {
@@ -161,25 +175,65 @@ class ProductCloseupService
                 return $result;
             }
 
-            $result->update([
-                'staged_image_path'      => $this->onModel->persistStaged($enhanced, $product, $result),
-                'status'                 => TryonResult::STATUS_DONE,
-                'tryon_driver'           => $this->composer->modelIdentifier() === 'mock' ? 'mock' : 'gemini',
-                'tryon_model'            => $this->composer->modelIdentifier(),
-                'generation_duration_ms' => (int) round((microtime(true) - $startedAt) * 1000),
-                'error'                  => null,
-                'review_status'          => TryonResult::REVIEW_PENDING,
-                'review_note'            => null,
-                'reviewed_by'            => null,
-                'reviewed_at'            => null,
-            ]);
-
-            $this->notifier->notifyPending($result, $result->created_by);
+            $model = $this->composer->modelIdentifier();
+            $this->finish($result, $product, $enhanced, $model === 'mock' ? 'mock' : 'gemini', $model, $startedAt);
 
             return $result;
         } finally {
             ImageFile::delete(array_filter([$out, $enhanced, ...$preparedTemps]));
             $this->resolver->cleanup();
         }
+    }
+
+    private function finish(TryonResult $result, Product $product, string $imagePath, string $driver, string $model, float $startedAt): void
+    {
+        $result->update([
+            'staged_image_path'      => $this->onModel->persistStaged($imagePath, $product, $result),
+            'status'                 => TryonResult::STATUS_DONE,
+            'tryon_driver'           => $driver,
+            'tryon_model'            => $model,
+            'generation_duration_ms' => (int) round((microtime(true) - $startedAt) * 1000),
+            'error'                  => null,
+            'review_status'          => TryonResult::REVIEW_PENDING,
+            'review_note'            => null,
+            'reviewed_by'            => null,
+            'reviewed_at'            => null,
+        ]);
+
+        $this->notifier->notifyPending($result, $result->created_by);
+    }
+
+    /**
+     * Mokap kaynağı + kırpılabilir kadraj (config creative.closeup.crop_shots) → birleşik görselden
+     * kadraj (MockupVisionContract::closeupBox), en fazla crop_max_scale kat FSRCNN büyütme. Uygun
+     * değilse (eski hat, baz dosyası yok, AI'lık kadraj) null — AI yoluna düşülür.
+     *
+     * @param  array<int,string>  $temps
+     */
+    private function cropFromMockup(TryonResult $source, string $shot, string $sourcePath, array &$temps): ?string
+    {
+        $base = $source->isMockup() ? $source->mockupBase : null;
+        if (! $base || ! $base->image_path || ! in_array($shot, (array) config('creative.closeup.crop_shots', []), true)) {
+            return null;
+        }
+        $disk = Storage::disk((string) config('creative.mockup.work_disk', 'local'));
+        $labels = $disk->path($base->masks['prefix'] . '_labels.npy');
+        if (! is_file($disk->path($base->image_path)) || ! is_file($labels)) {
+            return null;
+        }
+
+        $box = array_map('intval', $this->vision->closeupBox($sourcePath, $disk->path($base->image_path), $labels, $shot)['box']);
+        $temps[] = $crop = rtrim(sys_get_temp_dir(), '/') . '/closeup_' . bin2hex(random_bytes(6)) . '.png';
+        $this->vision->crop($sourcePath, $box, $crop);
+
+        [$w, $h] = [$box[2] - $box[0], $box[3] - $box[1]];
+        $scale = min((float) config('creative.closeup.crop_max_scale', 2.0), 2400 / max(1, $h));
+        if ($scale < 1.25) {
+            return $crop;
+        }
+        $temps[] = $up = rtrim(sys_get_temp_dir(), '/') . '/closeup_' . bin2hex(random_bytes(6)) . '.png';
+        $this->vision->upscale($crop, $up, (int) round($w * $scale), (int) round($h * $scale));
+
+        return $up;
     }
 }

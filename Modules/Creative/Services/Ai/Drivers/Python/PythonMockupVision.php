@@ -39,6 +39,11 @@ class PythonMockupVision implements MockupVisionContract
         $this->run('mask', ['crop', $imagePath, ...array_map('strval', $box), $outPath]);
     }
 
+    public function closeupBox(string $compositePath, string $basePath, string $labelsPath, string $shot): array
+    {
+        return $this->run('mask', ['closeup', $compositePath, $basePath, $labelsPath, $shot]);
+    }
+
     public function composite(string $basePath, string $modelOutPath, string $prefix, array $box, string $resultPath, bool $restoreShoes): array
     {
         return $this->run('composite', [$basePath, $modelOutPath, $prefix, ...array_map('strval', $box), $resultPath, $restoreShoes ? '1' : '0']);
