@@ -1,9 +1,10 @@
 <script setup>
 import { computed, inject, reactive, ref } from 'vue'
 import { router } from '@inertiajs/vue3'
-import { OzCard, OzSettingRow, OzSwitch, OzInput, OzSelect, OzButton, OzStatStrip } from '@/Components/Oz'
+import { OzCard, OzSettingRow, OzSwitch, OzInput, OzCombobox, OzButton, OzStatStrip } from '@/Components/Oz'
 
-// Mokap · Genel: otomatik tetik, günlük limit (maliyet sınırı), cinsiyete göre varsayılan manken.
+// Mokap · Genel: otomatik tetik, günlük limit (maliyet sınırı), manken havuzu. Ürüne manken otomatik seçilir:
+// cinsiyeti uyan, yaşı (varyant bedenleri) en yakın, eşitler arasında en az kullanılan.
 const props = defineProps({
 	general: { type: Object, required: true },
 	mannequins: { type: Array, default: () => [] },
@@ -15,14 +16,20 @@ const errors = ref({})
 const form = reactive({
 	auto_trigger: props.general.auto_trigger,
 	daily_limit: props.general.daily_limit,
-	mannequins: { girl: props.general.mannequins.girl ?? '', boy: props.general.mannequins.boy ?? '' },
+	mannequins: [...(props.general.mannequins ?? [])],
 })
 
-const mannequinOptions = computed(() => [{ value: '', label: 'Seçilmedi' }, ...props.mannequins.map((m) => ({ value: m.id, label: m.name }))])
+const GENDER = { female: 'Kız', male: 'Erkek' }
+const mannequinOptions = computed(() => props.mannequins.map((m) => ({
+	value: m.id,
+	label: m.name,
+	description: [GENDER[m.gender], m.age_range ? `${m.age_range} yaş` : null].filter(Boolean).join(' · '),
+})))
 
 const stats = computed(() => [
 	{ key: 'today', icon: 'zap', label: 'Bugün başlatılan', value: props.general.started_today, context: `/ ${props.general.daily_limit}` },
 	{ key: 'auto', icon: 'sparkles', tone: props.general.auto_trigger ? 'success' : 'neutral', label: 'Otomatik başlatma', value: props.general.auto_trigger ? 'Açık' : 'Kapalı' },
+	{ key: 'pool', icon: 'users', label: 'Manken havuzu', value: props.general.mannequins?.length || props.mannequins.length, context: props.general.mannequins?.length ? 'seçili' : 'onaylı hepsi' },
 ])
 
 function save() {
@@ -32,7 +39,7 @@ function save() {
 	router.put('/creative/settings/mockup/general', {
 		auto_trigger: form.auto_trigger,
 		daily_limit: form.daily_limit === '' ? 0 : Number(form.daily_limit),
-		mannequins: { girl: form.mannequins.girl || null, boy: form.mannequins.boy || null },
+		mannequins: form.mannequins,
 	}, {
 		preserveScroll: true,
 		preserveState: true,
@@ -61,11 +68,9 @@ function save() {
 			:description="`Bir günde başlatılabilecek en fazla ürün (otomatik + elle + toplu). Ürün başı tahmini ~0,22 $ (Batch API). 0 = kapalı.${errors.daily_limit ? ' — ' + errors.daily_limit : ''}`">
 			<OzInput v-model.number="form.daily_limit" type="number" min="0" max="500" class="num" :invalid="!!errors.daily_limit" aria-label="Günlük limit" />
 		</OzSettingRow>
-		<OzSettingRow icon="user" title="Kız ürünleri için manken" description="Cinsiyeti kız (ya da belirtilmemiş) ürünlerde kullanılır. Yalnız hazır ve onaylı mankenler listelenir.">
-			<OzSelect v-model="form.mannequins.girl" :options="mannequinOptions" class="sel" :invalid="!!errors['mannequins.girl']" aria-label="Kız mankeni" />
-		</OzSettingRow>
-		<OzSettingRow icon="user" title="Erkek ürünleri için manken" description="Cinsiyeti erkek olan ürünlerde kullanılır.">
-			<OzSelect v-model="form.mannequins.boy" :options="mannequinOptions" class="sel" :invalid="!!errors['mannequins.boy']" aria-label="Erkek mankeni" />
+		<OzSettingRow icon="users" title="Mokapta kullanılacak mankenler"
+			description="Boş = hazır ve onaylı bütün mankenler. Her ürüne cinsiyeti uyan, yaşı (varyant bedenleri) en yakın manken seçilir; aynı yaştakiler sırayla kullanılır. Tam uyan yaş yoksa en yakını kullanılır ve onaycıya not düşülür.">
+			<OzCombobox v-model="form.mannequins" :options="mannequinOptions" multiple placeholder="Onaylı hepsi" class="sel" :invalid="!!errors.mannequins" aria-label="Mokap mankenleri" />
 		</OzSettingRow>
 	</OzCard>
 </template>
@@ -73,5 +78,5 @@ function save() {
 <style scoped>
 .strip { margin-bottom: 14px; }
 .num { width: 96px; }
-.sel { min-width: 200px; }
+.sel { min-width: 260px; }
 </style>

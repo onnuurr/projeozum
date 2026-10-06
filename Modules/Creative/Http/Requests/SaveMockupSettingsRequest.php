@@ -4,7 +4,7 @@ namespace Modules\Creative\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-/** Creative ayarlar › Mokap › Genel: otomatik tetik, günlük limit, varsayılan mankenler. */
+/** Creative ayarlar › Mokap › Genel: otomatik tetik, günlük limit, mokapta kullanılacak mankenler (boş = onaylı hepsi). */
 class SaveMockupSettingsRequest extends FormRequest
 {
     public function authorize(): bool
@@ -18,8 +18,7 @@ class SaveMockupSettingsRequest extends FormRequest
             'auto_trigger'     => ['required', 'boolean'],
             'daily_limit'      => ['required', 'integer', 'min:0', 'max:500'],
             'mannequins'       => ['array'],
-            'mannequins.girl'  => ['nullable', 'integer', 'exists:creative_mannequins,id'],
-            'mannequins.boy'   => ['nullable', 'integer', 'exists:creative_mannequins,id'],
+            'mannequins.*'     => ['integer', 'exists:creative_mannequins,id'],
         ];
     }
 }

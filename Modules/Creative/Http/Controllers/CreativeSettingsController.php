@@ -95,8 +95,9 @@ class CreativeSettingsController extends Controller
                 'mannequins'    => $settings->mannequinIds(),
             ],
             'mannequins' => Mannequin::query()->where('status', Mannequin::STATUS_READY)
-                ->where('review_status', Mannequin::REVIEW_APPROVED)->orderBy('name')->get(['id', 'name'])
-                ->map(fn ($m) => ['id' => $m->id, 'name' => $m->name])->all(),
+                ->where('review_status', Mannequin::REVIEW_APPROVED)->whereNotNull('reference_image_path')
+                ->orderBy('gender')->orderBy('age_range')->orderBy('name')->get(['id', 'name', 'gender', 'age_range'])
+                ->map(fn ($m) => ['id' => $m->id, 'name' => $m->name, 'gender' => $m->gender, 'age_range' => $m->age_range])->all(),
             'categories' => Category::query()->with('parent:id,name')->orderBy('parent_id')->orderBy('name')->get(['id', 'name', 'parent_id'])
                 ->map(fn (Category $c) => [
                     'id'     => $c->id,

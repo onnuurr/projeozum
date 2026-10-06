@@ -79,7 +79,7 @@ return [
         'stylist_invalid' => 'Stilist geçerli bir kombin önerisi döndürmedi.',
         'vision_failed' => 'Görüntü işleme adımı (:step) başarısız: :error',
         'queued' => ':product için mokap giydirme kuyruğa alındı.',
-        'no_default_mannequin' => 'Bu ürünün cinsiyeti için varsayılan manken seçilmemiş (Creative ayarlar › Mokap) ya da manken hazır/onaylı değil.',
+        'no_default_mannequin' => 'Bu ürüne uygun manken yok: cinsiyeti uyan, hazır ve onaylı bir manken üretin (Creative › Mankenler) ya da Creative ayarlar › Mokap listesini kontrol edin.',
         'daily_limit' => 'Günlük mokap limiti doldu (:limit ürün). Yarın devam eder ya da limiti Creative ayarlarından artırın.',
         'already_running' => 'Bu ürün için devam eden bir mokap üretimi var.',
         'bulk_queued' => ':count ürün için mokap kuyruğa alındı.',

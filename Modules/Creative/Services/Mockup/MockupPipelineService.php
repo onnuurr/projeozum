@@ -34,7 +34,7 @@ class MockupPipelineService
      * @param  string|null  $garmentPath  Ürünün yalın fotoğrafı yoksa kullanılacak giysi görseli (medya diski relative)
      * @param  bool|null  $batch  Görsel çağrıları Batch API ile (%50 ucuz, gecikmeli); null → config creative.mockup.batch
      */
-    public function start(Product $product, Mannequin $mannequin, ?string $region = null, ?string $length = null, ?string $garmentPath = null, ?int $creatorId = null, bool $dispatch = true, ?bool $batch = null): MockupOutfit
+    public function start(Product $product, Mannequin $mannequin, ?string $region = null, ?string $length = null, ?string $garmentPath = null, ?int $creatorId = null, bool $dispatch = true, ?bool $batch = null, array $meta = []): MockupOutfit
     {
         if ($mannequin->status !== Mannequin::STATUS_READY || $mannequin->review_status !== Mannequin::REVIEW_APPROVED) {
             throw new RuntimeException(__('creative::messages.mockup.mannequin_not_ready'));
@@ -53,7 +53,7 @@ class MockupPipelineService
             'length'        => $type['length'] ?? '',
             'length_source' => $type['length_source'],
             'status'        => MockupOutfit::STATUS_QUEUED,
-            'meta'          => array_filter(['garment_path' => $garmentPath, 'batch' => $batch ?? (bool) config('creative.mockup.batch', true)]),
+            'meta'          => array_filter([...$meta, 'garment_path' => $garmentPath, 'batch' => $batch ?? (bool) config('creative.mockup.batch', true)]),
             'created_by'    => $creatorId,
         ]);
 
@@ -67,15 +67,20 @@ class MockupPipelineService
     }
 
     /**
-     * Arayüzden / otomatik tetikten başlatma: manken verilmezse ürünün cinsiyetine göre varsayılan manken
-     * (ayarlar), günlük limit ve devam eden üretim kontrolü. Komut (creative:mockup) limiti kullanmaz —
+     * Arayüzden / otomatik tetikten başlatma: manken verilmezse ürünün cinsiyetine + yaşına (varyant
+     * bedenleri) en yakın, eşitler arasında en az kullanılan manken (MockupSettings::pickMannequin), günlük
+     * limit ve devam eden üretim kontrolü. Komut (creative:mockup) limiti kullanmaz —
      * orada maliyet her seferinde elle onaylanıyor.
      */
     public function startFor(Product $product, ?Mannequin $mannequin = null, ?int $creatorId = null): MockupOutfit
     {
-        $mannequin ??= $this->settings->mannequinFor($product);
+        $note = null;
         if (! $mannequin) {
-            throw new RuntimeException(__('creative::messages.mockup.no_default_mannequin'));
+            $pick = $this->settings->pickMannequin($product);
+            if (! $pick) {
+                throw new RuntimeException(__('creative::messages.mockup.no_default_mannequin'));
+            }
+            [$mannequin, $note] = [$pick['mannequin'], $pick['note']];
         }
         if ($this->settings->remainingToday() <= 0) {
             throw new RuntimeException(__('creative::messages.mockup.daily_limit', ['limit' => $this->settings->dailyLimit()]));
@@ -84,7 +89,7 @@ class MockupPipelineService
             throw new RuntimeException(__('creative::messages.mockup.already_running'));
         }
 
-        return $this->start($product, $mannequin, creatorId: $creatorId);
+        return $this->start($product, $mannequin, creatorId: $creatorId, meta: array_filter(['mannequin_note' => $note]));
     }
 
     /**

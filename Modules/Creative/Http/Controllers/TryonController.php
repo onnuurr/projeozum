@@ -102,7 +102,7 @@ class TryonController extends Controller
             'mockup'           => [
                 'remaining_today' => $mockupSettings->remainingToday(),
                 'daily_limit'     => $mockupSettings->dailyLimit(),
-                'has_mannequins'  => array_filter($mockupSettings->mannequinIds()) !== [],
+                'has_mannequins'  => $mockupSettings->mannequinPool()->isNotEmpty(),
                 'batch'           => (bool) config('creative.mockup.batch', true),
             ],
         ]);
@@ -203,7 +203,7 @@ class TryonController extends Controller
                 'pieces'     => collect((array) $o->pieces)->reject(fn ($k) => $k === 'none')
                     ->map(fn ($k, $kind) => $labels["{$kind}.{$k}"] ?? $k)->values()->all(),
                 'reasoning'  => $o->reasoning_tr,
-                'warnings'   => array_values((array) ($o->meta['stylist_warnings'] ?? [])),
+                'warnings'   => array_values(array_filter([$o->meta['mannequin_note'] ?? null, ...((array) ($o->meta['stylist_warnings'] ?? []))])),
                 'confidence' => $o->meta['stylist_confidence'] ?? null,
             ] : null,
             'shot_label'      => $r->isCloseup() ? (ProductCloseupService::shotOptions()[$r->shot] ?? $r->shot) : null,
