@@ -2,7 +2,10 @@
 
 Model çıktısı (kırpılmış bölge için üretilmiş) kırpma boyutuna ölçeklenir ve baz görselle
 birleştirilir: bölge maskesi 5 px yumuşatılır, önde kalanlar (saç/eller/üst...) 1,2 px yumuşak
-kenarla bazdan en üste konur. Uzun ürünlerde birleşik sonuç yeniden segmente edilir; hem çıktıda
+kenarla bazdan en üste konur. Kol/el maskesi bazın renginden inceltilir (arm_matte): ten renkli,
+arka plan ve gri yer tutucu renksizdir; maskenin taştığı renksiz pikseller (elin dış kenarı, parmak
+arası boşluk) bazdan değil model çıktısından gelir — aksi halde yeni giysinin üstünde elin çevresinde
+açık renkli hale ve parmak arasında gri leke kalıyordu (2026-10-06, sonuç #12). Uzun ürünlerde birleşik sonuç yeniden segmente edilir; hem çıktıda
 hem bazda "ayakkabı" olan pikseller bazdan geri gelir (kumaşın ayakkabıyı örttüğü yer çıktıda kalır).
 Keskinleştirme YAPILMAZ (pilotta model dokusunu bozdu); yalnız eksik kumlanma eşitlenir.
 
@@ -29,6 +32,26 @@ def load(p):
     return np.asarray(Image.open(p)) > 127
 
 
+ARMS = 14                 # mockup_segment etiketi (kol + el teni)
+SKIN_CHROMA = (15, 35)    # max(RGB)-min(RGB): bu aralıkta tenlik 0 → 1 (ten ≥ ~43, arka plan/yer tutucu ≤ ~22)
+
+
+def arm_matte(Bb, occl_c, lab_c):
+    """Önde kalan maskesi (0–1): kol/el piksellerinde bazın ten rengine göre yumuşak, 1 px içeriden;
+    diğer önde kalanlar (saç, üst, ayakkabı) olduğu gibi."""
+    occ = occl_c.astype(np.float32)
+    if lab_c is None:
+        return occ
+    arm = occl_c & (lab_c == ARMS)
+    if not arm.any():
+        return occ
+    chroma = Bb.max(2) - Bb.min(2)
+    skin = np.clip((chroma - SKIN_CHROMA[0]) / (SKIN_CHROMA[1] - SKIN_CHROMA[0]), 0, 1)
+    inner = np.asarray(Image.fromarray(arm.astype(np.uint8) * 255).filter(ImageFilter.MinFilter(3))) > 127
+    occ[arm] = (inner * skin)[arm]
+    return occ
+
+
 def highpass_std(img, m):
     g = img.mean(2)
     b = f32(np.asarray(Image.fromarray(np.clip(g, 0, 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(1.5))))
@@ -51,7 +74,19 @@ def main(base, out, prefix, x0, y0, x1, y1, result, restore):
     if ho < hb:
         O = O + np.random.RandomState(0).normal(0, np.sqrt(hb ** 2 - ho ** 2) * 0.8, O.shape[:2])[..., None]
 
-    a = (blur(Rb, 5) * (1 - blur(occl[y0:y1, x0:x1], 1.2)))[..., None]
+    try:
+        lab_c = np.load(prefix + "_labels.npy")[y0:y1, x0:x1]
+    except (OSError, ValueError):
+        lab_c = None
+    occ_c = occl[y0:y1, x0:x1]
+    # Bölge maskesi önde kalanları dışlar; kutusu içindeki kol/el pikselleri bölgeye geri katılır ki
+    # hangisinin bazdan geleceğine ten matı karar versin (parmak arası boşluk → model çıktısı).
+    reff = Rb.copy()
+    if lab_c is not None and Rb.any():
+        ys, xs = np.where(Rb)
+        inbox = np.zeros_like(Rb); inbox[ys.min():ys.max() + 1, xs.min():xs.max() + 1] = True
+        reff |= occ_c & (lab_c == ARMS) & inbox
+    a = (blur(reff, 5) * (1 - blur(arm_matte(Bb, occ_c, lab_c), 1.2)))[..., None]
     R = B.copy()
     R[y0:y1, x0:x1] = Bb * (1 - a) + np.clip(O, 0, 255) * a
 
