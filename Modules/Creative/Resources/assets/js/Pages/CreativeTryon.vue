@@ -1041,7 +1041,8 @@ async function startMockup() {
 		cancelText: 'Vazgeç',
 	})
 	if (!ok) return
-	mockupRequest('/creative/tryon/mockup', { product_id: selectedProduct.value }, () => { currentStep.value = 4 })
+	// Mokap sihirbazın kalan adımlarını (görsel/manken/poz) kullanmaz: 1. adımda kalınır, sonuç listesi yenilenir.
+	mockupRequest('/creative/tryon/mockup', { product_id: selectedProduct.value })
 }
 
 async function rerunMockup(r) {
