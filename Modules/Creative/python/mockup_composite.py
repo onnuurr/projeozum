@@ -35,9 +35,11 @@ def load(p):
 ARMS = 14                 # mockup_segment etiketi (kol + el teni)
 SKIN_CHROMA = (28, 45)    # max(RGB)-min(RGB): bu aralıkta tenlik 0 → 1 (ten iç ≥ ~43, arka plan/yer tutucu ≤ ~22)
 ARM_ERODE = 3             # px: bazdaki elin dış kenarı arka planla karışık (açık renkli) — alınmaz
+ARM_BAND = 14             # px: el kenarından bu kadar içeriye kadar baz ↔ model uyuşmazlığı modele bırakılır
+AGREE = (10, 28)          # piksel farkı (0–255, yumuşatılmış): altı bazdan, üstü modelden
 
 
-def arm_matte(Bb, occl_c, lab_c):
+def arm_matte(Bb, occl_c, lab_c, Oc=None):
     """Önde kalan maskesi (0–1): kol/el piksellerinde bazın ten rengine göre yumuşak, ARM_ERODE px içeriden
     (2026-10-06 ölçümü: dış 2 px'in parlaklığı arka planla karışık, ~205 / iç ten ~178 — beyaz kontur yapıyordu);
     diğer önde kalanlar (saç, üst, ayakkabı) olduğu gibi."""
@@ -50,7 +52,18 @@ def arm_matte(Bb, occl_c, lab_c):
     chroma = Bb.max(2) - Bb.min(2)
     skin = np.clip((chroma - SKIN_CHROMA[0]) / (SKIN_CHROMA[1] - SKIN_CHROMA[0]), 0, 1)
     inner = np.asarray(Image.fromarray(arm.astype(np.uint8) * 255).filter(ImageFilter.MinFilter(2 * ARM_ERODE + 1))) > 127
-    occ[arm] = (inner * skin)[arm]
+    m = inner * skin
+    if Oc is not None:
+        # Kenar bandında baz ile model uyuşmuyorsa (bazda arka plan / yer tutucu, modelde yeni giysi)
+        # piksel modelden gelir; gerçek el piksellerinde ikisi zaten aynıdır (hiza farkı ~1–2/255).
+        # Tenimsi pembe arka plan (parmak arası, ten yansıması) renk ölçüsünü geçebiliyordu.
+        # İç bölge maskeden değil tenden: SAM el maskesi parmak arası boşluğu da kapsayabiliyor.
+        core = np.asarray(Image.fromarray(((m > 0.5) & arm).astype(np.uint8) * 255).filter(ImageFilter.MinFilter(2 * ARM_BAND + 1))) > 127
+        smooth = lambda X: f32(np.asarray(Image.fromarray(np.clip(X, 0, 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(1.5))))
+        diff = np.abs(smooth(Bb) - smooth(Oc)).max(2)
+        agree = np.clip(1 - (diff - AGREE[0]) / (AGREE[1] - AGREE[0]), 0, 1)
+        m = np.where(core, m, m * agree)
+    occ[arm] = m[arm]
     return occ
 
 
@@ -72,15 +85,17 @@ def main(base, out, prefix, x0, y0, x1, y1, result, restore):
     keep = ~(blur(Rb, 25) > 0.01)
     mae = float(np.abs(O.mean(2) - Bb.mean(2))[keep].mean()) if keep.any() else -1.0
 
-    hb, ho = highpass_std(Bb, Rb), highpass_std(O, Rb)
-    if ho < hb:
-        O = O + np.random.RandomState(0).normal(0, np.sqrt(hb ** 2 - ho ** 2) * 0.8, O.shape[:2])[..., None]
-
     try:
         lab_c = np.load(prefix + "_labels.npy")[y0:y1, x0:x1]
     except (OSError, ValueError):
         lab_c = None
     occ_c = occl[y0:y1, x0:x1]
+    matte = arm_matte(Bb, occ_c, lab_c, O)          # kumlanma eklenmeden önceki model çıktısıyla
+
+    hb, ho = highpass_std(Bb, Rb), highpass_std(O, Rb)
+    if ho < hb:
+        O = O + np.random.RandomState(0).normal(0, np.sqrt(hb ** 2 - ho ** 2) * 0.8, O.shape[:2])[..., None]
+
     # Bölge maskesi önde kalanları dışlar; kutusu içindeki kol/el pikselleri bölgeye geri katılır ki
     # hangisinin bazdan geleceğine ten matı karar versin (parmak arası boşluk → model çıktısı).
     reff = Rb.copy()
@@ -88,7 +103,7 @@ def main(base, out, prefix, x0, y0, x1, y1, result, restore):
         ys, xs = np.where(Rb)
         inbox = np.zeros_like(Rb); inbox[ys.min():ys.max() + 1, xs.min():xs.max() + 1] = True
         reff |= occ_c & (lab_c == ARMS) & inbox
-    a = (blur(reff, 5) * (1 - blur(arm_matte(Bb, occ_c, lab_c), 1.2)))[..., None]
+    a = (blur(reff, 5) * (1 - blur(matte, 1.2)))[..., None]
     R = B.copy()
     R[y0:y1, x0:x1] = Bb * (1 - a) + np.clip(O, 0, 255) * a
 
