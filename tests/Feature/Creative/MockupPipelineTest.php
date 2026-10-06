@@ -48,6 +48,7 @@ class MockupPipelineTest extends TestCase
         }
 
         $this->app->bind(MockupGeneratorContract::class, MockMockupGenerator::class);
+        FakeMockupVision::$shoeSkin = [];
         $this->app->instance(MockupVisionContract::class, new FakeMockupVision);
         $this->app->instance(GarmentPrepContract::class, new class implements GarmentPrepContract {
             public function prepare(string $sourcePath): string { return $sourcePath; }
@@ -248,42 +249,5 @@ class MockupPipelineTest extends TestCase
         $this->assertSame(MockupOutfit::STATUS_FAILED, $outfit->fresh()->status);
         $this->assertStringContainsString('segment patladı', (string) $outfit->fresh()->error);
         $this->assertSame(0, TryonResult::where('pipeline', TryonResult::PIPELINE_MOCKUP)->count());
-    }
-}
-
-/** Python'suz görüntü adımları: maskeler tam kare, kırpma/birleştirme kopya. */
-class FakeMockupVision implements MockupVisionContract
-{
-    public function segment(string $imagePath, string $labelsPath): array
-    {
-        file_put_contents($labelsPath, 'labels');
-
-        return ['labels' => ['lower' => 100]];
-    }
-
-    public function mask(string $labelsPath, string $prefix, string $region, string $length): array
-    {
-        foreach (['_region', '_occluders', '_shoes'] as $s) {
-            file_put_contents($prefix . $s . '.png', 'mask');
-        }
-
-        return ['crop' => [0, 0, 60, 80], 'long' => in_array($length, ['midi', 'maxi'], true)];
-    }
-
-    public function upscale(string $imagePath, string $outPath, int $width, int $height): void
-    {
-        copy($imagePath, $outPath);
-    }
-
-    public function crop(string $imagePath, array $box, string $outPath): void
-    {
-        copy($imagePath, $outPath);
-    }
-
-    public function composite(string $basePath, string $modelOutPath, string $prefix, array $box, string $resultPath, bool $restoreShoes): array
-    {
-        copy($modelOutPath, $resultPath);
-
-        return ['align_mae' => 0.0, 'outside_unchanged' => 1.0, 'shoe_px_restored' => 0];
     }
 }

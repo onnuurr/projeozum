@@ -11,6 +11,7 @@ Kullanım:
   python mockup_mask.py mask <labels.npy> <çıktı_öneki> <region> <length>
      → <önek>_region.png, <önek>_occluders.png, <önek>_shoes.png ; stdout JSON {crop, long, ...}
   python mockup_mask.py crop <görsel> <x0> <y0> <x1> <y1> <çıktı.png>
+  python mockup_mask.py pair <sol> <sağ> <çıktı.jpg>     (kontrol için yan yana, 1200 px yükseklik)
 """
 import json
 import sys
@@ -103,6 +104,15 @@ def cmd_mask(labels, prefix, region, length):
     return {"crop": crop_box(reg, H, W), "long": long, "region_px": int(reg.sum()), "size": [W, H]}
 
 
+def cmd_pair(left, right, out, height=1200):
+    ims = [Image.open(p).convert("RGB") for p in (left, right)]
+    ims = [im.resize((int(im.width * height / im.height), height), Image.LANCZOS) for im in ims]
+    canvas = Image.new("RGB", (ims[0].width + ims[1].width + 40, height), "white")
+    canvas.paste(ims[0], (0, 0)); canvas.paste(ims[1], (ims[0].width + 40, 0))
+    canvas.save(out, quality=90)
+    return {"size": list(canvas.size)}
+
+
 def cmd_crop(src, x0, y0, x1, y1, out):
     Image.open(src).convert("RGB").crop((int(x0), int(y0), int(x1), int(y1))).save(out)
     return {"size": [int(x1) - int(x0), int(y1) - int(y0)]}
@@ -111,7 +121,7 @@ def cmd_crop(src, x0, y0, x1, y1, out):
 if __name__ == "__main__":
     try:
         cmd, args = sys.argv[1], sys.argv[2:]
-        res = cmd_mask(*args) if cmd == "mask" else cmd_crop(*args)
+        res = {"mask": cmd_mask, "crop": cmd_crop, "pair": cmd_pair}[cmd](*args)
         print(json.dumps({"ok": True, **res}))
     except Exception as e:
         print(json.dumps({"ok": False, "error": str(e)}))

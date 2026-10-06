@@ -38,5 +38,20 @@ interface MockupGeneratorContract
      */
     public function tryOn(string $cropPath, array $productImagePaths, string $region, string $length, ?string $correction = null): string;
 
+    /**
+     * Faz 2 baz kontrolü: yan yana görsel (SOL ana kare, SAĞ türetilen poz) aynı çekim mi?
+     *
+     * @return array{verdict:string, issues:array<int,array{aspect?:string,detail_tr:string}>}
+     */
+    public function checkBaseConsistency(string $pairPath): array;
+
+    /**
+     * Faz 2 sadakat kontrolü: yan yana görsel (SOL ürün fotoğrafı, SAĞ giydirme sonucu).
+     *
+     * @param  string  $view  front|side|back|three_quarter — görünmeyen detaylar eksik sayılmasın
+     * @return array{verdict:string, issues:array<int,array{severity?:string,detail_tr:string,fix_en?:string}>}
+     */
+    public function checkFidelity(string $pairPath, string $region, string $view): array;
+
     public function modelIdentifier(): string;
 }

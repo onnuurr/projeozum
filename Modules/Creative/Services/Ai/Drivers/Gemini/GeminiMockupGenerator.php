@@ -19,13 +19,39 @@ class GeminiMockupGenerator implements MockupGeneratorContract
 
     public function stylist(string $productImagePath, array $context): array
     {
-        $raw  = $this->client->analyzeImage($this->prompts->stylist($context), $productImagePath);
-        $json = json_decode(trim((string) preg_replace('/^```(json)?|```$/m', '', trim($raw))), true);
-        if (! is_array($json)) {
+        $json = $this->json($this->client->analyzeImage($this->prompts->stylist($context), $productImagePath));
+        if ($json === null) {
             throw new RuntimeException(__('creative::messages.mockup.stylist_invalid'));
         }
 
         return $json;
+    }
+
+    public function checkBaseConsistency(string $pairPath): array
+    {
+        return $this->verdict($this->client->analyzeImage($this->prompts->baseConsistency(), $pairPath));
+    }
+
+    public function checkFidelity(string $pairPath, string $region, string $view): array
+    {
+        return $this->verdict($this->client->analyzeImage($this->prompts->fidelity($region, $view), $pairPath));
+    }
+
+    /** Kontrol cevabı; okunamazsa "unknown" (kontrol üretimi asla durdurmaz, onaycı görür). */
+    private function verdict(string $raw): array
+    {
+        $json = $this->json($raw);
+        $verdict = in_array($json['verdict'] ?? null, ['pass', 'warn', 'fail'], true) ? $json['verdict'] : 'unknown';
+        $issues = array_values(array_filter((array) ($json['issues'] ?? []), 'is_array'));
+
+        return ['verdict' => $verdict, 'issues' => $issues];
+    }
+
+    private function json(string $raw): ?array
+    {
+        $json = json_decode(trim((string) preg_replace('/^```(json)?|```$/m', '', trim($raw))), true);
+
+        return is_array($json) ? $json : null;
     }
 
     public function masterBase(string $mannequinReferencePath, string $poseTemplatePath, array $outfit): string

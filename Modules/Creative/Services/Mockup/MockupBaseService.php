@@ -50,7 +50,7 @@ class MockupBaseService
             'length'   => $outfit->length,
         ];
 
-        $master = $this->build($outfit, $masterPose, null, fn ($poseTpl) => $this->generator->masterBase(
+        $master = $this->buildChecked($outfit, $masterPose, null, fn ($poseTpl) => $this->generator->masterBase(
             $this->local($mannequin->reference_image_path), $poseTpl, $spec,
         ));
         if ($master->status !== MockupBase::STATUS_READY) {
@@ -60,13 +60,71 @@ class MockupBaseService
         $ready = collect([$master]);
         $masterPath = $this->disk()->path($master->image_path);
         foreach ($others as $pose) {
-            $base = $this->build($outfit, $pose, $master, fn ($poseTpl) => $this->generator->derivedBase($masterPath, $poseTpl, $spec));
+            $base = $this->buildChecked($outfit, $pose, $master, fn ($poseTpl) => $this->generator->derivedBase($masterPath, $poseTpl, $spec));
             if ($base->status === MockupBase::STATUS_READY) {
                 $ready->push($base);
             }
         }
 
         return $ready;
+    }
+
+    /**
+     * Faz 2 baz kontrolü ile üretim: ayakkabı (ücretsiz, segmentasyondan) + türetilen pozda ana kareyle
+     * tutarlılık (analiz çağrısı). Kalırsa EN FAZLA qa.max_retries kez yeniden üretilir; yine kalırsa
+     * baz "warn" ile kullanılır (bulgular giydirme sonucuna taşınır, onaycı görür).
+     *
+     * @param  callable(string):string  $render
+     */
+    private function buildChecked(MockupOutfit $outfit, Pose $pose, ?MockupBase $master, callable $render): MockupBase
+    {
+        $enabled = (bool) config('creative.mockup.qa.enabled', true);
+        $max = $enabled ? max(0, (int) config('creative.mockup.qa.max_retries', 1)) : 0;
+
+        for ($try = 0; ; $try++) {
+            $base = $this->build($outfit, $pose, $master, $render);
+            if ($base->status !== MockupBase::STATUS_READY || ! $enabled) {
+                return $base;
+            }
+
+            $qa = $this->check($base, $master);
+            $base->update(['qa' => [...$qa, 'retries' => $try]]);
+            if (! $qa['retry'] || $try >= $max) {
+                return $base->fresh();
+            }
+        }
+    }
+
+    /** @return array{status:string, retry:bool, shoes:array<string,mixed>, consistency:?array<string,mixed>} */
+    private function check(MockupBase $base, ?MockupBase $master): array
+    {
+        $skin = (float) ($base->masks['checks']['shoe_skin_ratio'] ?? 0);
+        $shoesOk = $skin <= (float) config('creative.mockup.qa.max_shoe_skin_ratio', 0.6);
+
+        $consistency = null;
+        if ($master !== null) {
+            $pair = rtrim(sys_get_temp_dir(), '/') . '/mockup_pair_' . bin2hex(random_bytes(6)) . '.jpg';
+            try {
+                $this->vision->pair($this->disk()->path($master->image_path), $this->disk()->path($base->image_path), $pair);
+                $consistency = app(AiUsageRecorder::class)->forSubject($base, fn () => $this->generator->checkBaseConsistency($pair));
+            } catch (\Throwable $e) {
+                // Kontrol başarısızlığı üretimi durdurmaz; onaycı "bilinmiyor" görür.
+                $consistency = ['verdict' => 'unknown', 'issues' => [['detail_tr' => 'Tutarlılık kontrolü yapılamadı: ' . $e->getMessage()]]];
+            } finally {
+                ImageFile::delete([$pair]);
+            }
+        }
+
+        // fail → yeniden üretim; warn (küçük aksesuar vb.) / unknown → yeniden üretim YOK, onaycıya uyarı.
+        $verdict = $consistency['verdict'] ?? 'pass';
+        $failed = ! $shoesOk || $verdict === 'fail';
+
+        return [
+            'status'      => $failed || in_array($verdict, ['warn', 'unknown'], true) ? 'warn' : 'pass',
+            'retry'       => $failed,
+            'shoes'       => ['skin_ratio' => $skin, 'ok' => $shoesOk],
+            'consistency' => $consistency,
+        ];
     }
 
     /** @param callable(string):string $render poz şablonu yolu → üretilen geçici görsel */
@@ -99,6 +157,7 @@ class MockupBaseService
                     'crop'   => array_map('intval', $mask['crop']),
                     'long'   => (bool) ($mask['long'] ?? false),
                     'labels' => $seg['labels'] ?? null,
+                    'checks' => $seg['checks'] ?? null,
                 ],
                 'status'     => MockupBase::STATUS_READY,
             ]);

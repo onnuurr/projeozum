@@ -22,6 +22,9 @@ interface MockupVisionContract
      */
     public function mask(string $labelsPath, string $prefix, string $region, string $length): array;
 
+    /** İki görseli yan yana tek görsele koyar (otomatik kontroller için; ücretsiz). */
+    public function pair(string $leftPath, string $rightPath, string $outPath): void;
+
     /** Görseli tam (genişlik × yükseklik) boyuta büyütür (FSRCNN, ücretsiz). */
     public function upscale(string $imagePath, string $outPath, int $width, int $height): void;
 

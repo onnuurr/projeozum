@@ -57,21 +57,21 @@ class GeminiSpendService
                     return ['amount' => null, 'currency' => null, 'error' => 'Billing export tablosu dataset içinde bulunamadı.'];
                 }
 
-                $service = (string) config('creative.ai.gemini.billing.service_description', 'Generative Language API');
+                $services = (array) config('creative.ai.gemini.billing.service_descriptions', ['Gemini API', 'Generative Language API']);
 
                 $sql = sprintf(
                     'SELECT SUM(cost) AS gross_cost,'
                     . ' SUM(IFNULL((SELECT SUM(c.amount) FROM UNNEST(credits) AS c), 0)) AS credits_total,'
                     . ' ANY_VALUE(currency) AS currency'
                     . ' FROM `%s.%s.%s`'
-                    . ' WHERE service.description = @service AND invoice.month = @month',
+                    . ' WHERE service.description IN UNNEST(@services) AND invoice.month = @month',
                     $projectId,
                     $dataset,
                     $table,
                 );
 
                 $query = $bq->query($sql)->parameters([
-                    'service' => $service,
+                    'services' => array_values($services),
                     // GCP billing export'ta invoice.month "YYYYMM" formatındadır.
                     'month' => now()->format('Ym'),
                 ]);

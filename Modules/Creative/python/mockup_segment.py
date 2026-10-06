@@ -121,7 +121,11 @@ def seg_line_mask(h, w, a, b, radius):
 
 
 def segment(pil):
-    """PIL RGB → (etiket haritası uint8 (H,W), poz noktaları (33,3)). Birleştirme adımı da kullanır."""
+    """PIL RGB → (etiket haritası uint8 (H,W), poz noktaları (33,3), kontroller dict). Birleştirme de kullanır.
+
+    kontroller: shoe_px_ratio (ayak/ayakkabı maskesinin görsel alanına oranı) ve shoe_skin_ratio
+    (o maskenin MediaPipe'ın TEN dediği kısmı — çıplak ayakta yüksek, ayakkabıda düşük; Faz 2 baz kontrolü).
+    """
     rgb = np.asarray(pil)
     H, W = rgb.shape[:2]
 
@@ -219,7 +223,12 @@ def segment(pil):
     lab[face_c] = FACE
     lab[hair_c] = HAIR
     lab[~person & ~shoes] = BG
-    return lab, P
+    feet = shoes & ~socks
+    checks = {
+        "shoe_px_ratio": round(float(shoes.sum()) / (H * W), 5),
+        "shoe_skin_ratio": round(float((feet & skin_c).sum()) / max(1, int(feet.sum())), 3),
+    }
+    return lab, P, checks
 
 
 def main():
@@ -228,7 +237,7 @@ def main():
     t0 = time.time()
     pil = Image.open(src).convert("RGB")
     rgb = np.asarray(pil)
-    lab, P = segment(pil)
+    lab, P, checks = segment(pil)
 
     np.save(out_npy, lab)
     if preview:
@@ -245,7 +254,7 @@ def main():
     lm = {k: [round(float(v), 1) for v in P[i, :2]] for k, i in
           {"hip_l": L_HIP, "hip_r": R_HIP, "knee_l": L_KN, "knee_r": R_KN, "ankle_l": L_AN, "ankle_r": R_AN,
            "wrist_l": L_WR, "wrist_r": R_WR, "shoulder_l": L_SH, "shoulder_r": R_SH}.items()}
-    print(json.dumps({"ok": True, "labels": counts, "landmarks": lm, "ms": int((time.time() - t0) * 1000)}))
+    print(json.dumps({"ok": True, "labels": counts, "landmarks": lm, "checks": checks, "ms": int((time.time() - t0) * 1000)}))
 
 
 if __name__ == "__main__":

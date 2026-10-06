@@ -106,14 +106,35 @@ class MockupTryOnService
             $temps[] = $crop = $this->tempPath();
             $this->vision->crop($basePath, $box, $crop);
 
-            $temps[] = $out = $this->generator->tryOn(
-                $crop, $images, $outfit->region, $outfit->length,
-                trim((string) ($result->meta['extra_instructions'] ?? '')) ?: null,
-            );
-
-            $temps[] = $composite = $this->tempPath();
+            // Faz 2: giydir → birleştir → hiza + sadakat kontrolü. Kalırsa bulgular düzeltme talimatı
+            // olarak verilip EN FAZLA qa.max_retries kez yeniden denenir; yine kalırsa sonuç uyarıyla
+            // onaya düşer (insan onayı hiçbir durumda atlanmaz).
+            $enabled = (bool) config('creative.mockup.qa.enabled', true);
+            $max = $enabled ? max(0, (int) config('creative.mockup.qa.max_retries', 1)) : 0;
+            $correction = trim((string) ($result->meta['extra_instructions'] ?? '')) ?: null;
             $restore = (bool) ($base->masks['long'] ?? false) && $outfit->region !== 'top';
-            $metrics = $this->vision->composite($basePath, $out, $prefix, $box, $composite, $restore);
+            $view = (string) (config('creative.mockup.pose_views', [])[$base->pose?->pose_key] ?? 'front');
+
+            for ($attempt = 0; ; $attempt++) {
+                $temps[] = $out = $this->generator->tryOn($crop, $images, $outfit->region, $outfit->length, $correction);
+                $temps[] = $composite = $this->tempPath();
+                $metrics = $this->vision->composite($basePath, $out, $prefix, $box, $composite, $restore);
+
+                $alignBad = (float) ($metrics['align_mae'] ?? 0) > (float) config('creative.mockup.qa.max_align_mae', 8.0);
+                $fidelity = $enabled ? $this->checkFidelity($images[0], $composite, $outfit->region, $view, $temps) : null;
+                $failed = $alignBad || ($fidelity['verdict'] ?? null) === 'fail';
+                if (! $failed || $attempt >= $max) {
+                    break;
+                }
+                $correction = $this->correctionFrom($fidelity, $alignBad);
+            }
+
+            $baseStatus = $base->qa['status'] ?? null;
+            $status = match (true) {
+                $failed => 'fail',
+                in_array($fidelity['verdict'] ?? 'pass', ['warn', 'unknown'], true), $baseStatus === 'warn' => 'warn',
+                default => 'pass',
+            };
 
             if ($expectedToken !== null && $result->fresh()?->generation_token !== $expectedToken) {
                 return $result;
@@ -127,7 +148,18 @@ class MockupTryOnService
                 'tryon_model'            => $model,
                 'generation_duration_ms' => (int) round((microtime(true) - $startedAt) * 1000),
                 'error'                  => null,
-                'qa'                     => ['composite' => $metrics],
+                'qa'                     => [
+                    'status'      => $status,
+                    'attempts'    => $attempt + 1,
+                    'composite'   => $metrics,
+                    'fidelity'    => $fidelity,
+                    'view'        => $view,
+                    'base_status' => $baseStatus,
+                    'base_issues' => array_values(array_filter([
+                        ($base->qa['shoes']['ok'] ?? true) ? null : ['detail_tr' => 'Baz görselde ayakkabı görünmüyor (çıplak ayak).'],
+                        ...((array) ($base->qa['consistency']['issues'] ?? [])),
+                    ])),
+                ],
                 'review_status'          => TryonResult::REVIEW_PENDING,
                 'review_note'            => null,
                 'reviewed_by'            => null,
@@ -141,6 +173,36 @@ class MockupTryOnService
             ImageFile::delete($temps);
             $this->resolver->cleanup();
         }
+    }
+
+    /**
+     * Ürün fotoğrafı ↔ birleşik sonuç sadakat kontrolü. Kontrol başarısız olursa üretim durmaz.
+     *
+     * @param  array<int,string>  $temps
+     * @return array{verdict:string, issues:array<int,array<string,mixed>>}
+     */
+    private function checkFidelity(string $productPhoto, string $composite, string $region, string $view, array &$temps): array
+    {
+        try {
+            $temps[] = $pair = $this->tempPath();
+            $this->vision->pair($productPhoto, $composite, $pair);
+
+            return $this->generator->checkFidelity($pair, $region, $view);
+        } catch (\Throwable $e) {
+            return ['verdict' => 'unknown', 'issues' => [['detail_tr' => 'Sadakat kontrolü yapılamadı: ' . $e->getMessage()]]];
+        }
+    }
+
+    /** @param array{issues?:array<int,array<string,mixed>>}|null $fidelity */
+    private function correctionFrom(?array $fidelity, bool $alignBad): string
+    {
+        $fixes = collect((array) ($fidelity['issues'] ?? []))
+            ->map(fn ($i) => trim((string) ($i['fix_en'] ?? $i['detail_tr'] ?? '')))->filter()->implode(' ');
+        if ($alignBad) {
+            $fixes .= ' Keep the exact same framing, position and scale as the first image; do not move or resize anything.';
+        }
+
+        return trim($fixes);
     }
 
     /** Python adımının yazacağı geçici dosya yolu (dosya oluşturulmaz). */

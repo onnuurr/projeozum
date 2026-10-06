@@ -39,6 +39,16 @@ class MockMockupGenerator implements MockupGeneratorContract
         return $this->copy($cropPath, 'MOCK TRY-ON');
     }
 
+    public function checkBaseConsistency(string $pairPath): array
+    {
+        return ['verdict' => 'pass', 'issues' => []];
+    }
+
+    public function checkFidelity(string $pairPath, string $region, string $view): array
+    {
+        return ['verdict' => 'pass', 'issues' => []];
+    }
+
     public function modelIdentifier(): string
     {
         return 'mock';

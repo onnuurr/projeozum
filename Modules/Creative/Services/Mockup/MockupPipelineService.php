@@ -76,10 +76,13 @@ class MockupPipelineService
         $model = (string) config('creative.mockup.image_model');
         $price = (array) (config('creative.ai.pricing.gemini', [])[$model] ?? []);
         $at = fn (string $key) => (float) ($price['image'][(string) config("creative.mockup.{$key}", '1K')] ?? 0.101);
-        // stilist analizi + görsel girdileri (~3 referans × ~1120 token) — küçük ama sıfır değil
-        $input = 0.002 + $poses * 2 * 3 * 1120 / 1e6 * (float) ($price['input_per_mtok'] ?? 0.5);
+        // analizler: stilist + (Faz 2, açıksa) türetilen poz başına tutarlılık + poz başına sadakat (~0,004 $)
+        $analyses = 1 + (config('creative.mockup.qa.enabled', true) ? ($poses - 1) + $poses : 0);
+        // görsel girdileri (~3 referans × ~1120 token) — küçük ama sıfır değil
+        $input = $analyses * 0.004 + $poses * 2 * 3 * 1120 / 1e6 * (float) ($price['input_per_mtok'] ?? 0.5);
 
-        return ['images' => $poses * 2, 'analyses' => 1, 'usd' => round($poses * ($at('base_image_size') + $at('tryon_image_size')) + $input, 3)];
+        return ['images' => $poses * 2, 'analyses' => $analyses, 'usd' => round($poses * ($at('base_image_size') + $at('tryon_image_size')) + $input, 3),
+            'retry_usd' => round($at('tryon_image_size'), 3)];
     }
 
     /**

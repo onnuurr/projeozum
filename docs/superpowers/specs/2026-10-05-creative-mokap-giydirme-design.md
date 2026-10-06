@@ -2,7 +2,7 @@
 
 - **Tarih:** 2026-10-05
 - **Kapsam:** `Modules/Creative` — Ürün Giydirme hattı (`ProductOnModelService`, `GenerateOnModelJob`, `TryonController`, `CreativeTryon.vue`), ret nedenleri ve günlük ret raporu.
-- **Durum:** **Faz 0 ve Faz 1 uygulandı (2026-10-05/06), commit edilmedi.** Faz 1: `creative:mockup` komutuyla tek ürün uçtan uca (kombin → baz → maske → giydirme → onay kuyruğu); arayüz Faz 4'te. Faz 0 maske pilotu: Apache 2.0 yığınla 15 baz görselde bölge maskesi uyumu ort. 0,89 (en düşük 0,81), uçtan uca sonuç segformer'la eşdeğer. Önceki durum: Üç pilot deneme repo dışında (oturum scratchpad'i) betiklerle yapıldı; sonuç raporu: https://claude.ai/artifact/Y1mxXa8YCJyuNKMhi73m56 (özel). Bu doküman o denemelerin bulgularını ve kullanıcıyla netleşen kararları uygulanabilir bir plana çevirir.
+- **Durum (2026-10-06):** **Faz 0, Faz 1 ve Faz 2 uygulandı ve commit edildi.** Arayüz (Faz 4) yok; akış `php artisan creative:mockup {ürün} --mannequin= [--garment=] [--sync]` komutuyla başlar, sonuçlar mevcut Ürün Giydirme onay listesine düşer. Ayrıntılı durum ve sıradaki adımlar: aşağıdaki "Uygulama durumu ve devir notu" bölümü.
 
 ## Bağlam: çözülen sorun
 
@@ -220,3 +220,31 @@ Bugünkü hat poz başına 2 görsel çağrısı yapıyor (pozlama + giydirme), 
 - **Desen ölçeği** takımlarda iki adımda sapabiliyor; tek adım varsayılan.
 - **Sadakat kontrolü gürültüsü:** rapor verisi birikene kadar eşikler muhafazakâr; kontrol yalnız uyarır ve yeniden dener.
 - **Tekrar hissi:** aynı manken çok sayıda üründe → manken rotasyonu stilist kurallarına eklenebilir.
+
+## Uygulama durumu ve devir notu (2026-10-06)
+
+**Yapılanlar**
+- **Faz 0:** Lisans kontrolü (SegFormer türevi elendi), Apache 2.0 maske yığını (MediaPipe Multiclass + Pose + SAM 2.1) 15 baz görselde pilot maskelerle eşdeğer (bölge maskesi IoU ort. 0,89).
+- **Faz 1:** `Services/Mockup/*`, `creative_mockup_outfits` / `creative_mockup_bases`, `creative_tryon_results.pipeline/mockup_base_id/qa`, `creative:mockup` komutu (çalışmadan önce tahmini maliyet + onay; `--sync` çift çalışmaz).
+- **Maliyet:** `creative_ai_usages` + `creative:ai-usage` raporu (token sayıları Gemini cevabından, dolar tutarı fiyat listesinden — tahmin). Baz ve giydirme 1K üretilir, baz FSRCNN ile ücretsiz büyütülür (`mockup_upscale.py`; 2K→1K→x2 PSNR 41 dB). Ürün başı tahmin ~0,44 $ (6 görsel + 6 analiz); yeniden deneme +0,067 $.
+- **Gerçek fatura rozeti:** `GeminiSpendService` "Gemini API" hizmet adıyla düzeltildi (eski "Generative Language API" eşleşmiyordu); Ekim 2026: 487,51 TL.
+- **Faz 2:** Baz kontrolü (çıplak ayak: ayak bölgesi ten oranı > 0,6 — ücretsiz; ana kareyle tutarlılık: analiz çağrısı), giydirme kontrolü (hiza + sadakat, poz yönü `pose_views`), `fail` → en fazla 1 yeniden üretim, sonuç her durumda onaya düşer; kartta "Kontrol: geçti/uyarı/kaldı" + Türkçe bulgular.
+- **Faz 2 kalibrasyonu (canlı, 16 analiz ≈ 0,044 $):** tutarlılık kontrolü saç farkını tutarlı yakalıyor; açıdan görünmeyen detaylar ve küçük aksesuarlar artık en fazla `warn`. Sadakat kontrolü `fail`'i yalnız yapısal hatalara veriyor (ton/ışık/pile keskinliği `warn`) — 10 çalıştırmada gereksiz yeniden deneme yok; pass↔warn arasında kararsız (zararsız, warn yalnız onaycıya gösterilir).
+- İlk gerçek ürün: Kot Etek (#10), kombin #3, sonuçlar #12 (yeniden üretildi, onay bekliyor), #13, #14 (yürüyüş bazında saç tutarsız — Faz 2 öncesi üretildi).
+
+**Bilinen açıklar**
+- Arayüz değişiklikleri (403 sayfası, Gemini/fal seçici, yakın plan penceresi, kontrol rozetleri, ₺ rozet) build bekliyor.
+- Gerçek ürün fotoğraflarıyla sadakat teyidi yapılmadı (Faz 0'ın ikinci maddesi).
+- Stilist hâlâ serbest metin (Faz 3).
+
+**Sıradaki adımlar (öncelik sırasıyla)**
+1. **Maliyet:** Batch API (%50 indirim; otomatik akış acil değil) + kombin önbelleği (aynı manken+kombin+poz → baz yeniden üretilmez). Otomatik tetiklemeden (Faz 4) ÖNCE.
+2. **Faz 3:** stilist seçenek listeleri (`creative_stylist_options`) + kural motoru + çeşitlilik kuralı; poz etiketleri (`mockup_regions`, `requires`, `view` — şu an config'te).
+3. **Faz 4:** Ürün Giydirme sayfasında mokap modu, toplu/otomatik tetik, Creative ayarlar sayfası (kategori→bölge, seçenekler, poz etiketleri), günlük limit.
+4. **Faz 5:** ret nedenleri ↔ aşama, rapor genişletme.
+5. **Faz 6:** `creative.ai.tryon_styling` kaldırma, yakın planlarda kırp+büyüt.
+
+**Çalışma kuralları (bu proje)**
+- Ücretli AI çağrısından önce çağrı sayısı + tahmini maliyet söylenip onay alınır; bitince gerçekleşen raporlanır.
+- Yeni özellik canlıda gerçek veriyle kendiliğinden tetiklenmez; ilk gerçek çalıştırma kullanıcıya bırakılır.
+- Git ve dosya yazan artisan komutları `ozumserver` kullanıcısıyla çalıştırılır.

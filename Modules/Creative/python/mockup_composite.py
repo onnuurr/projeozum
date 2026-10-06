@@ -58,7 +58,7 @@ def main(base, out, prefix, x0, y0, x1, y1, result, restore):
     restored = 0
     if restore == "1":
         from mockup_segment import SHOES, segment
-        lab, _ = segment(Image.fromarray(R.astype(np.uint8)))
+        lab = segment(Image.fromarray(R.astype(np.uint8)))[0]
         sh = (lab == SHOES) & load(prefix + "_shoes.png")
         r = blur(sh, 1.5)[..., None]
         R = R * (1 - r) + B * r

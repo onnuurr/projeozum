@@ -495,7 +495,11 @@ return [
                 // BigQuery export'ta Gemini API satırları bu service.description
                 // ile görünüyor (doğrulanmadı — gerçek export verisi geldiğinde
                 // GCP Console → Billing → Reports'tan teyit edilmeli).
-                'service_description' => env('GCP_BILLING_GEMINI_SERVICE', 'Generative Language API'),
+                // 2026-10-06'da gerçek export verisiyle doğrulandı: Google faturada hizmeti
+                // "Gemini API" olarak yazıyor (eski ad "Generative Language API" eşleşmiyordu →
+                // rozet 0 gösteriyordu). Ad değişirse virgülle ayrılmış liste olarak verilebilir.
+                'service_descriptions' => array_values(array_filter(array_map('trim', explode(',',
+                    (string) env('GCP_BILLING_GEMINI_SERVICE', 'Gemini API,Generative Language API'))))),
             ],
         ],
 
@@ -951,6 +955,26 @@ return [
             'ev giyim & pijama' => ['region' => 'set'],
             'elbise & tulum'    => ['region' => 'one_piece'],
             'tulum'             => ['region' => 'one_piece'],
+        ],
+
+        // Faz 2 — otomatik kontroller. Kontroller ucuz analiz çağrılarıdır (~0,002 $); kontrolden
+        // kalan baz/giydirme EN FAZLA max_retries kez yeniden üretilir (her biri bir görsel çağrısı),
+        // yine kalırsa sonuç onay listesine UYARIYLA düşer — insan onayı hiçbir durumda atlanmaz.
+        'qa' => [
+            'enabled'          => (bool) env('CREATIVE_MOCKUP_QA', true),
+            'max_retries'      => (int) env('CREATIVE_MOCKUP_QA_RETRIES', 1),
+            // Baz: ayak bölgesinin TEN oranı bunun üstündeyse "çıplak ayak" (ölçüm 2026-10-06: çıplak
+            // ayak 0,97; ayakkabılı 0,00–0,27). Ayakkabı piksel oranı ayırt etmiyor (SAM çıplak ayağı da bulur).
+            'max_shoe_skin_ratio' => 0.6,
+            // Birleştirme: maske dışı ortalama fark (0–255) bunun üstündeyse hiza bozuk sayılır.
+            'max_align_mae'    => 8.0,
+        ],
+        // Pozun kameraya göre yönü — sadakat kontrolü görünmemesi gereken detayları (ör. önden
+        // çekimde sırt düğmesi) eksik saymasın diye. Listede olmayan poz "front" kabul edilir.
+        'pose_views' => [
+            'standing_profile' => 'side', 'standing_back' => 'back', 'three_qtr_back' => 'back',
+            'looking_over_shoulder' => 'back', 'standing_three_qtr' => 'three_quarter', 'walking_stride' => 'side',
+            'twisting_torso' => 'three_quarter', 'contrapposto' => 'three_quarter', 'step_forward' => 'front',
         ],
 
         // Ürün "Boy" özelliği (product_attribute code=boy) seçenek adı (küçük harf) → uzunluk.

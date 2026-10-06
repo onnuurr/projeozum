@@ -41,6 +41,37 @@ Answer ONLY with JSON, no markdown:
 TXT;
     }
 
+    public function baseConsistency(): string
+    {
+        return 'The LEFT image is the MASTER photo of a photo shoot; the RIGHT image is another pose from the SAME shoot. '
+            . 'The pose, camera angle and facial expression are SUPPOSED to differ — never report those. '
+            . 'Compare ONLY: the person\'s identity (face), the hairstyle (ponytail vs loose hair, parting, hair accessory), '
+            . 'every garment (color, sleeve length, fit, tucked in or not), socks/tights, shoes (and whether the person wears shoes at all), '
+            . 'accessories, and the studio background/lighting. '
+            . 'Something that simply cannot be seen from one of the two camera angles (e.g. a hair tie at the back of a ponytail, the back of a garment) is NOT a difference. '
+            . 'Report ONLY clear contradictions that are visible in BOTH images: loose hair vs ponytail, a different garment or color, different sleeve length, shoes missing or different, an accessory present in one and clearly absent where it should be visible in the other. '
+            . 'Answer ONLY JSON: {"verdict":"pass|warn|fail","issues":[{"aspect":"face|hair|top|bottom|socks|shoes|accessory|background","detail_tr":"kısa Türkçe açıklama"}]}. '
+            . '"fail" only for clear contradictions in the face, the hairstyle (e.g. loose vs ponytail), any garment, socks/tights or shoes; '
+            . 'small accessories (hair ties, clips, jewelry) or background/lighting differences are at most "warn"; otherwise "pass".';
+    }
+
+    public function fidelity(string $region, string $view): string
+    {
+        $views = ['front' => 'from the front', 'side' => 'from the side (profile)', 'back' => 'from the back', 'three_quarter' => 'from a three-quarter angle'];
+
+        return 'The LEFT image is the original product photo (ground truth). The RIGHT image is an AI-generated catalog photo of a model wearing that product '
+            . "(the product covers the '{$region}' body region). The model is photographed " . ($views[$view] ?? $views['front']) . '. '
+            . 'Compare ONLY the product garment(s), not the model or the other clothes. Check construction details: silhouette and length, number of tiers/seams/panels, '
+            . 'pleats/gathers/ruffles, waistband type, collar, sleeves, buttons/closures, pockets, print/pattern scale and colors, color/shade. '
+            . 'Details that cannot be seen from this camera angle (e.g. back closures in a front view, front pockets in a back view) must NOT be reported as missing. '
+            . 'Natural drape, folds and lighting differences are expected and NOT issues. '
+            . 'Answer ONLY JSON: {"verdict":"pass|warn|fail","issues":[{"severity":"minor|major","detail_tr":"kısa Türkçe açıklama","fix_en":"one short English instruction to fix it"}]}. '
+            . '"fail" ONLY for STRUCTURAL errors a customer would notice: a construction element added or missing (pocket, button, belt loop, tier, ruffle, seam, collar), '
+            . 'a clearly wrong garment type, length or silhouette, a different print/pattern, or a clearly different color (another hue or a dark vs light wash). '
+            . 'Shade or brightness differences explainable by studio lighting, pleat/fold crispness, fabric texture and minor proportion differences are at most "warn". '
+            . 'If nothing is wrong, answer "pass" with an empty issues list.';
+    }
+
     /** Baz görselde ürünün yerine giyilen sade gri yer tutucu. */
     public function placeholder(string $region, string $length): string
     {

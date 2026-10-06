@@ -24,6 +24,11 @@ class PythonMockupVision implements MockupVisionContract
         return $this->run('mask', ['mask', $labelsPath, $prefix, $region, $length]);
     }
 
+    public function pair(string $leftPath, string $rightPath, string $outPath): void
+    {
+        $this->run('mask', ['pair', $leftPath, $rightPath, $outPath]);
+    }
+
     public function upscale(string $imagePath, string $outPath, int $width, int $height): void
     {
         $this->run('upscale', [$imagePath, $outPath, (string) $width, (string) $height]);

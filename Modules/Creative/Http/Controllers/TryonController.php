@@ -179,6 +179,13 @@ class TryonController extends Controller
             // 'full' = tam boy giydirme; diğerleri yakın plan kadrajı (bkz. ProductCloseupService).
             'shot'            => $r->shot ?? TryonResult::SHOT_FULL,
             'pipeline'        => $r->pipeline ?? TryonResult::PIPELINE_LEGACY,
+            // Faz 2 otomatik kontrol özeti (yalnız mokap): durum + deneme sayısı + onaycıya Türkçe bulgular.
+            'qa'              => isset($r->qa['status']) ? [
+                'status'   => $r->qa['status'],
+                'attempts' => (int) ($r->qa['attempts'] ?? 1),
+                'issues'   => collect([...((array) ($r->qa['fidelity']['issues'] ?? [])), ...((array) ($r->qa['base_issues'] ?? []))])
+                    ->pluck('detail_tr')->filter()->values()->all(),
+            ] : null,
             'shot_label'      => $r->isCloseup() ? (ProductCloseupService::shotOptions()[$r->shot] ?? $r->shot) : null,
             'source_result_id' => $r->source_result_id,
             // Onaydan önce henüz product_images satırı yok; staged (bekleyen) önizleme gösterilir.

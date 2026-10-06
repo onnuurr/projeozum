@@ -431,6 +431,13 @@
 						<span class="result-sub">{{ r.mannequin_name }} · {{ r.pose_label }}<template v-if="r.shot_label"> · {{ r.shot_label }}</template></span>
 						<span v-if="r.creator_name" class="result-creator">Üreten: {{ r.creator_name }}{{ r.is_own ? ' (siz)' : '' }}</span>
 						<span v-if="r.tryon_model" class="result-model" :title="r.tryon_model">Model: {{ r.tryon_model }}</span>
+						<!-- Faz 2 otomatik kontrol (mokap): onayın yerine geçmez, onaycıya ipucu verir -->
+						<div v-if="r.qa" class="qa-line" :class="`is-${r.qa.status}`">
+							<span class="qa-head">Kontrol: {{ QA_LABELS[r.qa.status] || r.qa.status }}<template v-if="r.qa.attempts > 1"> · yeniden denendi</template></span>
+							<ul v-if="r.qa.issues.length" class="qa-issues">
+								<li v-for="(i, idx) in r.qa.issues.slice(0, 3)" :key="idx">{{ i }}</li>
+							</ul>
+						</div>
 						<div v-if="r.review_tags && r.review_tags.length" class="review-tags">
 							<Tag v-for="t in r.review_tags" :key="t" :label="t" color="danger" />
 						</div>
@@ -634,7 +641,7 @@ const falBalanceLow = computed(() => falBalance.value?.balance !== null && falBa
 const geminiSpendFormatted = computed(() => {
 	const s = props.geminiSpend
 	if (!s || s.amount === null || s.amount === undefined) return null
-	return new Intl.NumberFormat('en-US', { style: 'currency', currency: s.currency || 'USD' }).format(s.amount)
+	return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: s.currency || 'USD' }).format(s.amount)
 })
 
 const showToast = inject('showToast', null)
@@ -973,6 +980,7 @@ watch(selectedProduct, () => { clearGarmentFile(); clearGarmentDetails() })
 const hasPending = computed(() => displayResults.value.some(r => r.status === 'queued' || r.status === 'generating'))
 
 const STATUS_LABELS = { queued: 'Sırada', generating: 'Üretiliyor', done: 'Hazır', failed: 'Başarısız' }
+const QA_LABELS = { pass: 'geçti', warn: 'uyarı', fail: 'kaldı', unknown: 'yapılamadı' }
 const REVIEW_LABELS = { pending: 'Onay Bekliyor', approved: 'Onaylı', rejected: 'Reddedildi' }
 function statusLabel(s) { return STATUS_LABELS[s] || s }
 function reviewLabel(r) { return REVIEW_LABELS[r] || r }
@@ -1276,6 +1284,12 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.qa-line { margin-top: 4px; padding: 5px 8px; border-radius: 6px; font-size: 11px; line-height: 1.4; background: var(--color-surface-container-low); color: var(--color-muted); }
+.qa-line.is-pass { color: var(--color-success); }
+.qa-line.is-warn, .qa-line.is-unknown { color: var(--color-warning); }
+.qa-line.is-fail { color: var(--color-danger); }
+.qa-head { font-weight: 600; }
+.qa-issues { margin: 3px 0 0; padding-left: 15px; color: var(--color-ink); }
 .shot-badge { position: absolute; top: 34px; left: 6px; }
 .cu-box { position: relative; width: min(560px, 100%); max-height: 90vh; overflow: auto; background: var(--color-surface); border-radius: 16px; padding: 20px; box-shadow: 0 24px 80px rgba(0,0,0,.4); }
 .cu-head { display: flex; gap: 14px; align-items: flex-start; padding-right: 28px; }
