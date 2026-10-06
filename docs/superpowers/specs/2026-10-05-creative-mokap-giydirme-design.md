@@ -237,6 +237,9 @@ Bugünkü hat poz başına 2 görsel çağrısı yapıyor (pozlama + giydirme), 
 - **Faz 3:** `creative_stylist_options` (44 seçenek) + `MockupStylistRuleEngine` (doğrulama, eleme, çeşitlilik, cümle kurma); poz etiketleri `creative_poses.mockup_regions/requires/view`. STYLIST_VERSION=2. Gerçek Gemini ile henüz denenmedi.
 - **Faz 4:** Creative ayarlar sayfası (`/creative/settings`, çark; `creative-settings.view` + `mockup-settings.manage`): Genel (otomatik tetik, günlük limit, cinsiyete göre manken), Kategoriler (`creative_category_regions`), Stilist seçenekleri, Pozlar. Ürün Giydirme: "Mokap üret" (tek ürün), "Mokap bekleyenleri başlat" (toplu), sonuç kartında kombin özeti. Otomatik tetik: `ProductCreated`/`ProductImagesChanged` → `AutoStartMockupJob` (varsayılan kapalı).
 
+- **Beden grubu başına mokap (2026-10-06):** sitede beden seçilince o yaştaki mankenin görselleri gösterilecek (Bagisto kısmı sonra). Ürünün yaş bedenleri ("N Yaş") en yakın manken bandına gruplanır, grup başına kombin + 3 poz; kombin ürün başına bir kez (diğer gruplar kopyalar). Eksik gruplar otomatik tetik / manken onayı / 03:30 zamanlayıcıyla günlük limit içinde tamamlanır.
+- **Faz 5:** ret nedenleri aşamalı (`stage`), 5 mokap nedeni; reddedilen mokap kartında "X aşamasından yeniden üret" (stilist > baz > giydirme; düzeltme = ret ipuçları + not); günlük raporda mokap bölümü (aşama dağılımı, kontrol ↔ insan, kombin/manken ret oranı).
+
 **Bilinen açıklar**
 - Arayüz değişiklikleri (403 sayfası, Gemini/fal seçici, yakın plan penceresi, kontrol rozetleri, ₺ rozet) build bekliyor.
 - Gerçek ürün fotoğraflarıyla sadakat teyidi yapılmadı (Faz 0'ın ikinci maddesi).
