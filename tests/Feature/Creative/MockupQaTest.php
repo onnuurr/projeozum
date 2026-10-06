@@ -108,7 +108,7 @@ class MockupQaTest extends TestCase
         foreach (['standing_front', 'walking_stride'] as $i => $key) {
             $this->png("mannequins/poses/{$key}.png");
             Pose::create(['pose_key' => $key, 'label' => $key, 'prompt' => "pose {$key}", 'status' => Pose::STATUS_READY,
-                'mockup_regions' => $key === 'seated_floor' ? null : ['bottom', 'top', 'one_piece', 'set'], 'sort_order' => $i, 'preview_image_path' => "mannequins/poses/{$key}.png"]);
+                'mockup_regions' => $key === 'seated_floor' ? null : ['bottom', 'top', 'one_piece', 'set', 'outerwear'], 'sort_order' => $i, 'preview_image_path' => "mannequins/poses/{$key}.png"]);
         }
         $mannequin = Mannequin::create(['name' => 'M', 'status' => Mannequin::STATUS_READY, 'review_status' => Mannequin::REVIEW_APPROVED, 'reference_image_path' => 'mannequins/1/reference.png']);
         $cat = Category::create(['name' => 'Etek', 'slug' => 'e-' . uniqid(), 'status' => 'active', 'sort_order' => 0]);

@@ -92,6 +92,7 @@ TXT;
         $bottom = $long ? 'plain light-grey fitted cotton leggings ending just above the ankle' : 'plain light-grey fitted cotton bike shorts ending at mid-thigh';
 
         return match ($region) {
+            'outerwear' => 'NO outer layer at all (no jacket, coat, vest, cardigan or raincoat) — only the inner outfit described above',
             'top'       => 'a plain light-grey fitted short-sleeve cotton t-shirt, tucked in',
             'set', 'one_piece' => "a plain light-grey fitted short-sleeve cotton t-shirt tucked into {$bottom}",
             default     => $bottom . ', with the top fully tucked into it so the whole waistband is visible',
@@ -100,6 +101,11 @@ TXT;
 
     public function outfitText(string $outfitSentence, string $productSummary, string $region, string $length): string
     {
+        if ($region === 'outerwear') {
+            return "Outfit: {$outfitSentence} IMPORTANT: the product itself ({$productSummary}) is NOT drawn in this photo — the person wears "
+                . 'NO outer layer at all (no jacket, coat, vest, cardigan or raincoat); it will be added later over this inner outfit.';
+        }
+
         return "Outfit: {$outfitSentence} IMPORTANT: the product itself ({$productSummary}) is NOT drawn in this photo — instead the person wears "
             . $this->placeholder($region, $length) . ' in place of the product.';
     }
@@ -130,6 +136,7 @@ TXT;
         $long = in_array($length, ['midi', 'maxi'], true);
         $extra = $productImageCount > 1 ? ' Further images are additional reference photos of the SAME product (not separate garments).' : '';
         $task = match ($region) {
+            'outerwear' => "The SECOND image is a product photo of OUTERWEAR (a jacket, coat, vest or raincoat).{$extra} Task: put the product ON the person OVER their existing clothes, worn naturally as designed — open or closed exactly as in the product photo, sleeves (if any) covering the arms down to their true length, collar/hood as designed. The clothes underneath stay exactly the same wherever they remain visible." . ($long ? ' The product is long: let it fall to its true length.' : ''),
             'top' => "The SECOND image is a product photo of a TOP.{$extra} Task: replace ONLY the person's plain light-grey placeholder t-shirt with the product top, worn naturally as designed (tucked into the bottom's waistband if it is a blouse); the bottom stays the same.",
             'set' => "The SECOND image is a product photo of a TWO-PIECE SET (a top and a bottom — TWO separate garments).{$extra} Task: replace BOTH of the person's plain light-grey placeholder garments with the set: the set's top on the upper body, the set's bottom on the legs, worn as two separate pieces." . ($long ? ' The long bottom falls naturally to its true length over/around the shoes, which stay the same shoes.' : ''),
             'one_piece' => "The SECOND image is a product photo of a ONE-PIECE garment (dress or jumpsuit).{$extra} Task: replace the person's plain light-grey placeholder garments with the product, worn naturally." . ($long ? ' Let its hem fall to its true length; where it reaches the feet, the fabric falls naturally in front of / around the shoes, which stay the same shoes.' : ''),

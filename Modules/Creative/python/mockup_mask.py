@@ -3,6 +3,7 @@
 Girdi: mockup_segment.py'nin etiket haritası (.npy). Bölge tipleri (bkz. tasarım dokümanı):
   bottom  — kısa: bel → çorap üst kenarı; uzun (midi/maksi): bel → görsel altı, ayakkabı dahil
   top     — boyun → bel + %8, kollar dahil
+  outerwear — omuz → ürün boyu (bel + %6…%48), gövde + kollar; iç kombinin üstüne, yer tutucusuz
   set / one_piece — üst ∪ alt
 Altta (bottom/set/one_piece) belin hemen üstündeki üst-giysi şeridi ("tuck şeridi") da bölgeye
 girer: "üst içeride" talimatı tutmasa bile model üstü içeri sokabilir.
@@ -66,6 +67,27 @@ def top_region(lab):
     return reg & ~occl, occl
 
 
+def outerwear_region(lab, length):
+    """Dış giyim (ceket/mont/yelek): omuzdan ürün boyuna gövde + kollar, ceketin taşma payıyla. Ürün iç
+    kombinin ÜSTÜNE giyilir; yer tutucu yoktur. Saç ve yüz bazdan korunur; eller bölgede (kol boyu modelde)."""
+    H, W = lab.shape
+    upper = lab == UPPER; arms = lab == ARMS; lower = lab == LOWER
+    if not upper.any():
+        raise RuntimeError("Üst giysi (iç kombin) bulunamadı.")
+    ys, _ = np.where(upper)
+    top = ys.min() - int(H * 0.03)
+    waist = np.where(lower)[0].min() if lower.any() else ys.max()
+    drop = {"mini": 0.06, "knee": 0.20, "midi": 0.32, "maxi": 0.48}.get(length, 0.10)
+    bottom = min(H, waist + int(H * drop))
+    rows = slice(max(0, top), bottom)
+    band = np.zeros_like(upper); band[rows, :] = True
+    _, xs = np.where((upper | arms | lower) & band)
+    m = int(W * 0.06)
+    reg = np.zeros_like(upper); reg[rows, max(0, xs.min() - m):min(W, xs.max() + m)] = True
+    occl = np.isin(lab, [HAIR, FACE])
+    return reg & ~occl, occl
+
+
 def crop_box(reg, H, W):
     """Bölgeyi %8–10 payla saran, tam 3:4 oranlı kırpma kutusu (Gemini çıktısı 3:4)."""
     ys, xs = np.where(reg)
@@ -97,6 +119,8 @@ def cmd_mask(labels, prefix, region, length):
         reg, occl = bottom_region(lab, long)
     elif region == "top":
         reg, occl = top_region(lab)
+    elif region == "outerwear":
+        reg, occl = outerwear_region(lab, length)
     elif region in ("set", "one_piece"):
         rb, _ = bottom_region(lab, long); rt, _ = top_region(lab)
         occl = np.isin(lab, [HAIR, FACE]); reg = (rb | rt) & ~occl

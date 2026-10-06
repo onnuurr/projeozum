@@ -12,7 +12,7 @@ use Tests\TestCase;
  */
 class MockupStylistRuleEngineTest extends TestCase
 {
-    private const ALL = ['bottom', 'top', 'one_piece', 'set'];
+    private const ALL = ['bottom', 'top', 'one_piece', 'set', 'outerwear'];
 
     private function catalog(): array
     {
@@ -20,12 +20,12 @@ class MockupStylistRuleEngineTest extends TestCase
 
         return [
             'top' => [
-                'rib_tee'    => $o('a ribbed t-shirt', ['regions' => ['bottom'], 'colorable' => true]),
+                'rib_tee'    => $o('a ribbed t-shirt', ['regions' => ['bottom', 'outerwear'], 'colorable' => true]),
                 'blouse'     => $o('a puff-sleeve blouse', ['regions' => ['bottom'], 'genders' => ['girl'], 'colorable' => true]),
                 'shirt'      => $o('a button-up shirt', ['regions' => ['bottom']]),
             ],
             'bottom' => [
-                'jeans'      => $o('straight-leg jeans', ['regions' => ['top']]),
+                'jeans'      => $o('straight-leg jeans', ['regions' => ['top', 'outerwear']]),
             ],
             'footwear' => [
                 'sneakers'   => $o('canvas sneakers', ['regions' => self::ALL]),
@@ -112,6 +112,19 @@ class MockupStylistRuleEngineTest extends TestCase
         $this->assertSame(['footwear', 'socks', 'accessory'], array_keys($r['pieces']));
         $this->assertSame('headband', $r['pieces']['accessory']);
         $this->assertSame('Canvas sneakers and a headband.', $r['sentence']);   // çorap seçilmedi → listedeki ilk: none
+    }
+
+    public function test_outerwear_gets_an_inner_top_and_bottom_and_ignores_its_own_length(): void
+    {
+        $r = $this->resolve(['picks' => ['top' => ['rib_tee'], 'color' => ['navy'], 'bottom' => ['jeans'], 'footwear' => ['mary_janes'],
+            'socks' => ['ankle'], 'accessory' => ['bag', 'headband']]], ['region' => 'outerwear', 'length' => 'maxi']);
+
+        $this->assertSame('rib_tee', $r['pieces']['top']);
+        $this->assertSame('jeans', $r['pieces']['bottom']);
+        $this->assertSame('mary_janes', $r['pieces']['footwear']);   // uzun palto ≠ uzun alt: boy kısıtı uygulanmaz
+        $this->assertSame('ankle', $r['pieces']['socks']);
+        $this->assertSame('headband', $r['pieces']['accessory']);    // göğüste aksesuar yok
+        $this->assertSame('A ribbed t-shirt in navy, fully tucked in, straight-leg jeans, with Mary Jane shoes, white ankle socks and a headband.', $r['sentence']);
     }
 
     public function test_diversity_rule_skips_combos_used_recently_in_the_category(): void

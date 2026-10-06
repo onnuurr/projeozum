@@ -31,7 +31,9 @@ class MockupOutfit extends Model
     public const REGION_TOP       = 'top';
     public const REGION_ONE_PIECE = 'one_piece';
     public const REGION_SET       = 'set';
-    public const REGIONS = [self::REGION_BOTTOM, self::REGION_TOP, self::REGION_ONE_PIECE, self::REGION_SET];
+    // Faz 6: başka bir kıyafetin ÜSTÜNE giyilen dış katman (ceket, mont, yelek, yağmurluk).
+    public const REGION_OUTERWEAR = 'outerwear';
+    public const REGIONS = [self::REGION_BOTTOM, self::REGION_TOP, self::REGION_ONE_PIECE, self::REGION_SET, self::REGION_OUTERWEAR];
 
     public const LENGTHS = ['mini', 'knee', 'midi', 'maxi'];
 

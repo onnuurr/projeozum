@@ -111,6 +111,7 @@ class MockupStylistService
         return array_values(array_filter(match ($region) {
             'bottom' => ['top', 'color', 'footwear', $long ? null : 'socks', 'accessory'],
             'top'    => ['bottom', 'color', 'footwear', 'socks', 'accessory'],
+            'outerwear' => ['top', 'color', 'bottom', 'footwear', 'socks', 'accessory'],
             default  => ['footwear', $long ? null : 'socks', 'accessory'],
         }));
     }

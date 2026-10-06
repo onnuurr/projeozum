@@ -11,7 +11,8 @@ namespace Modules\Creative\Services\Mockup;
  *
  * Kurallar:
  *  - Seçenek bu ürün bölgesine, cinsiyete ve boya uygun olmalı (tags.regions / genders / lengths).
- *  - Alt ürün → üst parça zorunlu ve içeride; üst ürün → alt parça zorunlu; takım / tek parça → yalnız
+ *  - Alt ürün → üst parça zorunlu ve içeride; üst ürün → alt parça zorunlu; dış giyim → iç kombin (üst +
+ *    alt) zorunlu, boy kısıtları dış katmana değil iç kombine bakar; takım / tek parça → yalnız
  *    ayakkabı, çorap, saç aksesuarı (göğüste ya da bilekte aksesuar yok). Üst ürünlerde göğüste aksesuar yok.
  *  - Midi/maksi boyda çorap görünmez → "none".
  *  - Renk yalnız renklenebilir (tags.colorable) tamamlayıcı parçaya uygulanır.
@@ -38,12 +39,13 @@ class MockupStylistRuleEngine
         $picks = (array) ($ai['picks'] ?? []);
 
         $complement = match ($region) {
-            'bottom' => 'top',
+            'bottom', 'outerwear' => 'top',
             'top'    => 'bottom',
             default  => null,
         };
 
-        // Tamamlayıcı parça + ayakkabı: çeşitlilik kuralıyla birlikte seçilir.
+        // Tamamlayıcı parça + ayakkabı: çeşitlilik kuralıyla birlikte seçilir (dış giyimde tamamlayıcı = iç üst;
+        // iç alt ayrıca seçilir).
         $compCands = $complement ? $this->candidates($complement, $picks, $catalog, $ctx) : [null];
         $footCands = $this->candidates('footwear', $picks, $catalog, $ctx);
         if ($complement && $compCands === []) {
@@ -67,8 +69,15 @@ class MockupStylistRuleEngine
         if ($comp !== null && ! empty($catalog[$complement][$comp]['tags']['colorable'])) {
             $pieces['color'] = $this->pick('color', $picks, $catalog, $ctx, $warnings);
         }
+        if ($region === 'outerwear') {
+            if ($this->candidates('bottom', $picks, $catalog, $ctx) === []) {
+                throw new \RuntimeException("Stilist seçenek listesinde bu ürüne uygun 'bottom' yok.");
+            }
+            $pieces['bottom'] = $this->pick('bottom', $picks, $catalog, $ctx, $warnings);
+        }
 
-        $long = in_array($ctx['length'], ['midi', 'maxi'], true);
+        // Dış giyimde boy dış katmanındır; çorabı iç kombin belirler.
+        $long = $region !== 'outerwear' && in_array($ctx['length'], ['midi', 'maxi'], true);
         $pieces['socks'] = $long ? 'none' : $this->pick('socks', $picks, $catalog, $ctx, $warnings);
         $pieces['accessory'] = $this->pick('accessory', $picks, $catalog, $ctx, $warnings);
 
@@ -115,13 +124,14 @@ class MockupStylistRuleEngine
         $t = (array) ($opt['tags'] ?? []);
         $in = fn (string $tag, ?string $value) => empty($t[$tag]) || $value === null || in_array($value, (array) $t[$tag], true);
 
-        if (! $in('regions', $ctx['region']) || ! $in('genders', $ctx['gender'] ?? null) || ! $in('lengths', $ctx['length'] ?: null)) {
+        $length = $ctx['region'] === 'outerwear' ? null : ($ctx['length'] ?: null);
+        if (! $in('regions', $ctx['region']) || ! $in('genders', $ctx['gender'] ?? null) || ! $in('lengths', $length)) {
             return false;
         }
         if ($kind === 'accessory' && isset($t['placement'])) {
             $allowed = match ($ctx['region']) {
                 'bottom' => ['hair', 'wrist', 'chest'],
-                'top'    => ['hair', 'wrist'],
+                'top', 'outerwear' => ['hair', 'wrist'],
                 default  => ['hair'],
             };
 
@@ -158,15 +168,15 @@ class MockupStylistRuleEngine
     {
         $text = fn (string $kind) => trim((string) ($catalog[$kind][$pieces[$kind] ?? '']['prompt_en'] ?? ''));
 
-        $main = null;
+        $garments = [];
         foreach (['top', 'bottom'] as $kind) {
             if (isset($pieces[$kind]) && $text($kind) !== '') {
-                $main = $text($kind) . (isset($pieces['color']) && $text('color') !== '' ? ' in ' . $text('color') : '');
-                if ($kind === 'top') {
-                    $main .= ', fully tucked in';
-                }
+                // Renk tamamlayıcı parçaya (alt üründe/dış giyimde üst, üst üründe alt) uygulanır.
+                $colored = $kind === ($region === 'top' ? 'bottom' : 'top') && isset($pieces['color']) && $text('color') !== '';
+                $garments[] = $text($kind) . ($colored ? ' in ' . $text('color') : '') . ($kind === 'top' && $region !== 'top' ? ', fully tucked in' : '');
             }
         }
+        $main = $garments === [] ? null : implode(', ', $garments);
 
         $rest = array_values(array_filter([$text('footwear'), $text('socks'), $text('accessory')]));
         $list = count($rest) > 1 ? implode(', ', array_slice($rest, 0, -1)) . ' and ' . end($rest) : ($rest[0] ?? '');

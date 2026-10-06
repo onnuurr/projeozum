@@ -1016,7 +1016,7 @@ const hasPending = computed(() => displayResults.value.some(r => r.status === 'q
 
 const STATUS_LABELS = { queued: 'Sırada', generating: 'Üretiliyor', done: 'Hazır', failed: 'Başarısız' }
 const QA_LABELS = { pass: 'geçti', warn: 'uyarı', fail: 'kaldı', unknown: 'yapılamadı' }
-const MOCKUP_REGIONS = { bottom: 'alt', top: 'üst', one_piece: 'tek parça', set: 'takım' }
+const MOCKUP_REGIONS = { bottom: 'alt', top: 'üst', one_piece: 'tek parça', set: 'takım', outerwear: 'dış giyim' }
 
 /* ── Mokap (Faz 4): tek ürün / toplu başlat. Ücretli AI; sunucu günlük limiti ve varsayılan mankeni uygular. ── */
 const mockupBusy = ref(false)

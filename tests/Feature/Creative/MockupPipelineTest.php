@@ -64,7 +64,7 @@ class MockupPipelineTest extends TestCase
     {
         $cat = Category::create(['name' => $category, 'slug' => 'c-' . uniqid(), 'status' => 'active', 'sort_order' => 0]);
         // Ayarlar › Mokap eşleştirmesi (canlıda migration eski config'ten taşıdı).
-        $map = ['Etek' => ['bottom', null], 'Kot Pantolon' => ['bottom', 'maxi'], 'Takım' => ['set', null]][$category] ?? null;
+        $map = ['Etek' => ['bottom', null], 'Kot Pantolon' => ['bottom', 'maxi'], 'Takım' => ['set', null], 'Mont' => ['outerwear', 'knee']][$category] ?? null;
         if ($map) {
             \Modules\Creative\Models\CategoryRegion::create(['category_id' => $cat->id, 'region' => $map[0], 'length' => $map[1]]);
         }
@@ -86,7 +86,7 @@ class MockupPipelineTest extends TestCase
         foreach (['standing_front', 'walking_stride', 'standing_three_qtr', 'seated_floor'] as $i => $key) {
             $this->png("mannequins/poses/{$key}.png");
             Pose::create(['pose_key' => $key, 'label' => $key, 'prompt' => "pose {$key}", 'status' => Pose::STATUS_READY,
-                'mockup_regions' => $key === 'seated_floor' ? null : ['bottom', 'top', 'one_piece', 'set'],
+                'mockup_regions' => $key === 'seated_floor' ? null : ['bottom', 'top', 'one_piece', 'set', 'outerwear'],
                 'sort_order' => $i, 'preview_image_path' => "mannequins/poses/{$key}.png"]);
         }
 
@@ -268,6 +268,19 @@ class MockupPipelineTest extends TestCase
 
         $this->expectException(\RuntimeException::class);
         app(\Modules\Creative\Services\Mockup\MockupRerunService::class)->rerun($r->fresh());
+    }
+
+    public function test_outerwear_product_gets_an_inner_outfit_and_goes_through_the_pipeline(): void
+    {
+        Queue::fake();
+        $pipeline = app(MockupPipelineService::class);
+        $outfit = $pipeline->run($pipeline->start($this->product('Mont', null), $this->mannequinAndPoses()));
+
+        $this->assertSame('outerwear', $outfit->region);
+        $this->assertSame(MockupOutfit::STATUS_READY, $outfit->status, (string) $outfit->error);
+        $this->assertArrayHasKey('top', $outfit->pieces);
+        $this->assertArrayHasKey('bottom', $outfit->pieces);
+        $this->assertCount(3, TryonResult::where('pipeline', TryonResult::PIPELINE_MOCKUP)->get());
     }
 
     public function test_stylist_picks_from_option_list_and_varies_combos_within_a_category(): void
