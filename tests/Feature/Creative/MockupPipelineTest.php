@@ -219,6 +219,30 @@ class MockupPipelineTest extends TestCase
         $this->assertSame(TryonResult::STATUS_QUEUED, $r->fresh()->status);
     }
 
+    public function test_changed_boy_attribute_regenerates_bases_with_the_new_length_even_for_a_composite_rejection(): void
+    {
+        Queue::fake();
+        $rerun = app(\Modules\Creative\Services\Mockup\MockupRerunService::class);
+        [$outfit, $r] = $this->rejectedMockup(['Birleştirme izi / kenar']);      // mini, attribute
+        $this->assertSame(['mini', 'attribute'], [$outfit->length, $outfit->length_source]);
+        $this->assertSame(['composite', false], [$rerun->plan($r)['stage'], $rerun->plan($r)['length_changed']]);
+
+        // Ret sonrası ürünün "Boy" özelliği düzeltildi: eski maske geçersiz → giydirme değil baz aşaması.
+        $uzun = ProductAttributeOption::create(['product_attribute_id' => ProductAttribute::where('code', 'boy')->value('id'), 'name' => 'Uzun']);
+        $r->product->update(['attributes' => ['boy' => $uzun->id]]);
+        $plan = $rerun->rerun($r->fresh());
+        $this->assertSame(['base', true], [$plan['stage'], $plan['length_changed']]);
+
+        $outfit->refresh();
+        $this->assertSame(['maxi', 'attribute'], [$outfit->length, $outfit->length_source]);
+        $this->assertSame(MockupOutfit::STATUS_QUEUED, $outfit->status);
+        $this->assertSame(0, MockupBase::where('outfit_id', $outfit->id)->count());
+        $this->assertNotNull($outfit->outfit_sentence);                              // kombin korunur
+        Queue::assertPushed(GenerateMockupJob::class, fn ($j) => $j->outfitId === $outfit->id);
+        $this->assertArrayNotHasKey('rerun_stage', $r->fresh()->meta ?? []);       // yalnız giydirme yeniden kuyruğa alınmadı
+        $this->assertSame(TryonResult::STATUS_QUEUED, $r->fresh()->status);
+    }
+
     public function test_stylist_stage_reselects_the_look_and_avoids_the_rejected_combo(): void
     {
         Queue::fake();

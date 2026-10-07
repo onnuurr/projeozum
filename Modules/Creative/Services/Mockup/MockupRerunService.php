@@ -21,6 +21,10 @@ use RuntimeException;
  *  - tryon / composite: yalnız bu giydirme (talimat meta.extra_instructions'a)
  *  - base: bu beden grubunun baz görselleri (talimat outfit meta.base_correction'a) + giydirmeleri
  *  - stylist: ürünün bütün beden gruplarında kombin yeniden (önceki kombin yasaklanır) + bazlar + giydirmeler
+ *
+ * Boy her seferinde ürünün güncel "Boy" özelliğinden / kategorisinden yeniden okunur: kombindeki boydan
+ * farklıysa baz yer tutucusu ve maske eskimiştir → aşama en az "baz" olur ve ürünün bütün beden
+ * gruplarının bazları yeni boyla yeniden üretilir (ret etiketi yalnız birleştirme izi dese bile).
  */
 class MockupRerunService
 {
@@ -29,18 +33,23 @@ class MockupRerunService
         private ProductOnModelService $onModel,
     ) {}
 
-    /** @return array{stage:string, label:string, usd:float} */
+    /** @return array{stage:string, label:string, usd:float, length_changed:bool} */
     public function plan(TryonResult $result): array
     {
         $stage = $this->stageFor($result);
-        $groups = $stage === 'stylist' ? max(1, $this->productOutfits($result)->count()) : 1;
+        $outfit = $result->mockupBase?->outfit;
+        $lengthChanged = $outfit !== null && $this->lengthDrift($outfit) !== null;
+        if ($lengthChanged && $stage !== 'stylist') {
+            $stage = 'base';
+        }
+        $groups = $stage === 'stylist' || $lengthChanged ? max(1, $this->productOutfits($result)->count()) : 1;
         $usd = match ($stage) {
             'stylist' => 0.22 * $groups,
-            'base'    => 0.21,
+            'base'    => 0.21 * $groups,
             default   => 0.036,
         };
 
-        return ['stage' => $stage, 'label' => RejectionReason::STAGES[$stage] ?? $stage, 'usd' => round($usd, 3)];
+        return ['stage' => $stage, 'label' => RejectionReason::STAGES[$stage] ?? $stage, 'usd' => round($usd, 3), 'length_changed' => $lengthChanged];
     }
 
     public function stageFor(TryonResult $result): string
@@ -70,7 +79,7 @@ class MockupRerunService
         return trim(implode(' ', $parts));
     }
 
-    /** @return array{stage:string, label:string, usd:float} */
+    /** @return array{stage:string, label:string, usd:float, length_changed:bool} */
     public function rerun(TryonResult $result): array
     {
         if (! $result->isMockup() || $result->review_status !== TryonResult::REVIEW_REJECTED) {
@@ -94,7 +103,7 @@ class MockupRerunService
 
         match ($plan['stage']) {
             'stylist' => $this->rerunStylist($result, $outfit),
-            'base'    => $this->rerunBases($outfit, $correction),
+            'base'    => $plan['length_changed'] ? $this->rerunBasesForLength($result, $correction) : $this->rerunBases($outfit, $correction),
             default   => $this->rerunTryon($result, $correction),
         };
         if ($plan['stage'] !== 'tryon' && $plan['stage'] !== 'composite') {
@@ -135,6 +144,18 @@ class MockupRerunService
         GenerateMockupJob::dispatch($outfit->id);
     }
 
+    /** Boy değişti: ürünün bütün beden gruplarının bazları (yer tutucu + maske boya bağlı) yeni boyla. */
+    private function rerunBasesForLength(TryonResult $result, string $correction): void
+    {
+        $outfits = $this->productOutfits($result);
+        $outfits->each(fn ($o) => $this->assertIdle($o));
+        foreach ($outfits as $o) {
+            $this->syncLength($o);
+            $this->resetOutfit($o, ['base_correction' => $correction ?: null], keepLook: true);
+            GenerateMockupJob::dispatch($o->id);
+        }
+    }
+
     private function rerunStylist(TryonResult $result, MockupOutfit $outfit): void
     {
         $outfits = $this->productOutfits($result);
@@ -143,14 +164,51 @@ class MockupRerunService
         $avoid = [...((array) ($outfit->meta['avoid_combos'] ?? [])),
             [($outfit->pieces['top'] ?? $outfit->pieces['bottom'] ?? null), ($outfit->pieces['footwear'] ?? null)]];
         foreach ($outfits as $o) {
-            // Stilistin TAHMİN ettiği boy yeniden çözülür (ret sonrası kategori/ürün "Boy" özelliği girilmiş
-            // olabilir); hâlâ yoksa boşaltılır, stilist ürünün bütün fotoğraflarından yeniden tahmin eder.
-            if ($o->length_source === 'ai') {
-                $type = $this->types->resolve($o->product);   // bölge verilmez: kategori boyu da okunsun
-                $o->update(['length' => $type['length'] ?? '', 'length_source' => $type['length_source']]);
-            }
+            $this->syncLength($o, retryGuess: true);
             $this->resetOutfit($o, ['avoid_combos' => $avoid], keepLook: false);
             GenerateMockupJob::dispatch($o->id);
+        }
+    }
+
+    /**
+     * Ürünün güncel boyu (özellik → kategori) kombindekinden farklıysa çözümlemeyi döner, yoksa null.
+     * Elle verilmiş boy (override) korunur; bölgesi değişmiş ya da artık boy bilgisi olmayan ürün
+     * burada ele alınmaz (bölge değişimi yeni kombin ister; boyu silinen üründe eski boy kalır).
+     *
+     * @return array{region:string, length:string, length_source:string}|null
+     */
+    private function lengthDrift(MockupOutfit $outfit): ?array
+    {
+        $type = $this->knownLength($outfit);
+
+        return $type && $type['length'] !== $outfit->length ? $type : null;
+    }
+
+    /** @return array{region:string, length:string, length_source:string}|null ürün/kategori bir boy söylüyorsa */
+    private function knownLength(MockupOutfit $outfit): ?array
+    {
+        if ($outfit->length_source === 'override' || ! $outfit->product) {
+            return null;
+        }
+        try {
+            $type = $this->types->resolve($outfit->product);     // bölge verilmez: kategori boyu da okunsun
+        } catch (RuntimeException) {
+            return null;
+        }
+
+        return $type['region'] === $outfit->region && $type['length'] !== null ? $type : null;
+    }
+
+    /**
+     * Kombinin boyunu ürünün güncel boyuna çeker. $retryGuess (stilist aşaması): boyu stilist TAHMİN
+     * etmişse ve ürün/kategori hâlâ boy söylemiyorsa boşaltılır, stilist bütün fotoğraflardan yeniden tahmin eder.
+     */
+    private function syncLength(MockupOutfit $outfit, bool $retryGuess = false): void
+    {
+        if ($type = $this->knownLength($outfit)) {
+            $outfit->update(['length' => $type['length'], 'length_source' => $type['length_source']]);
+        } elseif ($retryGuess && $outfit->length_source === 'ai') {
+            $outfit->update(['length' => '', 'length_source' => 'ai']);
         }
     }
 
