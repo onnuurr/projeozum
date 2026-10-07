@@ -57,6 +57,19 @@ const columns = [
 	{ key: 'actions', label: '', align: 'right', width: '8%', searchable: false },
 ]
 
+/* ── Toplu seçim → Toplu Stok İşlemi (seçilen satırların ürünleri bütün varyantlarıyla açılır) ── */
+const selected = ref([])
+function bulkFromSelection() {
+	const rows = props.stocks.filter(s => selected.value.includes(s.id))
+	if (!rows.length) return
+	const warehouses = [...new Set(rows.map(r => r.warehouse_id))]
+	router.visit('/products/stocks/bulk', { data: {
+		variant_ids: [...new Set(rows.map(r => r.variant_id))],
+		// Tek depodan seçildiyse o depo hazır gelir; karışıksa varsayılan depo.
+		...(warehouses.length === 1 ? { warehouse_id: warehouses[0] } : {}),
+	} })
+}
+
 /* ── Movement ── */
 const movementTypes = [
 	{ value: 'in',         label: 'Giriş',    icon: ArrowDown },
@@ -137,6 +150,8 @@ function submitMovement() {
 			<OzPill v-if="criticalCount > 0" tone="danger">{{ criticalCount }} kritik</OzPill>
 		</template>
 		<template #actions>
+			<OzButton icon="clock" @click="router.visit('/products/stocks/history')">Hareket Geçmişi</OzButton>
+			<OzButton icon="layers" @click="router.visit('/products/stocks/bulk')">Toplu Stok İşlemi</OzButton>
 			<OzButton variant="primary" icon="activity" @click="openMovement()">Stok Hareketi</OzButton>
 		</template>
 	</OzPageHeader>
@@ -151,7 +166,10 @@ function submitMovement() {
 				<OzSwitch v-model="localFilters.critical_only" label="Sadece kritik" @update:modelValue="applyFilters" />
 			</div>
 		</template>
-		<OzTable :columns="columns" :rows="stocks" row-key="id" manual empty-title="Stok kaydı yok" min-width="760px">
+		<OzTable v-model:selected="selected" :columns="columns" :rows="stocks" row-key="id" manual selectable item-label="stok satırı" empty-title="Stok kaydı yok" min-width="760px">
+			<template #bulk>
+				<OzButton variant="primary" size="sm" icon="layers" @click="bulkFromSelection">Seçilenlerle toplu işlem ({{ selected.length }})</OzButton>
+			</template>
 			<template #cell-product="{ row }">
 				<div class="product-cell">
 					<Link v-if="row.productId && canCard" :href="`/products/${row.productId}/card?tab=stok`" class="product-name product-link">{{ row.productName }}</Link>

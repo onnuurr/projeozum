@@ -10,6 +10,7 @@ use Inertia\Response;
 use Modules\Product\Http\Requests\StoreStockMovementRequest;
 use Modules\Product\Models\Stock;
 use Modules\Product\Models\StockMovement;
+use Modules\Product\Models\StockOperation;
 use Modules\Product\Models\Warehouse;
 use Modules\Product\Services\StockService;
 
@@ -120,6 +121,12 @@ class StockController extends Controller
         if ($type = $request->string('type')->toString()) {
             $query->where('type', $type);
         }
+        // Toplu işlemin satırları (StockService::bulk() hareketleri işleme reference ile bağlar).
+        $operation = ($operationId = $request->integer('operation_id'))
+            ? StockOperation::with(['warehouse:id,name,code', 'user:id,name'])->find($operationId) : null;
+        if ($operationId) {
+            $query->where('reference_type', (new StockOperation)->getMorphClass())->where('reference_id', $operationId);
+        }
 
         $movements = $query
             ->orderByDesc('id')
@@ -140,15 +147,39 @@ class StockController extends Controller
                 'warehouseCode'    => $m->warehouse?->code,
                 'userName'         => $m->user?->name,
                 'createdAt'        => optional($m->created_at)->format('Y-m-d H:i'),
+                'operationId'      => $m->reference_type === (new StockOperation)->getMorphClass() ? $m->reference_id : null,
             ]);
 
         return Inertia::render('Product::StockHistory', [
-            'movements' => $movements,
-            'filters'   => [
+            'movements'  => $movements,
+            'operation'  => $operation ? $this->mapOperation($operation) : null,
+            // Son toplu işlemler (log başlıkları) — satırlarına operation_id filtresiyle inilir.
+            'operations' => StockOperation::with(['warehouse:id,name,code', 'user:id,name'])
+                ->latest('id')->limit(30)->get()->map(fn (StockOperation $o) => $this->mapOperation($o)),
+            'warehouses' => Warehouse::query()->orderBy('name')->get(['id', 'name', 'code']),
+            'filters'    => [
                 'variant_id'   => $request->integer('variant_id'),
                 'warehouse_id' => $request->integer('warehouse_id'),
                 'type'         => $request->string('type')->toString(),
+                'operation_id' => $operationId ?: null,
             ],
         ]);
+    }
+
+    /** @return array<string,mixed> */
+    private function mapOperation(StockOperation $o): array
+    {
+        return [
+            'id'            => $o->id,
+            'mode'          => $o->mode,
+            'note'          => $o->note,
+            'warehouseName' => $o->warehouse?->name,
+            'userName'      => $o->user?->name,
+            'lineCount'     => $o->line_count,
+            'skippedCount'  => $o->skipped_count,
+            'totalIn'       => $o->total_in,
+            'totalOut'      => $o->total_out,
+            'createdAt'     => optional($o->created_at)->format('Y-m-d H:i'),
+        ];
     }
 }

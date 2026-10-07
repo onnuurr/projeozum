@@ -7,6 +7,7 @@ use Modules\Product\Http\Controllers\OrderController;
 use Modules\Product\Http\Controllers\PriceListController;
 use Modules\Product\Http\Controllers\ProductController;
 use Modules\Product\Http\Controllers\ProductImageController;
+use Modules\Product\Http\Controllers\StockBulkController;
 use Modules\Product\Http\Controllers\StockController;
 use Modules\Product\Http\Controllers\WarehouseController;
 
@@ -137,6 +138,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->middleware('can:stock.manage')->name('movement');
         Route::get('/history', [StockController::class, 'history'])
             ->middleware('can:stock.manage')->name('history');
+        // Toplu stok işlemi: ürün(ler)in bütün varyantlarına tek seferde giriş / çıkış / sayım.
+        Route::get('/bulk', [StockBulkController::class, 'create'])
+            ->middleware('can:stock.manage')->name('bulk');
+        Route::get('/bulk/products', [StockBulkController::class, 'products'])
+            ->middleware('can:stock.manage')->name('bulk.products');
+        Route::post('/bulk', [StockBulkController::class, 'store'])
+            ->middleware(['can:stock.manage', 'throttle:30,1'])->name('bulk.store');
     });
 
     // ─── Ürün Kartı (SAP MM03 benzeri) ────────────────────────────────────

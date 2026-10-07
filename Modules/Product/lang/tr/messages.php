@@ -17,6 +17,8 @@ return [
     'warehouse_has_stock' => 'Bu depoda stok var, önce stokları başka depoya transfer edin.',
     'category_self_parent' => 'Bir kategori kendisinin üstü olamaz.',
     'stock_negative' => 'Stok negatife düşemez.',
+    'stock_bulk_saved' => 'Toplu stok işlemi kaydedildi: :count varyantta değişiklik.',
+    'stock_bulk_insufficient' => ':sku için stok yetersiz (depoda :have, rezerve :reserved). Hiçbir değişiklik kaydedilmedi.',
     'sku_locked' => 'Ürün SKU\'su oluşturulduktan sonra değiştirilemez.',
 
     // Durum geçişleri

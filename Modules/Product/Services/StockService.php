@@ -5,12 +5,14 @@ namespace Modules\Product\Services;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Modules\Product\Events\StockChanged;
 use Modules\Product\Exceptions\InsufficientStockException;
 use Modules\Product\Models\Order;
 use Modules\Product\Models\ProductVariant;
 use Modules\Product\Models\Stock;
 use Modules\Product\Models\StockMovement;
+use Modules\Product\Models\StockOperation;
 use Modules\Product\Models\Warehouse;
 
 /**
@@ -133,6 +135,64 @@ class StockService
         $this->move($variantId, $warehouseId, StockMovement::TYPE_IN, $qty, note: self::OPENING_NOTE, userId: $userId);
 
         return true;
+    }
+
+    /**
+     * Toplu stok işlemi: tek depoda birden çok varyantın stoğu tek transaction'da değişir.
+     *   in    → her satırın miktarı kadar giriş
+     *   out   → her satırın miktarı kadar çıkış (stok yetmezse hiçbir satır yazılmaz)
+     *   count → sayım: stok satırdaki miktara eşitlenir; fark düzeltme hareketi olur, fark yoksa atlanır
+     * Her değişiklik bir StockMovement'tır (reference = StockOperation) — işlemin logu bu kayıtlardır.
+     *
+     * @param  array<int, array{variant_id:int, quantity:int}>  $lines
+     *
+     * @throws ValidationException  çıkış/sayım stoğu eksiye düşürecekse (hangi SKU olduğu yazılır).
+     */
+    public function bulk(int $warehouseId, string $mode, array $lines, ?string $note = null, ?int $userId = null): StockOperation
+    {
+        return DB::transaction(function () use ($warehouseId, $mode, $lines, $note, $userId) {
+            $operation = StockOperation::create([
+                'warehouse_id' => $warehouseId, 'mode' => $mode, 'note' => $note, 'user_id' => $userId,
+            ]);
+
+            $current = Stock::query()->where('warehouse_id', $warehouseId)
+                ->whereIn('product_variant_id', array_column($lines, 'variant_id'))
+                ->lockForUpdate()->get()->keyBy('product_variant_id');
+            $skus = ProductVariant::query()->whereIn('id', array_column($lines, 'variant_id'))->pluck('sku', 'id');
+
+            $written = $skipped = $in = $out = 0;
+            foreach ($lines as $i => $line) {
+                $variantId = (int) $line['variant_id'];
+                $qty = (int) $line['quantity'];
+                $stock = $current->get($variantId);
+                $have = (int) ($stock?->quantity ?? 0);
+                $reserved = (int) ($stock?->reserved_quantity ?? 0);
+
+                [$type, $delta] = match ($mode) {
+                    StockOperation::MODE_IN  => [StockMovement::TYPE_IN, abs($qty)],
+                    StockOperation::MODE_OUT => [StockMovement::TYPE_OUT, -abs($qty)],
+                    default                  => [StockMovement::TYPE_ADJUSTMENT, $qty - $have],
+                };
+                if ($delta === 0) {
+                    $skipped++;
+
+                    continue;
+                }
+                if ($have + $delta < 0 || ($delta < 0 && $have + $delta < $reserved)) {
+                    throw ValidationException::withMessages(["lines.{$i}.quantity" => __('product::messages.stock_bulk_insufficient', [
+                        'sku' => $skus[$variantId] ?? "#{$variantId}", 'have' => $have, 'reserved' => $reserved,
+                    ])]);
+                }
+
+                $this->move($variantId, $warehouseId, $type, $type === StockMovement::TYPE_ADJUSTMENT ? $delta : abs($delta), $operation, $note, $userId);
+                $written++;
+                $delta > 0 ? $in += $delta : $out += -$delta;
+            }
+
+            $operation->update(['line_count' => $written, 'skipped_count' => $skipped, 'total_in' => $in, 'total_out' => $out]);
+
+            return $operation;
+        });
     }
 
     /**
