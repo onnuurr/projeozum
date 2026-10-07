@@ -429,8 +429,10 @@ class ProductOnModelService
      * Mokap renk setleri: renk adı => o rengin yalın fotoğrafı (görsel variant_colors ile renge etiketli
      * ya da o rengin bir varyantına bağlı). Tek renkli / renksiz ürün ya da hiçbir rengin fotoğrafı yoksa
      * tek genel set: ['' => $fallback] (bütün renklere gider). Fotoğrafı olmayan renkler atlanır.
+     * extras: aynı setin diğer yalın fotoğrafları (ör. takımın ayrı çekilmiş altı) — giydirmeye ve
+     * stiliste ek referans olarak gider; genel sette yalnız ürün tek renkliyse eklenir (renk karışmasın).
      *
-     * @return array{garments: array<string,string>, missing: list<string>}
+     * @return array{garments: array<string,string>, extras: array<string,list<string>>, missing: list<string>}
      */
     public function colorGarments(Product $product, ?string $fallback = null): array
     {
@@ -440,20 +442,24 @@ class ProductOnModelService
         $variantColor = $product->variants->pluck('color_name', 'id')->all();
 
         $garments = [];
+        $extras = [];
         foreach (count($colors) > 1 ? $colors : [] as $color) {
             $photos = $plain->filter(fn (ProductImage $i) => in_array($color, (array) $i->variant_colors, true)
                 || ($i->product_variant_id && ($variantColor[$i->product_variant_id] ?? null) === $color));
             if ($photo = ($photos->firstWhere('is_cover', true) ?? $photos->first())?->path) {
                 $garments[$color] = $photo;
+                $extras[$color] = $photos->pluck('path')->reject(fn ($p) => $p === $photo)->take(3)->values()->all();
             }
         }
         if ($garments === []) {
             $general = $fallback ?: $this->pickPlainProductPhoto($product);
+            $more = $general && count($colors) <= 1 ? $plain->pluck('path')->reject(fn ($p) => $p === $general)->take(3)->values()->all() : [];
 
-            return ['garments' => $general ? ['' => $general] : [], 'missing' => count($colors) > 1 ? $colors : []];
+            return ['garments' => $general ? ['' => $general] : [], 'extras' => $general ? ['' => $more] : [],
+                'missing' => count($colors) > 1 ? $colors : []];
         }
 
-        return ['garments' => $garments, 'missing' => array_values(array_diff($colors, array_keys($garments)))];
+        return ['garments' => $garments, 'extras' => $extras, 'missing' => array_values(array_diff($colors, array_keys($garments)))];
     }
 
     /**

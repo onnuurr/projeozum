@@ -17,9 +17,9 @@ class GeminiMockupGenerator implements MockupGeneratorContract
         private MockupPromptBuilder $prompts,
     ) {}
 
-    public function stylist(string $productImagePath, array $context): array
+    public function stylist(string $productImagePath, array $context, array $extraImagePaths = []): array
     {
-        $json = $this->json($this->client->analyzeImage($this->prompts->stylist($context), $productImagePath));
+        $json = $this->json($this->client->analyzeImages($this->prompts->stylist([...$context, 'extra_images' => count($extraImagePaths)]), [$productImagePath, ...$extraImagePaths]));
         if ($json === null) {
             throw new RuntimeException(__('creative::messages.mockup.stylist_invalid'));
         }

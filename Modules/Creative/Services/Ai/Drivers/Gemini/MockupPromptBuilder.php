@@ -9,7 +9,7 @@ namespace Modules\Creative\Services\Ai\Drivers\Gemini;
  */
 class MockupPromptBuilder
 {
-    public const STYLIST_VERSION = 2;   // 2: seçenek listesi + kural motoru (Faz 3)
+    public const STYLIST_VERSION = 3;   // 2: seçenek listesi + kural motoru (Faz 3); 3: ürünün birden çok fotoğrafı
 
     private const STUDIO = 'Plain seamless light-grey studio background with soft, even, diffused frontal studio lighting and a soft natural floor shadow; no props, no window light patterns, no text or watermark.';
 
@@ -32,10 +32,13 @@ class MockupPromptBuilder
         $kinds = implode(', ', array_map(fn ($k) => "\"{$k}\": [\"key1\",\"key2\",\"key3\"]", array_keys($c['options'])));
         $who = trim(($c['gender'] ? "a {$c['gender']}" : 'a child') . ($c['age'] ? " ({$c['age']})" : ''));
         $features = implode('|', self::PRODUCT_FEATURES);
+        $photos = ($c['extra_images'] ?? 0) > 0
+            ? 'The attached images are all photos of the SAME PRODUCT we sell (the top and bottom of a set may be photographed separately — judge the product from ALL of them).'
+            : 'The attached image is the PRODUCT we sell.';
 
         return <<<TXT
 You are a senior fashion stylist preparing an e-commerce catalog shoot. The model is {$who}.
-The attached image is the PRODUCT we sell. It covers the "{$c['region']}" body region (bottom | top | one_piece | set = matching two-piece) and its length is "{$c['length']}" (if "unknown": judge it from the garment's own proportions — mini | knee | midi | maxi; ankle-length is maxi — and return it as "length").
+{$photos} It covers the "{$c['region']}" body region (bottom | top | one_piece | set = matching two-piece) and its length is "{$c['length']}" (if "unknown": judge it from the garment's own proportions — mini | knee | midi | maxi; ankle-length is maxi — and return it as "length").
 Style a realistic, age-appropriate outfit AROUND the product by choosing ONLY from the option lists below. For every list, return your 3 best keys in order of preference.
 - Match the product's character, formality, colors and season (e.g. a romantic tiered piece → a soft knit or blouse with ballet flats or Mary Janes; a sporty denim piece → sneakers; a flowy maxi → sandals or espadrilles). Do not default to white basics unless they are genuinely the best match.
 - COLOR is the color of the complementary garment: it must harmonize with the product's palette and must not copy the product's own color.
@@ -138,7 +141,7 @@ TXT;
         $task = match ($region) {
             'outerwear' => "The SECOND image is a product photo of OUTERWEAR (a jacket, coat, vest or raincoat).{$extra} Task: put the product ON the person OVER their existing clothes, worn naturally as designed — open or closed exactly as in the product photo, sleeves (if any) covering the arms down to their true length, collar/hood as designed. The clothes underneath stay exactly the same wherever they remain visible." . ($long ? ' The product is long: let it fall to its true length.' : ''),
             'top' => "The SECOND image is a product photo of a TOP.{$extra} Task: replace ONLY the person's plain light-grey placeholder t-shirt with the product top, worn naturally as designed (tucked into the bottom's waistband if it is a blouse); the bottom stays the same.",
-            'set' => "The SECOND image is a product photo of a TWO-PIECE SET (a top and a bottom — TWO separate garments).{$extra} Task: replace BOTH of the person's plain light-grey placeholder garments with the set: the set's top on the upper body, the set's bottom on the legs, worn as two separate pieces." . ($long ? ' The long bottom falls naturally to its true length over/around the shoes, which stay the same shoes.' : ''),
+            'set' => "The SECOND image is a product photo of a TWO-PIECE SET (a top and a bottom — TWO separate garments)." . ($productImageCount > 1 ? ' Further images are more photos of the SAME set: the top and the bottom may be photographed together or SEPARATELY — take each piece (its color, length and details) from the photo that shows it.' : '') . " Task: replace BOTH of the person's plain light-grey placeholder garments with the set: the set's top on the upper body, the set's bottom on the legs, worn as two separate pieces." . ($long ? ' The long bottom falls naturally to its true length over/around the shoes, which stay the same shoes.' : ''),
             'one_piece' => "The SECOND image is a product photo of a ONE-PIECE garment (dress or jumpsuit).{$extra} Task: replace the person's plain light-grey placeholder garments with the product, worn naturally." . ($long ? ' Let its hem fall to its true length; where it reaches the feet, the fabric falls naturally in front of / around the shoes, which stay the same shoes.' : ''),
             default => "The SECOND image is a product photo of a SKIRT/BOTTOM.{$extra} Task: replace ONLY the person's plain light-grey placeholder bottoms with the product, worn naturally at the waist with the top neatly tucked into its waistband." . ($long ? ' The product is long: let its hem fall to its true length; where it reaches the feet, the fabric falls naturally IN FRONT of / around the shoes, which stay the same shoes.' : ''),
         };

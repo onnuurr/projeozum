@@ -13,7 +13,7 @@ class MockMockupGenerator implements MockupGeneratorContract
 {
     public function __construct(private MockImageFactory $images) {}
 
-    public function stylist(string $productImagePath, array $context): array
+    public function stylist(string $productImagePath, array $context, array $extraImagePaths = []): array
     {
         // Her listeden gösterilen sırayla ilk 3 anahtar (kural motoru doğrular).
         return [

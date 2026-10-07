@@ -14,9 +14,10 @@ interface MockupGeneratorContract
      * length, confidence, reasoning_tr}.
      *
      * @param  array{region:string,length:string,age:?string,gender:?string,poses:array<string,string>,extra_poses:int,options:array<string,array<string,string>>}  $context
+     * @param  list<string>  $extraImagePaths  Aynı ürünün diğer fotoğrafları (ör. takımın ayrı çekilmiş altı)
      * @return array<string,mixed>
      */
-    public function stylist(string $productImagePath, array $context): array;
+    public function stylist(string $productImagePath, array $context, array $extraImagePaths = []): array;
 
     /**
      * Manken kimliği + poz şablonu + kombin → ana kare (geçici dosya yolu).

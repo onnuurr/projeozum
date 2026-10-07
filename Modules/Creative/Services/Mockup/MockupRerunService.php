@@ -9,6 +9,7 @@ use Modules\Creative\Models\MockupBase;
 use Modules\Creative\Models\MockupOutfit;
 use Modules\Creative\Models\RejectionReason;
 use Modules\Creative\Models\TryonResult;
+use Modules\Creative\Services\ProductOnModelService;
 use RuntimeException;
 
 /**
@@ -23,6 +24,11 @@ use RuntimeException;
  */
 class MockupRerunService
 {
+    public function __construct(
+        private MockupProductTypeResolver $types,
+        private ProductOnModelService $onModel,
+    ) {}
+
     /** @return array{stage:string, label:string, usd:float} */
     public function plan(TryonResult $result): array
     {
@@ -104,8 +110,17 @@ class MockupRerunService
     private function rerunTryon(TryonResult $result, string $correction): void
     {
         $meta = $result->meta ?? [];
-        unset($meta['mockup_run'], $meta['chat_suggested_instruction']);
+        unset($meta['mockup_run'], $meta['chat_suggested_instruction'], $meta['garment_extras']);
+
+        // Ürün fotoğrafları / renk etiketleri ret sonrası düzeltilmiş olabilir: rengin güncel fotoğrafları alınır.
+        $plan = $this->onModel->colorGarments($result->product()->with(['images', 'variants'])->firstOrFail(), $result->mockupBase?->outfit?->meta['garment_path'] ?? null);
+        $garment = $plan['garments'][(string) $result->color] ?? $result->garment_image_path;
+        if ($extras = $plan['extras'][(string) $result->color] ?? []) {
+            $meta['garment_extras'] = array_map(fn (string $p) => ['path' => $p, 'label' => null], $extras);
+        }
+
         $result->update([
+            'garment_image_path' => $garment,
             'status' => TryonResult::STATUS_QUEUED, 'generation_token' => (string) Str::uuid(), 'error' => null, 'qa' => null,
             'meta' => [...$meta, 'extra_instructions' => $correction ?: null, 'rerun_stage' => 'tryon'],
             'review_status' => null, 'review_note' => null, 'reviewed_by' => null, 'reviewed_at' => null,
@@ -128,6 +143,12 @@ class MockupRerunService
         $avoid = [...((array) ($outfit->meta['avoid_combos'] ?? [])),
             [($outfit->pieces['top'] ?? $outfit->pieces['bottom'] ?? null), ($outfit->pieces['footwear'] ?? null)]];
         foreach ($outfits as $o) {
+            // Stilistin TAHMİN ettiği boy yeniden çözülür (ret sonrası kategori/ürün "Boy" özelliği girilmiş
+            // olabilir); hâlâ yoksa boşaltılır, stilist ürünün bütün fotoğraflarından yeniden tahmin eder.
+            if ($o->length_source === 'ai') {
+                $type = $this->types->resolve($o->product);   // bölge verilmez: kategori boyu da okunsun
+                $o->update(['length' => $type['length'] ?? '', 'length_source' => $type['length_source']]);
+            }
             $this->resetOutfit($o, ['avoid_combos' => $avoid], keepLook: false);
             GenerateMockupJob::dispatch($o->id);
         }

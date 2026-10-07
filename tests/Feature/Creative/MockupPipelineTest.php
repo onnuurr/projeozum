@@ -164,6 +164,40 @@ class MockupPipelineTest extends TestCase
         $this->assertSame(3, MockupBase::where('outfit_id', $outfit->id)->count());     // bazlara dokunulmadı
     }
 
+    public function test_set_photographed_in_two_photos_sends_both_and_stylist_rerun_rereads_guessed_length(): void
+    {
+        Queue::fake();
+        $product = $this->product('Takım', null);           // kategori boyu yok → stilist tahmin eder
+        $this->png("products/{$product->id}/bottom.png");
+        $product->images()->create(['path' => "products/{$product->id}/bottom.png", 'sort_order' => 1]);
+
+        $pipeline = app(MockupPipelineService::class);
+        $outfit = $pipeline->run($pipeline->start($product->fresh(), $this->mannequinAndPoses()));
+        $this->assertSame('ai', $outfit->length_source);
+        $rows = TryonResult::where('pipeline', TryonResult::PIPELINE_MOCKUP)->get();
+        $this->assertTrue($rows->every(fn ($r) => $r->garment_image_path === "products/{$product->id}/photo.png"
+            && ($r->meta['garment_extras'] ?? []) === [['path' => "products/{$product->id}/bottom.png", 'label' => null]]));
+
+        // Ret sonrası kategoriye boy girildi: stilistten yeniden üretimde tahmin yerine kategori boyu kullanılır.
+        \Modules\Creative\Models\CategoryRegion::where('category_id', $product->category_id)->update(['length' => 'maxi']);
+        $r = $rows->first();
+        $r->update(['status' => TryonResult::STATUS_DONE, 'review_status' => TryonResult::REVIEW_REJECTED, 'review_tags' => ['Kombin ürüne uymuyor']]);
+        $this->assertSame('stylist', app(\Modules\Creative\Services\Mockup\MockupRerunService::class)->rerun($r->fresh())['stage']);
+        $outfit->refresh();
+        $this->assertSame(['maxi', 'category'], [$outfit->length, $outfit->length_source]);
+    }
+
+    public function test_tryon_rerun_takes_the_current_photos_of_its_color(): void
+    {
+        Queue::fake();
+        [, $r] = $this->rejectedMockup(['Renk uyumu']);
+        $this->png("products/{$r->product_id}/back.png");
+        ProductImage::create(['product_id' => $r->product_id, 'path' => "products/{$r->product_id}/back.png", 'sort_order' => 5]);
+
+        app(\Modules\Creative\Services\Mockup\MockupRerunService::class)->rerun($r);
+        $this->assertSame([['path' => "products/{$r->product_id}/back.png", 'label' => null]], $r->fresh()->meta['garment_extras']);
+    }
+
     public function test_base_stage_regenerates_the_group_bases_with_the_correction(): void
     {
         Queue::fake();
@@ -515,7 +549,7 @@ class MockupPipelineTest extends TestCase
         $counter = new class extends MockMockupGenerator {
             public static int $stylistCalls = 0;
             public function __construct() { parent::__construct(app(\Modules\Creative\Services\Ai\Drivers\Mock\MockImageFactory::class)); }
-            public function stylist(string $productImagePath, array $context): array { static::$stylistCalls++; return parent::stylist($productImagePath, $context); }
+            public function stylist(string $productImagePath, array $context, array $extraImagePaths = []): array { static::$stylistCalls++; return parent::stylist($productImagePath, $context, $extraImagePaths); }
         };
         $counter::$stylistCalls = 0;
         $this->app->instance(MockupGeneratorContract::class, $counter);

@@ -37,7 +37,8 @@ class MockupStylistService
             ->all();
     }
 
-    public function style(MockupOutfit $outfit, string $productPhotoPath): MockupOutfit
+    /** @param  list<string>  $extraPhotoPaths  Aynı ürünün diğer fotoğrafları (yerel yol; ör. takımın ayrı çekilmiş altı) */
+    public function style(MockupOutfit $outfit, string $productPhotoPath, array $extraPhotoPaths = []): MockupOutfit
     {
         $product = $outfit->product;
         $poses = $this->allowedPoses($outfit->region);
@@ -64,7 +65,7 @@ class MockupStylistService
             'poses'       => array_map(fn ($p) => $p['prompt'], $poses),
             'extra_poses' => $extra,
             'options'     => $shown,
-        ]);
+        ], $extraPhotoPaths);
 
         $length = $outfit->length;
         $lengthGuessed = false;

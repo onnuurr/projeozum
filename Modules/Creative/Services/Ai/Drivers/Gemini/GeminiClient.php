@@ -120,18 +120,27 @@ class GeminiClient
      */
     public function analyzeImage(string $prompt, string $imagePath): string
     {
-        if (! is_file($imagePath)) {
-            Log::warning('Gemini görsel analizi: dosya yok.', ['path' => $imagePath]);
-            throw new GeminiRequestException(GeminiRequestException::FILE_MISSING);
-        }
+        return $this->analyzeImages($prompt, [$imagePath]);
+    }
 
-        $parts = [
-            ['text' => $prompt],
-            ['inline_data' => [
+    /**
+     * Birden çok görsel + metin prompt → düz metin (ör. ayrı fotoğraflanmış takımın üst ve altı).
+     *
+     * @param  list<string>  $imagePaths
+     */
+    public function analyzeImages(string $prompt, array $imagePaths): string
+    {
+        $parts = [['text' => $prompt]];
+        foreach ($imagePaths as $imagePath) {
+            if (! is_file($imagePath)) {
+                Log::warning('Gemini görsel analizi: dosya yok.', ['path' => $imagePath]);
+                throw new GeminiRequestException(GeminiRequestException::FILE_MISSING);
+            }
+            $parts[] = ['inline_data' => [
                 'mime_type' => ImageFile::mime($imagePath),
                 'data'      => ImageFile::base64($imagePath),
-            ]],
-        ];
+            ]];
+        }
 
         $model = (string) config('creative.ai.gemini.text_model', config('creative.ai.gemini.model'));
 

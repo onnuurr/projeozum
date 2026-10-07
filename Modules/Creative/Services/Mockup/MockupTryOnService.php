@@ -56,12 +56,16 @@ class MockupTryOnService
 
         // İç koleksiyon renk anahtarlı — values() olmadan flatMap aynı anahtarlı ('' ya da aynı renk) satırları ezer.
         return $bases->flatMap(fn (MockupBase $base) => collect($garments)->map(
-            fn (string $garment, $color) => $this->queueOne($outfit, $base, (string) $color, $garment, $creatorId),
+            fn (string $garment, $color) => $this->queueOne($outfit, $base, (string) $color, $garment, $creatorId, $plan['extras'][$color] ?? []),
         )->values())->values();
     }
 
-    /** Tek bir (baz × renk) giydirme satırı; yeniden kuyruğa alma aynı satırı günceller ve onayı sıfırlar. */
-    private function queueOne(MockupOutfit $outfit, MockupBase $base, string $color, string $garment, ?int $creatorId): TryonResult
+    /**
+     * Tek bir (baz × renk) giydirme satırı; yeniden kuyruğa alma aynı satırı günceller ve onayı sıfırlar.
+     *
+     * @param  list<string>  $extras  Aynı setin diğer fotoğrafları (ayrı çekilmiş takım parçası vb.)
+     */
+    private function queueOne(MockupOutfit $outfit, MockupBase $base, string $color, string $garment, ?int $creatorId, array $extras = []): TryonResult
     {
         // Beden grubu (manken) ve renk anahtarın parçası — bkz. sizeGroups, colorGarments.
         $key = ['product_id' => $outfit->product_id, 'mannequin_id' => $outfit->mannequin_id, 'pose_id' => $base->pose_id,
@@ -70,6 +74,10 @@ class MockupTryOnService
         $meta = is_array($meta) ? $meta : (json_decode((string) $meta, true) ?: []);
         unset($meta['extra_instructions'], $meta['mockup_run']);   // yeni baz → eski düzeltme talimatı geçersiz
         $meta['batch'] = (bool) ($outfit->meta['batch'] ?? false);
+        $meta['garment_extras'] = array_map(fn (string $p) => ['path' => $p, 'label' => null], $extras);
+        if ($meta['garment_extras'] === []) {
+            unset($meta['garment_extras']);
+        }
 
         return TryonResult::updateOrCreate($key, [
             'mockup_base_id'     => $base->id,

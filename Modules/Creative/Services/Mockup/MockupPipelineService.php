@@ -282,6 +282,21 @@ class MockupPipelineService
     }
 
     /**
+     * Stilistin göreceği ek fotoğraflar: ana fotoğrafla aynı renk setindeki diğer yalın fotoğraflar
+     * (ayrı çekilmiş takım parçaları stilistin ürünü — ve boyunu — doğru anlaması için).
+     *
+     * @return list<string> yerel yollar
+     */
+    private function extraPhotos(Product $product, string $src): array
+    {
+        $plan = $this->onModel->colorGarments($product);
+        $color = array_search($src, $plan['garments'], true);
+        $extras = $color !== false ? ($plan['extras'][$color] ?? []) : (array) (reset($plan['extras']) ?: []);
+
+        return array_values(array_filter(array_map(fn (string $p) => $this->resolver->toLocalPath($p), array_diff($extras, [$src]))));
+    }
+
+    /**
      * Kuyruk işinin gövdesi: stilist → bazlar → giydirme işleri. Batch modunda bazlar beklenirken
      * kombin "generating" kalır; sonuç gelince iş yeniden çalışır ve kaldığı yerden devam eder
      * (stilist yeniden çağrılmaz, hazır bazlar yeniden üretilmez). Aynı kombinin iki kopyasının
@@ -309,7 +324,7 @@ class MockupPipelineService
             if (trim((string) $outfit->outfit_sentence) === '') {
                 // Aynı ürünün başka beden grubu stilistten geçtiyse kombin + pozlar aynen kullanılır
                 // (sitede beden değişince yalnız manken değişir); yoksa stilist çalışır.
-                $outfit = $this->copyLookFromSibling($outfit) ?? $this->stylist->style($outfit, $photo);
+                $outfit = $this->copyLookFromSibling($outfit) ?? $this->stylist->style($outfit, $photo, $this->extraPhotos($product, $src));
             }
             $ready = $this->bases->generate($outfit);
             if ($ready === null) {
