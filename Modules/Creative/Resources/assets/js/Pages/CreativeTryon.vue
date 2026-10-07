@@ -58,8 +58,13 @@
 					<template #leading><RefreshCw :size="14" /></template>
 					Yenile
 				</Button>
+				<Button variant="ghost" with-icon title="Sistemin nasıl çalıştığı" @click="helpOpen = true">
+					<template #leading><Info :size="14" /></template>
+					Nasıl çalışır?
+				</Button>
 			</template>
 		</PageHeader>
+		<TryonHelpDialog v-model:open="helpOpen" />
 
 		<!-- Adım göstergesi: sırayla kilitli/açık/tamam adımlar — bir adım tamamlanmadan sonrakine geçilemez. -->
 		<div v-if="can('creative.asset.manage')" ref="wizardStepsEl" class="wizard-steps">
@@ -576,6 +581,7 @@ import EmptyState from '@/Components/EmptyState.vue'
 import FormField from '@/Components/Form/FormField.vue'
 import FormInput from '@/Components/Form/FormInput.vue'
 import TryonResultCard from '../Components/TryonResultCard.vue'
+import TryonHelpDialog from '../Components/TryonHelpDialog.vue'
 import { openRejectDialog } from '../support/rejectDialog'
 import { extOf } from '../support/mediaExt'
 import { useCan } from '@/composables/useCan'
@@ -1286,6 +1292,7 @@ function setCover(r) {
 
 /* ── Arka plandaki üretimleri durdur (token yenilenir; bekleyen AI istekleri gönderilmez) ── */
 const stopBusy = ref(false)
+const helpOpen = ref(false)   // "Nasıl çalışır?" penceresi
 
 function stopRequest(url, data) {
 	stopBusy.value = true
