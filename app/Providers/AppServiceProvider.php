@@ -11,6 +11,7 @@ use App\Listeners\LogSuccessfulLogin;
 use App\Listeners\LogSuccessfulLogout;
 use App\Services\Sms\IletiMerkeziSmsProvider;
 use App\Services\Sms\NullSmsProvider;
+use App\Support\ModuleSettingsRegistry;
 use App\Support\PostLoginRedirect;
 use ArchitectureDoctor\Console\ArchitectureDoctorCommand;
 use Illuminate\Auth\Events\Failed;
@@ -32,6 +33,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        // Modül ayar sayfaları (çark ikonu): modüller kendi ServiceProvider'larında kaydeder.
+        $this->app->singleton(ModuleSettingsRegistry::class);
+
         // İşlemsel SMS sağlayıcısı: key/hash/sender tanımlıysa gerçek iletiMerkezi
         // sürücüsü, yoksa hiçbir dış istek atmayan NullSmsProvider (bkz.
         // Modules\Finance\Providers\FinanceServiceProvider'ın e-Fatura binding'iyle

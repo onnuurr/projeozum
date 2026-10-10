@@ -128,3 +128,13 @@ Schedule::command('backup:run')->dailyAt('02:00')->onOneServer()->runInBackgroun
 | (bkz. Modules\Superadmin\Services\VersionCheckService).
 */
 Schedule::command('superadmin:check-versions')->weeklyOn(1, '03:30')->onOneServer()->runInBackground(); // her pazartesi
+
+/*
+|--------------------------------------------------------------------------
+| Döviz kurları (TCMB)
+|--------------------------------------------------------------------------
+| TCMB gösterge kurları hafta içi ~15:30'da yayınlanır. Gün içinde saat başı çekilir
+| (yayın saatinden önceki çalışmalar önceki bülteni yeniden yazar, zararsız); hafta sonu
+| bülten olmadığından çalışmaz. Bkz. App\Services\ExchangeRates\ExchangeRateService.
+*/
+Schedule::command('exchange-rates:fetch')->weekdays()->hourlyAt(40)->between('09:00', '18:00')->onOneServer()->runInBackground();

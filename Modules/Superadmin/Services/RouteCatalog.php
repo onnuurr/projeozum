@@ -169,6 +169,7 @@ class RouteCatalog
         'atelier.concepts.index'      => 'Konsept Stüdyosu',
         'atelier.conversions.index'   => 'Sayısallaştırma',
         'atelier.patterns.index'      => 'Kalıp Kütüphanesi',
+        'atelier.patterns.settings.index' => 'Kalıp Ayarları',
         'patternengine.index'         => 'Kalıp Motoru İşleri',
         'patternengine.profiles.index' => 'Kalıp Profilleri',
 
@@ -213,6 +214,7 @@ class RouteCatalog
         'products.create'           => 'Yeni Ürün',
         'products.categories.index' => 'Kategoriler',
         'products.brands.index'     => 'Markalar',
+        'products.settings.index'   => 'Ürün Ayarları',
         'products.stocks.index'     => 'Stoklar',
         'products.stocks.history'   => 'Stok Hareketleri',
         'products.warehouses.index' => 'Depolar',

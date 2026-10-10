@@ -1,29 +1,33 @@
 <script setup>
 import { inject, computed } from 'vue'
 import { Link } from '@inertiajs/vue3'
+import { useModuleSettings } from '@/composables/useModuleSettings'
 import OzIcon from './OzIcon.vue'
 
 // Etkin modülün alt sayfaları, sayfa başlığının altında rota sekmeleri olarak.
 // Veriyi OzAppLayout sağlar (DB menüsündeki kök menünün alt menüleri); sayfanın yalnızca yerleştirmesi yeterli:
 //   <OzPageHeader ... />
 //   <OzModuleTabs />
-// Modülün alt sayfası yoksa hiçbir şey çizmez. Mobilde gizlenir: orada OzMobileNav başlığının altındaki alt sayfa çipleri var.
+// Modülün alt sayfası yoksa hiçbir şey çizmez. Mobilde gizlenir: orada OzMobileNav başlığının altındaki alt sayfa çipleri (ve çark) var.
 const nav = inject('ozNav', null)
 
 const module = computed(() => nav?.module.value)
 const children = computed(() => module.value?.children ?? [])
 const activeKey = computed(() => nav?.child.value?.key)
+
+// Modülün tek ayar sayfası: sekmelerin en sağında çark (mobilde OzMobileNav çiplerinin sonunda).
+const { settings, settingsActive } = useModuleSettings(module)
 </script>
 
 <template>
-  <nav v-if="children.length" class="oz-module-tabs" :aria-label="`${module.title} sayfaları`">
+  <nav v-if="children.length || settings" class="oz-module-tabs" :aria-label="`${module.title} sayfaları`">
     <template v-for="c in children" :key="c.key">
       <Link
         v-if="c.to"
         :href="c.to"
         class="tab"
-        :class="{ active: c.key === activeKey }"
-        :aria-current="c.key === activeKey ? 'page' : undefined"
+        :class="{ active: !settingsActive && c.key === activeKey }"
+        :aria-current="!settingsActive && c.key === activeKey ? 'page' : undefined"
       >
         <OzIcon v-if="c.icon" :name="c.icon" :size="14" />
         {{ c.title }}
@@ -34,6 +38,17 @@ const activeKey = computed(() => nav?.child.value?.key)
         {{ c.title }}
       </span>
     </template>
+    <Link
+      v-if="settings"
+      :href="settings.url"
+      class="tab settings"
+      :class="{ active: settingsActive }"
+      :aria-current="settingsActive ? 'page' : undefined"
+      :title="`${module.title} ayarları`"
+      :aria-label="`${module.title} ayarları`"
+    >
+      <OzIcon name="settings" :size="16" />
+    </Link>
   </nav>
 </template>
 
@@ -57,6 +72,8 @@ a.tab:hover { color: var(--oz-ink); }
 a.tab:focus-visible { outline: 2px solid var(--oz-accent); outline-offset: 2px; border-radius: 4px; }
 .tab.active { color: var(--oz-accent); border-bottom-color: var(--oz-accent); }
 .tab.soon { opacity: .45; cursor: default; }
+/* Ayar çarkı: sekmelerden ayrık, satırın en sağına yaslı */
+.tab.settings { margin-left: auto; padding-left: 4px; padding-right: 4px; }
 @media (max-width: 768px) { .oz-module-tabs { display: none; } }
 .count {
   min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;

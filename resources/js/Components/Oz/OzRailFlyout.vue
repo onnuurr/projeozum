@@ -106,7 +106,6 @@ watch(() => props.anchor, () => nextTick(place))
           @wheel="onWheel"
         >
           <div class="head">
-            <span class="head-ico"><OzIcon :name="module.icon" :size="15" /></span>
             <span :id="titleId" class="head-title">{{ module.title }}</span>
             <button v-if="mobile" type="button" class="close" aria-label="Kapat" @click="emit('close', true)">
               <OzIcon name="x" :size="15" />
@@ -126,16 +125,14 @@ watch(() => props.anchor, () => nextTick(place))
               tabindex="-1"
               @click="choose(c)"
             >
-              <span v-if="c.level === 1 && c.icon" class="item-ico"><OzIcon :name="c.icon" :size="14" /></span>
+              <OzIcon v-if="c.level === 1 && c.icon" :name="c.icon" :size="16" class="item-ico" />
               <span v-else-if="c.level === 1" class="item-dot" aria-hidden="true" />
-              <OzIcon v-else name="chevron-right" :size="12" class="sub-ico" />
               <span class="item-text">
                 <span class="item-title">{{ c.title }}</span>
                 <span v-if="c.description" class="item-desc">{{ c.description }}</span>
               </span>
               <span v-if="!enabled(c)" class="soon-tag">Yakında</span>
               <span v-else-if="c.count != null" class="count">{{ c.count }}</span>
-              <OzIcon v-else-if="c.key === activeChild" name="check" :size="14" :stroke-width="2.5" class="tick" />
             </button>
           </div>
         </div>
@@ -148,58 +145,63 @@ watch(() => props.anchor, () => nextTick(place))
 /* Masaüstü: katman tıklamaları geçirir, yalnızca panel yakalar */
 .oz-fly-layer { position: fixed; inset: 0; z-index: 60; pointer-events: none; }
 .oz-fly {
-  position: fixed; width: 284px; pointer-events: auto;
-  background: var(--oz-surface); border: 1px solid var(--oz-border); border-radius: 14px;
+  position: fixed; width: 244px; pointer-events: auto;
+  background: var(--oz-surface); border: 1px solid var(--oz-border-soft); border-radius: 12px;
   box-shadow: var(--oz-shadow); outline: none;
 }
-/* rail butonuna bakan küçük çentik */
-.oz-fly::before {
-  content: ''; position: absolute; left: -6px; top: 22px; width: 10px; height: 10px;
-  background: var(--oz-surface); border-left: 1px solid var(--oz-border); border-bottom: 1px solid var(--oz-border);
-  transform: rotate(45deg);
+/* Minimal: başlık yalnız küçük etiket, satırlar çerçevesiz ikon + metin; seçili satır = yumuşak zemin + sol çizgi */
+.head { display: flex; align-items: center; gap: 10px; padding: 12px 16px 4px; }
+.head-title {
+  flex: 1; min-width: 0; font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--oz-muted-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.head { display: flex; align-items: center; gap: 10px; padding: 12px 14px 10px; border-bottom: 1px solid var(--oz-border-soft); }
-.head-ico { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: var(--oz-accent-soft); color: var(--oz-accent); flex-shrink: 0; }
-.head-title { flex: 1; min-width: 0; font-size: 13px; font-weight: 700; color: var(--oz-ink-soft); }
-.list { display: flex; flex-direction: column; gap: 1px; padding: 6px; max-height: min(420px, calc(100dvh - 120px)); overflow-y: auto; overscroll-behavior: contain; }
+.list { display: flex; flex-direction: column; gap: 2px; padding: 4px 6px 6px; max-height: min(420px, calc(100dvh - 120px)); overflow-y: auto; overscroll-behavior: contain; }
 .item {
-  display: flex; align-items: center; gap: 10px; width: 100%;
-  padding: 8px 9px; border-radius: 9px; border: none; background: none; cursor: pointer; text-align: left;
-  font: inherit; color: var(--oz-ink); outline: none;
+  position: relative; display: flex; align-items: center; gap: 10px; width: 100%; min-height: 34px;
+  padding: 7px 10px; border-radius: 8px; border: none; background: none; cursor: pointer; text-align: left;
+  font: inherit; color: var(--oz-ink-soft); outline: none;
   transition: background .12s, color .12s;
 }
-.item-ico { width: 26px; height: 26px; border-radius: 7px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: var(--oz-muted); background: var(--oz-surface-2); border: 1px solid var(--oz-border-soft); transition: inherit; }
+.item-ico { color: var(--oz-muted-2); flex-shrink: 0; transition: color .12s; }
 .item-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-.item-title { font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.item-title { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .item-desc { font-size: 11px; color: var(--oz-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.item:not(.soon):hover, .item:not(.soon):focus-visible { background: var(--oz-surface-2); }
-.item:focus-visible { box-shadow: inset 0 0 0 2px rgba(var(--oz-accent-rgb), .45); }
-.item.active { background: var(--oz-accent-soft); }
-.item.active .item-title { color: var(--oz-accent); }
-.item.active .item-ico { background: var(--oz-accent); color: #fff; border-color: transparent; }
+.item:not(.soon):hover, .item:not(.soon):focus-visible { background: var(--oz-surface-2); color: var(--oz-ink); }
+.item:not(.soon):hover .item-ico { color: var(--oz-ink-soft); }
+.item:focus-visible { box-shadow: inset 0 0 0 2px rgba(var(--oz-accent-rgb), .4); }
+.item.active { background: var(--oz-accent-soft); color: var(--oz-accent); }
+.item.active .item-title { font-weight: 600; }
+.item.active .item-ico { color: var(--oz-accent); }
+.item.active::before {
+  content: ''; position: absolute; left: -6px; top: 8px; bottom: 8px; width: 3px; border-radius: 0 3px 3px 0;
+  background: var(--oz-accent);
+}
 .item.soon { cursor: default; }
-.item.sub { padding: 6px 9px 6px 20px; }
-.item.sub .item-title { font-size: 12px; font-weight: 500; color: var(--oz-muted); }
+/* 3. seviye: ince dikey kılavuz çizgisiyle girintili */
+.item.sub { min-height: 30px; padding: 5px 10px 5px 36px; }
+.item.sub::after { content: ''; position: absolute; left: 18px; top: 0; bottom: 0; width: 1px; background: var(--oz-border); }
+.item.sub .item-title { font-size: 12.5px; font-weight: 400; color: var(--oz-muted); }
 .item.sub:hover .item-title { color: var(--oz-ink); }
-.sub-ico { color: var(--oz-muted-2); flex-shrink: 0; }
-.item-dot { width: 6px; height: 6px; margin: 0 4px 0 6px; border-radius: 50%; background: var(--oz-border-strong); flex-shrink: 0; transition: background .12s, transform .12s; }
+.item-dot { width: 5px; height: 5px; margin: 0 5px; border-radius: 50%; background: var(--oz-border-strong); flex-shrink: 0; transition: background .12s; }
 .item:hover .item-dot { background: var(--oz-muted); }
-.item.active .item-dot { background: var(--oz-accent); transform: scale(1.3); }
-.item.soon .item-title, .item.soon .item-ico { opacity: .5; }
-.soon-tag { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--oz-muted-2); padding: 2px 6px; border-radius: 5px; border: 1px dashed var(--oz-border-strong); flex-shrink: 0; }
-.count { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; font-size: 10.5px; font-weight: 700; background: var(--oz-danger); color: #fff; flex-shrink: 0; font-variant-numeric: tabular-nums; }
-.tick { color: var(--oz-accent); flex-shrink: 0; }
+.item.active .item-dot { background: var(--oz-accent); }
+.item.soon .item-title, .item.soon .item-ico { opacity: .45; }
+.soon-tag { font-size: 10.5px; font-weight: 500; color: var(--oz-muted-2); flex-shrink: 0; }
+.count {
+  min-width: 18px; height: 18px; padding: 0 6px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center;
+  font-size: 10.5px; font-weight: 600; background: var(--oz-danger-soft); color: var(--oz-danger); flex-shrink: 0; font-variant-numeric: tabular-nums;
+}
 .close { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; border: none; background: none; color: var(--oz-muted); cursor: pointer; }
 .close:hover { background: var(--oz-surface-2); color: var(--oz-ink); }
 
 /* Mobil: alttan açılan sayfa */
 .oz-fly-layer.is-sheet { z-index: 100; pointer-events: auto; background: rgba(15, 23, 42, .4); backdrop-filter: blur(1.5px); display: flex; align-items: flex-end; }
 .is-sheet .oz-fly { position: relative; width: 100%; border-radius: 18px 18px 0 0; border-bottom: none; padding-bottom: env(safe-area-inset-bottom); }
-.is-sheet .oz-fly::before { display: none; }
-.is-sheet .head { position: relative; padding: 18px 14px 12px; }
+.is-sheet .head { position: relative; padding: 20px 18px 6px; }
 .is-sheet .head::before { content: ''; position: absolute; top: 6px; left: 50%; width: 36px; height: 4px; margin-left: -18px; border-radius: 4px; background: var(--oz-border-strong); }
 .is-sheet .list { max-height: 60dvh; padding: 8px; }
-.is-sheet .item { padding: 11px 10px; }
+.is-sheet .item { min-height: 44px; padding: 10px 12px; }
+.is-sheet .item.sub { min-height: 38px; padding-left: 38px; }
 
 .oz-fly-enter-active, .oz-fly-leave-active { transition: opacity .14s ease; }
 .oz-fly-enter-active .oz-fly, .oz-fly-leave-active .oz-fly { transition: transform .16s cubic-bezier(0.16, 1, 0.3, 1); }

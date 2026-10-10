@@ -6,6 +6,7 @@ import {
 	OzPageHeader, OzStatTile, OzCard, OzButton, OzPill, OzTabs, OzTable, OzLineChart, OzDonut, OzEmptyState,
 	OzListItem, OzProgress, OzIcon, useOzPalette,
 } from '@/Components/Oz'
+import ExchangeRateTicker from '@/Components/ExchangeRateTicker.vue'
 
 defineOptions({ layout: AppLayout })
 
@@ -13,6 +14,8 @@ defineOptions({ layout: AppLayout })
 const props = defineProps({
 	summary: { type: Object, required: true },
 	generatedAt: { type: String, default: '' },
+	// TCMB son kurlar + önceki güne göre değişim (ExchangeRateService::latestWithChange)
+	exchangeRates: { type: Array, default: () => [] },
 })
 
 const page = usePage()
@@ -91,6 +94,7 @@ const hasModuleCards = computed(() => !!(atelier.value || patterns.value))
 	<OzPageHeader :title="`${greeting}${firstName ? `, ${firstName}` : ''}`">
 		<template #subtitle>{{ today }} · işletmenin genel görünümü</template>
 		<template #actions>
+			<ExchangeRateTicker v-if="exchangeRates.length" :rates="exchangeRates" />
 			<OzButton icon="search" class="quick-search" @click="openPalette">Hızlı Ara <kbd class="kbd">Ctrl K</kbd></OzButton>
 		</template>
 	</OzPageHeader>

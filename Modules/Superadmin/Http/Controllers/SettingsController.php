@@ -49,17 +49,60 @@ class SettingsController extends Controller
         '#4a6cf7', '#7c3aed', '#db2777', '#6b7280', '#1a1a2e',
     ];
 
-    private array $moduleLabels = [
-        'users'       => 'Kullanıcılar',
-        'roles'       => 'Roller',
-        'permissions' => 'İzinler',
-        'tenants'     => 'Kiracılar',
-        'orders'      => 'Siparişler',
-        'products'    => 'Ürünler',
-        'invoices'    => 'Faturalar',
-        'reports'     => 'Raporlar',
-        'settings'    => 'Ayarlar',
-        'system'      => 'Sistem',
+    /**
+     * İzin rol sayfasında sahibi olan modül altında, modül içinde de anahtar önekine göre
+     * alt başlıklarla gösterilir. Önek = izin adının ilk "." öncesi. Sıra = ekrandaki sıra.
+     * Yeni bir izin öneki eklendiğinde buraya da eklenmeli; eklenmezse "Diğer" altına düşer.
+     */
+    private array $permissionModules = [
+        'product' => ['label' => 'Ürün', 'groups' => [
+            'product'          => 'Ürünler',
+            'product-settings' => 'Ürün Ayarları',
+            'variant-option'   => 'Beden & Renk Seçenekleri',
+            'product-attribute' => 'Ürün Özellikleri',
+            'category'         => 'Kategoriler',
+            'brand'            => 'Markalar',
+            'price-list'       => 'Fiyat Listeleri',
+            'warehouse'        => 'Depolar',
+            'stock'            => 'Stok',
+            'carrier'          => 'Kargo Firmaları',
+            'order'            => 'Siparişler',
+        ]],
+        'atelier' => ['label' => 'Atölye', 'groups' => [
+            'atelier' => 'Atölye',
+        ]],
+        'patternengine' => ['label' => 'Kalıp Motoru', 'groups' => [
+            'patternengine' => 'Kalıp Motoru',
+        ]],
+        'creative' => ['label' => 'Creative', 'groups' => [
+            'creative' => 'Creative',
+        ]],
+        'tenant' => ['label' => 'İş Ortakları', 'groups' => [
+            'tenant'             => 'İş Ortakları',
+            'tenant-type'        => 'İş Ortağı Tipleri',
+            'tenant-access'      => 'Erişim',
+            'tenant-application' => 'Başvurular',
+        ]],
+        'bagisto' => ['label' => 'Bayi Portalı', 'groups' => [
+            'bagisto'                 => 'Portal Ayarları',
+            'dealer-agreement'        => 'Bayi Sözleşmeleri',
+            'tenant-application-mail' => 'Başvuru E-postaları',
+            'order-return'            => 'İadeler',
+            'order-return-mail'       => 'İade E-postaları',
+        ]],
+        'finance' => ['label' => 'Finans', 'groups' => [
+            'finance' => 'Finans',
+        ]],
+        'superadmin' => ['label' => 'Sistem', 'groups' => [
+            'users'               => 'Kullanıcılar',
+            'rbac'                => 'Roller & İzinler',
+            'settings'            => 'Ayarlar',
+            'menu'                => 'Menü',
+            'translations'        => 'Çeviriler',
+            'logs'                => 'Loglar',
+            'backups'             => 'Yedekler',
+            'architecture-doctor' => 'Mimari Doktor',
+        ]],
     ];
 
     public function index(): Response
@@ -380,20 +423,53 @@ class SettingsController extends Controller
             ];
         })->all();
 
-        $modules = Permission::all()
-            ->groupBy(fn (Permission $p) => str_contains($p->name, '.') ? explode('.', $p->name)[0] : 'general')
-            ->map(function ($perms, $moduleKey) {
-                return [
-                    'key'         => $moduleKey,
-                    'name'        => $this->moduleLabels[$moduleKey] ?? ucfirst($moduleKey),
-                    'permissions' => $perms->map(fn (Permission $p) => [
-                        'id'   => $p->id,
-                        'key'  => $p->name,
-                        'name' => $p->display_name ?: $p->name,
-                        'desc' => '',
-                    ])->values()->all(),
-                ];
-            })->values()->all();
+        $prefixOwner = [];
+        foreach ($this->permissionModules as $moduleKey => $module) {
+            foreach (array_keys($module['groups']) as $prefix) {
+                $prefixOwner[$prefix] = $moduleKey;
+            }
+        }
+
+        $toRow = fn (Permission $p) => [
+            'id'   => $p->id,
+            'key'  => $p->name,
+            'name' => $p->display_name ?: $p->name,
+            'desc' => '',
+        ];
+
+        $byPrefix = Permission::orderBy('name')->get()
+            ->groupBy(fn (Permission $p) => explode('.', $p->name)[0]);
+
+        $buckets = [];
+        foreach ($byPrefix as $prefix => $perms) {
+            $buckets[$prefixOwner[$prefix] ?? 'other'][$prefix] = $perms;
+        }
+
+        $modules = [];
+        foreach ([...array_keys($this->permissionModules), 'other'] as $moduleKey) {
+            if (empty($buckets[$moduleKey])) {
+                continue;
+            }
+            $labels = $this->permissionModules[$moduleKey]['groups'] ?? [];
+            // Tanımlı alt grup sırası korunur; tanımsız önekler sona alfabetik eklenir.
+            $prefixes = array_merge(
+                array_values(array_intersect(array_keys($labels), array_keys($buckets[$moduleKey]))),
+                array_values(array_diff(array_keys($buckets[$moduleKey]), array_keys($labels))),
+            );
+
+            $groups = array_map(fn (string $prefix) => [
+                'key'         => $prefix,
+                'name'        => $labels[$prefix] ?? ucfirst($prefix),
+                'permissions' => $buckets[$moduleKey][$prefix]->map($toRow)->values()->all(),
+            ], $prefixes);
+
+            $modules[] = [
+                'key'         => $moduleKey,
+                'name'        => $this->permissionModules[$moduleKey]['label'] ?? 'Diğer',
+                'groups'      => $groups,
+                'permissions' => array_merge(...array_column($groups, 'permissions')),
+            ];
+        }
 
         return [
             'list'    => $roles,

@@ -62,6 +62,8 @@ description: Use BEFORE writing or editing any controller action, route, Form Re
 | Product | `category.manage` | Kategori CRUD + pazaryeri eşleme + özellik tanımları |
 | Product | `category.create` | Ürün formundan hızlı kategori ekleme (dar yetki) |
 | Product | `brand.manage` | Marka |
+| Product | `product-settings.view` | Ürün Ayarları sayfası (`/products/settings`) + Katalog/Stok/Siparişler sekme satırındaki çark ikonu; sekmeler ayrıca kendi yetkileriyle kilitli (2026-10-02) |
+| Product | `variant-option.view` / `.create` / `.update` / `.delete` | Ürün Ayarları › Bedenler/Renkler sekmeleri: ürün formundaki seçim listeleri (`product_sizes`, `product_colors`); her işlem ayrı yetki (2026-10-02) |
 | Product | `warehouse.manage` | Depo |
 | Product | `stock.manage` | Stok sayfaları + hareket |
 | Product | `price-list.manage` | Fiyat listesi |
@@ -99,6 +101,16 @@ Seeder dosyaları:
 > **Not (güncel tutma):** Bu liste değişiyor; başlamadan önce `php artisan db:seed
 > --class=...PermissionSeeder` çıktısına ya da seed dosyalarına bir kez bak ve
 > hâlâ güncel mi doğrula. Yeni eklenmiş bir permission burada listelenmemiş olabilir.
+
+## Modül ayar sayfası deseni (2026-10-02)
+
+Bir modülü ilgilendiren ayar/referans veri süper admin'e değil, o modülün **tek ayar sayfasına**
+sekme olarak eklenir. Sayfa yetkisi `<modül>-settings.view` (örn. `product-settings.view`);
+her sekme ayrıca kendi `<resource>.<action>` yetkileriyle kilitlenir ve yetkisiz sekmenin verisi
+backend'den `null` gönderilir. Modül, ServiceProvider `boot()`'unda
+`App\Support\ModuleSettingsRegistry::register(key, url, permission, menuRoots)` çağırır;
+`OzModuleTabs` yetkili kullanıcıya sekme satırının en sağında çark ikonu çizer. Menüye ayrı
+"Ayarlar" öğesi eklenmez. Örnek: `Modules/Product/Http/Controllers/ProductSettingsController.php`.
 
 ## Bilinen isim istisnaları
 

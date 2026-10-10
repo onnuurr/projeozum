@@ -36,7 +36,7 @@ class TenantProductCustomCopyTest extends TestCase
         ]);
         $this->product = Product::create([
             'category_id' => $category->id, 'name' => 'Fabrika Adı',
-            'sku' => 'X-' . uniqid(), 'gender' => 'Unisex', 'price' => 100,
+            'sku' => 'X-' . uniqid(), 'price' => 100,
             'public_name'        => 'Storefront Adı',
             'tenant_description' => 'B2B varsayılan',
         ]);

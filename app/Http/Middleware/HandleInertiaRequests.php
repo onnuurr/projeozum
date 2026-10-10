@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\User;
+use App\Support\ModuleSettingsRegistry;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 use Modules\Superadmin\Services\MenuTreeBuilder;
@@ -45,6 +46,8 @@ class HandleInertiaRequests extends Middleware
                 'name' => config('app.name'),
             ],
             'menu'  => fn () => MenuTreeBuilder::forUser($user),
+            // Yetkili olunan modül ayar sayfaları → OzModuleTabs sağındaki çark ikonu
+            'moduleSettings' => fn () => app(ModuleSettingsRegistry::class)->forUser($user),
             'notifications' => fn () => $this->notificationsPayload($user),
             'flash' => fn () => [
                 'toast' => $this->resolveToast($request),

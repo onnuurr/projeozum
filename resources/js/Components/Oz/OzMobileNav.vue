@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { useOzTheme } from '@/composables/useOzTheme'
+import { useModuleSettings } from '@/composables/useModuleSettings'
 import OzIcon from './OzIcon.vue'
 import OzAvatar from './OzAvatar.vue'
 import OzModal from './OzModal.vue'
@@ -72,12 +73,15 @@ function onSheetSelect(c) {
 
 /* ── alt sayfa çipleri ── */
 const subItems = computed(() => activeModule.value?.children ?? [])
+// Modül ayar sayfası (masaüstünde OzModuleTabs'ın çarkı): çip satırının sonunda, kaydırırken sağa yapışık
+const { settings, settingsActive } = useModuleSettings(activeModule)
+const chipActive = (c) => !settingsActive.value && c.key === props.activeChild
 const subEl = ref(null)
 
 // Konum ekran koordinatlarından hesaplanır (offsetLeft, offsetParent'a göre değiştiği için güvenilmez)
 function revealChip(smooth = false) {
   const bar = subEl.value
-  const chip = bar?.querySelector('.chip.active')
+  const chip = bar?.querySelector('.chip.active:not(.settings)')
   if (!chip || bar.scrollWidth <= bar.clientWidth) return
   const left = bar.scrollLeft + chip.getBoundingClientRect().left - bar.getBoundingClientRect().left - 12
   bar.scrollTo({ left, behavior: smooth ? 'smooth' : 'instant' })
@@ -117,19 +121,31 @@ watch(() => props.activeChild, () => nextTick(() => revealChip(true)))
         </div>
       </div>
 
-      <nav v-if="subItems.length" ref="subEl" class="m-sub" :aria-label="`${activeModule.title} sayfaları`">
+      <nav v-if="subItems.length || settings" ref="subEl" class="m-sub" :aria-label="`${activeModule.title} sayfaları`">
         <button
           v-for="c in subItems"
           :key="c.key"
           type="button"
           class="chip"
-          :class="{ active: c.key === activeChild, soon: !enabled(c) }"
-          :aria-current="c.key === activeChild ? 'page' : undefined"
+          :class="{ active: chipActive(c), soon: !enabled(c) }"
+          :aria-current="chipActive(c) ? 'page' : undefined"
           :aria-disabled="!enabled(c) || undefined"
           @click="enabled(c) && emit('select', c)"
         >
           {{ c.title }}
           <span v-if="c.count != null && enabled(c)" class="chip-count">{{ c.count }}</span>
+        </button>
+        <button
+          v-if="settings"
+          type="button"
+          class="chip settings"
+          :class="{ active: settingsActive }"
+          :aria-current="settingsActive ? 'page' : undefined"
+          :aria-label="`${activeModule.title} ayarları`"
+          :title="`${activeModule.title} ayarları`"
+          @click="emit('select', { to: settings.url })"
+        >
+          <OzIcon name="settings" :size="16" />
         </button>
       </nav>
     </header>
@@ -243,6 +259,11 @@ watch(() => props.activeChild, () => nextTick(() => revealChip(true)))
 }
 .chip.active { background: var(--oz-ink-soft); border-color: var(--oz-ink-soft); color: var(--oz-surface); }
 .chip.soon { opacity: .45; cursor: default; }
+/* Ayar çarkı: yalnız ikon, çok çipli modülde de görünsün diye satırın sağına yapışık */
+.chip.settings {
+  position: sticky; right: 0; z-index: 1; margin-left: auto; width: 32px; padding: 0; justify-content: center;
+  box-shadow: -10px 0 8px -2px var(--oz-page-bg);
+}
 .chip-count { min-width: 17px; height: 17px; padding: 0 5px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; background: var(--oz-danger); color: #fff; }
 
 .m-tabs {

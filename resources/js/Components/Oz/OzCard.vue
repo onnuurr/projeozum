@@ -33,7 +33,7 @@ const emit = defineEmits(['link-click'])
 .oz-card {
   background: var(--oz-surface); border-radius: var(--oz-radius); box-shadow: var(--oz-shadow-sm);
   border: 1px solid var(--oz-border);
-  overflow: hidden;
+  overflow: hidden; overflow: clip; /* clip: kaydırma kabı oluşturmaz → içindeki tablo başlığı sayfaya yapışabilir (eski tarayıcıda hidden) */
 }
 .oz-card-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; padding: 16px 18px 12px; }
 .oz-card-head h2 { min-width: 0; }

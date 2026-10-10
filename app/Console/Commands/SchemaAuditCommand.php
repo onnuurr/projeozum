@@ -34,6 +34,7 @@ class SchemaAuditCommand extends Command
         'roles', 'permissions', 'model_has_roles', 'model_has_permissions', 'role_has_permissions',
         // Modellerle 1:1 eşleşmeyen pivot tablolar
         'category_marketplace_mappings', 'tenant_product_access', 'tenant_access_rules',
+        'pattern_type_measurement_points', // PatternType::measurementPoints() pivotu (2026-10-07)
     ];
 
     public function handle(): int

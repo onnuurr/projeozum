@@ -68,7 +68,7 @@ const { theme } = useOzTheme()
 
   /* Tasarımdaki açık-tema degradeleri token'a alındı, koyu temada düz tonlara döner */
   --oz-stat-bg: radial-gradient(120% 90% at 95% 10%, #fafcff 0%, #ffffff 100%);
-  --oz-th-bg: linear-gradient(180deg, #fbfcfe 0%, #f1f5f9 100%);
+  --oz-th-bg: #f8fafc; /* düz (flat) tablo başlığı — eski dikey degrade kaldırıldı */
   --oz-track: #eef2f6;
   --oz-search-hover-bg: #ffffff;
   --oz-pill-info-bg: linear-gradient(180deg, #eff6ff 0%, #e0edff 100%);
@@ -77,6 +77,13 @@ const { theme } = useOzTheme()
   --oz-pill-success-bg: linear-gradient(180deg, #f0fdf4 0%, #dcfce7 100%);
   --oz-pill-danger-bg: linear-gradient(180deg, #fef2f2 0%, #fee2e2 100%);
   --oz-pill-neutral-bg: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  /* Pill yazı rengi: açık zeminde ana tondan bir kademe koyu (okunurluk) */
+  --oz-pill-info-fg: #1d4ed8;
+  --oz-pill-warning-fg: #b45309;
+  --oz-pill-accent-fg: #4338ca;
+  --oz-pill-success-fg: #15803d;
+  --oz-pill-danger-fg: #b91c1c;
+  --oz-pill-neutral-fg: #475569;
   --oz-inset-hl: rgba(255, 255, 255, 0.8);
 
   --oz-shadow: 0 10px 30px -4px rgba(15, 23, 42, 0.08), 0 4px 12px -2px rgba(15, 23, 42, 0.03);
@@ -127,6 +134,12 @@ const { theme } = useOzTheme()
   --oz-pill-success-bg: var(--oz-success-soft);
   --oz-pill-danger-bg: var(--oz-danger-soft);
   --oz-pill-neutral-bg: var(--oz-surface-2);
+  --oz-pill-info-fg: var(--oz-info);
+  --oz-pill-warning-fg: var(--oz-warning);
+  --oz-pill-accent-fg: var(--oz-accent-hover);
+  --oz-pill-success-fg: var(--oz-success);
+  --oz-pill-danger-fg: var(--oz-danger);
+  --oz-pill-neutral-fg: var(--oz-muted);
   --oz-inset-hl: rgba(255, 255, 255, 0.04);
 
   --oz-shadow: 0 8px 28px rgba(0, 0, 0, .45);

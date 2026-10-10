@@ -151,8 +151,12 @@ const permSearch = ref('')
 const filteredModules = computed(() => {
 	const q = permSearch.value.trim().toLocaleLowerCase('tr')
 	if (!q) return props.modules
+	const match = (p) => `${p.key} ${p.name}`.toLocaleLowerCase('tr').includes(q)
 	return props.modules
-		.map((m) => ({ ...m, permissions: m.permissions.filter((p) => `${p.key} ${p.name}`.toLocaleLowerCase('tr').includes(q)) }))
+		.map((m) => {
+			const groups = m.groups.map((g) => ({ ...g, permissions: g.permissions.filter(match) })).filter((g) => g.permissions.length)
+			return { ...m, groups, permissions: groups.flatMap((g) => g.permissions) }
+		})
 		.filter((m) => m.permissions.length)
 })
 
@@ -260,20 +264,25 @@ async function deletePerm(p) {
 							<tr class="module-row">
 								<td :colspan="roles.length + 1"><b>{{ m.name }}</b> <span>{{ m.permissions.length }} izin</span></td>
 							</tr>
-							<tr v-for="p in m.permissions" :key="p.key">
-								<td class="perm-col">
-									<div class="perm-name">{{ p.name }}</div>
-									<code class="perm-key">{{ p.key }}</code>
-								</td>
-								<td v-for="r in roles" :key="r.key" class="cell">
-									<OzCheckbox
-										:model-value="hasPermission(r, p.key)"
-										:disabled="r.key === 'superadmin' || !canManage || busyCell === `${r.id}:${p.key}`"
-										:aria-label="`${r.name} · ${p.name}`"
-										@update:model-value="togglePermission(r, p.key)"
-									/>
-								</td>
-							</tr>
+							<template v-for="g in m.groups" :key="g.key">
+								<tr v-if="m.groups.length > 1" class="group-row">
+									<td :colspan="roles.length + 1">{{ g.name }}</td>
+								</tr>
+								<tr v-for="p in g.permissions" :key="p.key">
+									<td class="perm-col">
+										<div class="perm-name">{{ p.name }}</div>
+										<code class="perm-key">{{ p.key }}</code>
+									</td>
+									<td v-for="r in roles" :key="r.key" class="cell">
+										<OzCheckbox
+											:model-value="hasPermission(r, p.key)"
+											:disabled="r.key === 'superadmin' || !canManage || busyCell === `${r.id}:${p.key}`"
+											:aria-label="`${r.name} · ${p.name}`"
+											@update:model-value="togglePermission(r, p.key)"
+										/>
+									</td>
+								</tr>
+							</template>
 						</template>
 					</tbody>
 				</table>
@@ -286,16 +295,19 @@ async function deletePerm(p) {
 			<OzEmptyState v-else-if="!filteredModules.length" icon="search" :title="`“${permSearch}” ile eşleşen izin yok`" compact />
 			<div v-for="m in filteredModules" :key="m.key" class="perm-group">
 				<div class="perm-group-head"><b>{{ m.name }}</b><span>{{ m.permissions.length }} izin</span></div>
-				<div v-for="p in m.permissions" :key="p.id" class="perm-row">
-					<div class="perm-info">
-						<div class="perm-name">{{ p.name }}</div>
-						<code class="perm-key">{{ p.key }}</code>
+				<template v-for="g in m.groups" :key="g.key">
+					<div v-if="m.groups.length > 1" class="perm-subhead">{{ g.name }}</div>
+					<div v-for="p in g.permissions" :key="p.id" class="perm-row">
+						<div class="perm-info">
+							<div class="perm-name">{{ p.name }}</div>
+							<code class="perm-key">{{ p.key }}</code>
+						</div>
+						<div v-if="canManage" class="role-actions">
+							<OzButton size="sm" icon="edit" :aria-label="`${p.name} düzenle`" @click="openEditPerm(p)" />
+							<OzButton size="sm" icon="trash" :aria-label="`${p.name} sil`" @click="deletePerm(p)" />
+						</div>
 					</div>
-					<div v-if="canManage" class="role-actions">
-						<OzButton size="sm" icon="edit" :aria-label="`${p.name} düzenle`" @click="openEditPerm(p)" />
-						<OzButton size="sm" icon="trash" :aria-label="`${p.name} sil`" @click="deletePerm(p)" />
-					</div>
-				</div>
+				</template>
 			</div>
 		</template>
 
@@ -328,15 +340,18 @@ async function deletePerm(p) {
 						<span class="count">{{ moduleCount(m) }} / {{ m.permissions.length }}</span>
 						<OzCheckbox :model-value="moduleAll(m)" label="Tümü" @update:model-value="toggleModule(m, $event)" />
 					</div>
-					<div class="perm-checks">
-						<OzCheckbox
-							v-for="p in m.permissions"
-							:key="p.key"
-							:model-value="editingRole.permissions.includes(p.key)"
-							:label="p.name"
-							:description="p.key"
-							@update:model-value="togglePerm(p.key, $event)"
-						/>
+					<div v-for="g in m.groups" :key="g.key" class="perm-sub">
+						<div v-if="m.groups.length > 1" class="perm-sub-title">{{ g.name }}</div>
+						<div class="perm-checks">
+							<OzCheckbox
+								v-for="p in g.permissions"
+								:key="p.key"
+								:model-value="editingRole.permissions.includes(p.key)"
+								:label="p.name"
+								:description="p.key"
+								@update:model-value="togglePerm(p.key, $event)"
+							/>
+						</div>
 					</div>
 				</div>
 			</div>
@@ -393,11 +408,13 @@ async function deletePerm(p) {
 .role-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
 .module-row td { background: var(--oz-accent-soft); color: var(--oz-accent); }
 .module-row span { font-size: 11px; opacity: .8; margin-left: 6px; }
+.group-row td { background: var(--oz-surface-2); padding: 6px 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--oz-muted); }
 .perm-name { font-weight: 600; color: var(--oz-ink-soft); }
 
 .perm-group { border: 1px solid var(--oz-border); border-radius: 12px; overflow: hidden; }
 .perm-group-head { display: flex; justify-content: space-between; padding: 10px 14px; background: var(--oz-surface-2); font-size: 12.5px; color: var(--oz-ink-soft); }
 .perm-group-head span { font-size: 11.5px; color: var(--oz-muted); }
+.perm-subhead { padding: 8px 14px 6px; border-top: 1px solid var(--oz-border-soft); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--oz-muted); }
 .perm-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-top: 1px solid var(--oz-border-soft); }
 .perm-info { flex: 1; min-width: 0; font-size: 12.5px; }
 
@@ -409,6 +426,9 @@ async function deletePerm(p) {
 .perm-module { border: 1px solid var(--oz-border); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
 .perm-module-head { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--oz-ink-soft); }
 .perm-module-head .count { margin-right: auto; font-size: 11.5px; color: var(--oz-muted); }
+.perm-sub { display: flex; flex-direction: column; gap: 8px; }
+.perm-sub + .perm-sub { border-top: 1px dashed var(--oz-border-soft); padding-top: 10px; }
+.perm-sub-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--oz-muted); }
 .perm-checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
 .modal-form { display: flex; flex-direction: column; gap: 14px; }
 .mono :deep(input) { font-family: ui-monospace, monospace; }
