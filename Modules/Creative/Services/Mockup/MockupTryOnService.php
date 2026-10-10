@@ -34,6 +34,7 @@ class MockupTryOnService
         private CanvasAssetResolver $resolver,
         private ReviewNotifier $notifier,
         private AiBatchService $batch,
+        private MockupDetailInset $inset,
     ) {}
 
     /**
@@ -178,6 +179,9 @@ class MockupTryOnService
                 $correction = $this->correctionFrom($fidelity, $alignBad);
             }
 
+            // Köşe detayı (kombinin ilk ek pozu): kontroller detaysız görselde yapıldı, işleme en sonda.
+            [$composite, $inset] = $this->inset->apply($result, $base, $composite, $temps);
+
             $baseStatus = $base->qa['status'] ?? null;
             $colorOff = ($color['after'] ?? null) !== null && $color['after'] > (float) config('creative.mockup.color_warn_de', 10.0);
             $status = match (true) {
@@ -192,7 +196,12 @@ class MockupTryOnService
 
             $model = $this->generator->modelIdentifier();
             $meta = $result->meta ?? [];
-            unset($meta['mockup_run']);
+            unset($meta['mockup_run'], $meta['detail_inset']);
+            if ($inset !== null) {
+                $meta['detail_inset'] = $inset;
+            }
+            // Üretimin bittiği an (updated_at onay/retle değişir) — MockupProgress süreyi buradan hesaplar.
+            $meta['generated_at'] = now()->toIso8601String();
             $result->update([
                 'meta'                   => $meta,
                 'staged_image_path'      => $this->onModel->persistStaged($composite, $product, $result),

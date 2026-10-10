@@ -117,6 +117,8 @@ Route::middleware(['auth', 'verified'])
     // Mokap giydirme (Faz 4): tek ürün / toplu başlat — ücretli AI, günlük limitli.
     Route::post('/tryon/mockup', [MockupController::class, 'store'])
         ->middleware(['can:creative.asset.manage', 'throttle:15,1'])->name('tryon.mockup.store');
+    Route::get('/tryon/mockup/progress', [MockupController::class, 'progress'])
+        ->middleware('can:creative.view')->name('tryon.mockup.progress');
     Route::post('/tryon/mockup/bulk', [MockupController::class, 'bulk'])
         ->middleware(['can:creative.asset.manage', 'throttle:5,1'])->name('tryon.mockup.bulk');
     // Arka plandaki üretimleri durdur: tek sonuç / bir ürün / hepsi (token yenilenir, bekleyen batch gönderilmez).
@@ -136,6 +138,8 @@ Route::middleware(['auth', 'verified'])
         ->middleware('can:creative.approve')->whereNumber('result')->name('tryon.reject');
     Route::post('/tryon/{result}/closeups', [TryonController::class, 'closeups'])
         ->middleware(['can:creative.asset.manage', 'throttle:15,1'])->whereNumber('result')->name('tryon.closeups');
+    Route::put('/tryon/{result}/inset', [TryonController::class, 'updateInset'])
+        ->middleware(['can:creative.asset.manage', 'throttle:30,1'])->whereNumber('result')->name('tryon.inset');
     Route::post('/tryon/{result}/cover', [TryonController::class, 'setCover'])
         ->middleware('can:creative.asset.manage')->whereNumber('result')->name('tryon.cover');
     Route::delete('/tryon/{result}', [TryonController::class, 'destroyResult'])

@@ -26,10 +26,10 @@ class MockupStylistRuleEngine
     public const LOW_CONFIDENCE = 0.5;
 
     /**
-     * @param  array{picks?:array<string,array<int,string>>, poses?:array<int,string>, features?:array<int,string>, confidence?:float}  $ai
+     * @param  array{picks?:array<string,array<int,string>>, features?:array<int,string>, confidence?:float}  $ai
      * @param  array<string,array<string,array{label_tr:string,prompt_en:string,tags:array<string,mixed>}>>  $catalog  kind => key => seçenek
-     * @param  array<string,array{regions:array<int,string>,requires:array<int,string>}>  $poses  kullanılabilir pozlar (ana kare hariç), sıralı
-     * @param  array{region:string,length:string,gender:?string,extra_poses:int,recent:array<int,array{0:?string,1:?string}>}  $ctx
+     * @param  array<string,array{regions:array<int,string>,requires:array<int,string>}>  $poses  kullanılabilir pozlar (ana kare hariç)
+     * @param  array{region:string,length:string,gender:?string,extra_poses:int,recent:array<int,array{0:?string,1:?string}>,recent_poses?:array<int,string>}  $ctx
      * @return array{pieces:array<string,string>, sentence:string, poses:array<int,string>, warnings:array<int,string>, confidence:?float}
      */
     public function resolve(array $ai, array $catalog, array $poses, array $ctx): array
@@ -89,7 +89,7 @@ class MockupStylistRuleEngine
         return [
             'pieces'     => $pieces,
             'sentence'   => $this->sentence($region, $pieces, $catalog),
-            'poses'      => $this->poses((array) ($ai['poses'] ?? []), $poses, $region, (array) ($ai['features'] ?? []), (int) $ctx['extra_poses']),
+            'poses'      => $this->poses($poses, $region, (array) ($ai['features'] ?? []), (int) $ctx['extra_poses'], (array) ($ctx['recent_poses'] ?? [])),
             'warnings'   => $warnings,
             'confidence' => $confidence,
         ];
@@ -184,21 +184,33 @@ class MockupStylistRuleEngine
         return ucfirst($main !== null ? trim($main . ($list !== '' ? ', with ' . $list : '')) : $list) . '.';
     }
 
-    /** @return array<int,string> */
-    private function poses(array $aiPoses, array $poses, string $region, array $features, int $extra): array
+    /**
+     * Ek pozlar rastgele: stilist (AI) her üründe "en iyi gösteren" aynı ikiliyi seçiyordu, katalog tekdüze
+     * kalıyordu (2026-10-10). Uygunluk etiketlerden (bölge + ürün özelliği; ürünü gizleyen pozlar Pozlar
+     * sekmesinde mokap dışı). Son kombinlerde kullanılan pozlar sona itilir: art arda aynı pozlar gelmez.
+     * Üründe en fazla bir arka görünüm (view = back): ikisi denk gelince 3 görselin 2'si arkadan oluyordu.
+     *
+     * @param  array<int,string>  $recent  son kombinlerin pozları
+     * @return array<int,string>
+     */
+    private function poses(array $poses, string $region, array $features, int $extra, array $recent): array
     {
         $ok = array_keys(array_filter($poses, fn ($p) => in_array($region, (array) ($p['regions'] ?? []), true)
             && array_diff((array) ($p['requires'] ?? []), $features) === []));
-        $chosen = array_values(array_unique(array_filter(array_map('strval', $aiPoses), fn ($k) => in_array($k, $ok, true))));
+        shuffle($ok);
+        usort($ok, fn ($a, $b) => in_array($a, $recent, true) <=> in_array($b, $recent, true));   // kararlı sıralama: karışık sıra korunur
+
+        $chosen = [];
+        $back = false;
         foreach ($ok as $k) {
-            if (count($chosen) >= $extra) {
-                break;
+            $isBack = ($poses[$k]['view'] ?? 'front') === 'back';
+            if (count($chosen) >= $extra || ($isBack && $back)) {
+                continue;
             }
-            if (! in_array($k, $chosen, true)) {
-                $chosen[] = $k;
-            }
+            $chosen[] = $k;
+            $back = $back || $isBack;
         }
 
-        return array_slice($chosen, 0, $extra);
+        return $chosen;
     }
 }

@@ -9,7 +9,43 @@ namespace Modules\Creative\Services\Ai\Drivers\Gemini;
  */
 class MockupPromptBuilder
 {
-    public const STYLIST_VERSION = 3;   // 2: seçenek listesi + kural motoru (Faz 3); 3: ürünün birden çok fotoğrafı
+    public const STYLIST_VERSION = 4;   // 2: seçenek listesi + kural motoru (Faz 3); 3: ürünün birden çok fotoğrafı; 4: poz seçimi stilistten çıktı (rastgele)
+
+    /** Baz (ana kare + türetilen poz) prompt sürümü; baz satırının masks.prompt_version alanına yazılır. */
+    public const BASE_VERSION = 3;      // 2: canlı çekim — doğal beden dili, şablon pozu birebir değil; 3: kare başına farklı yüz ifadesi (2026-10-10)
+
+    /**
+     * 2026-10-10: bazlar "nötr manken şablonunu BİREBİR kopyala" + ifade talimatı yokken kaskatı, ifadesiz
+     * (vitrin mankeni gibi) çıkıyordu. Gerçek bir katalog çekimi: rahat, doğal duruş; ifade EXPRESSIONS'tan.
+     */
+    private const LIVELY = 'This is a real catalog photo shoot of a real, lively model — NOT a stiff store mannequin. '
+        . 'Natural, relaxed body language: a slight weight shift, soft knees, relaxed shoulders, relaxed fingers and natural, slightly asymmetric arms and hands — '
+        . 'never rigid, symmetrical, robotic or posed like a doll.';
+
+    /**
+     * Kare başına yüz ifadesi: her karede aynı gülümseme yapay duruyordu (2026-10-10). Ana kare (ürünün kapak
+     * görseli) her zaman MASTER_EXPRESSION; türetilen pozlar havuzdan, kombin içinde tekrarsız (MockupBaseService).
+     */
+    public const EXPRESSIONS = [
+        'soft_smile'  => 'a soft, natural closed-mouth smile, relaxed eyes looking into the camera',
+        'laugh'       => 'a candid, genuine laugh caught mid-moment — open mouth, eyes crinkling, as if reacting to something funny just off-camera',
+        'calm'        => 'a calm, relaxed face with no posed smile — just a faint natural softness around the mouth, quietly confident, eyes to camera',
+        'glance_away' => 'a candid in-between moment, glancing off-camera to the side with a small natural smile, not looking into the lens',
+        'playful'     => 'a playful, slightly cheeky lopsided grin with bright eyes',
+        'thoughtful'  => 'a gentle, thoughtful look slightly down and aside with only a hint of a smile',
+    ];
+
+    public const MASTER_EXPRESSION = 'soft_smile';
+
+    private function expression(?string $key): string
+    {
+        $text = self::EXPRESSIONS[$key] ?? self::EXPRESSIONS[self::MASTER_EXPRESSION];
+
+        return "Facial expression in THIS photo: {$text}. It must look spontaneous and real — not a frozen, forced or stock catalog smile.";
+    }
+
+    private const POSE_TEMPLATE = 'Follow its overall body pose closely (stance, which leg carries the weight, arm and hand positions, head and body direction) '
+        . 'but hold it the way a real model naturally would in a photo shoot — loose and relaxed, not a rigid copy; ignore its appearance and its blank expression.';
 
     private const STUDIO = 'Plain seamless light-grey studio background with soft, even, diffused frontal studio lighting and a soft natural floor shadow; no props, no window light patterns, no text or watermark.';
 
@@ -22,12 +58,13 @@ class MockupPromptBuilder
      * Faz 3: stilist serbest kombin YAZMAZ; her tür için listeden sıralı 3 anahtar seçer. Kombin cümlesini
      * MockupStylistRuleEngine seçeneklerin prompt_en alanlarından kurar.
      *
-     * @param array{region:string,length:string,age:?string,gender:?string,poses:array<string,string>,extra_poses:int,options:array<string,array<string,string>>} $c
+     * Ek pozları stilist seçmez (v4): MockupStylistRuleEngine uygun pozlardan rastgele seçer.
+     *
+     * @param array{region:string,length:string,age:?string,gender:?string,options:array<string,array<string,string>>} $c
      *        options: kind => key => kısa İngilizce tanım (yalnız bu ürüne uygun olanlar)
      */
     public function stylist(array $c): string
     {
-        $poses = collect($c['poses'])->map(fn ($p, $k) => "- {$k}: {$p}")->implode("\n");
         $options = collect($c['options'])->map(fn ($opts, $kind) => strtoupper($kind) . ":\n" . collect($opts)->map(fn ($d, $k) => "- {$k}: {$d}")->implode("\n"))->implode("\n");
         $kinds = implode(', ', array_map(fn ($k) => "\"{$k}\": [\"key1\",\"key2\",\"key3\"]", array_keys($c['options'])));
         $who = trim(($c['gender'] ? "a {$c['gender']}" : 'a child') . ($c['age'] ? " ({$c['age']})" : ''));
@@ -46,15 +83,25 @@ Style a realistic, age-appropriate outfit AROUND the product by choosing ONLY fr
 Options:
 {$options}
 
-Also pick exactly {$c['extra_poses']} poses from the list below that best show THIS product (avoid poses where hands/arms would hide it):
-{$poses}
-
 List the product's visible construction features from: {$features}.
 
 Answer ONLY with JSON, no markdown:
 {"product_summary": "short English description of the product", "picks": { {$kinds} },
- "poses": ["pose_key"], "features": ["..."], "length": "mini|knee|midi|maxi", "confidence": 0.0-1.0, "reasoning_tr": "kısa Türkçe gerekçe"}
+ "features": ["..."], "length": "mini|knee|midi|maxi", "confidence": 0.0-1.0, "reasoning_tr": "kısa Türkçe gerekçe"}
 TXT;
+    }
+
+    /** Köşe detayı (MockupDetailInset): ürünün en ayırt edici detayı hangi fotoğrafta, nerede. */
+    public function detailBox(int $photoCount): string
+    {
+        $which = $photoCount > 1
+            ? "You are given {$photoCount} photos of the SAME product (numbered 1..{$photoCount} in order). Choose the photo that shows the detail most clearly and at the highest effective resolution (usually the closest shot)."
+            : 'You are given a photo of a product.';
+
+        return $which . ' Find the single most distinctive, attractive construction detail a shopper would want to see up close '
+            . '(e.g. a bow, embroidery or eyelet work, ruffles, a collar, buttons, a print motif, lace, a pocket). '
+            . 'Return a tight box around that detail with a little context; it will be shown magnified in a round inset, so avoid boxes that are mostly background or a large plain area. '
+            . 'Answer ONLY JSON: {"photo": <1-based photo number>, "box_2d": [ymin, xmin, ymax, xmax] (0-1000), "label_tr": "kısa Türkçe ad, ör. fiyonk"}';
     }
 
     public function baseConsistency(): string
@@ -113,23 +160,23 @@ TXT;
             . $this->placeholder($region, $length) . ' in place of the product.';
     }
 
-    public function masterBase(string $outfitText): string
+    public function masterBase(string $outfitText, ?string $expression = null): string
     {
         return implode(' ', [
             'You are given reference images. The FIRST image is the PERSON (identity source). Keep the person\'s identity strictly consistent: same face, bone structure, eyes, hairstyle, skin tone and body type.',
-            'The SECOND image is a POSE TEMPLATE (a neutral mannequin). Reproduce its body pose EXACTLY; ignore its appearance.',
-            $outfitText,
+            'The SECOND image is a POSE TEMPLATE (a neutral mannequin). ' . self::POSE_TEMPLATE,
+            $outfitText, self::LIVELY, $this->expression($expression ?? self::MASTER_EXPRESSION),
             'The person must wear shoes (never barefoot). Nothing else — no other accessories.',
             self::FRAMING, self::STUDIO, PromptDirectives::realism(), PromptDirectives::camera(),
         ]);
     }
 
-    public function derivedBase(string $outfitText): string
+    public function derivedBase(string $outfitText, ?string $expression = null): string
     {
         return implode(' ', [
             'You are given reference images. The FIRST image is the MASTER photo from this photo shoot: keep the SAME person (face, hairstyle, skin tone, body), the SAME outfit and accessories EXACTLY (every garment, accessory, socks/tights and shoes — same colors, fit and details; never barefoot), the SAME studio background and the SAME lighting.',
-            'The SECOND image is a POSE TEMPLATE (a neutral mannequin). Change ONLY the pose: reproduce its body pose EXACTLY; ignore its appearance.',
-            $outfitText,
+            'The SECOND image is a POSE TEMPLATE (a neutral mannequin). Change ONLY the pose and the facial expression: this is a different moment of the same shoot, so do NOT copy the master photo\'s expression. ' . self::POSE_TEMPLATE,
+            $outfitText, self::LIVELY, $this->expression($expression),
             self::FRAMING, self::STUDIO, PromptDirectives::realism(), PromptDirectives::camera(),
         ]);
     }

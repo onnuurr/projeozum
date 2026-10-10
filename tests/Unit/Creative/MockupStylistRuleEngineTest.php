@@ -147,11 +147,43 @@ class MockupStylistRuleEngineTest extends TestCase
 
     public function test_poses_respect_region_and_product_features(): void
     {
-        $r = $this->resolve(['poses' => ['pocket', 'top_only', 'three_qtr']]);
-        $this->assertSame(['three_qtr', 'walking'], $r['poses']);      // cep yok, bölge uymuyor → listeden tamamlanır
+        for ($i = 0; $i < 20; $i++) {
+            $r = $this->resolve([]);
+            $this->assertEqualsCanonicalizing(['three_qtr', 'walking'], $r['poses']);   // cep yok, bölge uymuyor
+        }
+        $r = $this->resolve(['features' => ['pockets']]);
+        $this->assertCount(2, $r['poses']);
+        $this->assertEmpty(array_diff($r['poses'], ['pocket', 'walking', 'three_qtr']));
+    }
 
-        $r = $this->resolve(['poses' => ['pocket'], 'features' => ['pockets']]);
-        $this->assertSame(['pocket', 'walking'], $r['poses']);
+    public function test_at_most_one_back_view_pose(): void
+    {
+        $poses = [
+            'back'      => ['regions' => self::ALL, 'requires' => [], 'view' => 'back'],
+            'shoulder'  => ['regions' => self::ALL, 'requires' => [], 'view' => 'back'],
+            'walking'   => ['regions' => self::ALL, 'requires' => [], 'view' => 'side'],
+        ];
+        for ($i = 0; $i < 30; $i++) {
+            $r = (new MockupStylistRuleEngine())->resolve([], $this->catalog(), $poses,
+                ['region' => 'bottom', 'length' => 'mini', 'gender' => 'girl', 'extra_poses' => 2, 'recent' => []]);
+            $this->assertCount(2, $r['poses']);
+            $this->assertContains('walking', $r['poses']);
+        }
+    }
+
+    public function test_poses_are_random_and_avoid_recently_used_ones(): void
+    {
+        $seen = [];
+        for ($i = 0; $i < 60; $i++) {
+            $r = $this->resolve(['features' => ['pockets']]);
+            $seen[implode(',', $r['poses'])] = true;
+        }
+        $this->assertGreaterThan(1, count($seen));                 // stilistin seçimi değil, rastgele
+
+        for ($i = 0; $i < 20; $i++) {
+            $r = $this->resolve(['features' => ['pockets']], ['extra_poses' => 1, 'recent_poses' => ['walking', 'three_qtr']]);
+            $this->assertSame(['pocket'], $r['poses']);            // son kombinlerde kullanılmamış olan önce
+        }
     }
 
     public function test_low_confidence_is_flagged_for_the_reviewer(): void

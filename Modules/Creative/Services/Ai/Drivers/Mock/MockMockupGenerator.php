@@ -19,11 +19,15 @@ class MockMockupGenerator implements MockupGeneratorContract
         return [
             'product_summary' => 'mock product',
             'picks'           => array_map(fn ($opts) => array_slice(array_keys($opts), 0, 3), $context['options'] ?? []),
-            'poses'           => array_slice(array_keys($context['poses']), 0, $context['extra_poses']),
             'features'        => [],
             'confidence'      => 0.9,
             'reasoning_tr'    => 'Test kombini.',
         ];
+    }
+
+    public function detailBox(array $photoPaths): array
+    {
+        return ['photo' => 0, 'box' => [0.35, 0.35, 0.65, 0.55], 'label_tr' => 'Test detayı'];
     }
 
     public function masterBase(string $mannequinReferencePath, string $poseTemplatePath, array $outfit): string

@@ -37,6 +37,23 @@ class GeminiMockupGenerator implements MockupGeneratorContract
         return $this->verdict($this->client->analyzeImage($this->prompts->fidelity($region, $view), $pairPath));
     }
 
+    public function detailBox(array $photoPaths): array
+    {
+        $json = $this->json($this->client->analyzeImages($this->prompts->detailBox(count($photoPaths)), $photoPaths));
+        $b = array_map('floatval', (array) ($json['box_2d'] ?? []));
+        $photo = (int) ($json['photo'] ?? 1) - 1;
+        if (count($b) !== 4 || ! isset($photoPaths[$photo])) {
+            throw new RuntimeException('Detay bölgesi okunamadı.');
+        }
+        // Gemini kutusu [ymin, xmin, ymax, xmax], 0..1000.
+        [$y0, $x0, $y1, $x1] = array_map(fn ($v) => max(0.0, min(1.0, $v / 1000)), $b);
+        if ($x1 - $x0 < 0.02 || $y1 - $y0 < 0.02) {
+            throw new RuntimeException('Detay bölgesi okunamadı.');
+        }
+
+        return ['photo' => $photo, 'box' => [$x0, $y0, $x1, $y1], 'label_tr' => trim((string) ($json['label_tr'] ?? ''))];
+    }
+
     /** Kontrol cevabı; okunamazsa "unknown" (kontrol üretimi asla durdurmaz, onaycı görür). */
     private function verdict(string $raw): array
     {
@@ -56,12 +73,12 @@ class GeminiMockupGenerator implements MockupGeneratorContract
 
     public function masterBase(string $mannequinReferencePath, string $poseTemplatePath, array $outfit): string
     {
-        return $this->image($this->prompts->masterBase($this->outfitText($outfit)), [$mannequinReferencePath, $poseTemplatePath], 'base_image_size');
+        return $this->image($this->prompts->masterBase($this->outfitText($outfit), $outfit['expression'] ?? null), [$mannequinReferencePath, $poseTemplatePath], 'base_image_size');
     }
 
     public function derivedBase(string $masterPath, string $poseTemplatePath, array $outfit): string
     {
-        return $this->image($this->prompts->derivedBase($this->outfitText($outfit)), [$masterPath, $poseTemplatePath], 'base_image_size');
+        return $this->image($this->prompts->derivedBase($this->outfitText($outfit), $outfit['expression'] ?? null), [$masterPath, $poseTemplatePath], 'base_image_size');
     }
 
     /** @param array{sentence:string,summary:string,region:string,length:string,correction?:string} $o */

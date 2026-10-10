@@ -950,6 +950,12 @@ return [
         // tablosunda (mockup_regions, requires, view). Çeşitlilik: aynı kategoride son N kombinde
         // kullanılan (tamamlayıcı parça + ayakkabı) ikilisi tekrarlanmaz (MockupStylistRuleEngine).
         'stylist_diversity_window' => (int) env('CREATIVE_MOCKUP_DIVERSITY_WINDOW', 5),
+        // Köşe detayı: kombinin ilk ek pozuna ürün fotoğrafından yuvarlak detay (MockupDetailInset). Detay bölgesi
+        // ürün+renk başına tek AI analiz çağrısıyla bulunur; onaycı kartta düzeltebilir/kaldırabilir.
+        'detail_inset' => [
+            'enabled'    => (bool) env('CREATIVE_MOCKUP_DETAIL_INSET', true),
+            'max_photos' => 4,
+        ],
         // Faz 6 renk kilidi: birleşik görseldeki ürünün renk tonunu (LAB a/b) orijinal ürün fotoğrafına
         // kaydırır, parlaklığa (gölge/doku) dokunmaz; ürün alanı = baz ↔ birleşik farkı. Ölçüm (Delta E)
         // kilit öncesi/sonrası qa.color'a yazılır; kilitten sonra eşik üstü → onaycıya uyarı.

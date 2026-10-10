@@ -49,6 +49,12 @@ class PythonMockupVision implements MockupVisionContract
         return $this->run('composite', [$basePath, $modelOutPath, $prefix, ...array_map('strval', $box), $resultPath, $restoreShoes ? '1' : '0']);
     }
 
+    public function inset(string $compositePath, string $photoPath, array $box, ?string $labelsPath, string $outPath): array
+    {
+        return $this->run('mask', ['inset', $compositePath, $photoPath, ...array_map(fn ($v) => (string) round((float) $v, 4), $box),
+            $labelsPath && is_file($labelsPath) ? $labelsPath : '-', $outPath]);
+    }
+
     /**
      * @param  array<int,string>  $args
      * @return array<string,mixed>

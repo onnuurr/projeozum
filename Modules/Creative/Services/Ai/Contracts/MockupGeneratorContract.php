@@ -13,7 +13,7 @@ interface MockupGeneratorContract
      * ham öneri — MockupStylistRuleEngine doğrular): {product_summary, picks:{kind:[key...]}, poses, features,
      * length, confidence, reasoning_tr}.
      *
-     * @param  array{region:string,length:string,age:?string,gender:?string,poses:array<string,string>,extra_poses:int,options:array<string,array<string,string>>}  $context
+     * @param  array{region:string,length:string,age:?string,gender:?string,options:array<string,array<string,string>>}  $context
      * @param  list<string>  $extraImagePaths  Aynı ürünün diğer fotoğrafları (ör. takımın ayrı çekilmiş altı)
      * @return array<string,mixed>
      */
@@ -22,16 +22,25 @@ interface MockupGeneratorContract
     /**
      * Manken kimliği + poz şablonu + kombin → ana kare (geçici dosya yolu).
      *
-     * @param  array{sentence:string,summary:string,region:string,length:string}  $outfit
+     * @param  array{sentence:string,summary:string,region:string,length:string,expression?:string}  $outfit  expression: MockupPromptBuilder::EXPRESSIONS anahtarı
      */
     public function masterBase(string $mannequinReferencePath, string $poseTemplatePath, array $outfit): string;
 
     /**
      * Ana kare + poz şablonu → aynı kombinle yeni poz (geçici dosya yolu).
      *
-     * @param  array{sentence:string,summary:string,region:string,length:string}  $outfit
+     * @param  array{sentence:string,summary:string,region:string,length:string,expression?:string}  $outfit  expression: MockupPromptBuilder::EXPRESSIONS anahtarı
      */
     public function derivedBase(string $masterPath, string $poseTemplatePath, array $outfit): string;
+
+    /**
+     * Köşe detayı için ürün fotoğraflarından en ayırt edici detay: hangi fotoğraf (sıra no) + kutu
+     * (0..1, x0 y0 x1 y1) + kısa Türkçe ad. Okunamazsa RuntimeException.
+     *
+     * @param  array<int,string>  $photoPaths
+     * @return array{photo:int, box:array{0:float,1:float,2:float,3:float}, label_tr:string}
+     */
+    public function detailBox(array $photoPaths): array;
 
     /**
      * Kırpılmış baz bölgesine ürünü giydirir (geçici dosya yolu).

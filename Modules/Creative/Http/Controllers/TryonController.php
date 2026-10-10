@@ -17,6 +17,7 @@ use Modules\Creative\Events\TryonReviewed;
 use Modules\Creative\Http\Controllers\Concerns\HandlesCreativeReview;
 use Modules\Creative\Http\Requests\GenerateCloseupsRequest;
 use Modules\Creative\Http\Requests\GenerateTryonRequest;
+use Modules\Creative\Http\Requests\UpdateDetailInsetRequest;
 use Modules\Creative\Jobs\GenerateOnModelJob;
 use Modules\Creative\Models\GarmentLabel;
 use Modules\Creative\Models\Mannequin;
@@ -27,6 +28,7 @@ use Modules\Creative\Services\Ai\TryOnDriverResolver;
 use Modules\Creative\Services\Enhancement\GarmentDetailClassifierContract;
 use Modules\Creative\Services\FalBalanceService;
 use Modules\Creative\Services\GeminiSpendService;
+use Modules\Creative\Services\Mockup\MockupDetailInset;
 use Modules\Creative\Services\Mockup\MockupRerunService;
 use Modules\Creative\Services\Mockup\MockupSettings;
 use Modules\Creative\Services\ProductCloseupService;
@@ -236,6 +238,7 @@ class TryonController extends Controller
             ->mapWithKeys(fn ($o) => ["{$o->kind}.{$o->key}" => $o->label_tr])->all() : [];
 
         $rerun = app(MockupRerunService::class);
+        $inset = app(MockupDetailInset::class);
 
         return $results->map(fn (TryonResult $r) => [
             'id'              => $r->id,
@@ -277,6 +280,8 @@ class TryonController extends Controller
                     ? "{$o->meta['ages'][0]} Yaş" : "{$o->meta['ages'][0]}–{$o->meta['ages'][1]} Yaş") : null,
             ] : null,
             'shot_label'      => $r->isCloseup() ? (ProductCloseupService::shotOptions()[$r->shot] ?? $r->shot) : null,
+            // Köşe detayı (kombinin ilk ek pozu): kartta kutu düzeltme / kaldırma.
+            'detail_inset'    => $inset->present($r),
             'source_result_id' => $r->source_result_id,
             // Onaydan önce henüz product_images satırı yok; staged (bekleyen) önizleme gösterilir.
             // Dosya adı result id'sine sabit (onmodel_staged_{id}.webp) ve nginx statik
@@ -413,6 +418,19 @@ class TryonController extends Controller
         }
 
         return back()->with('success', __('creative::messages.closeup.queued', ['count' => $queued->count()]));
+    }
+
+    /** Köşe detayını düzeltir (fotoğraf + kutu) ya da kaldırır; temiz görselden ücretsiz yeniden çizilir. */
+    public function updateInset(TryonResult $result, UpdateDetailInsetRequest $request, MockupDetailInset $inset): RedirectResponse
+    {
+        try {
+            $off = $request->boolean('off');
+            $inset->update($result, $off ? null : $request->validated('photo'), $off ? null : array_map('floatval', $request->validated('box')));
+        } catch (\RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back();
     }
 
     /**

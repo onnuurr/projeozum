@@ -13,6 +13,7 @@ use Modules\Creative\Models\MockupOutfit;
 use Modules\Creative\Models\Pose;
 use Modules\Creative\Services\Ai\Contracts\MockupGeneratorContract;
 use Modules\Creative\Services\Ai\Contracts\MockupVisionContract;
+use Modules\Creative\Services\Ai\Drivers\Gemini\MockupPromptBuilder;
 use Modules\Creative\Services\Ai\Support\AiUsageRecorder;
 use Modules\Creative\Services\Ai\Support\ImageFile;
 use Modules\Creative\Services\AiBatchService;
@@ -61,8 +62,9 @@ class MockupBaseService
             'correction' => (string) ($outfit->meta['base_correction'] ?? ''),
         ];
 
+        $expressions = $this->expressions($outfit, $others);
         $master = $this->settle($outfit, $masterPose, null, fn ($poseTpl) => $this->generator->masterBase(
-            $this->local($mannequin->reference_image_path), $poseTpl, $spec,
+            $this->local($mannequin->reference_image_path), $poseTpl, [...$spec, 'expression' => MockupPromptBuilder::MASTER_EXPRESSION],
         ));
         if ($master === null) {
             return null;
@@ -75,7 +77,8 @@ class MockupBaseService
         $waiting = false;
         $masterPath = $this->disk()->path($master->image_path);
         foreach ($others as $pose) {
-            $base = $this->settle($outfit, $pose, $master, fn ($poseTpl) => $this->generator->derivedBase($masterPath, $poseTpl, $spec));
+            $base = $this->settle($outfit, $pose, $master, fn ($poseTpl) => $this->generator->derivedBase($masterPath, $poseTpl,
+                [...$spec, 'expression' => $expressions[$pose->pose_key] ?? null]));
             if ($base === null) {
                 $waiting = true;
             } elseif ($base->status === MockupBase::STATUS_READY) {
@@ -84,6 +87,30 @@ class MockupBaseService
         }
 
         return $waiting ? null : $ready;
+    }
+
+    /**
+     * Türetilen pozların yüz ifadeleri: her karede aynı gülümseme yapay duruyordu (2026-10-10). Ana karenin
+     * ifadesi dışındaki havuzdan, kombin içinde tekrarsız; kombine göre sabit sıra (yeniden üretimde aynı
+     * poz aynı ifadeyi alır, ürünler arasında çeşitlenir). Onaycı görsün diye kombin meta'sına yazılır.
+     *
+     * @param  Collection<int,Pose>  $poses
+     * @return array<string,string> pose_key => MockupPromptBuilder::EXPRESSIONS anahtarı
+     */
+    private function expressions(MockupOutfit $outfit, Collection $poses): array
+    {
+        $pool = array_values(array_diff(array_keys(MockupPromptBuilder::EXPRESSIONS), [MockupPromptBuilder::MASTER_EXPRESSION]));
+        usort($pool, fn ($a, $b) => crc32("{$outfit->id}:{$a}") <=> crc32("{$outfit->id}:{$b}"));
+        $map = [];
+        foreach ($poses->values() as $i => $pose) {
+            $map[$pose->pose_key] = $pool[$i % count($pool)];
+        }
+        $all = [config('creative.mockup.master_pose') => MockupPromptBuilder::MASTER_EXPRESSION, ...$map];
+        if (($outfit->meta['expressions'] ?? null) !== $all) {
+            $outfit->update(['meta' => [...($outfit->meta ?? []), 'expressions' => $all]]);
+        }
+
+        return $map;
     }
 
     /**
@@ -200,6 +227,7 @@ class MockupBaseService
                     'long'   => (bool) ($mask['long'] ?? false),
                     'labels' => $seg['labels'] ?? null,
                     'checks' => $seg['checks'] ?? null,
+                    'prompt_version' => MockupPromptBuilder::BASE_VERSION,
                 ],
                 'status'     => MockupBase::STATUS_READY,
             ]);

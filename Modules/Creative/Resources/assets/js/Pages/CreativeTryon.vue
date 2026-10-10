@@ -66,6 +66,31 @@
 		</PageHeader>
 		<TryonHelpDialog v-model:open="helpOpen" />
 
+		<!-- Arka planda çalışan mokaplar (aşama + ilerleme); biten satır birkaç dakika "onay bekliyor" olarak kalır. -->
+		<div v-if="mockupProgress.length" class="mp-panel">
+			<div class="mp-head">
+				<Loader2 v-if="mockupRunningCount" :size="15" class="spin" />
+				<Check v-else :size="15" />
+				<strong>{{ mockupRunningCount ? `Arka planda ${mockupRunningCount} mokap üretiliyor` : 'Mokaplar tamamlandı' }}</strong>
+				<span class="mp-hint">Batch API ile her adım birkaç dakika sürer; sayfayı kapatabilirsiniz.</span>
+			</div>
+			<div v-for="m in mockupProgress" :key="m.outfit_id" class="mp-row" :class="`is-${m.state}`">
+				<div class="mp-info">
+					<span class="mp-name">{{ m.product_name }}</span>
+					<span class="mp-sub">{{ [m.mannequin, m.sizes?.join(', ')].filter(Boolean).join(' · ') }} · {{ durationText(m) }}</span>
+				</div>
+				<div class="mp-stage">
+					<div class="mp-label">
+						<span v-if="m.state === 'running'">Adım {{ m.step }}/{{ m.steps }} · </span>{{ m.label }}<span v-if="m.state === 'running' && m.total > 0"> ({{ m.done }}/{{ m.total }})</span>
+					</div>
+					<div class="mp-bar" role="progressbar" :aria-valuenow="m.percent" aria-valuemin="0" aria-valuemax="100">
+						<span :style="{ width: `${Math.max(m.percent, 4)}%` }" />
+					</div>
+				</div>
+				<Button v-if="m.state === 'done'" variant="ghost" size="sm" @click="openProductResults({ product_id: m.product_id, name: m.product_name })">Sonuçları gör</Button>
+			</div>
+		</div>
+
 		<!-- Adım göstergesi: sırayla kilitli/açık/tamam adımlar — bir adım tamamlanmadan sonrakine geçilemez. -->
 		<div v-if="can('creative.asset.manage')" ref="wizardStepsEl" class="wizard-steps">
 			<template v-for="(s, i) in wizardSteps" :key="s.n">
@@ -475,7 +500,7 @@
 							:show-product="false" :show-mannequin="!set.mannequinInTitle"
 							:can-manage="can('creative.asset.manage')" :busy-review="busyReview" :stop-busy="stopBusy" :mockup-busy="mockupBusy"
 							@preview="openPreview" @approve="approve" @reject="reject" @stop="stopResult" @cover="setCover"
-							@closeups="openCloseupPicker" @destroy="destroyResult" @rerun="rerunMockup" />
+							@closeups="openCloseupPicker" @destroy="destroyResult" @rerun="rerunMockup" @changed="refresh" />
 					</div>
 				</section>
 			</template>
@@ -1075,11 +1100,44 @@ const MOCKUP_REGIONS = { bottom: 'alt', top: 'üst', one_piece: 'tek parça', se
 const mockupBusy = ref(false)
 const MOCKUP_USD_PER_PRODUCT = 0.22
 
+/* ── Arka planda çalışan mokaplar: kombin → ana kare → pozlar → giydirme aşaması (MockupProgress).
+   Sonuç kartları yalnız son aşamada oluşuyor; öncesi (Batch'te 10–20 dk) bu panelde görünür.
+   Çalışan varken 10 sn'de, yokken 60 sn'de bir yoklanır (otomatik tetik / toplu başlatma da yakalanır). ── */
+const mockupProgress = ref([])
+let mockupProgressTimer = null
+async function fetchMockupProgress() {
+	try {
+		const { data } = await window.axios.get('/creative/tryon/mockup/progress')
+		const before = new Map(mockupProgress.value.map((m) => [m.outfit_id, m.state]))
+		mockupProgress.value = data.items ?? []
+		// Biri yeni bittiyse sonuç kartları da yenilensin.
+		if (mockupProgress.value.some((m) => m.state !== 'running' && before.get(m.outfit_id) === 'running')) refetchProductResultsIfActive()
+	} catch {
+		// sessiz: bir sonraki yoklamada yeniden denenir
+	}
+	scheduleMockupProgress()
+}
+function scheduleMockupProgress() {
+	clearTimeout(mockupProgressTimer)
+	const running = mockupProgress.value.some((m) => m.state === 'running')
+	mockupProgressTimer = setTimeout(fetchMockupProgress, running ? 10000 : 60000)
+}
+const mockupRunningCount = computed(() => mockupProgress.value.filter((m) => m.state === 'running').length)
+// Biten satırda üretim süresi (başlangıç → son giydirme), çalışanda başlangıçtan bu yana geçen süre.
+function durationText(m) {
+	const end = m.finished_at ? new Date(m.finished_at).getTime() : Date.now()
+	const min = Math.max(0, Math.round((end - new Date(m.started_at).getTime()) / 60000))
+	const span = min < 1 ? '1 dk’dan kısa' : `${min} dk`
+	return m.state === 'done' ? `${span} sürdü` : (m.state === 'running' ? `${span}’dır çalışıyor` : span)
+}
+onMounted(fetchMockupProgress)
+onUnmounted(() => clearTimeout(mockupProgressTimer))
+
 function mockupRequest(url, data, onSuccess) {
 	mockupBusy.value = true
 	router.post(url, data, {
 		preserveScroll: true,
-		onSuccess: () => { onSuccess?.(); refetchProductResultsIfActive() },
+		onSuccess: () => { onSuccess?.(); refetchProductResultsIfActive(); fetchMockupProgress() },
 		onError: (errs) => showToast?.({ type: 'error', title: 'Mokap başlatılamadı', message: Object.values(errs)[0] || 'Doğrulama hatası.' }),
 		onFinish: () => { mockupBusy.value = false },
 	})
@@ -1457,6 +1515,22 @@ onUnmounted(() => {
 .mockup-panel__text { flex: 1; font-size: 12.5px; line-height: 1.5; color: var(--color-muted); }
 .mockup-panel__text strong { color: var(--color-on-surface, inherit); }
 .mockup-panel__quota { display: block; margin-top: 2px; font-size: 11.5px; }
+.mp-panel { margin-top: 14px; padding: 12px 14px; border-radius: 10px; background: var(--color-surface-container-low); display: grid; gap: 10px; }
+.mp-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; }
+.mp-head .spin { animation: mp-spin 1s linear infinite; color: var(--color-primary); }
+.mp-hint { font-size: 11.5px; color: var(--color-muted); }
+.mp-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) auto; align-items: center; gap: 12px; }
+.mp-info { display: grid; min-width: 0; }
+.mp-name { font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mp-sub { font-size: 11.5px; color: var(--color-muted); }
+.mp-label { font-size: 12px; margin-bottom: 4px; }
+.mp-bar { height: 6px; border-radius: 6px; background: var(--color-surface-container-high, rgba(0,0,0,.08)); overflow: hidden; }
+.mp-bar span { display: block; height: 100%; border-radius: inherit; background: var(--color-primary); transition: width .4s ease; }
+.mp-row.is-done .mp-bar span { background: var(--color-success); }
+.mp-row.is-failed .mp-bar span { background: var(--color-danger); }
+.mp-row.is-failed .mp-label { color: var(--color-danger); }
+@keyframes mp-spin { to { transform: rotate(360deg); } }
+@media (max-width: 640px) { .mp-row { grid-template-columns: 1fr; } }
 .cu-box { position: relative; width: min(560px, 100%); max-height: 90vh; overflow: auto; background: var(--color-surface); border-radius: 16px; padding: 20px; box-shadow: 0 24px 80px rgba(0,0,0,.4); }
 .cu-head { display: flex; gap: 14px; align-items: flex-start; padding-right: 28px; }
 .cu-head img { width: 72px; height: 96px; object-fit: cover; border-radius: 8px; flex-shrink: 0; }

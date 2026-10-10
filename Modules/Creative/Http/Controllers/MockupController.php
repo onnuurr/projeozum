@@ -3,6 +3,7 @@
 namespace Modules\Creative\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Modules\Creative\Http\Requests\RerunMockupRequest;
 use Modules\Creative\Http\Requests\StartBulkMockupRequest;
@@ -10,6 +11,7 @@ use Modules\Creative\Http\Requests\StartMockupRequest;
 use Modules\Creative\Models\Mannequin;
 use Modules\Creative\Models\TryonResult;
 use Modules\Creative\Services\Mockup\MockupPipelineService;
+use Modules\Creative\Services\Mockup\MockupProgress;
 use Modules\Creative\Services\Mockup\MockupRerunService;
 use Modules\Product\Models\Product;
 use RuntimeException;
@@ -47,6 +49,12 @@ class MockupController extends Controller
         }
 
         return back()->with('success', __('creative::messages.mockup.rerun_queued', ['stage' => $plan['label']]));
+    }
+
+    /** Arka planda çalışan (ve son birkaç dakikada biten) mokapların aşaması — sayfa bunu yoklar. */
+    public function progress(MockupProgress $progress): JsonResponse
+    {
+        return response()->json(['items' => $progress->active()]);
     }
 
     public function bulk(StartBulkMockupRequest $request, MockupPipelineService $pipeline): RedirectResponse

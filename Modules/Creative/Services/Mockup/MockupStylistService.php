@@ -23,9 +23,9 @@ class MockupStylistService
 
     /**
      * Mokapta bu bölge için kullanılabilir pozlar (ana kare hariç), sıralı:
-     * pose_key => {prompt, regions, requires}.
+     * pose_key => {prompt, regions, requires, view}.
      *
-     * @return array<string,array{prompt:string,regions:array<int,string>,requires:array<int,string>}>
+     * @return array<string,array{prompt:string,regions:array<int,string>,requires:array<int,string>,view:string}>
      */
     public function allowedPoses(string $region): array
     {
@@ -33,7 +33,7 @@ class MockupStylistService
             ->where('pose_key', '!=', (string) config('creative.mockup.master_pose'))
             ->whereNotNull('preview_image_path')->orderBy('sort_order')->get()
             ->filter(fn (Pose $p) => in_array($region, (array) $p->mockup_regions, true))
-            ->mapWithKeys(fn (Pose $p) => [$p->pose_key => ['prompt' => (string) $p->prompt, 'regions' => (array) $p->mockup_regions, 'requires' => (array) $p->requires]])
+            ->mapWithKeys(fn (Pose $p) => [$p->pose_key => ['prompt' => (string) $p->prompt, 'regions' => (array) $p->mockup_regions, 'requires' => (array) $p->requires, 'view' => $p->view ?: 'front']])
             ->all();
     }
 
@@ -62,8 +62,6 @@ class MockupStylistService
             'length'      => $outfit->length ?: 'unknown',
             'age'         => $this->attributeName($product, 'yas_grubu'),
             'gender'      => $gender,
-            'poses'       => array_map(fn ($p) => $p['prompt'], $poses),
-            'extra_poses' => $extra,
             'options'     => $shown,
         ], $extraPhotoPaths);
 
@@ -80,6 +78,7 @@ class MockupStylistService
             'gender'      => $gender,
             'extra_poses' => $extra,
             'recent'      => $this->recentCombos($outfit),
+            'recent_poses' => $this->recentPoses($outfit),
         ]);
         $warnings = $resolved['warnings'];
         if ($lengthGuessed) {
@@ -136,6 +135,14 @@ class MockupStylistService
             ->latest('id')->limit((int) config('creative.mockup.stylist_diversity_window', 5))->get()
             ->map(fn (MockupOutfit $o) => [($o->pieces['top'] ?? $o->pieces['bottom'] ?? null), ($o->pieces['footwear'] ?? null)])
             ->all()];
+    }
+
+    /** Son N kombinin (bütün ürünler) ek pozları: rastgele poz seçiminde sona itilir (MockupStylistRuleEngine). */
+    private function recentPoses(MockupOutfit $outfit): array
+    {
+        return MockupOutfit::query()->whereKeyNot($outfit->id)->whereNotNull('poses')
+            ->latest('id')->limit((int) config('creative.mockup.stylist_diversity_window', 5))->pluck('poses')
+            ->flatten()->unique()->values()->all();
     }
 
     private function attributeName(Product $product, string $code): ?string

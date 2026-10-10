@@ -1,5 +1,5 @@
 <script setup>
-import { computed, inject, ref, watch } from 'vue'
+import { computed, inject, onBeforeUnmount, ref, watch } from 'vue'
 import { router } from '@inertiajs/vue3'
 import { OzCard, OzTable, OzSelect, OzButton, OzCombobox, OzPill } from '@/Components/Oz'
 import { REGIONS, VIEWS, FEATURES, toOptions } from '../../support/mockupLabels'
@@ -36,6 +36,23 @@ function save(row, done) {
 		onFinish: () => { bulkBusy.value = false },
 	})
 }
+
+// Çoklu seçim kutularında her işaretleme ayrı kayıt + ayrı toast üretiyordu: satır başına kısa bekleme,
+// art arda yapılan seçimler tek kayıt ve tek toast olur.
+const pending = new Map()
+function queueSave(row) {
+	clearTimeout(pending.get(row.id))
+	pending.set(row.id, setTimeout(() => { pending.delete(row.id); save(row) }, 700))
+}
+onBeforeUnmount(() => {
+	// Sekmeden çıkarken bekleyen kayıt kaybolmasın.
+	for (const [id, t] of pending) {
+		clearTimeout(t)
+		const row = rows.value.find((r) => r.id === id)
+		if (row) save(row)
+	}
+	pending.clear()
+})
 
 function excludeSelected() {
 	const list = rows.value.filter((r) => selected.value.includes(r.id) && !r.is_master)
@@ -75,13 +92,13 @@ function excludeSelected() {
 			</template>
 			<template #cell-mockup_regions="{ row }">
 				<OzCombobox v-model="row.mockup_regions" :options="toOptions(REGIONS)" multiple placeholder="Mokap dışı" :disabled="row.is_master"
-					:aria-label="`${row.label} bölgeleri`" @update:model-value="save(row)" />
+					:aria-label="`${row.label} bölgeleri`" @update:model-value="queueSave(row)" />
 			</template>
 			<template #cell-requires="{ row }">
-				<OzCombobox v-model="row.requires" :options="featureOptions" multiple placeholder="—" :aria-label="`${row.label} gereksinimi`" @update:model-value="save(row)" />
+				<OzCombobox v-model="row.requires" :options="featureOptions" multiple placeholder="—" :aria-label="`${row.label} gereksinimi`" @update:model-value="queueSave(row)" />
 			</template>
 			<template #cell-view="{ row }">
-				<OzSelect v-model="row.view" :options="toOptions(VIEWS)" :aria-label="`${row.label} kamera yönü`" @update:model-value="save(row)" />
+				<OzSelect v-model="row.view" :options="toOptions(VIEWS)" :aria-label="`${row.label} kamera yönü`" @update:model-value="queueSave(row)" />
 			</template>
 		</OzTable>
 	</OzCard>

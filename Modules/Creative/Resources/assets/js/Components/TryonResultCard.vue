@@ -4,6 +4,7 @@ import { Link } from '@inertiajs/vue3'
 import { Maximize2, Star, ZoomIn, Check, X, ClipboardList, MessageCircle, RefreshCw, AlertTriangle, CheckCircle2, XCircle } from 'lucide-vue-next'
 import Badge from '@/Components/Badge.vue'
 import Button from '@/Components/Button.vue'
+import DetailInsetEditor from './DetailInsetEditor.vue'
 
 // Ürün Giydirme sonuç kartı. Kontrol bulguları kartta yalnız rozet (✓ / ⚠ n / ✕); ayrıntı rozete
 // tıklayınca açılan küçük pencerede. Kombin bilgisi kartta değil, set başlığında (bkz. CreativeTryon).
@@ -17,7 +18,8 @@ const props = defineProps({
 	stopBusy: { type: Boolean, default: false },
 	mockupBusy: { type: Boolean, default: false },
 })
-const emit = defineEmits(['preview', 'approve', 'reject', 'stop', 'cover', 'closeups', 'destroy', 'rerun'])
+const emit = defineEmits(['preview', 'approve', 'reject', 'stop', 'cover', 'closeups', 'destroy', 'rerun', 'changed'])
+const insetOpen = ref(false)
 
 const STATUS_LABELS = { queued: 'Sırada', generating: 'Üretiliyor', done: 'Hazır', failed: 'Başarısız' }
 const STATUS_COLORS = { queued: 'neutral', generating: 'warning', done: 'success', failed: 'danger' }
@@ -90,8 +92,14 @@ const active = computed(() => props.r.status === 'queued' || props.r.status === 
 					<span v-else class="is-cover-note">Kapak</span>
 					<button v-if="r.shot === 'full'" type="button" class="link-btn" @click="emit('closeups', r)">Yakın plan</button>
 				</template>
+				<button v-if="r.status === 'done' && r.detail_inset" type="button" class="link-btn" :title="r.detail_inset.off ? 'Köşe detayı kaldırıldı' : 'Köşedeki detay alanını düzelt'" @click="insetOpen = true">
+					Köşe detayı{{ r.detail_inset.off ? ' (yok)' : '' }}
+				</button>
 				<button type="button" class="link-btn danger" @click="emit('destroy', r)">Sil</button>
 			</div>
+			<Teleport to="body">
+				<DetailInsetEditor v-if="insetOpen" :r="r" @close="insetOpen = false" @saved="insetOpen = false; emit('changed', r)" />
+			</Teleport>
 		</div>
 
 		<div class="card-links">

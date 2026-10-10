@@ -52,4 +52,15 @@ class FakeMockupVision implements MockupVisionContract
 
         return ['align_mae' => 0.0, 'outside_unchanged' => 1.0, 'shoe_px_restored' => 0];
     }
+
+    /** @var array<int,array<string,mixed>> çağrılar (test doğrulaması) */
+    public static array $insets = [];
+
+    public function inset(string $compositePath, string $photoPath, array $box, ?string $labelsPath, string $outPath): array
+    {
+        self::$insets[] = ['photo' => $photoPath, 'box' => $box];
+        copy($compositePath, $outPath);
+
+        return ['corner' => 'top_right', 'diameter' => 10];
+    }
 }

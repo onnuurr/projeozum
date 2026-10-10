@@ -15,6 +15,8 @@ Kullanım:
   python mockup_mask.py pair <sol> <sağ> <çıktı.jpg>     (kontrol için yan yana, 1200 px yükseklik)
   python mockup_mask.py closeup <birleşik> <baz> <labels.npy> <shot>
      → stdout JSON {box}: AI'sız yakın plan kadrajı (product|upper_body|lower_body|neckline|hem), 3:4
+  python mockup_mask.py inset <birleşik> <ürün_foto> <x0> <y0> <x1> <y1> <labels.npy|-> <çıktı.png>
+     → köşeye yuvarlak detay (kutu ürün fotoğrafında 0..1); stdout JSON {corner, diameter}
 """
 import json
 import sys
@@ -123,7 +125,14 @@ def cmd_mask(labels, prefix, region, length):
         reg, occl = outerwear_region(lab, length)
     elif region in ("set", "one_piece"):
         rb, _ = bottom_region(lab, long); rt, _ = top_region(lab)
-        occl = np.isin(lab, [HAIR, FACE]); reg = (rb | rt) & ~occl
+        # Kol + el bütünüyle bölgede (modelden): üst bölge kolu bel + %8'de kesiyor, alt bölge kolu dışlıyor →
+        # el ortasından ikiye bölünüyor, parmaklar bazdan (açık arka planlı) geliyor, siyah elbisede beyaz hale
+        # ve model eli eteğin arkasına koyunca havada kalan yarım el oluyordu (2026-10-10, sonuç #30/#31).
+        # SAM el maskesinin kenarı da (açık arka plan karışık) kalmasın diye birkaç px genişletilir.
+        import cv2
+        r = max(2, int(W * 0.004))
+        arms = cv2.dilate((lab == ARMS).astype(np.uint8), cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * r + 1, 2 * r + 1))).astype(bool)
+        occl = np.isin(lab, [HAIR, FACE]); reg = (rb | rt | arms) & ~occl
     else:
         raise RuntimeError(f"Bilinmeyen bölge: {region}")
     save(reg, prefix + "_region.png"); save(occl, prefix + "_occluders.png"); save(lab == SHOES, prefix + "_shoes.png")
@@ -188,6 +197,74 @@ def cmd_pair(left, right, out, height=1200):
     return {"size": list(canvas.size)}
 
 
+INSET_D = 0.30        # yuvarlak detay çapı (görsel genişliğine göre)
+INSET_MARGIN = 0.035
+INSET_MAX_SCALE = 2.0
+
+
+def lift_dark(img):
+    """Koyu üründe (siyah kumaşta siyah fiyonk) detay okunmuyordu: yalnız parlaklık kanalında yerel kontrast
+    (CLAHE) + hafif gölge açma; renk tonu değişmez. Açık ürünlere dokunulmaz."""
+    import cv2
+    lab = cv2.cvtColor(np.asarray(img), cv2.COLOR_RGB2LAB)
+    L = lab[..., 0]
+    if L.mean() > 90:
+        return img
+    L = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(4, 4)).apply(L)
+    L = (255 * (L / 255.0) ** 0.8).astype(np.uint8)
+    lab[..., 0] = L
+    return Image.fromarray(cv2.cvtColor(lab, cv2.COLOR_LAB2RGB))
+
+
+def cmd_inset(composite, photo, x0, y0, x1, y1, labels, out):
+    """Mokap pozunun bir köşesine ürün fotoğrafından yuvarlak detay işler (2026-10-10). Kutu ürün
+    fotoğrafında 0..1 normalize; kare kırpılıp çapa büyütülür. Köşe = mankenle en az çakışan köşe
+    (etiket haritası; yoksa sağ alt). Beyaz çerçeve + yumuşak gölge."""
+    from PIL import ImageDraw, ImageFilter
+    im = Image.open(composite).convert("RGB"); W, H = im.size
+    ph = Image.open(photo).convert("RGB"); pw, phh = ph.size
+    x0, y0, x1, y1 = (float(v) for v in (x0, y0, x1, y1))
+    cx, cy = (x0 + x1) / 2 * pw, (y0 + y1) / 2 * phh
+    side = min(max((x1 - x0) * pw, (y1 - y0) * phh) * 1.1, pw, phh)
+    D = int(W * INSET_D); m = int(W * INSET_MARGIN); ring = max(4, int(W * 0.007))
+    # En fazla INSET_MAX_SCALE büyütme: düşük çözünürlüklü fotoğrafta küçük kutu bloklaşıyordu (640 px, x3,5);
+    # kutu gerekirse merkezinden büyütülür (detay biraz daha geniş görünür ama net kalır).
+    side = min(max(side, D / INSET_MAX_SCALE), pw, phh)
+    left = min(max(0, cx - side / 2), pw - side); top = min(max(0, cy - side / 2), phh - side)
+    from mockup_upscale import upscale_to
+    detail = upscale_to(ph.crop((int(left), int(top), int(left + side), int(top + side))), D, D)
+    detail = lift_dark(detail)
+
+    corners = {"bottom_right": (W - m - D, H - m - D), "bottom_left": (m, H - m - D),
+               "top_right": (W - m - D, m), "top_left": (m, m)}
+    corner = "bottom_right"
+    if labels != "-":
+        lab = np.load(labels)
+        if lab.shape != (H, W):
+            lab = np.asarray(Image.fromarray(lab).resize((W, H), Image.NEAREST))
+        person = lab != BG
+        cost = {k: person[y:y + D, x:x + D].mean() for k, (x, y) in corners.items()}
+        corner = min(cost, key=lambda k: (round(cost[k], 3), list(corners).index(k)))   # eşitlikte sağ alt önce
+    x, y = corners[corner]
+
+    ss = 4                                                         # kenar yumuşatma için büyük çizilip küçültülür
+    big = Image.new("L", (D * ss, D * ss), 0); ImageDraw.Draw(big).ellipse((0, 0, D * ss - 1, D * ss - 1), fill=255)
+    circle = big.resize((D, D), Image.LANCZOS)
+    pad = ring * 4
+    shadow = Image.new("L", (D + 2 * pad, D + 2 * pad), 0)
+    shadow.paste(circle.point(lambda v: v * 0.35), (pad, pad + ring))
+    shadow = shadow.filter(ImageFilter.GaussianBlur(ring * 1.5))
+    im.paste(Image.new("RGB", shadow.size, (0, 0, 0)), (x - pad, y - pad), shadow)
+    outer = Image.new("L", (D + 2 * ring, D + 2 * ring), 0)
+    bigo = Image.new("L", (outer.width * ss, outer.height * ss), 0)
+    ImageDraw.Draw(bigo).ellipse((0, 0, bigo.width - 1, bigo.height - 1), fill=255)
+    outer = bigo.resize(outer.size, Image.LANCZOS)
+    im.paste(Image.new("RGB", outer.size, (255, 255, 255)), (x - ring, y - ring), outer)
+    im.paste(detail, (x, y), circle)
+    im.save(out)
+    return {"corner": corner, "diameter": D}
+
+
 def cmd_crop(src, x0, y0, x1, y1, out):
     Image.open(src).convert("RGB").crop((int(x0), int(y0), int(x1), int(y1))).save(out)
     return {"size": [int(x1) - int(x0), int(y1) - int(y0)]}
@@ -196,7 +273,7 @@ def cmd_crop(src, x0, y0, x1, y1, out):
 if __name__ == "__main__":
     try:
         cmd, args = sys.argv[1], sys.argv[2:]
-        res = {"mask": cmd_mask, "crop": cmd_crop, "pair": cmd_pair, "closeup": cmd_closeup}[cmd](*args)
+        res = {"mask": cmd_mask, "crop": cmd_crop, "pair": cmd_pair, "closeup": cmd_closeup, "inset": cmd_inset}[cmd](*args)
         print(json.dumps({"ok": True, **res}))
     except Exception as e:
         print(json.dumps({"ok": False, "error": str(e)}))

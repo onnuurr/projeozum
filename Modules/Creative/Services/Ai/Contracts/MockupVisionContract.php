@@ -46,4 +46,12 @@ interface MockupVisionContract
      * @return array{align_mae: float, outside_unchanged: float, shoe_px_restored: int}
      */
     public function composite(string $basePath, string $modelOutPath, string $prefix, array $box, string $resultPath, bool $restoreShoes): array;
+
+    /**
+     * Mokap pozunun bir köşesine ürün fotoğrafından yuvarlak detay işler (mankenle en az çakışan köşe).
+     *
+     * @param  array{0:float,1:float,2:float,3:float}  $box  ürün fotoğrafında 0..1 (x0, y0, x1, y1)
+     * @return array{corner:string, diameter:int}
+     */
+    public function inset(string $compositePath, string $photoPath, array $box, ?string $labelsPath, string $outPath): array;
 }

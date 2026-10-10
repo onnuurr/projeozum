@@ -40,46 +40,49 @@ class CreativeSettingsController extends Controller
         ]);
     }
 
+    // Kayıt uçları flash basmaz — her sekme (Components/MockupSettings/*Tab.vue) onSuccess'te kendi toast'unu
+    // gösteriyor; flash da basılınca çift toast çıkıyordu (toplu poz işleminde poz başına bir tane daha).
+
     public function saveGeneral(SaveMockupSettingsRequest $request, MockupSettings $settings): RedirectResponse
     {
         $settings->save($request->validated());
 
-        return back()->with('success', __('creative::messages.mockup.settings_saved'));
+        return back();
     }
 
     public function saveCategories(SaveCategoryRegionsRequest $request, MockupSettings $settings): RedirectResponse
     {
         $settings->saveCategoryRegions($request->validated('rows'));
 
-        return back()->with('success', __('creative::messages.mockup.settings_saved'));
+        return back();
     }
 
     public function storeOption(SaveStylistOptionRequest $request, MockupSettings $settings): RedirectResponse
     {
         $settings->saveOption(null, $request->payload());
 
-        return back()->with('success', __('creative::messages.mockup.settings_saved'));
+        return back();
     }
 
     public function updateOption(StylistOption $option, SaveStylistOptionRequest $request, MockupSettings $settings): RedirectResponse
     {
         $settings->saveOption($option, $request->payload());
 
-        return back()->with('success', __('creative::messages.mockup.settings_saved'));
+        return back();
     }
 
     public function destroyOptions(DeleteStylistOptionsRequest $request, MockupSettings $settings): RedirectResponse
     {
         $settings->deleteOptions($request->validated('ids'));
 
-        return back()->with('success', __('creative::messages.mockup.settings_saved'));
+        return back();
     }
 
     public function updatePose(Pose $pose, UpdatePoseMockupTagsRequest $request, MockupSettings $settings): RedirectResponse
     {
         $settings->savePoseTags($pose, $request->validated());
 
-        return back()->with('success', __('creative::messages.mockup.settings_saved'));
+        return back();
     }
 
     /** @return array<string,mixed> */
