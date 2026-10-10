@@ -113,8 +113,8 @@ class OrderReturnTest extends TestCase
         $this->assertSame(OrderReturn::STATUS_REQUESTED, $return->status);
         $this->assertSame($order->id, $return->order_id);
         $this->assertSame($this->tenant->id, $return->tenant_id);
-        // Bayinin ödediği toptan birim fiyat (80), Bagisto'nun gönderdiği perakende fiyat değil.
-        $this->assertEquals(80.0, (float) $return->requested_amount);
+        // Bayinin ödediği toptan birim fiyat (80 + %10 KDV = 88), Bagisto'nun gönderdiği perakende fiyat değil.
+        $this->assertEquals(88.0, (float) $return->requested_amount);
         $this->assertSame(['https://bg.example.com/storage/rma/1.jpg'], $return->images);
     }
 
@@ -162,11 +162,11 @@ class OrderReturnTest extends TestCase
     public function test_cari_refund_credits_the_dealer_account(): void
     {
         $this->order();
-        $this->assertEquals(160.0, (float) $this->tenant->fresh()->current_balance);
+        $this->assertEquals(176.0, (float) $this->tenant->fresh()->current_balance); // 160 + %10 KDV
         $return = $this->returnFromWebhook();
         $user = $this->allPermissions();
 
-        $this->actingAs($user)->post("/order-returns/{$return->id}/approve", ['amount' => 80])->assertSessionHasNoErrors();
+        $this->actingAs($user)->post("/order-returns/{$return->id}/approve", ['amount' => 88])->assertSessionHasNoErrors();
         $this->assertFalse($return->fresh()->invoice_required);
 
         $this->actingAs($user)->post("/order-returns/{$return->id}/refund")->assertSessionHasNoErrors();
@@ -174,7 +174,7 @@ class OrderReturnTest extends TestCase
         $fresh = $return->fresh();
         $this->assertSame(OrderReturn::STATUS_REFUNDED, $fresh->status);
         $this->assertSame(OrderReturn::REFUND_CARI, $fresh->refund_method);
-        $this->assertEquals(80.0, (float) $this->tenant->fresh()->current_balance);
+        $this->assertEquals(88.0, (float) $this->tenant->fresh()->current_balance); // 176 − 88
 
         Queue::assertPushed(PushReturnStateToBagisto::class);
         Queue::assertPushed(NotifyTenantOfReturn::class, 2);

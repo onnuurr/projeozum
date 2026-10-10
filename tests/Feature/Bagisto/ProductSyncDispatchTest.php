@@ -132,7 +132,7 @@ class ProductSyncDispatchTest extends TestCase
             'category_id' => $category->id,
             'name'        => 'Görselli Ürün',
             'sku'         => 'PRD-'.uniqid(),
-            'gender'      => 'Unisex',
+            
             'variants'    => [['sku' => 'V-'.uniqid(), 'price' => 100, 'stock' => 0]],
         ], [\Illuminate\Http\UploadedFile::fake()->image('a.jpg'), \Illuminate\Http\UploadedFile::fake()->image('b.jpg')]);
 

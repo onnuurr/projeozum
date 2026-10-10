@@ -39,10 +39,19 @@ class ProductPayloadMapperTest extends TestCase
         $this->assertSame(['tisort'], $payload['category_codes']);
         $this->assertCount(1, $payload['variants']);
         $this->assertSame('VAR-1', $payload['variants'][0]['sku']);
-        $this->assertSame(199.90, $payload['variants'][0]['price']);
+        $this->assertSame(219.89, $payload['variants'][0]['price']); // KDV hariç 199.90 + varsayılan %10
         $this->assertSame(12, $payload['variants'][0]['quantity']);
         $this->assertSame('Kırmızı', $payload['variants'][0]['color']);
         $this->assertSame('M', $payload['variants'][0]['size']);
+    }
+
+    public function test_dimensions_are_sent_as_plain_numbers_and_empty_clears(): void
+    {
+        $product = Product::factory()->create(['length_cm' => 30, 'width_cm' => 25.5, 'height_cm' => null]);
+
+        $payload = app(ProductPayloadMapper::class)->toUpsertPayload($product->fresh(['variants', 'images', 'category']), 'updated');
+
+        $this->assertSame(['30', '25.5', ''], [$payload['length'], $payload['width'], $payload['height']]);
     }
 
     public function test_delete_payload_only_carries_event_and_sku(): void

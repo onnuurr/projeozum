@@ -93,11 +93,15 @@ class OrderWebhookControllerTest extends TestCase
         $this->assertSame(Order::TYPE_DROPSHIP, $order->order_type);
         $this->assertSame(Order::STATUS_PENDING, $order->status);
         $this->assertSame(1, $order->items()->count());
-        $this->assertEquals(160.0, (float) $order->total);
+        // Matrah = tenant'ın gerçek toptan fiyatı (80 * 2), Bagisto'nun gönderdiği perakende fiyatı değil;
+        // KDV kategori oranıyla ayrı (kategori oranı yok → varsayılan %10), toplam KDV dahil.
+        $this->assertEquals(160.0, (float) $order->subtotal);
+        $this->assertEquals(16.0, (float) $order->tax_amount);
+        $this->assertEquals(176.0, (float) $order->total);
+        $this->assertEquals(10.0, (float) $order->items()->first()->vat_rate);
 
-        // Kredi çekimi tenant'ın gerçek toptan fiyatı üzerinden yapılmalı (80 * 2), Bagisto'nun
-        // gönderdiği perakende fiyatı değil.
-        $this->assertEquals(160.0, (float) $tenant->fresh()->current_balance);
+        // Kredi çekimi bayinin ödediği KDV dahil tutar üzerinden.
+        $this->assertEquals(176.0, (float) $tenant->fresh()->current_balance);
     }
 
     public function test_order_created_charges_sales_price_minus_tenant_discount(): void
@@ -120,8 +124,9 @@ class OrderWebhookControllerTest extends TestCase
 
         $order = Order::where('bagisto_order_id', '556')->firstOrFail();
         $this->assertEquals(56.0, (float) $order->items()->first()->unit_price);
-        $this->assertEquals(112.0, (float) $order->total);
-        $this->assertEquals(112.0, (float) $tenant->fresh()->current_balance);
+        $this->assertEquals(112.0, (float) $order->subtotal);
+        $this->assertEquals(123.2, (float) $order->total); // + %10 KDV
+        $this->assertEquals(123.2, (float) $tenant->fresh()->current_balance);
     }
 
     public function test_order_created_ships_to_dropship_recipient_when_present(): void

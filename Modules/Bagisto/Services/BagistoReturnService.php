@@ -402,7 +402,7 @@ class BagistoReturnService
 
     /**
      * Bagisto kalemlerini SaaS sipariş satırlarıyla eşler; tutar bayinin ödediği toptan birim
-     * fiyattan hesaplanır (Bagisto'nun perakende fiyatından değil).
+     * fiyattan, KDV dahil hesaplanır (Bagisto'nun perakende fiyatından değil).
      *
      * @return array<int, array<string, mixed>>
      */
@@ -416,7 +416,8 @@ class BagistoReturnService
         return collect($items)->map(function ($item) use ($orderItems, $variantIds) {
             $qty = (int) ($item['qty'] ?? 0);
             $line = $orderItems->firstWhere('product_variant_id', $variantIds[$item['sku'] ?? ''] ?? -1);
-            $unitPrice = $line ? (float) $line->unit_price : 0.0;
+            // İade kartla ödenen KDV dahil tutar üzerinden: satırın KDV hariç fiyatına o günkü oranla KDV eklenir.
+            $unitPrice = $line ? round((float) $line->unit_price * (1 + (float) $line->vat_rate / 100), 2) : 0.0;
 
             return [
                 'sku' => $item['sku'] ?? null,

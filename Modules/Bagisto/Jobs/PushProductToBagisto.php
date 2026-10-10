@@ -58,7 +58,7 @@ class PushProductToBagisto implements ShouldQueue, ShouldBeUniqueUntilProcessing
         $coverFirst = fn ($q) => $q->reorder()->orderByDesc('is_cover')->orderBy('sort_order')->orderBy('id');
 
         $product = Product::withTrashed()
-            ->with(['variants.images' => $coverFirst, 'images' => $coverFirst, 'category'])
+            ->with(['variants.images' => $coverFirst, 'images' => $coverFirst, 'category', 'brand'])
             ->find($this->productId);
 
         if (! $product) {
@@ -67,6 +67,12 @@ class PushProductToBagisto implements ShouldQueue, ShouldBeUniqueUntilProcessing
                 'event'      => $this->event,
             ]);
 
+            return;
+        }
+
+        // Hiç yayınlanmamış ürün (yeni Taslak, geçici kart) mağazaya gitmez — silinmesi de; ilk yayında
+        // ProductStatusChanged tam upsert gönderir. İş çalışırken bakılır: kuyrukta beklerken yayınlanmış olabilir.
+        if (! $product->hasBeenPublished()) {
             return;
         }
 

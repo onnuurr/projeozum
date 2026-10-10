@@ -12,6 +12,7 @@ use Modules\Product\Models\ProductImage;
 use Modules\Product\Models\ProductVariant;
 use Modules\Product\Services\OrderService;
 use Modules\Product\Services\StockService;
+use Modules\Product\Services\VatRateService;
 use Modules\Tenant\Exceptions\InsufficientCreditException;
 use Modules\Tenant\Models\Tenant;
 use Modules\Tenant\Services\TenantAccessService;
@@ -31,6 +32,7 @@ class BagistoOrderSyncService
         private StockService $stock,
         private TenantCreditService $credit,
         private OrderService $orders,
+        private VatRateService $vat,
     ) {}
 
     public function findByBagistoOrderId(string $bagistoOrderId): ?Order
@@ -52,7 +54,8 @@ class BagistoOrderSyncService
     public function createDropshipOrder(Tenant $tenant, int $actorUserId, string $bagistoOrderId, array $data): Order
     {
         return DB::transaction(function () use ($data, $tenant, $actorUserId, $bagistoOrderId) {
-            [$lines, $subtotal] = $this->buildLines($tenant, $data['items']);
+            [$lines, $subtotal, $taxAmount] = $this->buildLines($tenant, $data['items']);
+            $total = round($subtotal + $taxAmount, 2);
 
             $order = Order::create([
                 'order_no' => $this->orders->generateOrderNo(),
@@ -73,7 +76,9 @@ class BagistoOrderSyncService
                 'shipping_fee' => 0,
                 'discount_rate' => 0,
                 'discount_amount' => 0,
-                'total' => $subtotal,
+                // subtotal = KDV hariç (matrah), tax_amount = KDV, total = bayinin ödediği KDV dahil tutar
+                'tax_amount' => $taxAmount,
+                'total' => $total,
                 'status' => Order::STATUS_PENDING,
             ]);
 
@@ -97,7 +102,7 @@ class BagistoOrderSyncService
                 try {
                     $this->credit->charge(
                         tenant: $tenant,
-                        amount: (float) $subtotal,
+                        amount: (float) $total,
                         reason: 'bagisto_order',
                         orderId: $order->id,
                         byUserId: $actorUserId,
@@ -181,14 +186,16 @@ class BagistoOrderSyncService
     /**
      * Bagisto'nun gönderdiği ham item satırlarını OrderItem payload'una çevirir.
      * Fiyat Bagisto'nun perakende fiyatı DEĞİL, tenant'ın toptan fiyatıdır
-     * (TenantAccessService::priceFor) — tenant'tan çekilecek gerçek maliyet budur.
+     * (TenantAccessService::priceFor, KDV hariç) — tenant'tan çekilecek gerçek maliyet budur.
+     * KDV satır bazında ürünün kategori oranıyla eklenir (VatRateService); oran satıra yazılır.
      *
-     * @return array{0: array<int, array<string, mixed>>, 1: float}
+     * @return array{0: array<int, array<string, mixed>>, 1: float, 2: float}
      */
     private function buildLines(Tenant $tenant, array $items): array
     {
         $lines = [];
         $subtotal = 0.0;
+        $taxAmount = 0.0;
 
         foreach ($items as $item) {
             $variant = ProductVariant::with('product.brand')->where('sku', $item['sku'])->first();
@@ -203,8 +210,11 @@ class BagistoOrderSyncService
                 : (float) ($item['price'] ?? 0);
 
             $qty = (int) $item['qty'];
-            $lineTotal = $unitPrice * $qty;
+            $lineTotal = round($unitPrice * $qty, 2);
+            $vatRate = $this->vat->rateFor($product);
+            $vatAmount = $this->vat->vatOf($lineTotal, $vatRate);
             $subtotal += $lineTotal;
+            $taxAmount += $vatAmount;
 
             $lines[] = [
                 'product_id' => $product?->id,
@@ -217,10 +227,12 @@ class BagistoOrderSyncService
                 'qty' => $qty,
                 'unit_price' => $unitPrice,
                 'total_price' => $lineTotal,
+                'vat_rate' => $vatRate,
+                'vat_amount' => $vatAmount,
             ];
         }
 
-        return [$lines, round($subtotal, 2)];
+        return [$lines, round($subtotal, 2), round($taxAmount, 2)];
     }
 
     private function coverImagePath(?int $productId): ?string

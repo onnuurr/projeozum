@@ -24,7 +24,8 @@ class SyncExistingProductsCommand extends Command
     {
         $total = 0;
 
-        Product::query()->chunkById(200, function ($products) use (&$total) {
+        // Üretimi bitmemiş geçici kart (development) mağazaya gitmez — PushProductSync ile aynı kural.
+        Product::query()->where('status', '!=', Product::STATUS_DEVELOPMENT)->chunkById(200, function ($products) use (&$total) {
             foreach ($products as $product) {
                 PushProductToBagisto::dispatch($product->id, 'created');
                 $total++;

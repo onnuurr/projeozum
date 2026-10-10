@@ -35,10 +35,12 @@ class VariantSizeImagesPayloadTest extends TestCase
         $p = $this->payload($product);
         $bySize = collect($p['variants'])->keyBy('size');
 
-        $this->assertCount(1, $p['images']);                                   // yalnız genel görsel
+        // Genel galeri: genel görsel + varsayılan set (ilk bedene özel görselin seti: 7 Yaş), SaaS sırasıyla.
+        $this->assertCount(2, $p['images']);
         $this->assertStringEndsWith('p/plain.jpg', $p['images'][0]);
-        $this->assertCount(1, $bySize['7 Yaş']['images']);
-        $this->assertStringEndsWith('p/small.webp', $bySize['7 Yaş']['images'][0]);
+        $this->assertStringEndsWith('p/small.webp', $p['images'][1]);
+        $this->assertSame([], $bySize['7 Yaş']['images']);                    // seti zaten genel galeride
+        $this->assertCount(1, $bySize['14 Yaş']['images']);
         $this->assertStringEndsWith('p/big.webp', $bySize['14 Yaş']['images'][0]);
         $this->assertSame($bySize['11 Yaş']['images'], $bySize['14 Yaş']['images']);
     }
@@ -55,7 +57,25 @@ class VariantSizeImagesPayloadTest extends TestCase
 
         $this->assertCount(1, $bySku['G']['images']);
         $this->assertStringEndsWith('p/green.webp', $bySku['G']['images'][0]);      // rengin kendi seti
-        $this->assertStringEndsWith('p/general.webp', $bySku['B']['images'][0]);    // Bej'in seti yok → genel
+        $this->assertSame([], $bySku['B']['images']);                               // Bej'in seti yok → genel (galeride)
+    }
+
+    public function test_cover_mockup_set_leads_the_general_gallery_without_duplicates(): void
+    {
+        // Ürün #11 biçimi: tek manken seti bütün bedenleri kapsıyor, kapak bir mokap; push kapağı başa alır.
+        $product = Product::factory()->create();
+        ProductVariant::factory()->create(['product_id' => $product->id, 'sku' => 'K5', 'size' => '5 Yaş']);
+        $sizes = ['3 Yaş', '5 Yaş', '12 Yaş'];
+        $product->images()->create(['path' => 'p/plain.webp', 'sort_order' => 3]);
+        $product->images()->create(['path' => 'p/m2.webp', 'sort_order' => 2, 'variant_sizes' => $sizes]);
+        $product->images()->create(['path' => 'p/m1.webp', 'sort_order' => 1, 'variant_sizes' => $sizes, 'is_cover' => true]);
+
+        $loaded = $product->fresh(['variants', 'category',
+            'images' => fn ($q) => $q->reorder()->orderByDesc('is_cover')->orderBy('sort_order')->orderBy('id')]);
+        $p = app(ProductPayloadMapper::class)->toUpsertPayload($loaded, 'updated');
+
+        $this->assertSame(['m1.webp', 'm2.webp', 'plain.webp'], array_map('basename', $p['images']));
+        $this->assertSame([], $p['variants'][0]['images']);   // önceki varyant kopyası temizlenir, tekrar yok
     }
 
     public function test_variant_without_its_set_gets_an_explicit_empty_list_only_when_sets_exist(): void
