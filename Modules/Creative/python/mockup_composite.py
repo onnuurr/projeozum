@@ -5,8 +5,9 @@ birleştirilir: bölge maskesi 5 px yumuşatılır, önde kalanlar (saç/eller/�
 kenarla bazdan en üste konur. Kol/el maskesi bazın renginden inceltilir (arm_matte): ten renkli,
 arka plan ve gri yer tutucu renksizdir; maskenin taştığı renksiz pikseller (elin dış kenarı, parmak
 arası boşluk) bazdan değil model çıktısından gelir — aksi halde yeni giysinin üstünde elin çevresinde
-açık renkli hale ve parmak arasında gri leke kalıyordu (2026-10-06, sonuç #12). Uzun ürünlerde birleşik sonuç yeniden segmente edilir; hem çıktıda
-hem bazda "ayakkabı" olan pikseller bazdan geri gelir (kumaşın ayakkabıyı örttüğü yer çıktıda kalır).
+açık renkli hale ve parmak arasında gri leke kalıyordu (2026-10-06, sonuç #12). Uzun ürünlerde birleşik sonuç yeniden segmente edilir; çıktıda
+ayakkabı (çorap değil) ve bazda ayakkabı/çorap olan pikseller bazdan geri gelir (kumaşın ayakkabıyı örttüğü
+yer ve paçanın çorabı örttüğü yer çıktıda kalır).
 Keskinleştirme YAPILMAZ (pilotta model dokusunu bozdu); yalnız eksik kumlanma eşitlenir.
 
 Kullanım:
@@ -37,6 +38,7 @@ SKIN_CHROMA = (28, 45)    # max(RGB)-min(RGB): bu aralıkta tenlik 0 → 1 (ten 
 ARM_ERODE = 3             # px: bazdaki elin dış kenarı arka planla karışık (açık renkli) — alınmaz
 ARM_BAND = 14             # px: el kenarından bu kadar içeriye kadar baz ↔ model uyuşmazlığı modele bırakılır
 AGREE = (10, 28)          # piksel farkı (0–255, yumuşatılmış): altı bazdan, üstü modelden
+SHOE_AGREE = (45, 90)     # ayakkabı geri yüklemede aynı ölçü: altı bazdan, üstü (paça/kumaş) modelden
 
 
 def arm_matte(Bb, occl_c, lab_c, Oc=None):
@@ -109,10 +111,20 @@ def main(base, out, prefix, x0, y0, x1, y1, result, restore):
 
     restored = 0
     if restore == "1":
-        from mockup_segment import SHOES, segment
-        lab = segment(Image.fromarray(R.astype(np.uint8)))[0]
-        sh = (lab == SHOES) & load(prefix + "_shoes.png")
-        r = blur(sh, 1.5)[..., None]
+        from mockup_segment import segment
+        # Çıktıda yalnız ayakkabının kendisi (çorap hariç): paçanın renkli ribanası/manşeti alt giysi
+        # maskesine girmeyip "çorap" sayılıyor, bazın çorabı paçanın üstüne lekeli yapıştırılıyordu
+        # (2026-10-10, ürün #11 pijama, sonuç #27–29). Çorabın görünen kısmına model karar verir.
+        feet = segment(Image.fromarray(R.astype(np.uint8)), with_feet=True)[3]
+        sh = feet & load(prefix + "_shoes.png")
+        # SAM ayakkabı maskesi paça kenarını da yer yer alıyor: orada model bazdan çok farklı (beyaz çorap
+        # yerine mavi riba) bir şey çizmiştir → piksel modelde kalır. Ölçüm (#27): gerçek ayakkabıda fark
+        # %99 ≤ 30, paçada ≥ 112.
+        smooth = lambda X: f32(np.asarray(Image.fromarray(np.clip(X, 0, 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(1.5))))
+        diff = np.abs(smooth(B) - smooth(R)).max(2)
+        agree = np.clip(1 - (diff - SHOE_AGREE[0]) / (SHOE_AGREE[1] - SHOE_AGREE[0]), 0, 1)
+        sh &= agree > 0
+        r = (blur(sh, 1.5) * agree)[..., None]
         R = R * (1 - r) + B * r
         restored = int(sh.sum())
 

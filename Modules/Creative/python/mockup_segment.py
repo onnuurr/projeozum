@@ -120,11 +120,12 @@ def seg_line_mask(h, w, a, b, radius):
     return d2 <= radius ** 2
 
 
-def segment(pil):
+def segment(pil, with_feet=False):
     """PIL RGB → (etiket haritası uint8 (H,W), poz noktaları (33,3), kontroller dict). Birleştirme de kullanır.
 
     kontroller: shoe_px_ratio (ayak/ayakkabı maskesinin görsel alanına oranı) ve shoe_skin_ratio
     (o maskenin MediaPipe'ın TEN dediği kısmı — çıplak ayakta yüksek, ayakkabıda düşük; Faz 2 baz kontrolü).
+    with_feet: dördüncü değer olarak çorapsız ayakkabı maskesi (SHOES etiketi çorabı da kapsar).
     """
     rgb = np.asarray(pil)
     H, W = rgb.shape[:2]
@@ -228,7 +229,7 @@ def segment(pil):
         "shoe_px_ratio": round(float(shoes.sum()) / (H * W), 5),
         "shoe_skin_ratio": round(float((feet & skin_c).sum()) / max(1, int(feet.sum())), 3),
     }
-    return lab, P, checks
+    return (lab, P, checks, feet) if with_feet else (lab, P, checks)
 
 
 def main():
