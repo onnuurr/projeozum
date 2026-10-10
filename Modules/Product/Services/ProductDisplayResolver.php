@@ -12,7 +12,7 @@ use Modules\Tenant\Models\TenantProductAccess;
  *
  * Fallback zinciri:
  *   name        : tenant_override.custom_name → products.public_name → products.name
- *   description : tenant_override.custom_description → products.tenant_description → products.public_description → products.care_instructions
+ *   description : tenant_override.custom_description → products.tenant_description → products.public_description
  *
  * Kaynak (`source`) tenant override kullanıldıysa 'tenant_override', aksi halde 'default'.
  */
@@ -47,8 +47,6 @@ class ProductDisplayResolver
             $description = $product->tenant_description;
         } elseif (filled($product->public_description)) {
             $description = $product->public_description;
-        } elseif (filled($product->care_instructions)) {
-            $description = $product->care_instructions;
         }
 
         return new ProductDisplayDto(

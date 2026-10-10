@@ -6,6 +6,7 @@ use Database\Factories\CategoryFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -29,6 +30,7 @@ class Category extends Model
         'icon',
         'status',
         'manually_passive', // kullanıcı bilerek pasife aldı; otomatik aktifleştirme ezmez (CategoryStatusService)
+        'vat_rate',         // KDV %; boş = üst kategoriden miras (VatRateService)
         'sort_order',
     ];
 
@@ -36,6 +38,7 @@ class Category extends Model
         'parent_id'  => 'integer',
         'sort_order' => 'integer',
         'manually_passive' => 'boolean',
+        'vat_rate'         => 'decimal:2',
     ];
 
     /** Aynı üst kategorinin (kardeşlerin) sonuna eklenecek sıra numarası. */
@@ -61,9 +64,10 @@ class Category extends Model
         return $this->hasMany(CategoryMarketplaceMapping::class);
     }
 
-    public function attributeDefinitions(): HasMany
+    /** Bu kategoride (ve alt kategorilerinde) ürün formunda görünen global özellikler. */
+    public function productAttributes(): BelongsToMany
     {
-        return $this->hasMany(CategoryAttributeDefinition::class)->orderBy('sort_order');
+        return $this->belongsToMany(ProductAttribute::class, 'category_product_attribute')->withPivot('required')->withTimestamps();
     }
 
     public function products(): HasMany

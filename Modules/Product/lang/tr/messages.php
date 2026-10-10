@@ -12,6 +12,10 @@ return [
     'price_list_deleted' => 'Fiyat listesi silindi.',
 
     // Silme / işlem engelleri
+    'attribute_in_use' => 'Ürünlerde kullanılan özellik silinemez: :names. Önce ürünlerdeki değeri kaldırın.',
+    'attribute_option_in_use' => 'Ürünlerde kullanılan seçenek silinemez: :names.',
+    'attribute_system' => 'Sistem özelliği silinemez: :names.',
+    'vat_option_invalid' => 'KDV oranı seçenekleri yalnız %0, %1, %10 veya %20 olabilir: :names.',
     'brand_has_products' => 'Bu markaya bağlı ürünler var, önce ürünlerin markasını değiştirin.',
     'carrier_has_orders' => 'Bu kargo firmasına bağlı siparişler var. Silmek yerine pasife alın.',
     'warehouse_has_stock' => 'Bu depoda stok var, önce stokları başka depoya transfer edin.',
@@ -56,8 +60,12 @@ return [
 
     // AI açıklama üretimi
     'ai' => [
-        'call_failed' => 'AI çağrısı başarısız: :error',
-        'missing_fields' => 'AI cevabı beklenen alanları içermiyor (public_description / tenant_description).',
+        // :error = sağlayıcı hatasının açıklaması (creative::messages.ai_provider.*) ya da `unexpected`
+        'call_failed' => 'AI açıklaması üretilemedi. :error',
+        'unexpected' => 'Beklenmedik bir hata oluştu; ayrıntı sistem kayıtlarında.',
+        'missing_fields' => 'AI cevabı beklenen alanları içermiyor (storefront adı / B2C / B2B açıklama).',
+        'missing_seo_fields' => 'AI cevabı SEO alanlarını içermiyor (meta başlık / meta açıklama).',
+        'draft_incomplete' => 'AI için önce ürün adını ve kategoriyi girin.',
         'empty_response' => 'AI boş cevap döndürdü.',
         'invalid_json' => 'AI cevabı JSON olarak parse edilemedi.',
     ],
@@ -65,6 +73,18 @@ return [
     // Form doğrulama
     'validation' => [
         'slug_format' => 'Slug yalnızca küçük harf, rakam ve tire içerebilir.',
+        'hex_format'  => 'Renk kodu #rrggbb biçiminde olmalı (örn. #1e3a8a).',
+        'attribute_code_format'      => 'Kod küçük harfle başlamalı; yalnızca küçük harf, rakam ve alt çizgi içerebilir (örn. yaka_tipi).',
+        'attribute_code_reserved'    => 'Bu kod mağazanın (Bagisto) sistem özelliklerinden birine ait, başka bir kod seçin.',
+        'attribute_options_required' => 'Seçimli özelliğe en az bir seçenek ekleyin.',
+        'attribute_option_duplicate' => '“:name” seçeneği listede birden fazla kez yazılmış (büyük/küçük harf ve boşluk farkı sayılmaz).',
+        'attribute_option_name_held' => '“:name” adı şu an başka bir seçenekte; önce o seçeneği farklı bir adla kaydedin.',
+        'attribute_code_taken'       => '“:input” kodu başka bir özellikte kullanılıyor.',
+        'attribute_name_taken'       => '“:name” adında bir özellik zaten var (kod: :code).',
+        'attribute_upload_type'      => 'Yalnızca şu dosya türleri yüklenebilir: :types.',
+        'attribute_upload_size'      => 'Dosya en fazla :mb MB olabilir.',
+        'variant_option_exists'      => '“:input” zaten listede kayıtlı.',
+        'variant_option_duplicate'   => '“:input” listede birden fazla kez yazılmış.',
         'code_format' => 'Kod yalnızca büyük harf, rakam, tire ve alt çizgi içerebilir.',
         'icon_format' => 'Geçersiz ikon: listeden bir ikon seçin.',
         'parent_cycle' => 'Kategori kendisinin ya da kendi alt kategorisinin altına taşınamaz.',

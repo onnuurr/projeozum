@@ -6,6 +6,7 @@ use Illuminate\Database\Seeder;
 use Modules\Product\Models\Brand;
 use Modules\Product\Models\Category;
 use Modules\Product\Models\Product;
+use Modules\Product\Models\ProductAttributeOption;
 
 class ProductSeeder extends Seeder
 {
@@ -60,6 +61,12 @@ class ProductSeeder extends Seeder
             ['name' => 'Suede Klasik',           'cat' => 'ayakkabi', 'brand' => 'puma',       'gender' => 'Erkek',  'price' => 2199.00, 'old' => 2599.00,'rating' => 4.4, 'reviews' => 410, 'new' => false, 'ship' => false, 'sizes' => $shoeSizes],
         ];
 
+        // Cinsiyet `cinsiyet` özelliğinin seçeneğidir (2026_10_04_150000 migration'ı açar): Kadın → Kız
+        $genderIds = ProductAttributeOption::query()
+            ->whereHas('attribute', fn ($q) => $q->where('code', Product::GENDER_ATTRIBUTE))
+            ->pluck('id', 'name');
+        $genderIds['Kadın'] = $genderIds['Kız'] ?? null;
+
         foreach ($samples as $i => $row) {
             $sku = sprintf('TEK-%s-%03d', strtoupper(substr($row['brand'], 0, 3)), $i + 1);
             $brandFrag = strtoupper(substr($row['brand'], 0, 3));
@@ -70,7 +77,7 @@ class ProductSeeder extends Seeder
                     'category_id'   => $cats[$row['cat']]   ?? null,
                     'brand_id'      => $brands[$row['brand']] ?? null,
                     'name'          => $row['name'],
-                    'gender'        => $row['gender'],
+                    'attributes'    => array_filter([Product::GENDER_ATTRIBUTE => $genderIds[$row['gender']] ?? null]) ?: null,
                     'price'         => $row['price'],
                     'old_price'     => $row['old'],
                     'rating'        => $row['rating'],

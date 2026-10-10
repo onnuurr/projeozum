@@ -1,161 +1,160 @@
 <script setup>
-import { ref, reactive, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { router } from '@inertiajs/vue3'
-import { OzModal, OzField, OzInput, OzSelect, OzSwitch, OzButton, OzIcon } from '@/Components/Oz'
+import { OzModal, OzField, OzCombobox, OzSwitch, OzButton, OzIcon } from '@/Components/Oz'
+import { useCan } from '@/composables/useCan'
 
+// Kategorinin global ürün özellikleri seçimi (Ürün Ayarları → Özellikler'de tanımlanır).
+// Alt kategoriler üst kategorilerin seçimini miras alır; burada yalnızca kategorinin kendi seçimi
+// düzenlenir. Kaydet bütün listeyi yazar (PUT /products/categories/{id}/attributes).
 const props = defineProps({
 	category: { type: Object, default: null },
+	categories: { type: Array, default: () => [] },
+	productAttributes: { type: Array, default: () => [] },
 })
 
 const open = defineModel('open', { type: Boolean, default: false })
 const emit = defineEmits(['changed'])
+const { can } = useCan()
 
-const definitions = ref([])
+const own = ref([])
+const pick = ref('')
 const busy = ref(false)
 const error = ref('')
-const optionsText = ref('')
 
-const typeOptions = [
-	{ value: 'string', label: 'Metin' },
-	{ value: 'enum', label: 'Seçenekli (enum)' },
-	{ value: 'number', label: 'Sayı' },
-	{ value: 'boolean', label: 'Evet/Hayır' },
-]
+const TYPE_LABELS = { select: 'Seçim', multiselect: 'Çoklu seçim', checkbox: 'Onay kutuları', text: 'Metin', textarea: 'Uzun metin', number: 'Sayı', price: 'Fiyat', boolean: 'Evet / Hayır', date: 'Tarih', datetime: 'Tarih-saat', image: 'Görsel', file: 'Dosya' }
+const byId = computed(() => Object.fromEntries(props.productAttributes.map((a) => [a.id, a])))
 
-function typeLabel(type) {
-	return typeOptions.find((o) => o.value === type)?.label ?? type
-}
+// Üst kategorilerden gelenler: [{ attribute, from, required }]
+const inherited = computed(() => {
+	const list = []
+	const seen = new Set([props.category?.id])
+	let parentId = props.category?.parent_id
+	while (parentId && !seen.has(parentId)) {
+		seen.add(parentId)
+		const parent = props.categories.find((c) => c.id === parentId)
+		if (!parent) break
+		for (const a of parent.productAttributes ?? []) {
+			if (byId.value[a.id]) list.push({ attribute: byId.value[a.id], from: parent.name, required: a.required })
+		}
+		parentId = parent.parent_id
+	}
+	return list
+})
 
-function defaultFormState() {
-	return { key: '', label: '', type: 'string', required: false }
-}
-
-const form = reactive(defaultFormState())
+const addOptions = computed(() => props.productAttributes
+	.filter((a) => !own.value.some((o) => o.id === a.id))
+	.map((a) => {
+		const from = inherited.value.find((i) => i.attribute.id === a.id)?.from
+		return { value: a.id, label: a.name, description: from ? `${TYPE_LABELS[a.type]} · ${from} kategorisinden zaten geliyor` : TYPE_LABELS[a.type] }
+	}))
 
 watch(open, (isOpen) => {
 	if (isOpen) {
-		definitions.value = [...(props.category?.attributeDefinitions || [])]
-		Object.assign(form, defaultFormState())
-		optionsText.value = ''
+		own.value = (props.category?.productAttributes ?? []).filter((a) => byId.value[a.id]).map((a) => ({ id: a.id, required: a.required }))
+		pick.value = ''
 		error.value = ''
 	}
 })
 
-function submit() {
-	if (busy.value) return
-	if (!form.key.trim() || !form.label.trim()) {
-		error.value = 'Anahtar ve etiket zorunludur.'
-		return
-	}
+watch(pick, (id) => {
+	if (!id) return
+	own.value.push({ id, required: false })
+	pick.value = ''
+})
 
+function save() {
+	if (busy.value) return
 	busy.value = true
 	error.value = ''
-
-	const payload = {
-		key: form.key.trim(),
-		label: form.label.trim(),
-		type: form.type,
-		required: form.required,
-		options: form.type === 'enum'
-			? optionsText.value.split(',').map((s) => s.trim()).filter(Boolean)
-			: [],
-	}
-
-	router.post(`/products/categories/${props.category.id}/attribute-definitions`, payload, {
+	router.put(`/products/categories/${props.category.id}/attributes`, { attributes: own.value }, {
 		preserveScroll: true,
 		preserveState: true,
 		onSuccess: () => {
-			Object.assign(form, defaultFormState())
-			optionsText.value = ''
+			open.value = false
 			emit('changed')
 		},
-		onError: (errs) => {
-			error.value = Object.values(errs)[0] || 'Doğrulama hatası.'
-		},
+		onError: (errs) => { error.value = Object.values(errs)[0] || 'Doğrulama hatası.' },
 		onFinish: () => { busy.value = false },
-	})
-}
-
-function remove(def) {
-	router.delete(`/products/categories/${props.category.id}/attribute-definitions/${def.id}`, {
-		preserveScroll: true,
-		preserveState: true,
-		onSuccess: () => {
-			definitions.value = definitions.value.filter((d) => d.id !== def.id)
-			emit('changed')
-		},
 	})
 }
 </script>
 
 <template>
-	<OzModal v-model:open="open" :title="category ? `${category.name} — Özellikler` : ''" subtitle="Bu kategorideki ürünlerde görünecek özel alanları tanımla" icon="tag" size="md">
+	<OzModal v-model:open="open" :title="category ? `${category.name} — Özellikler` : ''" subtitle="Bu kategorideki (ve alt kategorilerindeki) ürünlerin formunda görünecek özellikler" icon="tag" size="md">
 		<div class="cad-body">
-			<p v-if="!definitions.length" class="cad-empty">Henüz özellik tanımı yok.</p>
-			<ul v-else class="cad-list">
-				<li v-for="def in definitions" :key="def.id" class="cad-row">
-					<div class="cad-row-info">
-						<span class="cad-key">{{ def.key }}</span>
-						<span class="cad-label">{{ def.label }}</span>
-						<span class="cad-type">{{ typeLabel(def.type) }}</span>
-						<span v-if="def.required" class="cad-required">zorunlu</span>
-					</div>
-					<button class="cad-remove" type="button" title="Sil" @click="remove(def)"><OzIcon name="trash" :size="13" /></button>
-				</li>
-			</ul>
+			<p v-if="!productAttributes.length" class="cad-empty">
+				Henüz tanımlı özellik yok.
+				<a v-if="can('product-settings.view') && can('product-attribute.view')" href="/products/settings?tab=attributes">Ürün Ayarları → Özellikler</a>
+				<template v-else>Ürün Ayarları → Özellikler ekranında tanımlanır.</template>
+			</p>
 
-			<div class="cad-divider"></div>
-
-			<form class="cad-form" @submit.prevent="submit">
-				<div class="cad-form-grid">
-					<OzField label="Anahtar">
-						<OzInput v-model="form.key" placeholder="örn. yaka" />
-					</OzField>
-					<OzField label="Etiket">
-						<OzInput v-model="form.label" placeholder="örn. Yaka Tipi" />
-					</OzField>
-					<OzField label="Tip">
-						<OzSelect v-model="form.type" :options="typeOptions" />
-					</OzField>
-					<div class="switch-cell">
-						<OzSwitch v-model="form.required" label="Zorunlu" />
-					</div>
+			<template v-else>
+				<div v-if="inherited.length" class="cad-section">
+					<span class="cad-heading">Üst kategoriden gelenler</span>
+					<ul class="cad-list">
+						<li v-for="i in inherited" :key="`${i.from}-${i.attribute.id}`" class="cad-row is-inherited">
+							<div class="cad-row-info">
+								<span class="cad-label">{{ i.attribute.name }}</span>
+								<span class="cad-type">{{ TYPE_LABELS[i.attribute.type] }}</span>
+								<span v-if="i.required" class="cad-required">zorunlu</span>
+							</div>
+							<span class="cad-from">{{ i.from }}</span>
+						</li>
+					</ul>
 				</div>
-				<OzField v-if="form.type === 'enum'" label="Seçenekler (virgülle ayır)">
-					<OzInput v-model="optionsText" placeholder="V yaka, Bisiklet yaka, Polo yaka" />
+
+				<div class="cad-section">
+					<span class="cad-heading">Bu kategoride</span>
+					<p v-if="!own.length" class="cad-empty">Bu kategoriye özel özellik seçilmedi.</p>
+					<ul v-else class="cad-list">
+						<li v-for="(o, idx) in own" :key="o.id" class="cad-row">
+							<div class="cad-row-info">
+								<span class="cad-label">{{ byId[o.id]?.name }}</span>
+								<span class="cad-type">{{ TYPE_LABELS[byId[o.id]?.type] }}</span>
+							</div>
+							<div class="cad-row-actions">
+								<OzSwitch v-if="byId[o.id]?.type !== 'boolean'" v-model="o.required" label="Zorunlu" />
+								<button class="cad-remove" type="button" title="Kaldır" @click="own.splice(idx, 1)"><OzIcon name="trash" :size="13" /></button>
+							</div>
+						</li>
+					</ul>
+				</div>
+
+				<OzField v-if="addOptions.length" label="Özellik ekle">
+					<OzCombobox v-model="pick" :options="addOptions" placeholder="Özellik seçin" search-placeholder="Özellik ara…" />
 				</OzField>
 				<span v-if="error" class="form-error">{{ error }}</span>
-				<OzButton variant="primary" icon="plus" type="submit" :loading="busy">Ekle</OzButton>
-			</form>
+			</template>
 		</div>
 
 		<template #footer>
-			<OzButton @click="open = false">Kapat</OzButton>
+			<OzButton :disabled="busy" @click="open = false">İptal</OzButton>
+			<OzButton v-if="productAttributes.length" variant="primary" icon="check" :loading="busy" @click="save">Kaydet</OzButton>
 		</template>
 	</OzModal>
 </template>
 
 <style scoped>
-.cad-body { display: flex; flex-direction: column; gap: 14px; }
-
-.cad-empty { color: var(--oz-muted); font-size: 12.5px; font-style: italic; margin: 0; }
-
+.cad-body { display: flex; flex-direction: column; gap: 16px; }
+.cad-section { display: flex; flex-direction: column; gap: 8px; }
+.cad-heading { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--oz-muted); }
+.cad-empty { color: var(--oz-muted); font-size: 12.5px; margin: 0; }
+.cad-empty a { color: var(--oz-accent); font-weight: 600; }
 .cad-list { display: flex; flex-direction: column; gap: 6px; list-style: none; margin: 0; padding: 0; }
 .cad-row {
-	display: flex; align-items: center; justify-content: space-between;
+	display: flex; align-items: center; justify-content: space-between; gap: 10px;
 	padding: 8px 12px;
 	background: var(--oz-surface-2);
 	border: 1px solid var(--oz-border);
 	border-radius: 9px;
 }
+.cad-row.is-inherited { background: transparent; border-style: dashed; }
 .cad-row-info { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.cad-key {
-	font-family: ui-monospace, monospace;
-	font-size: 11.5px; font-weight: 700; color: var(--oz-ink-soft);
-	background: var(--oz-border); padding: 2px 7px; border-radius: 5px;
-}
-.cad-label { font-size: 12.5px; color: var(--oz-ink-soft); }
+.cad-row-actions { display: flex; align-items: center; gap: 10px; }
+.cad-label { font-size: 12.5px; font-weight: 600; color: var(--oz-ink-soft); }
 .cad-type { font-size: 11px; color: var(--oz-muted); }
+.cad-from { font-size: 11px; color: var(--oz-muted); white-space: nowrap; }
 .cad-required { font-size: 10.5px; font-weight: 700; color: var(--oz-danger); }
 .cad-remove {
 	background: none; border: none; cursor: pointer; color: var(--oz-muted);
@@ -163,12 +162,5 @@ function remove(def) {
 	padding: 4px 6px; border-radius: 6px; flex-shrink: 0;
 }
 .cad-remove:hover { background: var(--oz-danger-soft); color: var(--oz-danger); }
-
-.cad-divider { height: 1px; background: var(--oz-border); }
-
-.cad-form { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
-.cad-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
-
 .form-error { color: var(--oz-danger); font-size: 11.5px; }
-.switch-cell { display: flex; align-items: center; height: 100%; padding-top: 20px; }
 </style>

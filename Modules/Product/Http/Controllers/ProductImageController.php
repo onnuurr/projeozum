@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Modules\Product\Events\ProductImagesChanged;
 use Modules\Product\Models\Product;
 use Modules\Product\Models\ProductImage;
 
@@ -68,6 +69,36 @@ class ProductImageController extends Controller
         });
 
         // Flash basılmıyor — ProductForm.vue setCover() onSuccess'te kendi toast'unu gösteriyor.
+        return back();
+    }
+
+    /**
+     * Sürükle-bırak sıralaması: verilen sırayla sort_order 1..n yazılır, ilk görsel kapak olur
+     * (düzenleme ekranı kapağı başta gösterir, Bagisto galeriyi sort_order'la alır — ikisi aynı sırada kalsın).
+     * Listede olmayan görseller mevcut sıralarıyla sona eklenir. Tek görsel olayı duyurulur (tek Bagisto push'u).
+     */
+    public function reorder(Request $request, Product $product): RedirectResponse
+    {
+        $data = $request->validate([
+            'ids'   => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer', 'distinct', Rule::exists('product_images', 'id')->where('product_id', $product->id)->whereNull('deleted_at')],
+        ]);
+
+        $listed = array_map('intval', $data['ids']);
+        $rest = $product->images()->whereNotIn('id', $listed)->pluck('id')->all();
+        $ids = [...$listed, ...$rest];
+
+        DB::transaction(function () use ($product, $ids) {
+            ProductImage::withoutChangeAnnouncements(function () use ($product, $ids) {
+                $images = ProductImage::query()->where('product_id', $product->id)->whereIn('id', $ids)->get()->keyBy('id');
+                foreach ($ids as $i => $id) {
+                    $images[$id]?->update(['sort_order' => $i + 1, 'is_cover' => $i === 0]);
+                }
+            });
+            ProductImagesChanged::dispatch($product->id);
+        });
+
+        // Flash basılmıyor — ProductForm.vue saveImageOrder() kendi toast'unu gösteriyor.
         return back();
     }
 

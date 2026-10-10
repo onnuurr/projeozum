@@ -1,17 +1,19 @@
 <script setup>
-import { reactive, ref, computed, onMounted, inject } from 'vue'
+import { reactive, ref, computed, onMounted, inject, watch } from 'vue'
 import { Head, router, usePage } from '@inertiajs/vue3'
-import { Star, X } from 'lucide-vue-next'
+import { Check, Star, X } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import {
 	OzPageHeader, OzModuleTabs, OzBreadcrumbs, OzCard, OzTabs, OzAlert, OzEmptyState,
-	OzField, OzInput, OzTextarea, OzSelect, OzCombobox, OzCheckbox, OzSwitch,
-	OzButton, OzPill,
+	OzField, OzInput, OzTextarea, OzCombobox, OzSelect, OzCheckbox, OzSwitch,
+	OzButton, OzPill, OzFileDrop, OzIcon,
 } from '@/Components/Oz'
 import MaterialPicker from '@/Components/MaterialPicker.vue'
 import MarkdownPreview from '@/Components/MarkdownPreview.vue'
+import draggable from 'vuedraggable'
 import axios from 'axios'
 import { useCan } from '@/composables/useCan'
+import { lucideIcon } from '@/lucideIcons.js'
 
 defineOptions({ layout: AppLayout })
 
@@ -20,6 +22,12 @@ const props = defineProps({
 	categories: { type: Array, default: () => [] },
 	brands: { type: Array, default: () => [] },
 	attributeDefinitions: { type: Object, default: () => ({}) },
+	// Beden & Renkler ekranından yönetilir (variant-option.*).
+	sizeOptions: { type: Array, default: () => [] },
+	colorOptions: { type: Array, default: () => [] },
+	// KDV: `kdv_orani` sistem özelliğinin seçenekleri [{value, label, rate}] + kategori id → miras çözülmüş oran.
+	vatOptions: { type: Array, default: () => [] },
+	categoryVatRates: { type: Object, default: () => ({}) },
 })
 
 const showToast = inject('showToast')
@@ -36,32 +44,35 @@ const headerSubtitle = computed(() => {
 /* ── Sekmeler ── */
 const TAB_META = [
 	{ key: 'general',     label: 'Genel Bilgiler', icon: 'info' },
+	{ key: 'price',       label: 'Fiyat & Stok',   icon: 'tag' },
 	{ key: 'seo',         label: 'SEO',            icon: 'globe' },
-	{ key: 'price',       label: 'Fiyat-Kargo',    icon: 'tag' },
+	{ key: 'shipping',    label: 'Kargo',          icon: 'truck' },
 	{ key: 'variant',     label: 'Stok-Varyant',   icon: 'shirt' },
 	{ key: 'images',      label: 'Resimler',       icon: 'eye' },
 	{ key: 'attributes',  label: 'Özellikler',     icon: 'layers' },
-	{ key: 'description', label: 'Açıklama (AI)',  icon: 'sparkles' },
+	{ key: 'description', label: 'Açıklama',       icon: 'sparkles' },
 	{ key: 'other',       label: 'Diğer',          icon: 'hash' },
 ]
 const activeTab = ref('general')
 
 // Hata alanı → ait olduğu sekme.
 const fieldTabMap = {
-	name: 'general', sku: 'general', category_id: 'general', brand_id: 'general', gender: 'general',
+	name: 'general', category_id: 'general', brand_id: 'general', barcode: 'general', public_description: 'general',
+	sku: 'price', market_price: 'price', purchase_price: 'price', sale_price: 'price', discount_price: 'price', max_order_qty: 'price',
+	'attributes.kdv_orani': 'price',
 	slug: 'seo', meta_title: 'seo', meta_description: 'seo', meta_keywords: 'seo',
-	free_shipping: 'price', weight: 'price', desi: 'price', shipping_time: 'price', shipping_fee: 'price',
-	market_price: 'price', purchase_price: 'price',
+	free_shipping: 'shipping', weight: 'shipping', desi: 'shipping', length_cm: 'shipping', width_cm: 'shipping', height_cm: 'shipping', shipping_time: 'shipping', shipping_fee: 'shipping',
 	variants: 'variant',
 	images: 'images',
-	material: 'attributes', origin_country: 'attributes', care_instructions: 'attributes',
-	description_materials: 'attributes', attributes: 'attributes',
-	public_name: 'description', public_description: 'description', tenant_description: 'description',
-	barcode: 'other', is_domestic: 'other', manufacturer_code: 'other', gtip_code: 'other',
+	material: 'description', description_materials: 'description',
+	attributes: 'attributes',
+	public_name: 'description', tenant_description: 'description',
+	is_domestic: 'other', manufacturer_code: 'other', gtip_code: 'other',
 }
 function tabForField(field) {
-	const base = String(field).split('.')[0]
-	return fieldTabMap[base] || 'general'
+	const key = String(field)
+	if (fieldTabMap[key]) return fieldTabMap[key]
+	return fieldTabMap[key.split('.')[0]] || 'general'
 }
 
 /* ── Sunucudan gelen doğrulama hataları ── */
@@ -88,31 +99,63 @@ const firstMaterialError = computed(() => {
 	return key ? errors.value[key] : ''
 })
 
-/* ── AI açıklama (M2) ── */
-const aiBusy = ref(false)
+/* ── AI içerik (açıklama + SEO) ──
+ * Kayıt beklemez: formda o an yazılı bilgiler (ad, marka, kategori, kategori özellikleri, kumaş, bakım,
+ * materyaller) gönderilir, sunucu bunlardan kaydedilmeyen bir taslakla üretir. Sonuç yalnız forma
+ * yazılır; kalıcı olması için ürün kaydedilir. */
+const aiBusy = reactive({ descriptions: false, seo: false })
 const aiError = ref('')
 const aiGeneratedAt = ref(null)
 const previewMode = reactive({ public: false, tenant: false })
+const aiReady = computed(() => !!form.name?.trim() && !!form.category_id)
+const AI_NOT_READY = 'AI için önce Genel sekmesinde ürün adını ve kategoriyi girin.'
 
-async function generateAiDescription() {
-	if (!props.product?.id) {
-		aiError.value = 'Önce ürünü kaydedin, sonra AI ile açıklama üretin.'
+function aiDraftPayload(parts) {
+	return {
+		parts,
+		product_id: props.product?.id ?? null,
+		name: form.name.trim(),
+		category_id: form.category_id,
+		brand_id: form.brand_id || null,
+		material: form.material?.trim() || null,
+		// Dosya alanları (yeni seçilmiş File) AI'ya gitmez
+		attributes: Object.fromEntries(Object.entries(form.attributes).filter(([, v]) => !(v instanceof File))),
+		description_materials: (form.description_materials || []).map((r, i) => ({
+			material_id: r.material_id, role: r.role, sort_order: r.sort_order ?? i,
+		})),
+	}
+}
+
+async function generateAi(part) {
+	if (aiBusy[part]) return
+	if (!aiReady.value) {
+		aiError.value = AI_NOT_READY
+		showToast?.({ type: 'warning', title: 'Bilgi eksik', message: AI_NOT_READY })
 		return
 	}
-	if (aiBusy.value) return
-	aiBusy.value = true
+	aiBusy[part] = true
 	aiError.value = ''
 	try {
-		const { data } = await axios.post(`/products/${props.product.id}/ai-description`)
-		form.public_description = data.data.public_description
-		form.tenant_description = data.data.tenant_description
+		const { data } = await axios.post('/products/ai-content', aiDraftPayload([part]))
+		const r = data.data
+		if (part === 'descriptions') {
+			form.public_name = r.public_name
+			form.public_description = r.public_description
+			form.tenant_description = r.tenant_description
+		} else {
+			// AI'nın yazdığı SEO alanları "elle girilmiş" sayılır: sonraki bilgi değişiklikleri ezmez.
+			for (const key of ['meta_title', 'meta_description', 'meta_keywords']) {
+				if (r[key]) { form[key] = r[key]; seoTouched[key] = true }
+			}
+		}
 		aiGeneratedAt.value = new Date().toISOString()
-		showToast?.({ type: 'success', title: 'AI açıklama üretildi', message: 'Metinleri gözden geçirip kaydedin.' })
+		showToast?.({ type: 'success', title: part === 'seo' ? 'AI SEO metinleri üretildi' : 'AI açıklama üretildi', message: 'Gözden geçirip kaydedin.' })
 	} catch (e) {
-		aiError.value = e?.response?.data?.message || 'AI çağrısı başarısız.'
+		const errs = e?.response?.data?.errors
+		aiError.value = (errs && Object.values(errs)[0]?.[0]) || e?.response?.data?.message || 'AI çağrısı başarısız.'
 		showToast?.({ type: 'error', title: 'AI Hatası', message: aiError.value })
 	} finally {
-		aiBusy.value = false
+		aiBusy[part] = false
 	}
 }
 
@@ -160,8 +203,8 @@ function deleteExisting(img) {
 	existingImages.value = existingImages.value.filter((x) => x.id !== img.id)
 }
 // Çok renkli üründe yalın fotoğraf bir renge etiketlenir (variant_colors): Creative mokap o rengi bu
-// fotoğraftan giydirir, onaylanan görsel mağazada yalnız o rengin varyantlarına gider. Giydirme
-// çıktılarına (onmodel_*) etiket verilmez — renkleri üretimden gelir.
+// fotoğraftan giydirir, onaylanan görsel mağazada yalnız o rengin varyantlarına gider. Yeni fotoğrafta
+// yüklerken, kayıtlı fotoğrafta kartın altındaki "Renk" seçimiyle. Giydirme çıktılarına (onmodel_*) verilmez.
 const productColors = computed(() => [...new Set(form.variants.map((v) => (v.color_name || '').trim()).filter(Boolean))])
 const isOnModel = (img) => String(img.path || img.url || '').includes('/onmodel_')
 function setImageColor(img, color) {
@@ -174,32 +217,39 @@ function setImageColor(img, color) {
 	})
 	existingImages.value = existingImages.value.map((x) => (x.id === img.id ? { ...x, variant_colors } : x))
 }
-function setCover(img) {
-	router.put(`/products/images/${img.id}`, { is_cover: true }, {
+// Sıra = kapak: ilk görsel kapak olur, mağaza galerisi de aynı sırayla gider (ProductImageController::reorder).
+function saveImageOrder(successTitle) {
+	const before = existingImages.value.map((x) => ({ ...x }))
+	existingImages.value = existingImages.value.map((x, i) => ({ ...x, is_cover: i === 0 }))
+	router.put(`/products/${props.product.id}/images/order`, { ids: existingImages.value.map((x) => x.id) }, {
 		preserveScroll: true,
 		preserveState: true,
-		onSuccess: () => showToast?.({ type: 'success', title: 'Kapak güncellendi' }),
-		onError: () => showToast?.({ type: 'error', title: 'Kapak güncellenemedi' }),
+		onSuccess: () => showToast?.({ type: 'success', title: successTitle }),
+		onError: () => {
+			existingImages.value = before
+			showToast?.({ type: 'error', title: 'Görsel sırası kaydedilemedi' })
+		},
 	})
-	existingImages.value = existingImages.value.map((x) => ({ ...x, is_cover: x.id === img.id }))
+}
+function onImagesSorted(e) {
+	if (e.oldIndex !== e.newIndex) saveImageOrder('Görsel sırası kaydedildi')
+}
+function setCover(img) {
+	existingImages.value = [img, ...existingImages.value.filter((x) => x.id !== img.id)]
+	saveImageOrder('Kapak güncellendi')
 }
 
-const sizeOptions = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '28', '30', '32', '34', '36', '38', '40', '42', '44']
+// Listede olmayan ama ürünün varyantlarında kullanılan beden/renkler de görünsün
+// (seçenek sonradan silinmiş/yeniden adlandırılmış olabilir), yoksa düzenlerken seçimi kaldırılamaz.
+const sizeOptions = computed(() => [
+	...props.sizeOptions,
+	...selectedSizes.value.filter((s) => !props.sizeOptions.includes(s)),
+])
 
-const colorPalette = [
-	{ name: 'Siyah',    hex: '#111111' }, { name: 'Beyaz',    hex: '#fafafa' },
-	{ name: 'Lacivert', hex: '#1e3a8a' }, { name: 'Gri',      hex: '#6b7280' },
-	{ name: 'Bej',      hex: '#d6c7a8' }, { name: 'Bordo',    hex: '#7c1f1f' },
-	{ name: 'Yeşil',    hex: '#15803d' }, { name: 'Mavi',     hex: '#2563eb' },
-	{ name: 'Kırmızı',  hex: '#dc2626' }, { name: 'Sarı',     hex: '#facc15' },
-	{ name: 'Pembe',    hex: '#ec4899' }, { name: 'Mor',      hex: '#7c3aed' },
-]
-
-const genderOptions = [
-	{ value: 'Erkek',  label: 'Erkek' },
-	{ value: 'Kadın',  label: 'Kadın' },
-	{ value: 'Unisex', label: 'Unisex' },
-]
+const colorPalette = computed(() => [
+	...props.colorOptions,
+	...selectedColors.value.filter((c) => !props.colorOptions.some((o) => o.name === c.name)),
+])
 
 // Yerel kopya: yeni eklenen kategori, sayfa yeniden yüklenmeden listeye eklenebilsin diye.
 const localCategories = ref([...props.categories])
@@ -207,11 +257,49 @@ const categoryOptions = computed(() =>
 	localCategories.value.map((c) => ({ value: c.id, label: c.name ?? c.label })),
 )
 
-// Seçili kategoriye göre değişen özellik tanımları (Faz 3 — Attribute Engine).
-// Kategori değişince form.attributes DEĞERLERİ elle temizlenmez (kullanıcı
-// verisini kaybetmesin) — tanımsız/eski anahtarlar backend'de kayıt anında
-// ProductAttributeService::filterToDefinedKeys() ile elenir.
+// Seçili kategoride (ve üst kategorilerinde) geçerli global özellikler (Ürün Ayarları → Özellikler).
+// Kategori değişince form.attributes DEĞERLERİ elle temizlenmez (kullanıcı verisini kaybetmesin)
+// — geçersiz anahtarlar backend'de kayıt anında ProductAttributeService::normalize() ile elenir.
+// Değer: seçimde seçenek id'si, çoklu seçimde id dizisi, metin, evet/hayır.
 const activeAttributeDefinitions = computed(() => props.attributeDefinitions[form.category_id] ?? [])
+
+// Seçenek ikonu (ortak ikon kaydı; yıkama sembolleri gibi)
+const optionIcon = (name) => lucideIcon(name) ?? (() => null)
+// İkonlu seçenekleri olan çoklu seçim (ör. yıkama talimatları) açılır liste yerine ikonlu onay kutularıyla gösterilir
+const hasOptionIcons = (def) => def.options.some((o) => o.icon)
+
+function openCategoriesTab() {
+	window.open('/products/categories', '_blank', 'noopener')
+}
+
+// Onay kutuları: seçili seçenek id'lerinin dizisi
+function toggleAttributeOption(code, id, on) {
+	const list = Array.isArray(form.attributes[code]) ? [...form.attributes[code]] : []
+	form.attributes[code] = on ? [...new Set([...list, id])] : list.filter((x) => x !== id)
+}
+
+// Görsel/dosya: değer ya yeni seçilen File ya da kayıtlı path (önizleme adresi attributeUrls'te)
+const attributeUrls = computed(() => props.product?.attributeUrls ?? {})
+const attributePreviews = reactive({})
+function setAttributeFile(code, files) {
+	if (attributePreviews[code]) URL.revokeObjectURL(attributePreviews[code])
+	const file = files[0] ?? null
+	form.attributes[code] = file
+	attributePreviews[code] = file && file.type.startsWith('image/') ? URL.createObjectURL(file) : ''
+}
+function attributeFileUrl(code) {
+	const v = form.attributes[code]
+	if (v instanceof File) return attributePreviews[code] || ''
+	return typeof v === 'string' ? attributeUrls.value[code] ?? '' : ''
+}
+function attributeFileName(code) {
+	const v = form.attributes[code]
+	return v instanceof File ? v.name : typeof v === 'string' ? v.split('/').pop() : ''
+}
+function onAttributeFileReject(rejected) {
+	const reason = rejected[0]?.reason === 'size' ? 'Dosya çok büyük.' : 'Bu dosya türü yüklenemez.'
+	showToast?.({ type: 'error', title: 'Dosya eklenemedi', message: reason })
+}
 
 const canCreateCategory = computed(() => page.props.auth?.permissions?.includes?.('category.create') ?? true)
 const canCreateBrand = computed(() => page.props.auth?.permissions?.includes?.('brand.manage') ?? true)
@@ -260,6 +348,8 @@ const selectedColors = ref([])  // {name, hex}[]
 
 const bulkPrice = ref(null)
 const bulkStock = ref(null)
+const bulkSku = ref('')
+const bulkOldPrice = ref(null)
 
 let variantKey = 0
 const newKey = () => `v${++variantKey}`
@@ -270,14 +360,16 @@ const defaultForm = () => ({
 	sku: '',
 	category_id: null,
 	brand_id: null,
-	gender: 'Unisex',
 	is_new: false,
+	is_featured: false,
 	free_shipping: false,
 	market_price: null,
 	purchase_price: null,
-	care_instructions: '',
+	// Fiyat sekmesi: tüm varyantlara yazılır (varyant price/old_price'a çevrilir), ayrıca kaydedilmez.
+	sale_price: null,
+	discount_price: null,
+	max_order_qty: null,
 	material: '',
-	origin_country: 'TR',
 	attributes: {},
 	// SEO
 	meta_title: '',
@@ -286,6 +378,9 @@ const defaultForm = () => ({
 	// Kargo
 	weight: null,
 	desi: null,
+	length_cm: null,
+	width_cm: null,
+	height_cm: null,
 	shipping_time: '',
 	shipping_fee: null,
 	// Diğer
@@ -399,8 +494,8 @@ function regenerateVariants() {
 				color_hex: color.hex,
 				sku: existing?.sku || variantSku(form.sku, size, color.name),
 				persisted: existing?.persisted ?? false,
-				price: existing?.price ?? Number(bulkPrice.value) ?? 0,
-				old_price: existing?.old_price ?? null,
+				price: existing?.price ?? variantPrices().price,
+				old_price: existing ? existing.old_price : variantPrices().old_price,
 				stock: existing?.stock ?? Number(bulkStock.value) ?? 0,
 			})
 		}
@@ -415,8 +510,7 @@ function addEmptyVariant() {
 		color_name: null,
 		color_hex: null,
 		sku: variantSku(form.sku, null, null) + '-' + (form.variants.length + 1),
-		price: 0,
-		old_price: null,
+		...variantPrices(),
 		stock: 0,
 	})
 }
@@ -425,23 +519,138 @@ function removeVariant(idx) {
 	form.variants.splice(idx, 1)
 }
 
-// Alış fiyatı yazılınca toplu fiyat önerisi: alış × 2,5 (alışın üzerine %150 kâr). Yalnız kullanıcı alış fiyatını
-// değiştirdiğinde çalışır (düzenleme sayfası açılırken değil); sonrasında elle düzeltilebilir.
-const BULK_PRICE_MARKUP_PERCENT = 250
-function suggestBulkPrice() {
-	const purchase = Number(form.purchase_price)
-	if (form.purchase_price === '' || form.purchase_price === null || !Number.isFinite(purchase) || purchase <= 0) return
-	bulkPrice.value = Math.round(purchase * BULK_PRICE_MARKUP_PERCENT) / 100
+/* ── Fiyat sekmesi ──
+ * Satış fiyatı + indirimli fiyat tüm varyantlara yazılır. Varyant modeli: price = güncel (ödenen) fiyat,
+ * old_price = üstü çizili fiyat. İndirim varsa price = indirimli, old_price = satış; yoksa old_price boş.
+ * Varyant sekmesinden tek tek farklı fiyat verilebilir; o durumda burası "varyantlarda farklı" gösterir. */
+const filledNum = (v) => v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v))
+
+const discountError = computed(() => {
+	if (!filledNum(form.discount_price)) return ''
+	if (!filledNum(form.sale_price)) return 'Önce satış fiyatını girin.'
+	return Number(form.discount_price) < Number(form.sale_price) ? '' : 'İndirimli fiyat satış fiyatından düşük olmalı.'
+})
+
+function variantPrices() {
+	const sale = filledNum(form.sale_price) ? Number(form.sale_price) : 0
+	const hasDiscount = filledNum(form.discount_price) && !discountError.value
+	return hasDiscount ? { price: Number(form.discount_price), old_price: sale } : { price: sale, old_price: null }
 }
 
-function applyBulkPrice() {
-	if (!bulkPrice.value) return
-	form.variants.forEach((v) => { v.price = Number(bulkPrice.value) })
+function applyPricesToVariants() {
+	if (discountError.value) return
+	const prices = variantPrices()
+	form.variants.forEach((v) => Object.assign(v, prices))
 }
 
-function applyBulkStock() {
-	if (bulkStock.value === null || bulkStock.value === '') return
-	form.variants.forEach((v) => { v.stock = Number(bulkStock.value) })
+// Varyant fiyatları farklıysa (varyant sekmesinden elle) üstteki alanlar boş kalır, uyarı gösterilir.
+const variantPricesDiffer = computed(() => {
+	const keys = new Set(form.variants.map((v) => `${Number(v.price) || 0}|${filledNum(v.old_price) ? Number(v.old_price) : ''}`))
+	return keys.size > 1
+})
+
+// Düzenlemede: tüm varyantlar aynı fiyattaysa üstteki alanlar ondan doldurulur.
+function pricesFromVariants(variants) {
+	if (!variants.length) return { sale_price: null, discount_price: null }
+	const keys = new Set(variants.map((v) => `${Number(v.price) || 0}|${filledNum(v.old_price) ? Number(v.old_price) : ''}`))
+	if (keys.size > 1) return { sale_price: null, discount_price: null }
+	const v = variants[0]
+	const old = filledNum(v.old_price) ? Number(v.old_price) : null
+	return old !== null && old > Number(v.price)
+		? { sale_price: old, discount_price: Number(v.price) }
+		: { sale_price: Number(v.price) || null, discount_price: null }
+}
+
+// Maliyet yazılınca satış fiyatı önerisi: maliyet × 2,5 (%150 kâr). Satış fiyatı elle girildiyse ezilmez.
+const SALE_PRICE_MARKUP_PERCENT = 250
+const salePriceTouched = ref(false)
+function suggestSalePrice() {
+	const cost = Number(form.purchase_price)
+	if (salePriceTouched.value || !filledNum(form.purchase_price) || cost <= 0) return
+	form.sale_price = Math.round(cost * SALE_PRICE_MARKUP_PERCENT) / 100
+	applyPricesToVariants()
+}
+
+function onSalePriceInput() {
+	salePriceTouched.value = true
+	applyPricesToVariants()
+}
+
+/* ── KDV ── */
+const VAT_CODE = 'kdv_orani'
+const categoryVatRate = computed(() => form.category_id ? (props.categoryVatRates[form.category_id] ?? null) : null)
+const vatSelectOptions = computed(() => [
+	{ value: '', label: categoryVatRate.value !== null ? `Kategoriden (%${fmtRate(categoryVatRate.value)})` : 'Kategoriden' },
+	...props.vatOptions.map((o) => ({ value: o.value, label: o.label })),
+])
+const effectiveVatRate = computed(() => {
+	const picked = props.vatOptions.find((o) => o.value === Number(form.attributes[VAT_CODE]))
+	return picked ? picked.rate : categoryVatRate.value
+})
+const vatModel = computed({
+	get: () => form.attributes[VAT_CODE] ?? '',
+	set: (v) => { form.attributes[VAT_CODE] = v === '' || v === null ? null : Number(v) },
+})
+function fmtRate(r) {
+	return Number(r).toLocaleString('tr-TR', { maximumFractionDigits: 2 })
+}
+function fmtMoney(v) {
+	return Number(v).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₺'
+}
+// Mağazada (Bagisto) görünecek KDV dahil fiyat — ProductPayloadMapper ile aynı hesap.
+const grossHint = computed(() => {
+	if (effectiveVatRate.value === null || !filledNum(form.sale_price)) return `KDV hariç.`
+	const gross = (v) => fmtMoney(Math.round(Number(v) * (1 + effectiveVatRate.value / 100) * 100) / 100)
+	const parts = [`KDV dahil mağaza fiyatı: ${gross(form.sale_price)}`]
+	if (filledNum(form.discount_price) && !discountError.value) parts.push(`indirimli ${gross(form.discount_price)}`)
+	return parts.join(' · ')
+})
+const marginHint = computed(() => {
+	const { price } = variantPrices()
+	if (!filledNum(form.purchase_price) || !price) return 'Girilirse satış fiyatı maliyet × 2,5 olarak önerilir.'
+	const cost = Number(form.purchase_price)
+	return `Kâr: ${fmtMoney(price - cost)} (%${fmtRate(((price - cost) / price) * 100)} marj)`
+})
+
+const filled = (v) => v !== null && v !== undefined && String(v).trim() !== ''
+
+const canApplyBulk = computed(() =>
+	[bulkSku.value, bulkPrice.value, bulkOldPrice.value, bulkStock.value].some(filled),
+)
+
+/**
+ * Varyant tablosundaki "Tümüne uygula" satırı: doldurulan her alan tüm varyantlara yazılır, boş alanlar
+ * dokunulmaz. SKU benzersiz olmak zorunda olduğundan aynen kopyalanmaz, kök olarak kullanılır:
+ * KÖK-RENK-BEDEN (renk/bedensiz satırlar sıra no alır). Kayıtlı varyantların SKU'su ve stoku
+ * değişmez (stok yalnız stok hareketiyle) — bunlar atlanır ve bildirilir.
+ */
+function applyBulkToVariants() {
+	if (!canApplyBulk.value || !form.variants.length) return
+	let skippedLocked = 0
+
+	form.variants.forEach((v, idx) => {
+		if (filled(bulkPrice.value)) v.price = Number(bulkPrice.value)
+		if (filled(bulkOldPrice.value)) v.old_price = Number(bulkOldPrice.value)
+
+		const wantsLocked = filled(bulkSku.value) || filled(bulkStock.value)
+		if (v.persisted) {
+			if (wantsLocked) skippedLocked++
+			return
+		}
+		if (filled(bulkSku.value)) {
+			const base = bulkSku.value.trim().toUpperCase()
+			v.sku = v.size || v.color_name ? variantSku(base, v.size, v.color_name) : `${base}-${idx + 1}`
+		}
+		if (filled(bulkStock.value)) v.stock = Number(bulkStock.value)
+	})
+
+	showToast?.({
+		type: skippedLocked ? 'warning' : 'success',
+		title: `${form.variants.length} varyanta uygulandı`,
+		message: skippedLocked
+			? `${skippedLocked} kayıtlı varyantın SKU/stoku değiştirilmedi (stok yalnız stok hareketiyle değişir).`
+			: undefined,
+	})
 }
 
 function numOrNull(v) {
@@ -455,14 +664,13 @@ function buildPayload() {
 		sku: form.sku.trim(),
 		category_id: form.category_id,
 		brand_id: form.brand_id || null,
-		gender: form.gender,
 		market_price: numOrNull(form.market_price),
 		purchase_price: numOrNull(form.purchase_price),
+		max_order_qty: numOrNull(form.max_order_qty),
 		is_new: form.is_new ? 1 : 0,
+		is_featured: form.is_featured ? 1 : 0,
 		free_shipping: form.free_shipping ? 1 : 0,
-		care_instructions: form.care_instructions?.trim() || null,
 		material: form.material?.trim() || null,
-		origin_country: (form.origin_country || 'TR').toUpperCase(),
 		attributes: { ...form.attributes },
 		// SEO
 		meta_title: form.meta_title?.trim() || null,
@@ -471,6 +679,9 @@ function buildPayload() {
 		// Kargo
 		weight: numOrNull(form.weight),
 		desi: numOrNull(form.desi),
+		length_cm: numOrNull(form.length_cm),
+		width_cm: numOrNull(form.width_cm),
+		height_cm: numOrNull(form.height_cm),
 		shipping_time: form.shipping_time?.trim() || null,
 		shipping_fee: form.free_shipping ? null : numOrNull(form.shipping_fee),
 		// Diğer
@@ -504,19 +715,26 @@ function buildPayload() {
 
 function submit() {
 	if (busy.value) return
+	if (discountError.value) {
+		errors.value = { discount_price: discountError.value }
+		focusFirstErrorTab(errors.value)
+		return
+	}
 	busy.value = true
 	errors.value = {}
 
 	const payload = buildPayload()
-	const hasFiles = Array.isArray(payload.images) && payload.images.length > 0
+	const hasFiles = (Array.isArray(payload.images) && payload.images.length > 0)
+		|| Object.values(payload.attributes || {}).some((v) => v instanceof File)
 
 	const opts = {
 		preserveScroll: true,
 		onSuccess: () => {
 			showToast?.({
 				type: 'success',
-				title: isEdit.value ? 'Ürün Güncellendi' : 'Ürün Eklendi',
-				message: payload.name,
+				title: isEdit.value ? 'Ürün Güncellendi' : 'Ürün taslak olarak eklendi',
+				// Yeni ürün pasif başlar; hazır olunca Ürün Kartı'ndan yayınlanır (mağazaya o zaman gider).
+				message: isEdit.value ? payload.name : `${payload.name} — hazır olunca Ürün Kartı'ndan yayınlayın`,
 			})
 		},
 		onError: (errs) => {
@@ -558,15 +776,17 @@ function loadFromProduct(p) {
 		sku: p.sku || '',
 		category_id: p.category_id ?? null,
 		brand_id: p.brand_id ?? null,
-		gender: p.gender || 'Unisex',
 		market_price: p.marketPrice ?? null,
 		purchase_price: p.purchasePrice ?? null,
+		max_order_qty: p.maxOrderQty ?? null,
 		is_new: !!p.isNew,
+		is_featured: !!p.isFeatured,
 		free_shipping: !!p.freeShipping,
-		care_instructions: p.careInstructions ?? '',
 		material: p.material ?? '',
-		origin_country: p.originCountry ?? 'TR',
-		attributes: { ...(p.attributes || {}) },
+		// datetime-local girdisi 'YYYY-MM-DDTHH:mm' bekler; kayıtlı 'YYYY-MM-DD HH:mm:ss' çevrilir
+		attributes: Object.fromEntries(Object.entries(p.attributes || {}).map(([k, v]) => [
+			k, typeof v === 'string' && /^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d$/.test(v) ? v.replace(' ', 'T').slice(0, 16) : v,
+		])),
 		// SEO
 		meta_title: p.metaTitle ?? '',
 		meta_description: p.metaDescription ?? '',
@@ -574,6 +794,9 @@ function loadFromProduct(p) {
 		// Kargo
 		weight: p.weight ?? null,
 		desi: p.desi ?? null,
+		length_cm: p.length_cm ?? null,
+		width_cm: p.width_cm ?? null,
+		height_cm: p.height_cm ?? null,
 		shipping_time: p.shippingTime ?? '',
 		shipping_fee: p.shippingFee ?? null,
 		// Diğer
@@ -596,6 +819,8 @@ function loadFromProduct(p) {
 		tenant_description: p.tenantDescription ?? '',
 	})
 	aiGeneratedAt.value = p.aiGeneratedAt ?? null
+	// Kayıtlı SEO değerleri elle girilmiş sayılır (otomatik doldurma ezmez); slug kayıtlı ürünün adresidir.
+	for (const key of Object.keys(seoTouched)) seoTouched[key] = String(form[key] ?? '').trim() !== '' || key === 'slug'
 
 	const variants = Array.isArray(p.variants) ? p.variants : []
 	const sizesSet = new Set()
@@ -619,12 +844,119 @@ function loadFromProduct(p) {
 		// Kayıtlı varyant: SKU kilitli (Bagisto SKU ile eşleştirir), stok yalnız stok hareketiyle değişir.
 		persisted: true,
 	}))
+	Object.assign(form, pricesFromVariants(form.variants))
+	salePriceTouched.value = true
 
 	existingImages.value = Array.isArray(p.images) ? p.images.map((x) => ({ ...x })) : []
 }
 
+/* ── SEO: ürün bilgilerinden otomatik ──
+ * Ad, marka, kategori, kategori özellikleri, kumaş ve açıklama girildikçe SEO alanları kurallarla
+ * (AI'sız, anında) dolar. Elle değiştirilen ya da AI'nın yazdığı alan bir daha ezilmez; alan
+ * tamamen silinirse otomatik doldurma geri döner. Sınırlar ProductSeoRules ile aynı (60 / 160 / 10). */
+const SEO_TITLE_MAX = 60
+const SEO_DESCRIPTION_MAX = 160
+const SEO_KEYWORDS_MAX = 10
+const seoTouched = reactive({ slug: false, meta_title: false, meta_description: false, meta_keywords: false })
+
+function cutAtWord(text, max) {
+	const t = String(text || '').replace(/\s+/g, ' ').trim()
+	if (t.length <= max) return t
+	const cut = t.slice(0, max)
+	const space = cut.lastIndexOf(' ')
+	return (space > max * 0.6 ? cut.slice(0, space) : cut).replace(/[\s,.;:\-–|]+$/, '')
+}
+const trLower = (t) => String(t).replace(/I/g, 'ı').replace(/İ/g, 'i').toLocaleLowerCase('tr-TR')
+const stripMarkdown = (t) => String(t || '').replace(/[*_`#>]+/g, '').replace(/^\s*-\s+/gm, '').replace(/\s+/g, ' ').trim()
+
+const seoBrandName = computed(() => {
+	const b = localBrands.value.find((x) => x.id === form.brand_id)
+	return b ? (b.name ?? b.label) : ''
+})
+const seoCategoryName = computed(() => {
+	const c = localCategories.value.find((x) => x.id === form.category_id)
+	return c ? (c.name ?? c.label) : ''
+})
+// Seçimli kategori özelliklerinin okunur değerleri (V Yaka, Slim Fit …)
+const seoAttributeLabels = computed(() => activeAttributeDefinitions.value
+	.filter((d) => ['select', 'multiselect', 'checkbox'].includes(d.type))
+	.flatMap((d) => {
+		const v = form.attributes[d.code]
+		const ids = Array.isArray(v) ? v : v != null && v !== '' ? [v] : []
+		return ids.map((id) => d.options.find((o) => o.value === Number(id))?.label).filter(Boolean)
+	}))
+
+const autoSeo = computed(() => {
+	const name = form.name?.trim() || ''
+	if (!name) return { slug: '', meta_title: '', meta_description: '', meta_keywords: '' }
+	const brand = seoBrandName.value
+	const category = seoCategoryName.value
+	const attrs = seoAttributeLabels.value
+
+	const withBrand = brand && !trLower(name).includes(trLower(brand)) ? `${name} | ${brand}` : name
+	const meta_title = cutAtWord(withBrand.length <= SEO_TITLE_MAX ? withBrand : name, SEO_TITLE_MAX)
+
+	const fromDescription = stripMarkdown(form.public_description)
+	const facts = [
+		[brand, name].filter(Boolean).join(' '),
+		[...attrs.slice(0, 3), category].filter(Boolean).join(', '),
+		form.material?.trim() ? `Kumaş: ${form.material.trim()}` : '',
+	].filter(Boolean).join('. ')
+	const meta_description = cutAtWord(fromDescription || `${facts}.`, SEO_DESCRIPTION_MAX)
+
+	const words = [name, category && attrs[0] ? `${attrs[0]} ${category}` : '', category, brand, ...attrs, form.material?.trim() || '']
+	const meta_keywords = [...new Set(words.filter(Boolean).map((w) => trLower(w).trim()).filter((w) => w.length <= 40))]
+		.slice(0, SEO_KEYWORDS_MAX).join(', ')
+
+	return { slug: slugify(name), meta_title, meta_description, meta_keywords }
+})
+
+watch(autoSeo, (next) => {
+	for (const key of Object.keys(seoTouched)) {
+		if (!seoTouched[key]) form[key] = next[key]
+	}
+})
+
+// Kullanıcı yazınca alan elle girilmiş sayılır; tamamen silerse otomatiğe döner.
+function onSeoInput(key) {
+	if (key === 'slug') form.slug = slugify(form.slug)
+	seoTouched[key] = String(form[key] ?? '').trim() !== ''
+	if (!seoTouched[key]) form[key] = autoSeo.value[key]
+}
+
+function seoHint(key, max = null) {
+	const len = String(form[key] ?? '').length
+	const source = seoTouched[key] ? 'Elle girildi (silerseniz otomatiğe döner)' : 'Otomatik'
+	if (!max) return key === 'meta_keywords' ? `${source} · virgülle ayırın` : source
+	return `${source} · ${len}/${max} karakter${len > max ? ' — arama sonucunda kesilir' : ''}`
+}
+
+// Google arama sonucu önizlemesi
+const seoPreview = computed(() => ({
+	title: form.meta_title || form.name || 'Ürün adı',
+	url: `/products/${form.slug || '…'}`,
+	description: form.meta_description || 'Meta açıklama ürün bilgilerinden otomatik oluşturulur.',
+}))
+
+/* ── Desi: paket ölçülerinden önerilir (en × boy × yükseklik / 3000), elle değiştirilebilir ── */
+const suggestedDesi = computed(() => {
+	const [l, w, h] = [form.length_cm, form.width_cm, form.height_cm].map(Number)
+	return l > 0 && w > 0 && h > 0 ? Math.round((l * w * h / 3000) * 100) / 100 : null
+})
+// Kullanıcı desiyi elle girdiyse ölçü değişikliği onu ezmez
+const desiTouched = ref(false)
+const desiHint = computed(() => {
+	if (suggestedDesi.value === null) return 'Ölçüleri girerseniz otomatik hesaplanır'
+	return Number(form.desi) === suggestedDesi.value ? 'Ölçülerden hesaplandı' : `Ölçülere göre ${suggestedDesi.value}`
+})
+watch(suggestedDesi, (v) => {
+	if (v !== null && !desiTouched.value) form.desi = v
+})
+
 onMounted(() => {
 	if (props.product) loadFromProduct(props.product)
+	// Kayıtlı desi ölçülerden farklıysa elle girilmiş sayılır
+	desiTouched.value = form.desi != null && form.desi !== '' && Number(form.desi) !== suggestedDesi.value
 	// İlk yüklemede sunucudan gelmiş hata varsa göster ve ilgili sekmeye geç.
 	if (page.props.errors && Object.keys(page.props.errors).length) {
 		errors.value = { ...page.props.errors }
@@ -655,20 +987,15 @@ onMounted(() => {
 	<div class="panels">
 		<!-- ── Genel Bilgiler ── -->
 		<div v-show="activeTab === 'general'" class="panel" role="tabpanel">
-			<OzCard title="Temel Bilgiler" subtitle="Ad, stok kodu ve tanımlayıcı bilgiler" class="block">
+			<OzCard title="Temel Bilgiler" subtitle="Ürün adı ve barkod" class="block">
 				<div class="stack">
 					<OzField label="Ürün Adı" required :error="errors.name">
 						<OzInput v-model="form.name" placeholder="örn. Basic Crew Tişört" @input="onNameInput" />
 					</OzField>
-					<OzField
-						label="Ana SKU"
-						required
-						:error="errors.sku"
-						:hint="isEdit ? 'SKU oluşturulduktan sonra değiştirilemez (Bagisto eşleşmesi).' : 'Boş bırakıp ⟳ ile otomatik üretebilirsiniz (marka + ürün adı gerekli).'"
-					>
+					<OzField label="Barkod / GTIN" :error="errors.barcode">
 						<div class="inline-row">
-							<OzInput v-model="form.sku" placeholder="TEK-XXX-001" class="grow" :readonly="isEdit" @input="skuTouched = true" />
-							<OzButton v-if="!isEdit" icon="refresh" :disabled="!form.name || !form.brand_id" aria-label="Otomatik SKU üret" @click="generateBaseSku" />
+							<OzInput v-model="form.barcode" maxlength="64" placeholder="örn. 8690000000000" class="grow mono" />
+							<OzButton icon="refresh" :loading="barcodeBusy" aria-label="Barkod üret" title="Barkod üret" @click="generateBarcode" />
 						</div>
 					</OzField>
 				</div>
@@ -677,68 +1004,143 @@ onMounted(() => {
 			<OzCard title="Organizasyon" subtitle="Ürünün kataloğdaki yeri ve sınıflandırması" class="block">
 				<div class="stack">
 					<div class="grid-2">
-						<OzField label="Cinsiyet" :error="errors.gender">
-							<OzSelect v-model="form.gender" :options="genderOptions" />
-						</OzField>
 						<OzField label="Kategori" :error="errors.category_id">
 							<OzCombobox v-model="form.category_id" :options="categoryOptions" placeholder="Kategori seçiniz…" search-placeholder="Kategori ara ya da yeni ekle…" empty-text="Sonuç bulunamadı" :create="canCreateCategory ? handleCreateCategory : null" create-text="kategorisini ekle" />
 						</OzField>
+						<OzField label="Marka" :error="errors.brand_id">
+							<OzCombobox v-model="form.brand_id" :options="brandOptions" placeholder="— Marka yok —" clearable search-placeholder="Marka ara ya da yeni ekle…" empty-text="Sonuç bulunamadı" :create="canCreateBrand ? handleCreateBrand : null" create-text="markasını ekle" />
+						</OzField>
 					</div>
-					<OzField label="Marka" :error="errors.brand_id">
-						<OzCombobox v-model="form.brand_id" :options="brandOptions" placeholder="— Marka yok —" clearable search-placeholder="Marka ara ya da yeni ekle…" empty-text="Sonuç bulunamadı" :create="canCreateBrand ? handleCreateBrand : null" create-text="markasını ekle" />
-					</OzField>
 					<OzSwitch v-model="form.is_new" label="Yeni gelen olarak işaretle" description="Katalogda “Yeni” rozetiyle öne çıkar" />
+					<OzSwitch v-model="form.is_featured" label="Öne çıkan ürün" description="Mağazanın (Bagisto) vitrinindeki “Öne Çıkanlar” bölümünde gösterilir" />
+				</div>
+			</OzCard>
+
+			<OzCard title="Ürün Açıklaması" subtitle="Mağazada (Bagisto) müşterinin göreceği açıklama · markdown desteklenir" class="block">
+				<template #actions>
+					<div class="inline-row">
+						<OzButton size="sm" @click="previewMode.public = !previewMode.public">
+							{{ previewMode.public ? 'Metin' : 'Önizleme' }}
+						</OzButton>
+						<OzButton
+							v-if="canUseAi"
+							variant="primary"
+							size="sm"
+							icon="sparkles"
+							:loading="aiBusy.descriptions"
+							:title="aiReady ? 'Formdaki ürün bilgileriyle üretir (kaydetmek gerekmez)' : AI_NOT_READY"
+							@click="generateAi('descriptions')"
+						>
+							AI ile Üret
+						</OzButton>
+					</div>
+				</template>
+				<div class="stack">
+					<OzAlert v-if="aiError" tone="danger" :title="aiError" />
+					<OzField :error="errors.public_description" :hint="'AI ile Üret; ad, marka, kategori, özellikler, kumaş ve materyalleri kullanır. Storefront adı ve B2B açıklamayı da (Açıklama sekmesi) doldurur.'">
+						<OzTextarea
+							v-if="!previewMode.public"
+							v-model="form.public_description"
+							:rows="8"
+							aria-label="Ürün açıklaması"
+							placeholder="Müşteriye storytelling — **kalın**, *italik*, - liste"
+						/>
+						<MarkdownPreview v-else :source="form.public_description" />
+					</OzField>
+				</div>
+			</OzCard>
+		</div>
+
+		<!-- ── Fiyat & Stok ── -->
+		<div v-show="activeTab === 'price'" class="panel" role="tabpanel">
+			<OzCard title="Fiyatlandırma" subtitle="Fiyatlar KDV hariç girilir · tüm varyantlara uygulanır" class="block">
+				<div class="stack">
+					<OzAlert v-if="variantPricesDiffer" tone="info" title="Varyantlarda farklı fiyatlar var">
+						Buraya girilen fiyat tüm varyantların fiyatını değiştirir. Tek tek fiyat için Stok-Varyant sekmesini kullanın.
+					</OzAlert>
+					<div class="grid-2">
+						<OzField label="Satış Fiyatı" :error="errors.sale_price" :hint="grossHint">
+							<OzInput v-model="form.sale_price" type="number" min="0" step="0.01" suffix="₺" placeholder="örn. 249.90" @input="onSalePriceInput" />
+						</OzField>
+						<OzField label="İndirimli Satış Fiyatı" :error="discountError || errors.discount_price" hint="Boşsa indirim yok; girilirse mağazada satış fiyatı üstü çizili görünür.">
+							<OzInput v-model="form.discount_price" type="number" min="0" step="0.01" suffix="₺" placeholder="İndirim yoksa boş" @input="applyPricesToVariants" />
+						</OzField>
+						<OzField label="Maliyet" :error="errors.purchase_price" :hint="marginHint">
+							<OzInput v-model="form.purchase_price" type="number" min="0" step="0.01" suffix="₺" placeholder="örn. 89.90" @input="suggestSalePrice" />
+						</OzField>
+						<OzField label="KDV Oranı" :error="errors['attributes.kdv_orani']" hint="Boş bırakılırsa kategorinin oranı geçerli. Seçenekler Ürün Ayarları › Özellikler › KDV Oranı'ndan gelir.">
+							<OzSelect v-model="vatModel" :options="vatSelectOptions" />
+						</OzField>
+						<OzField label="Piyasa Fiyatı" :error="errors.market_price" hint="Karşılaştırma için (opsiyonel); mağazaya gitmez.">
+							<OzInput v-model="form.market_price" type="number" min="0" step="0.01" suffix="₺" placeholder="örn. 299.90" />
+						</OzField>
+					</div>
+				</div>
+			</OzCard>
+
+			<OzCard title="Stok & Satış Kuralları" subtitle="Stok kodu ve sipariş sınırı" class="block">
+				<div class="stack">
+					<div class="grid-2">
+						<OzField
+							label="Stok Kodu (SKU)"
+							required
+							:error="errors.sku"
+							:hint="isEdit ? 'Oluşturulduktan sonra değiştirilemez (Bagisto eşleşmesi).' : 'Boş bırakıp ⟳ ile otomatik üretebilirsiniz (marka + ürün adı gerekli). Varyant kodları bundan türetilir.'"
+						>
+							<div class="inline-row">
+								<OzInput v-model="form.sku" placeholder="TEK-XXX-001" class="grow mono" :readonly="isEdit" @input="skuTouched = true" />
+								<OzButton v-if="!isEdit" icon="refresh" :disabled="!form.name || !form.brand_id" aria-label="Otomatik SKU üret" @click="generateBaseSku" />
+							</div>
+						</OzField>
+						<OzField label="Maksimum Satış Adedi" :error="errors.max_order_qty" hint="Bir siparişte bu üründen (tüm varyantlar) en fazla kaç adet alınabilir. Boş = sınırsız.">
+							<OzInput v-model="form.max_order_qty" type="number" min="1" step="1" suffix="adet" placeholder="Sınırsız" />
+						</OzField>
+					</div>
 				</div>
 			</OzCard>
 		</div>
 
 		<!-- ── SEO ── -->
 		<div v-show="activeTab === 'seo'" class="panel" role="tabpanel">
-			<OzCard title="Arama Motoru Optimizasyonu" subtitle="URL ve arama sonuçlarındaki görünüm (opsiyonel)" class="block">
+			<OzCard title="Arama Motoru Optimizasyonu" subtitle="Ürün bilgilerinden otomatik oluşur · elle değiştirdiğiniz alan korunur" class="block">
+				<template #actions>
+					<OzButton
+						v-if="canUseAi"
+						variant="primary"
+						size="sm"
+						icon="sparkles"
+						:loading="aiBusy.seo"
+						:title="aiReady ? 'Formdaki ürün bilgileriyle üretir (kaydetmek gerekmez)' : AI_NOT_READY"
+						@click="generateAi('seo')"
+					>
+						AI ile İyileştir
+					</OzButton>
+				</template>
 				<div class="stack">
-					<OzField label="URL (slug)" :error="errors.slug" :hint="`/products/${form.slug || '…'}` + ' — boş bırakırsanız ürün adından otomatik üretilir.'">
-						<OzInput v-model="form.slug" placeholder="otomatik üretilir" @input="form.slug = slugify(form.slug)" />
+					<OzAlert v-if="aiError" tone="danger" :title="aiError" />
+					<div class="serp" aria-label="Arama sonucu önizlemesi">
+						<span class="serp-url">{{ seoPreview.url }}</span>
+						<span class="serp-title">{{ seoPreview.title }}</span>
+						<span class="serp-desc">{{ seoPreview.description }}</span>
+					</div>
+					<OzField label="URL (slug)" :error="errors.slug" :hint="isEdit ? 'Kayıtlı ürünün adresi; değiştirirseniz eski bağlantılar çalışmaz.' : seoHint('slug')">
+						<OzInput v-model="form.slug" placeholder="ürün adından oluşur" @input="onSeoInput('slug')" />
 					</OzField>
-					<OzField label="Meta Başlık" :error="errors.meta_title">
-						<OzInput v-model="form.meta_title" maxlength="191" placeholder="Boşsa ürün adı kullanılır" />
+					<OzField label="Meta Başlık" :error="errors.meta_title" :hint="seoHint('meta_title', SEO_TITLE_MAX)">
+						<OzInput v-model="form.meta_title" maxlength="191" placeholder="ürün adından oluşur" @input="onSeoInput('meta_title')" />
 					</OzField>
-					<OzField label="Meta Açıklama" :error="errors.meta_description">
-						<OzTextarea v-model="form.meta_description" :rows="3" :maxlength="500" placeholder="Arama sonuçlarında görünecek kısa özet…" />
+					<OzField label="Meta Açıklama" :error="errors.meta_description" :hint="seoHint('meta_description', SEO_DESCRIPTION_MAX)">
+						<OzTextarea v-model="form.meta_description" :rows="3" :maxlength="500" placeholder="açıklama ve özelliklerden oluşur" @input="onSeoInput('meta_description')" />
 					</OzField>
-					<OzField label="Anahtar Kelimeler" :error="errors.meta_keywords" hint="Virgülle ayırın.">
-						<OzInput v-model="form.meta_keywords" maxlength="255" placeholder="tişört, pamuklu, yazlık" />
+					<OzField label="Anahtar Kelimeler" :error="errors.meta_keywords" :hint="seoHint('meta_keywords')">
+						<OzInput v-model="form.meta_keywords" maxlength="255" placeholder="ad, kategori, marka ve özelliklerden oluşur" @input="onSeoInput('meta_keywords')" />
 					</OzField>
 				</div>
 			</OzCard>
 		</div>
 
-		<!-- ── Fiyat-Kargo ── -->
-		<div v-show="activeTab === 'price'" class="panel" role="tabpanel">
-			<OzCard title="Fiyatlandırma" subtitle="Piyasa ve alış fiyatı (opsiyonel)" class="block">
-				<div class="stack">
-					<div class="grid-2">
-						<OzField label="Piyasa Fiyatı" :error="errors.market_price">
-							<OzInput v-model="form.market_price" type="number" min="0" step="0.01" suffix="₺" placeholder="örn. 125.86" />
-						</OzField>
-						<OzField label="Alış Fiyatı" :error="errors.purchase_price" hint="Toplu fiyat alış × 2,5 (%150 kâr) olarak önerilir.">
-							<OzInput v-model="form.purchase_price" type="number" min="0" step="0.01" suffix="₺" placeholder="örn. 89.90" @input="suggestBulkPrice" />
-						</OzField>
-					</div>
-				</div>
-			</OzCard>
-
-			<OzCard title="Toplu Fiyatlama" subtitle="Tüm varyantlara tek seferde aynı fiyatı uygula" class="block">
-				<OzEmptyState v-if="!form.variants.length" icon="tag" title="Henüz varyant yok" description="Önce Stok-Varyant sekmesinden varyant oluşturun." compact />
-				<div v-else class="stack">
-					<OzField label="Satış Fiyatı" hint="Alış fiyatı girildiğinde otomatik hesaplanır; gerekirse elle düzeltebilirsiniz.">
-						<div class="inline-row">
-							<OzInput v-model="bulkPrice" type="number" min="0" step="0.01" suffix="₺" placeholder="Fiyat" class="grow" />
-							<OzButton size="sm" :disabled="!bulkPrice" @click="applyBulkPrice">→ {{ form.variants.length }} varyantın hepsine uygula</OzButton>
-						</div>
-					</OzField>
-				</div>
-			</OzCard>
-
+		<!-- ── Kargo ── -->
+		<div v-show="activeTab === 'shipping'" class="panel" role="tabpanel">
 			<OzCard title="Kargo" subtitle="Kargo etiketi ve teslimat bilgileri (opsiyonel)" class="block">
 				<div class="stack">
 					<OzSwitch v-model="form.free_shipping" label="Ücretsiz kargo" />
@@ -746,8 +1148,19 @@ onMounted(() => {
 						<OzField label="Ağırlık" :error="errors.weight">
 							<OzInput v-model="form.weight" type="number" min="0" step="0.001" suffix="kg" placeholder="örn. 0.250" />
 						</OzField>
-						<OzField label="Desi" :error="errors.desi">
-							<OzInput v-model="form.desi" type="number" min="0" step="0.01" placeholder="örn. 1.5" />
+						<OzField label="Desi" :error="errors.desi" :hint="desiHint">
+							<OzInput v-model="form.desi" type="number" min="0" step="0.01" placeholder="örn. 1.5" @input="desiTouched = true" />
+						</OzField>
+					</div>
+					<div class="grid-3">
+						<OzField label="En" :error="errors.length_cm">
+							<OzInput v-model="form.length_cm" type="number" min="0" step="0.1" suffix="cm" placeholder="Paket" />
+						</OzField>
+						<OzField label="Boy" :error="errors.width_cm">
+							<OzInput v-model="form.width_cm" type="number" min="0" step="0.1" suffix="cm" placeholder="Paket" />
+						</OzField>
+						<OzField label="Yükseklik" :error="errors.height_cm">
+							<OzInput v-model="form.height_cm" type="number" min="0" step="0.1" suffix="cm" placeholder="Paket" />
 						</OzField>
 					</div>
 					<div class="grid-2">
@@ -766,6 +1179,7 @@ onMounted(() => {
 		<div v-show="activeTab === 'variant'" class="panel" role="tabpanel">
 			<OzCard title="Bedenler & Renkler" subtitle="Seçtiğiniz beden ve renklerin kombinasyonundan varyant matrisi oluşturun" class="block">
 				<div class="stack">
+					<a v-if="can('product-settings.view') && can('variant-option.view')" href="/products/settings?tab=sizes" target="_blank" rel="noopener" class="options-link">Beden & renk listesini düzenle ↗</a>
 					<div>
 						<span class="group-label">Bedenler</span>
 						<div class="chips-grid">
@@ -799,14 +1213,10 @@ onMounted(() => {
 				</div>
 			</OzCard>
 
-			<OzCard title="Varyantlar" subtitle="Her varyant için SKU, fiyat ve stok girin" class="block">
+			<OzCard title="Varyantlar" subtitle="Her varyant için SKU, fiyat ve stok girin; ilk satırdan hepsine birden uygulayabilirsiniz" class="block">
 				<template #actions>
 					<div class="inline-row">
 						<OzPill v-if="form.variants.length" tone="accent">{{ form.variants.length }} satır</OzPill>
-						<template v-if="form.variants.length">
-							<OzInput v-model="bulkStock" type="number" min="0" placeholder="Stok" class="bulk-input" />
-							<OzButton size="sm" :disabled="bulkStock === null || bulkStock === ''" @click="applyBulkStock">→ Hepsine uygula</OzButton>
-						</template>
 					</div>
 				</template>
 				<OzEmptyState v-if="!form.variants.length" icon="shirt" title="Varyant yok" description="Beden veya renk seçip “Varyantları Oluştur” butonuna basın, ya da boş satır ekleyin." compact>
@@ -821,6 +1231,16 @@ onMounted(() => {
 						<span>Eski Fiyat</span>
 						<span>Stok</span>
 						<span></span>
+					</div>
+					<div class="variant-row variant-bulk" @keydown.enter.prevent="applyBulkToVariants">
+						<span class="variant-bulk-label">Tümüne uygula</span>
+						<OzInput v-model="bulkSku" placeholder="Kök SKU" class="mono" title="Her varyanta KÖK-RENK-BEDEN olarak uygulanır" />
+						<OzInput v-model="bulkPrice" type="number" min="0" step="0.01" placeholder="Fiyat" />
+						<OzInput v-model="bulkOldPrice" type="number" min="0" step="0.01" placeholder="Eski fiyat" />
+						<OzInput v-model="bulkStock" type="number" min="0" placeholder="Stok" />
+						<button type="button" class="variant-apply" :disabled="!canApplyBulk" :aria-label="`Doldurulan alanları ${form.variants.length} varyantın hepsine uygula`" :title="`${form.variants.length} varyantın hepsine uygula`" @click="applyBulkToVariants">
+							<Check :size="13" />
+						</button>
 					</div>
 					<div v-for="(v, idx) in form.variants" :key="v.key" class="variant-row">
 						<span class="variant-color">
@@ -845,12 +1265,29 @@ onMounted(() => {
 
 		<!-- ── Resimler ── -->
 		<div v-show="activeTab === 'images'" class="panel" role="tabpanel">
-			<OzCard title="Görseller" subtitle="İlk görsel otomatik kapak olur" class="block">
+			<OzCard title="Görseller" subtitle="Sürükleyerek sıralayın · ilk görsel kapak olur" class="block">
 				<div class="stack">
-					<div v-if="existingImages.length || newImages.length" class="img-grid">
-						<div v-for="img in existingImages" :key="'e' + img.id" class="img-thumb" :class="{ cover: img.is_cover }">
-							<img :src="img.url" alt="" />
+					<!-- Kayıtlı görseller sürükle-bırakla sıralanır; ilk sıradaki kapak olur (yeniler kayıttan sonra sona eklenir). -->
+					<draggable
+						v-if="existingImages.length || newImages.length"
+						v-model="existingImages"
+						item-key="id"
+						tag="div"
+						class="img-grid"
+						:animation="150"
+						filter=".img-actions, .img-color"
+						:prevent-on-filter="false"
+						ghost-class="img-ghost"
+						@end="onImagesSorted"
+					>
+						<template #item="{ element: img }">
+						<div class="img-thumb draggable" :class="{ cover: img.is_cover }" title="Sıralamak için sürükleyin">
+							<img :src="img.url" alt="" draggable="false" />
 							<span v-if="img.is_cover" class="img-badge cover-badge">Kapak</span>
+							<div class="img-actions">
+								<button v-if="!img.is_cover" type="button" class="img-act" title="Kapak yap" @click="setCover(img)"><Star :size="13" /></button>
+								<button type="button" class="img-act del" title="Sil" @click="deleteExisting(img)"><X :size="13" /></button>
+							</div>
 							<label v-if="productColors.length > 1 && !isOnModel(img)" class="img-color" :class="{ set: img.variant_colors?.length }"
 								title="Bu fotoğraf hangi rengin? Mokap giydirmesi bu fotoğrafla yapılır.">
 								<span class="img-color-label">Renk</span>
@@ -859,11 +1296,9 @@ onMounted(() => {
 									<option v-for="c in productColors" :key="c" :value="c">{{ c }}</option>
 								</select>
 							</label>
-							<div class="img-actions">
-								<button v-if="!img.is_cover" type="button" class="img-act" title="Kapak yap" @click="setCover(img)"><Star :size="13" /></button>
-								<button type="button" class="img-act del" title="Sil" @click="deleteExisting(img)"><X :size="13" /></button>
-							</div>
 						</div>
+						</template>
+						<template #footer>
 						<div v-for="(img, i) in newImages" :key="'n' + i" class="img-thumb new">
 							<img :src="img.preview" alt="" />
 							<span class="img-badge new-badge">Yeni</span>
@@ -878,7 +1313,8 @@ onMounted(() => {
 								</select>
 							</label>
 						</div>
-					</div>
+						</template>
+					</draggable>
 					<label class="img-upload">
 						<input type="file" accept="image/*" multiple hidden @change="onPickImages" />
 						<span class="upload-title">Görsel ekle</span>
@@ -891,61 +1327,110 @@ onMounted(() => {
 
 		<!-- ── Özellikler ── -->
 		<div v-show="activeTab === 'attributes'" class="panel" role="tabpanel">
-			<OzCard title="Üretim Bilgileri" subtitle="Kumaş, menşei ve bakım talimatları (opsiyonel)" class="block">
+			<OzCard v-if="!activeAttributeDefinitions.length" title="Kategori Özellikleri" class="block">
+				<OzEmptyState
+					icon="sliders"
+					:title="form.category_id ? 'Bu kategoriye atanmış özellik yok' : 'Önce kategori seçin'"
+					:description="form.category_id
+						? 'Kalıp, yaka tipi gibi özellikler Kategoriler → satır menüsü → Özellikler ekranından kategoriye atanınca burada çıkar. Üst kategoriye atamak alt kategorilere de geçer.'
+						: 'Özellikler, Genel sekmesinde seçilen kategoriye göre burada listelenir.'"
+					compact
+				>
+					<template v-if="form.category_id && can('category.manage')" #actions>
+						<OzButton size="sm" icon="external-link" @click="openCategoriesTab">Kategorilere git</OzButton>
+					</template>
+				</OzEmptyState>
+			</OzCard>
+			<OzCard v-else title="Kategori Özellikleri" subtitle="Seçili kategoride geçerli özellikler · mağazada (Bagisto) ürün özelliği ve filtre olarak görünür" class="block">
+				<template v-if="can('product-settings.view') && can('product-attribute.view')" #actions>
+					<a href="/products/settings?tab=attributes" target="_blank" rel="noopener" class="options-link">Özellikleri düzenle ↗</a>
+				</template>
 				<div class="stack">
-					<div class="grid-2">
-						<OzField label="Kumaş İçeriği (özet)" :error="errors.material">
-							<OzInput v-model="form.material" placeholder="örn. %100 Pamuk" />
-						</OzField>
-						<OzField label="Menşei Ülke" :error="errors.origin_country">
-							<OzInput v-model="form.origin_country" maxlength="2" placeholder="TR" @input="form.origin_country = (form.origin_country || '').toUpperCase()" />
-						</OzField>
+					<div class="grid-2 attr-grid">
+						<template v-for="def in activeAttributeDefinitions" :key="def.code">
+							<OzField v-if="def.type === 'boolean'" :label="def.name" :error="errors[`attributes.${def.code}`]">
+								<OzSwitch v-model="form.attributes[def.code]" :label="form.attributes[def.code] ? 'Evet' : 'Hayır'" />
+							</OzField>
+							<OzField
+								v-else
+								:label="def.name"
+								:required="def.required"
+								:error="errors[`attributes.${def.code}`] || errors[`attributes.${def.code}.0`]"
+								:class="{ 'span-2': ['textarea', 'checkbox', 'image', 'file'].includes(def.type) || (def.type === 'multiselect' && hasOptionIcons(def)) }"
+							>
+								<OzCombobox
+									v-if="def.type === 'select'"
+									v-model="form.attributes[def.code]"
+									:options="def.options"
+									placeholder="Seçin"
+									clearable
+								/>
+								<OzCombobox
+									v-else-if="def.type === 'multiselect' && !hasOptionIcons(def)"
+									:model-value="form.attributes[def.code] ?? []"
+									:options="def.options"
+									placeholder="Seçin"
+									multiple
+									@update:model-value="(v) => (form.attributes[def.code] = v)"
+								/>
+								<div v-else-if="def.type === 'checkbox' || def.type === 'multiselect'" class="attr-checks">
+									<div v-for="o in def.options" :key="o.value" class="attr-check">
+										<OzIcon v-if="o.icon" :name="optionIcon(o.icon)" :size="22" class="attr-check-icon" />
+										<OzCheckbox
+											:model-value="(form.attributes[def.code] ?? []).includes(o.value)"
+											:label="o.label"
+											@update:model-value="(on) => toggleAttributeOption(def.code, o.value, on)"
+										/>
+									</div>
+								</div>
+								<OzTextarea v-else-if="def.type === 'textarea'" v-model="form.attributes[def.code]" :rows="3" maxlength="5000" />
+								<OzInput v-else-if="def.type === 'number'" v-model="form.attributes[def.code]" type="number" step="any" />
+								<OzInput v-else-if="def.type === 'price'" v-model="form.attributes[def.code]" type="number" min="0" step="0.01" suffix="₺" />
+								<OzInput v-else-if="def.type === 'date'" v-model="form.attributes[def.code]" type="date" />
+								<OzInput v-else-if="def.type === 'datetime'" v-model="form.attributes[def.code]" type="datetime-local" />
+								<template v-else-if="def.type === 'image' || def.type === 'file'">
+									<div v-if="form.attributes[def.code]" class="attr-file">
+										<img v-if="def.type === 'image' && attributeFileUrl(def.code)" :src="attributeFileUrl(def.code)" :alt="def.name" class="attr-file-thumb" />
+										<a v-if="attributeFileUrl(def.code) && !(form.attributes[def.code] instanceof File)" :href="attributeFileUrl(def.code)" target="_blank" rel="noopener" class="attr-file-name">{{ attributeFileName(def.code) }}</a>
+										<span v-else class="attr-file-name">{{ attributeFileName(def.code) }}</span>
+										<OzButton size="sm" icon="trash" @click="setAttributeFile(def.code, [])">Kaldır</OzButton>
+									</div>
+									<OzFileDrop
+										v-else
+										:model-value="[]"
+										:accept="def.type === 'image' ? '.jpg,.jpeg,.png,.webp' : '.pdf,.jpg,.jpeg,.png,.webp'"
+										:max-size="(def.type === 'image' ? 5 : 10) * 1024 * 1024"
+										:title="def.type === 'image' ? 'Görseli sürükleyin ya da seçin' : 'Dosyayı sürükleyin ya da seçin'"
+										@update:model-value="(files) => setAttributeFile(def.code, files)"
+										@reject="onAttributeFileReject"
+									/>
+								</template>
+								<OzInput v-else v-model="form.attributes[def.code]" maxlength="255" />
+							</OzField>
+						</template>
 					</div>
-					<OzField label="Yıkama / Bakım Talimatları" :error="errors.care_instructions">
-						<OzTextarea v-model="form.care_instructions" :rows="3" placeholder="örn. 30°C'de yıkanır, ütülenmez…" />
+				</div>
+			</OzCard>
+		</div>
+
+		<!-- ── Açıklama ── -->
+		<div v-show="activeTab === 'description'" class="panel" role="tabpanel">
+			<OzCard title="Üretim Bilgileri" subtitle="Kumaş içeriği (opsiyonel) · mağazada ürün bilgisi olarak görünür, AI açıklamada kullanılır · yıkama talimatı Özellikler sekmesinde" class="block">
+				<div class="stack">
+					<OzField label="Kumaş İçeriği (özet)" :error="errors.material">
+						<OzInput v-model="form.material" placeholder="örn. %100 Pamuk" />
 					</OzField>
 				</div>
 			</OzCard>
 
 			<OzCard title="Materyaller" subtitle="AI açıklamada kullanılacak kumaş ve aksesuarlar" class="block">
-				<MaterialPicker v-model="form.description_materials" />
-				<p v-if="firstMaterialError" class="field-error">{{ firstMaterialError }}</p>
-			</OzCard>
-
-			<OzCard v-if="activeAttributeDefinitions.length" title="Kategori Özellikleri" subtitle="Seçili kategoriye özgü alanlar" class="block">
-				<div class="grid-2">
-					<template v-for="def in activeAttributeDefinitions" :key="def.key">
-						<OzCheckbox
-							v-if="def.type === 'boolean'"
-							v-model="form.attributes[def.key]"
-							:label="def.label"
-						/>
-						<OzField
-							v-else
-							:label="def.label"
-							:required="def.required"
-							:error="errors[`attributes.${def.key}`]"
-						>
-							<OzSelect
-								v-if="def.type === 'enum'"
-								v-model="form.attributes[def.key]"
-								:options="def.options.map((o) => ({ value: o, label: o }))"
-								placeholder="Seçin"
-							/>
-							<OzInput
-								v-else
-								v-model="form.attributes[def.key]"
-								:type="def.type === 'number' ? 'number' : 'text'"
-							/>
-						</OzField>
-					</template>
+				<div class="stack">
+					<MaterialPicker v-model="form.description_materials" />
+					<p v-if="firstMaterialError" class="field-error">{{ firstMaterialError }}</p>
 				</div>
 			</OzCard>
-		</div>
 
-		<!-- ── Açıklama (AI) ── -->
-		<div v-show="activeTab === 'description'" class="panel" role="tabpanel">
-			<OzCard title="AI Ürün Açıklaması" subtitle="Materyaller + ürün adına göre iki tonda metin" class="block">
+			<OzCard title="AI Ürün Açıklaması" subtitle="Formdaki ürün bilgilerinden iki tonda metin · kaydetmeden üretilebilir" class="block">
 				<template #actions>
 					<div class="inline-row">
 						<OzPill v-if="aiGeneratedAt" tone="success">Son üretim: {{ new Date(aiGeneratedAt).toLocaleString('tr-TR') }}</OzPill>
@@ -954,39 +1439,22 @@ onMounted(() => {
 							variant="primary"
 							size="sm"
 							icon="sparkles"
-							:loading="aiBusy"
-							:disabled="!isEdit"
-							@click="generateAiDescription"
+							:loading="aiBusy.descriptions"
+							:title="aiReady ? 'Formdaki ürün bilgileriyle üretir (kaydetmek gerekmez)' : AI_NOT_READY"
+							@click="generateAi('descriptions')"
 						>
 							AI ile Üret
 						</OzButton>
 					</div>
 				</template>
 				<div class="stack">
-					<OzAlert v-if="!isEdit" tone="info" title="Önce ürünü kaydedin">
-						AI açıklama üretimi için temel bilgilerle ürünü kaydedin.
+					<OzAlert v-if="!aiReady" tone="info" title="AI için ürün bilgisi gerekli">
+						Genel sekmesinde ürün adını ve kategoriyi girin. Özellikler, kumaş ve materyaller girildikçe AI metni daha isabetli olur.
 					</OzAlert>
 					<OzAlert v-if="aiError" tone="danger" :title="aiError" />
 
-					<OzField label="Storefront Adı" :error="errors.public_name" hint="B2C, opsiyonel — boşsa “Ürün Adı” kullanılır.">
+					<OzField label="Storefront Adı" :error="errors.public_name" hint="B2C, opsiyonel — boşsa “Ürün Adı” kullanılır. AI ile Üret bunu da doldurur.">
 						<OzInput v-model="form.public_name" maxlength="255" placeholder="örn. Ege Pamuğu Basic Tişört" />
-					</OzField>
-
-					<OzField label="B2C Açıklama (Storefront)" :error="errors.public_description">
-						<template #default>
-							<div class="label-row">
-								<OzButton size="sm" @click="previewMode.public = !previewMode.public">
-									{{ previewMode.public ? 'Metin' : 'Önizleme' }}
-								</OzButton>
-							</div>
-							<OzTextarea
-								v-if="!previewMode.public"
-								v-model="form.public_description"
-								:rows="8"
-								placeholder="Müşteriye storytelling — markdown desteklenir (**kalın**, *italik*, - liste)"
-							/>
-							<MarkdownPreview v-else :source="form.public_description" />
-						</template>
 					</OzField>
 
 					<OzField label="B2B Açıklama (Bayi Portalı — Varsayılan)" :error="errors.tenant_description">
@@ -1011,22 +1479,16 @@ onMounted(() => {
 
 		<!-- ── Diğer ── -->
 		<div v-show="activeTab === 'other'" class="panel" role="tabpanel">
-			<OzCard title="Özel Kodlar & Detaylar" subtitle="Barkod, üretici kodları ve menşei detayları (opsiyonel)" class="block">
+			<OzCard title="Özel Kodlar & Detaylar" subtitle="Üretici, gümrük kodları ve yerli üretim bilgisi (opsiyonel)" class="block">
 				<div class="stack">
 					<div class="grid-2">
-						<OzField label="Barkod / GTIN" :error="errors.barcode">
-							<div class="inline-row">
-								<OzInput v-model="form.barcode" maxlength="64" placeholder="örn. 8690000000000" class="grow mono" />
-								<OzButton size="sm" icon="refresh" :loading="barcodeBusy" @click="generateBarcode">Yeniden Üret</OzButton>
-							</div>
-						</OzField>
 						<OzField label="Üretici / Tedarikçi Kodu" :error="errors.manufacturer_code">
 							<OzInput v-model="form.manufacturer_code" maxlength="64" placeholder="İç üretici kodu" />
 						</OzField>
+						<OzField label="GTIP / HS Kodu" :error="errors.gtip_code">
+							<OzInput v-model="form.gtip_code" maxlength="32" placeholder="Gümrük tarife pozisyon kodu" class="mono" />
+						</OzField>
 					</div>
-					<OzField label="GTIP / HS Kodu" :error="errors.gtip_code">
-						<OzInput v-model="form.gtip_code" maxlength="32" placeholder="Gümrük tarife pozisyon kodu" class="mono" />
-					</OzField>
 					<OzSwitch v-model="form.is_domestic" label="Yerli üretim ürünü" />
 				</div>
 			</OzCard>
@@ -1047,13 +1509,31 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.options-link { align-self: flex-end; font-size: 11.5px; font-weight: 600; color: var(--oz-accent); text-decoration: none; }
+.options-link:hover { text-decoration: underline; }
 .block { margin-bottom: 14px; }
+.serp { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border: 1px solid var(--oz-border); border-radius: var(--oz-radius); background: var(--oz-surface-2); }
+.serp-url { font-size: 12px; color: var(--oz-muted); }
+.serp-title { font-size: 16px; color: var(--oz-accent); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.serp-desc { font-size: 13px; color: var(--oz-muted); line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .panels { display: flex; flex-direction: column; }
 .panel { display: flex; flex-direction: column; }
 .stack { display: flex; flex-direction: column; gap: 14px; padding: 18px; }
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.span-2 { grid-column: 1 / -1; }
+/* Tam satır alanlar (onay kutuları, ikonlu seçim, dosya) arada tek kalan yarım alanın sağını boş bırakmasın:
+   dense, boşluğu sıradaki yarım alanla doldurur (ör. Sezon | Menşei yan yana). */
+.attr-grid { grid-auto-flow: row dense; }
+.attr-checks { display: flex; flex-wrap: wrap; gap: 8px 18px; padding-top: 4px; }
+.attr-check { display: inline-flex; align-items: center; gap: 6px; }
+.attr-check-icon { color: var(--oz-ink-soft); flex-shrink: 0; }
+.attr-file { display: flex; align-items: center; gap: 12px; }
+.attr-file-thumb { width: 56px; height: 56px; object-fit: contain; border: 1px solid var(--oz-border); border-radius: 8px; background: #fff; }
+.attr-file-name { flex: 1; min-width: 0; font-size: 12px; color: var(--oz-ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+a.attr-file-name { color: var(--oz-accent); }
 @media (max-width: 640px) {
-	.grid-2 { grid-template-columns: 1fr; }
+	.grid-2, .grid-3 { grid-template-columns: 1fr; }
 }
 
 .inline-row { display: flex; gap: 8px; align-items: center; }
@@ -1095,7 +1575,6 @@ onMounted(() => {
 .color-hex { max-width: 52px; flex-shrink: 0; }
 
 /* ── Varyant tablosu (OzTable'da header slotu yok — özel tablo + token) ── */
-.bulk-input { width: 90px; }
 .variant-table { display: flex; flex-direction: column; gap: 6px; padding: 18px; overflow-x: auto; }
 .variant-thead, .variant-row {
 	display: grid;
@@ -1124,11 +1603,24 @@ onMounted(() => {
 	cursor: pointer; transition: background .12s;
 }
 .variant-remove:hover { background: var(--oz-danger-soft); }
+/* "Tümüne uygula" satırı: renk+beden sütunlarını tek etiket kaplar, kalan sütunlar tabloyla hizalı */
+.variant-bulk { background: var(--oz-accent-soft); border-style: dashed; border-color: var(--oz-accent); }
+.variant-bulk-label { grid-column: span 2; font-size: 11px; font-weight: 700; color: var(--oz-accent); text-transform: uppercase; letter-spacing: .04em; }
+.variant-apply {
+	background: var(--oz-accent); border: 1px solid var(--oz-accent); color: #fff;
+	width: 24px; height: 24px; border-radius: 6px;
+	display: flex; align-items: center; justify-content: center;
+	cursor: pointer; transition: opacity .12s;
+}
+.variant-apply:disabled { opacity: .4; cursor: not-allowed; }
 
 /* ── Görseller ── */
 .img-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 10px; }
 .img-thumb { position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden; border: 1px solid var(--oz-border); background: var(--oz-surface-2); }
 .img-thumb.cover { border-color: var(--oz-accent); box-shadow: 0 0 0 2px rgba(var(--oz-accent-rgb), .2); }
+.img-thumb.draggable { cursor: grab; }
+.img-thumb.draggable:active { cursor: grabbing; }
+.img-ghost { opacity: .4; }
 .img-thumb.new { border-style: dashed; border-color: rgba(var(--oz-accent-rgb), .5); }
 .img-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .img-badge { position: absolute; top: 5px; left: 5px; font-size: 9.5px; font-weight: 700; padding: 1px 6px; border-radius: 5px; background: var(--oz-accent); color: #fff; }

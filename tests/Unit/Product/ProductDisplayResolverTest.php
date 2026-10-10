@@ -31,11 +31,10 @@ class ProductDisplayResolverTest extends TestCase
         ]);
         $this->product = Product::create([
             'category_id' => $category->id, 'name' => 'Fabrika Adı',
-            'sku' => 'X-' . uniqid(), 'gender' => 'Unisex', 'price' => 100,
+            'sku' => 'X-' . uniqid(), 'price' => 100,
             'public_name'        => 'Storefront Adı',
             'public_description' => 'B2C metni',
             'tenant_description' => 'B2B varsayılan metni',
-            'care_instructions'  => 'Bakım',
         ]);
 
         $this->tenant = Tenant::factory()->create();
@@ -75,7 +74,7 @@ class ProductDisplayResolverTest extends TestCase
 
         $out = $this->resolver->for($this->product->fresh(), null);
         $this->assertSame('Fabrika Adı', $out->name);
-        $this->assertSame('Bakım', $out->description);
+        $this->assertNull($out->description);
     }
 
     public function test_partial_override_only_name(): void

@@ -43,7 +43,7 @@ class ProductReadPermissionTest extends TestCase
             'category_id' => $category->id,
             'name' => 'Test Süveter',
             'sku' => 'SKU-' . uniqid(),
-            'gender' => 'Unisex',
+            
             'price' => 107.88,
         ]);
         $product->variants()->create(['sku' => 'V-' . uniqid(), 'price' => 107.88, 'stock' => 5, 'sort_order' => 0]);

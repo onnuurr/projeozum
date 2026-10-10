@@ -5,10 +5,8 @@ import { Shirt, Palette, Store } from 'lucide-vue-next'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import {
 	OzPageHeader, OzModuleTabs, OzStatStrip, OzButton, OzPill, OzTable,
-	OzDropdown, OzEmptyState, OzCard, OzCheckbox, OzModal, OzIcon, useOzConfirm,
+	OzDropdown, OzEmptyState, OzCard, OzModal, OzIcon, useOzConfirm,
 } from '@/Components/Oz'
-import { ozFold } from '@/Components/Oz/ozText'
-import { isFilterActive, matchesFilter } from '@/Components/Oz/ozTableFilter'
 import MarketplaceListingDrawer from '../Components/MarketplaceListingDrawer.vue'
 
 defineOptions({ layout: AppLayout })
@@ -49,12 +47,10 @@ const kindLabel = (p) => {
 	return p.sourcing === 'manufactured' ? 'Üretim ürünü' : 'Hazır ürün'
 }
 const columns = computed(() => [
-	...(canDelete.value ? [{ key: 'select', label: '', width: '44px', searchable: false }] : []),
-	{ key: 'id', label: 'ID', sortable: true, class: 'oz-cell-id', width: '64px', searchValue: (p) => `#${p.id}` },
-	{ key: 'image', label: 'Görsel', width: '60px', searchable: false },
+	// Görsel + ad + SKU/barkod + #ID tek hücrede (eskiden ID / Görsel / Ürün ayrı sütunlardı)
 	{
 		key: 'name', label: 'Ürün', sortable: true, class: 'oz-cell-strong',
-		searchValue: (p) => [p.name, p.sku, p.barcode].filter(Boolean).join(' '),
+		searchValue: (p) => [p.name, p.sku, p.barcode, `#${p.id}`].filter(Boolean).join(' '),
 		filterValue: kindLabel,
 		filter: { type: 'select', label: 'Ürün Türü', options: ['Hazır ürün', 'Üretim ürünü', 'Geçici kart'] },
 	},
@@ -68,19 +64,10 @@ const columns = computed(() => [
 	{ key: 'actions', label: '', align: 'right', width: '48px', searchable: false },
 ])
 
-// Tablo durumu dışarıda tutulur: "filtrelenenlerin tümünü seç" OzTable'ın gördüğü satırları bilmeli.
-const tableSearch = ref('')
-const tableFilters = ref({})
-const filterCols = computed(() => columns.value.filter((c) => c.filter))
-const filteredProducts = computed(() => {
-	const q = ozFold(tableSearch.value.trim())
-	const searchCols = columns.value.filter((c) => c.searchable !== false)
-	return props.products.filter((p) =>
-		(!q || ozFold(searchCols.map((c) => (c.searchValue ? c.searchValue(p) : p[c.key])).filter((v) => v != null).join(' ')).includes(q))
-		&& filterCols.value.every((c) => !isFilterActive(c.filter, tableFilters.value[c.key])
-			|| matchesFilter(c.filter, tableFilters.value[c.key], c.filterValue ? c.filterValue(p) : p[c.key])))
-})
-const isFiltering = computed(() => filteredProducts.value.length !== props.products.length)
+// Başlıktaki "N ürün listeleniyor" için OzTable'ın süzdüğü satırlar (defineExpose: filteredRows)
+const table = ref(null)
+const listedCount = computed(() => table.value?.filteredRows.length ?? props.products.length)
+const isFiltering = computed(() => listedCount.value !== props.products.length)
 
 /* ── Yardımcılar ── */
 function formatPrice(value) {
@@ -157,17 +144,20 @@ function platformPrice(p, mp) {
 
 // İki tür yeni ürün: hazır (alınan) ürün doğrudan kart açar; üretilecek ürün önce Atölye'de
 // reçete + maliyetle geçici stok kartı açar, ilk iş emri tamamlanınca ürüne döner.
-// Yeni Ürün butonu her zaman seçim modalını açar; üretilecek ürün yetkisi yoksa o seçenek pasif görünür.
+// Yeni Ürün: yetkili olunan seçenekler (üretilecek ürün yetkisi yoksa o seçenek hiç gösterilmez).
+// Tek seçenek kalırsa modal açılmadan doğrudan ona gidilir.
 const newProductOpen = ref(false)
 const newProductChoices = computed(() => [
-	{ key: 'product', title: 'Yeni Ürün', desc: 'Hazır (satın alınan) ürün kartı', icon: 'package', href: '/products/create', disabled: false },
-	{ key: 'manufactured', title: 'Üretilecek Ürün', desc: 'Reçeteli geçici stok kartı', icon: 'factory', href: '/atelier/new-product', disabled: !props.canAddManufactured },
+	{ key: 'product', title: 'Yeni Ürün', desc: 'Hazır (satın alınan) ürün kartı', icon: 'package', href: '/products/create' },
+	...(props.canAddManufactured
+		? [{ key: 'manufactured', title: 'Üretilecek Ürün', desc: 'Reçeteli geçici stok kartı', icon: 'factory', href: '/atelier/new-product' }]
+		: []),
 ])
 function onNewProductClick() {
-	newProductOpen.value = true
+	if (newProductChoices.value.length === 1) chooseNewProduct(newProductChoices.value[0])
+	else newProductOpen.value = true
 }
 function chooseNewProduct(choice) {
-	if (choice.disabled) return
 	newProductOpen.value = false
 	router.visit(choice.href)
 }
@@ -203,28 +193,9 @@ async function confirmDeleteProduct(product) {
 	})
 }
 
-/* ── Toplu seçim ── */
-const selected = ref(new Set())
+/* ── Toplu seçim (OzTable selectable; toplu işlem çubuğu tablonun #bulk slot'unda) ── */
+const selected = ref([])
 const bulkBusy = ref(false)
-const selectedCount = computed(() => selected.value.size)
-
-function isSelected(id) { return selected.value.has(id) }
-function toggleRow(id) {
-	const next = new Set(selected.value)
-	next.has(id) ? next.delete(id) : next.add(id)
-	selected.value = next
-}
-const allFilteredSelected = computed(() =>
-	filteredProducts.value.length > 0 && filteredProducts.value.every((p) => selected.value.has(p.id)),
-)
-function toggleSelectAllFiltered() {
-	const ids = filteredProducts.value.map((p) => p.id)
-	const next = new Set(selected.value)
-	if (allFilteredSelected.value) ids.forEach((id) => next.delete(id))
-	else ids.forEach((id) => next.add(id))
-	selected.value = next
-}
-function clearSelection() { selected.value = new Set() }
 
 async function bulkDelete() {
 	const ids = [...selected.value]
@@ -238,7 +209,7 @@ async function bulkDelete() {
 		preserveState: false,
 		onSuccess: () => {
 			showToast?.({ type: 'warning', title: 'Ürünler Silindi', message: `${ids.length} ürün kaldırıldı.` })
-			clearSelection()
+			selected.value = []
 		},
 		onError: (errs) => {
 			showToast?.({ type: 'error', title: 'Silme Başarısız', message: Object.values(errs)[0] || 'Sunucu hatası.' })
@@ -253,7 +224,7 @@ async function bulkDelete() {
 
 	<OzPageHeader title="Ürün Kataloğu">
 		<template #subtitle>
-			<b>{{ filteredProducts.length }}</b> ürün listeleniyor
+			<b>{{ listedCount }}</b> ürün listeleniyor
 			<span v-if="isFiltering" class="dim"> / {{ products.length }}</span>
 		</template>
 		<template #actions>
@@ -271,40 +242,37 @@ async function bulkDelete() {
 
 		<OzTable
 			v-else
-			v-model:search="tableSearch"
-			v-model:filters="tableFilters"
+			ref="table"
+			v-model:selected="selected"
 			:columns="columns"
 			:rows="products"
 			:page-size="15"
 			:default-sort="{ key: 'id', dir: 'desc' }"
+			:selectable="canDelete"
+			item-label="ürün"
 			searchable
-			search-placeholder="Ürün adı, SKU ya da barkod ara…"
-			min-width="1240px"
+			search-placeholder="Ürün adı, SKU, barkod ya da #ID ara…"
+			min-width="1080px"
 		>
-			<template v-if="canDelete" #toolbar>
-				<OzCheckbox
-					:model-value="allFilteredSelected"
-					:label="isFiltering ? `Filtrelenenleri seç (${filteredProducts.length})` : `Tümünü seç (${products.length})`"
-					@update:model-value="toggleSelectAllFiltered"
-				/>
+			<template #bulk>
+				<OzButton variant="danger" size="sm" icon="trash" :loading="bulkBusy" @click="bulkDelete">Seçilenleri Sil ({{ selected.length }})</OzButton>
 			</template>
 
-			<template #cell-select="{ row }">
-				<OzCheckbox :model-value="isSelected(row.id)" :aria-label="`${row.name} seç`" @update:model-value="toggleRow(row.id)" />
-			</template>
-			<template #cell-id="{ value }">#{{ value }}</template>
-			<template #cell-image="{ row }">
-				<div class="thumb">
-					<img :src="row.image || '/images/product-placeholder.svg'" :alt="row.name" loading="lazy">
-				</div>
-			</template>
 			<template #cell-name="{ row }">
-				<div class="name-cell">
-					<span class="name-text">
-						{{ row.name }}
-						<OzPill v-if="row.status === 'development'" tone="warning" title="Üretimi tamamlanınca ürüne dönüşür">Geçici Kart</OzPill>
-					</span>
-					<div class="oz-cell-sub mono">{{ row.sku || '—' }}<template v-if="row.barcode"> · {{ row.barcode }}</template></div>
+				<div class="product-cell">
+					<div class="thumb">
+						<img :src="row.image || '/images/product-placeholder.svg'" :alt="row.name" loading="lazy">
+					</div>
+					<div class="name-cell">
+						<span class="name-text">
+							{{ row.name }}
+							<OzPill v-if="row.status === 'development'" tone="warning" :dot="false" title="Üretimi tamamlanınca ürüne dönüşür">Geçici kart</OzPill>
+							<OzPill v-else-if="row.status === 'draft'" tone="neutral" :dot="false" title="Pasif — mağazada görünmez; Ürün Kartı'ndan yayınlayın">Taslak</OzPill>
+						</span>
+						<div class="oz-cell-sub mono">
+							<span class="pid">#{{ row.id }}</span> · {{ row.sku || '—' }}<template v-if="row.barcode"> · {{ row.barcode }}</template>
+						</div>
+					</div>
 				</div>
 			</template>
 			<template #cell-category="{ value }">{{ value || '—' }}</template>
@@ -342,10 +310,11 @@ async function bulkDelete() {
 				</div>
 				<span v-else class="dim">—</span>
 			</template>
+			<!-- Stok: sade sayı; yalnızca az/tükendi durumunda renk + nokta (her satırda pill göz yoruyordu) -->
 			<template #cell-stock="{ value }">
-				<OzPill v-if="value === 0" tone="danger">Tükendi</OzPill>
-				<OzPill v-else-if="value < 20" tone="warning">{{ value }}</OzPill>
-				<OzPill v-else tone="success">{{ value }}</OzPill>
+				<span v-if="value === 0" class="stock is-out" title="Stokta yok"><i aria-hidden="true" />Tükendi</span>
+				<span v-else-if="value < 20" class="stock is-low" title="Stok azalıyor (20'nin altı)"><i aria-hidden="true" />{{ value.toLocaleString('tr-TR') }}</span>
+				<span v-else class="stock">{{ value.toLocaleString('tr-TR') }}</span>
 			</template>
 			<template #cell-desi="{ value }">
 				<span v-if="value != null" class="mono">{{ Number(value).toLocaleString('tr-TR', { maximumFractionDigits: 2 }) }}</span>
@@ -368,18 +337,6 @@ async function bulkDelete() {
 		</OzTable>
 	</OzCard>
 
-	<!-- Toplu seçim çubuğu (yüzen) -->
-	<div class="bulk-dock" :class="{ 'is-active': canDelete && selectedCount > 0 }">
-		<Transition name="bulk">
-			<div v-if="canDelete && selectedCount > 0" class="bulk-bar" role="toolbar" aria-label="Toplu işlemler">
-				<span class="bulk-info"><b>{{ selectedCount }}</b> ürün seçili</span>
-				<div class="bulk-actions">
-					<OzButton size="sm" @click="clearSelection">Temizle</OzButton>
-					<OzButton variant="danger" size="sm" icon="trash" :loading="bulkBusy" @click="bulkDelete">Seçilenleri Sil ({{ selectedCount }})</OzButton>
-				</div>
-			</div>
-		</Transition>
-	</div>
 
 	<MarketplaceListingDrawer
 		:open="listingOpen"
@@ -393,7 +350,6 @@ async function bulkDelete() {
 		<div class="choice-grid">
 			<button
 				v-for="c in newProductChoices" :key="c.key" type="button" class="choice"
-				:disabled="c.disabled" :title="c.disabled ? 'Bu seçenek için yetkiniz yok' : undefined"
 				@click="chooseNewProduct(c)"
 			>
 				<span class="choice-ico"><OzIcon :name="c.icon" :size="26" /></span>
@@ -414,8 +370,7 @@ async function bulkDelete() {
 	border: 1px solid var(--oz-border); border-radius: 14px; cursor: pointer;
 	transition: border-color .15s, background .15s, transform .15s;
 }
-.choice:hover:not(:disabled), .choice:focus-visible { border-color: var(--oz-accent); background: var(--oz-accent-soft); outline: none; transform: translateY(-1px); }
-.choice:disabled { opacity: .5; cursor: not-allowed; }
+.choice:hover, .choice:focus-visible { border-color: var(--oz-accent); background: var(--oz-accent-soft); outline: none; transform: translateY(-1px); }
 .choice-ico {
 	display: inline-flex; align-items: center; justify-content: center;
 	width: 56px; height: 56px; border-radius: 14px; background: var(--oz-accent-soft); color: var(--oz-accent);
@@ -424,34 +379,20 @@ async function bulkDelete() {
 .choice small { font-size: 12.5px; color: var(--oz-muted); line-height: 1.4; }
 
 
-/* ── Toplu seçim çubuğu ── */
-/* Toplu seçim çubuğu: akışta yer kaplamaz (tabloyu itmez), kaydırma alanının altında yüzer.
-   Dock, .oz-shell-content içinde sticky; seçim varken sona boşluk açar ki son satırları örtmesin. */
-.bulk-dock { position: sticky; bottom: 0; height: 0; z-index: 5; pointer-events: none; transition: height .2s ease; }
-.bulk-dock.is-active { height: 76px; }
-.bulk-bar {
-	position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%);
-	display: flex; align-items: center; gap: 14px; width: max-content; max-width: calc(100% - 24px);
-	padding: 8px 8px 8px 16px; border-radius: 999px; pointer-events: auto;
-	background: var(--oz-surface); border: 1px solid var(--oz-border); box-shadow: var(--oz-shadow);
-}
-.bulk-info { font-size: 12.5px; color: var(--oz-ink-soft); white-space: nowrap; }
-.bulk-info b { color: var(--oz-accent); }
-.bulk-actions { display: flex; gap: 8px; }
-.bulk-enter-active, .bulk-leave-active { transition: opacity .18s ease, transform .22s cubic-bezier(.2, .8, .2, 1); }
-.bulk-enter-from, .bulk-leave-to { opacity: 0; transform: translate(-50%, 14px); }
-@media (max-width: 768px) {
-	.bulk-bar { bottom: 10px; gap: 10px; padding-left: 14px; }
-}
-
 /* ── Tablo hücreleri ── */
+.stock { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--oz-ink-soft); }
+.stock i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.stock.is-low { color: var(--oz-pill-warning-fg); }
+.stock.is-out { color: var(--oz-pill-danger-fg); font-size: 11.5px; }
 .dim { color: var(--oz-muted); font-weight: 400; }
 .mono { font-family: ui-monospace, monospace; }
 
 .thumb { width: 44px; height: 44px; border-radius: 8px; overflow: hidden; background: var(--oz-surface-2); flex-shrink: 0; }
 .thumb img { width: 100%; height: 100%; object-fit: cover; }
 
+.product-cell { display: flex; align-items: center; gap: 12px; min-width: 240px; }
 .name-cell { display: flex; flex-direction: column; min-width: 0; }
+.pid { color: var(--oz-accent); font-weight: 700; }
 .name-text { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 
 .readiness-badges { display: flex; gap: 4px; }

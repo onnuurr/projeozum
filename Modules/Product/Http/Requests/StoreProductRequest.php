@@ -34,14 +34,14 @@ class StoreProductRequest extends FormRequest
             ],
             'category_id'       => ['required', 'integer', Rule::exists('product_categories', 'id')],
             'brand_id'          => ['nullable', 'integer', Rule::exists('brands', 'id')],
-            'gender'            => ['required', Rule::in(['Erkek', 'Kadın', 'Unisex'])],
             'market_price'      => ['nullable', 'numeric', 'min:0'],
             'purchase_price'    => ['nullable', 'numeric', 'min:0'],
+            // Bir siparişte bu üründen (tüm varyantlar) en fazla; boş = sınırsız. Bagisto sepeti uygular.
+            'max_order_qty'     => ['nullable', 'integer', 'min:1', 'max:100000'],
             'is_new'            => ['nullable', 'boolean'],
+            'is_featured'       => ['nullable', 'boolean'],
             'free_shipping'     => ['nullable', 'boolean'],
-            'care_instructions' => ['nullable', 'string', 'max:2000'],
             'material'          => ['nullable', 'string', 'max:191'],
-            'origin_country'    => ['nullable', 'string', 'size:2'],
             'attributes'        => ['nullable', 'array'],
 
             // Açıklamalar (M2)
@@ -57,6 +57,10 @@ class StoreProductRequest extends FormRequest
             // Kargo
             'weight'            => ['nullable', 'numeric', 'min:0'],
             'desi'              => ['nullable', 'numeric', 'min:0'],
+            // Kargo paketi ölçüleri (cm)
+            'length_cm'         => ['nullable', 'numeric', 'min:0', 'max:999999'],
+            'width_cm'          => ['nullable', 'numeric', 'min:0', 'max:999999'],
+            'height_cm'         => ['nullable', 'numeric', 'min:0', 'max:999999'],
             'shipping_time'     => ['nullable', 'string', 'max:50'],
             'shipping_fee'      => ['nullable', 'numeric', 'min:0'],
 

@@ -43,7 +43,7 @@ class ProductVariantSyncTest extends TestCase
 
         $category = Category::create(['name' => 'Elbise', 'slug' => 'elbise-'.uniqid(), 'status' => 'active', 'sort_order' => 0]);
         $this->product = Product::create([
-            'category_id' => $category->id, 'name' => 'Elbise', 'sku' => 'VS-1', 'gender' => 'Unisex', 'price' => 100,
+            'category_id' => $category->id, 'name' => 'Elbise', 'sku' => 'VS-1', 'price' => 100,
         ]);
         $this->variant = $this->product->variants()->create(['sku' => 'VS-1-M', 'price' => 100, 'stock' => 0, 'size' => 'M']);
     }
@@ -53,7 +53,7 @@ class ProductVariantSyncTest extends TestCase
     {
         return $this->actingAs($this->editor)->put(route('products.update', $this->product), [
             'name' => 'Elbise', 'sku' => $sku, 'category_id' => $this->product->category_id,
-            'gender' => 'Unisex', 'variants' => $variants,
+            'variants' => $variants,
         ]);
     }
 

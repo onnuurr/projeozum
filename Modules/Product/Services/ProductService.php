@@ -56,6 +56,8 @@ class ProductService
         string $status = Product::STATUS_PUBLISHED,
         string $sourcing = Product::SOURCING_PURCHASED,
     ): Product {
+        $data = $this->withStoredAttributeUploads($data);
+
         $product = DB::transaction(function () use ($data, $status, $sourcing) {
             $attributes = $this->attributesFrom($data) + ['status' => $status, 'sourcing' => $sourcing];
 
@@ -91,6 +93,9 @@ class ProductService
      */
     public function update(Product $product, array $data, array $images = []): Product
     {
+        $data = $this->withStoredAttributeUploads($data);
+        $oldAttributes = $product->attributes ?? [];
+
         DB::transaction(function () use ($product, $data) {
             $product->update($this->attributesFrom($data));
 
@@ -99,6 +104,7 @@ class ProductService
         });
 
         $this->storeImages($product, $images, (array) ($data['image_colors'] ?? []));
+        $this->productAttributes->deleteReplacedUploads($oldAttributes, $product->attributes ?? []);
 
         $this->dispatchWriteEvents(new ProductUpdated($product), $product, $data, $images);
 
@@ -422,6 +428,19 @@ class ProductService
         });
     }
 
+    /** Özellik görsel/dosya yüklemelerini diske yazar, form verisinde path'e çevirir (transaction dışında). */
+    private function withStoredAttributeUploads(array $data): array
+    {
+        if (! empty($data['attributes'])) {
+            $data['attributes'] = $this->productAttributes->storeUploads(
+                isset($data['category_id']) ? (int) $data['category_id'] : null,
+                $data['attributes'],
+            );
+        }
+
+        return $data;
+    }
+
     /**
      * Doğrulanmış form verisinden products tablosu attribute dizisini üretir.
      * Fiyat varyantlardan türetilir; slug boşsa model otomatik üretir.
@@ -437,18 +456,17 @@ class ProductService
             'name'              => $data['name'],
             'slug'              => $data['slug'] ?? null,
             'sku'               => $data['sku'],
-            'gender'            => $data['gender'],
             'price'             => $this->minPrice($data['variants']),
             'old_price'         => $this->minOldPrice($data['variants']),
             'market_price'      => $data['market_price'] ?? null,
             'purchase_price'    => $data['purchase_price'] ?? null,
+            'max_order_qty'     => $data['max_order_qty'] ?? null,
             'is_new'            => $data['is_new'] ?? false,
+            'is_featured'       => $data['is_featured'] ?? false,
             'free_shipping'     => $data['free_shipping'] ?? false,
-            'care_instructions' => $data['care_instructions'] ?? null,
             'material'          => $data['material'] ?? null,
-            'origin_country'    => $data['origin_country'] ?? 'TR',
-            'attributes'        => $this->productAttributes->filterToDefinedKeys(
-                $data['category_id'] ?? null,
+            'attributes'        => $this->productAttributes->normalize(
+                isset($data['category_id']) ? (int) $data['category_id'] : null,
                 $data['attributes'] ?? [],
             ),
             'public_name'        => $data['public_name'] ?? null,
@@ -461,6 +479,9 @@ class ProductService
             // Kargo
             'weight'            => $data['weight'] ?? null,
             'desi'              => $data['desi'] ?? null,
+            'length_cm'         => $data['length_cm'] ?? null,
+            'width_cm'          => $data['width_cm'] ?? null,
+            'height_cm'         => $data['height_cm'] ?? null,
             'shipping_time'     => $data['shipping_time'] ?? null,
             'shipping_fee'      => $data['shipping_fee'] ?? null,
             // Diğer

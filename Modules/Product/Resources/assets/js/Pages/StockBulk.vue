@@ -191,6 +191,7 @@ const firstError = computed(() => Object.values(errors.value)[0] ?? null)
 			<template #actions>
 				<OzSpinner v-if="reloading" :size="14" />
 			</template>
+			<div class="pad">
 			<div class="search-box">
 				<OzInput v-model="search" icon="search" placeholder="Ürün adı veya SKU ile ara (en az 2 harf)…" :disabled="!form.warehouse_id" />
 				<div v-if="search.trim().length >= 2" class="search-results">
@@ -251,6 +252,7 @@ const firstError = computed(() => Object.values(errors.value)[0] ?? null)
 					</tbody>
 				</table>
 			</div>
+			</div>
 		</OzCard>
 	</div>
 
@@ -268,7 +270,9 @@ const firstError = computed(() => Object.values(errors.value)[0] ?? null)
 <style scoped>
 .bulk-grid { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 16px; align-items: start; }
 @media (max-width: 900px) { .bulk-grid { grid-template-columns: 1fr; } }
-.form { display: flex; flex-direction: column; gap: 14px; }
+.form { display: flex; flex-direction: column; gap: 14px; padding: 4px 18px 18px; }
+.pad { padding: 4px 18px 18px; }
+.pad > .prod:last-child { margin-bottom: 0; }
 .oz-link-btn { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 600; color: var(--oz-ink-soft); text-decoration: none; padding: 6px 10px; border-radius: 8px; }
 .oz-link-btn:hover { background: var(--oz-surface-2); }
 

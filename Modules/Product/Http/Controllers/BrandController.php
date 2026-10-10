@@ -3,9 +3,11 @@
 namespace Modules\Product\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Support\Media;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -26,6 +28,8 @@ class BrandController extends Controller
                 'id'           => $b->id,
                 'name'         => $b->name,
                 'slug'         => $b->slug,
+                'logoUrl'      => Media::url($b->logo_path),
+                'icon'         => $b->icon,
                 'sort_order'   => $b->sort_order,
                 'productCount' => $b->products_count,
                 'updatedAt'    => optional($b->updated_at)->format('Y-m-d'),
@@ -38,7 +42,8 @@ class BrandController extends Controller
 
     public function store(StoreBrandRequest $request): RedirectResponse
     {
-        Brand::create($request->validated());
+        $brand = Brand::create($request->safe()->only(['name', 'slug', 'sort_order', 'icon']));
+        $this->syncLogo($request, $brand);
 
         // Toast'ı frontend (Brands.vue onSuccess) gösterir; backend flash eklemek
         // global flash→toast izleyiciyle çift toast'a yol açar.
@@ -85,7 +90,8 @@ class BrandController extends Controller
 
     public function update(UpdateBrandRequest $request, Brand $brand): RedirectResponse
     {
-        $brand->update($request->validated());
+        $brand->update($request->safe()->only(['name', 'slug', 'sort_order', 'icon']));
+        $this->syncLogo($request, $brand);
 
         return redirect()->route('products.brands.index');
     }
@@ -98,8 +104,33 @@ class BrandController extends Controller
             ]);
         }
 
+        $logo = $brand->logo_path;
         $brand->delete();
+        $this->deleteLogoFile($logo);
 
         return redirect()->route('products.brands.index');
+    }
+
+    /** Yeni logo yüklendiyse eskisinin yerine koyar; remove_logo ile kaldırır. */
+    private function syncLogo(StoreBrandRequest $request, Brand $brand): void
+    {
+        $old = $brand->logo_path;
+
+        if ($request->hasFile('logo')) {
+            $brand->update(['logo_path' => $request->file('logo')->store('brands', Media::disk())]);
+        } elseif ($request->boolean('remove_logo')) {
+            $brand->update(['logo_path' => null]);
+        } else {
+            return;
+        }
+
+        $this->deleteLogoFile($old);
+    }
+
+    private function deleteLogoFile(?string $path): void
+    {
+        if ($path && ! str_starts_with($path, 'http')) {
+            Storage::disk(Media::disk())->delete($path);
+        }
     }
 }

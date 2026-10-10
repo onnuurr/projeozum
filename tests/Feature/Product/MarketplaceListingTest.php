@@ -34,7 +34,7 @@ class MarketplaceListingTest extends TestCase
             'category_id' => $category->id,
             'name' => 'Test Süveter',
             'sku' => 'SKU-' . uniqid(),
-            'gender' => 'Unisex',
+            
             'price' => 107.88,
         ]);
 

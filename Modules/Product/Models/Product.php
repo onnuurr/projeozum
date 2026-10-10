@@ -4,6 +4,7 @@ namespace Modules\Product\Models;
 
 use Database\Factories\ProductFactory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -33,6 +34,9 @@ class Product extends Model
     public const STATUS_DEVELOPMENT = 'development';
 
     // Tedarik kaynağı: hazır alınan vs bizim ürettiğimiz.
+    /** Cinsiyet, Ürün Ayarları → Özellikler'deki bu kodlu seçimli özelliktir (2026-10-04'e kadar products.gender kolonu). */
+    public const GENDER_ATTRIBUTE = 'cinsiyet';
+
     public const SOURCING_PURCHASED    = 'purchased';
     public const SOURCING_MANUFACTURED = 'manufactured';
 
@@ -78,7 +82,6 @@ class Product extends Model
         'status',
         'sourcing',
         'sku',
-        'gender',
         'price',
         'old_price',
         'market_price',
@@ -86,12 +89,12 @@ class Product extends Model
         'rating',
         'review_count',
         'is_new',
+        'is_featured',
         'free_shipping',
         'min_order_qty',
         'order_multiple',
-        'care_instructions',
+        'max_order_qty',
         'material',
-        'origin_country',
         'attributes',
         // Açıklamalar (M2)
         'public_name',
@@ -105,6 +108,9 @@ class Product extends Model
         // Kargo
         'weight',
         'desi',
+        'length_cm',
+        'width_cm',
+        'height_cm',
         'shipping_time',
         'shipping_fee',
         // Diğer
@@ -122,16 +128,34 @@ class Product extends Model
         'rating'           => 'decimal:2',
         'review_count'     => 'integer',
         'is_new'           => 'boolean',
+        'is_featured'      => 'boolean',
         'free_shipping'    => 'boolean',
         'min_order_qty'    => 'integer',
         'order_multiple'   => 'integer',
+        'max_order_qty'    => 'integer',
         'weight'           => 'decimal:3',
         'desi'             => 'decimal:2',
+        'length_cm'        => 'decimal:2',
+        'width_cm'         => 'decimal:2',
+        'height_cm'        => 'decimal:2',
         'shipping_fee'     => 'decimal:2',
         'is_domestic'      => 'boolean',
         'ai_generated_at'  => 'datetime',
         'attributes'       => 'array',
     ];
+
+    /**
+     * Cinsiyet seçeneğinin adı (Kız / Erkek / Unisex) — salt okunur; değer attributes['cinsiyet']'te
+     * seçenek id'si olarak durur. AI/Creative prompt'ları, detay sayfası ve Ürün Kartı bunu okur.
+     */
+    protected function gender(): Attribute
+    {
+        return Attribute::get(function (): ?string {
+            $optionId = ($this->getAttribute('attributes') ?? [])[self::GENDER_ATTRIBUTE] ?? null;
+
+            return $optionId ? ProductAttributeOption::whereKey($optionId)->value('name') : null;
+        })->shouldCache();
+    }
 
     public function category(): BelongsTo
     {
@@ -172,6 +196,19 @@ class Product extends Model
     public function statusHistories(): HasMany
     {
         return $this->hasMany(ProductStatusHistory::class);
+    }
+
+    /**
+     * Ürün hiç yayına alındı mı (şu an yayında ya da geçmişte yayından çıkmış/yayına girmiş). Hiç
+     * yayınlanmamış ürün mağazaya (Bagisto) gönderilmez; yayından kaldırılan ürün ise mağazada da
+     * pasifleşsin diye gönderilmeye devam eder. Doğrudan yayında oluşturulan eski ürünlerin geçmiş
+     * satırı yoktur — yayından kaldırılınca from_status=published satırı yazılır.
+     */
+    public function hasBeenPublished(): bool
+    {
+        return $this->status === self::STATUS_PUBLISHED
+            || $this->statusHistories()->where(fn ($q) => $q->where('from_status', self::STATUS_PUBLISHED)
+                ->orWhere('to_status', self::STATUS_PUBLISHED))->exists();
     }
 
     public function getRouteKeyName(): string

@@ -2,6 +2,9 @@
 
 use Illuminate\Support\Facades\Route;
 use Modules\Product\Http\Controllers\BrandController;
+use Modules\Product\Http\Controllers\ProductAttributeController;
+use Modules\Product\Http\Controllers\ProductSettingsController;
+use Modules\Product\Http\Controllers\VariantOptionController;
 use Modules\Product\Http\Controllers\CategoryController;
 use Modules\Product\Http\Controllers\OrderController;
 use Modules\Product\Http\Controllers\PriceListController;
@@ -44,13 +47,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('can:product.delete')
         ->name('products.bulk-destroy');
 
-    // AI destekli açıklama üretimi (Gemini). Sync — 20sn timeout kabul.
-    // throttle:15,1: ücretli AI çağrısı, önceden hiç hız sınırı yoktu.
-    Route::post('/products/{product:id}/ai-description',
+    // AI destekli ürün içeriği (açıklama + SEO, Gemini). Formdaki kaydedilmemiş bilgilerle çalışır —
+    // hem create hem edit formunda, bu yüzden {product} parametresi almaz. Sync — 20sn timeout kabul.
+    // throttle:15,1: ücretli AI çağrısı.
+    Route::post('/products/ai-content',
         [\Modules\Product\Http\Controllers\ProductAiDescriptionController::class, 'generate'])
-        ->whereNumber('product')
         ->middleware(['can:product.ai.generate', 'throttle:15,1'])
-        ->name('products.ai-description');
+        ->name('products.ai-content');
 
     // Barkod (EAN-13/GS1) otomatik üretimi — hem create hem edit formunda kullanılır,
     // bu yüzden {product} parametresi almaz.
@@ -79,13 +82,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/{category}/marketplaces/{marketplace}', [CategoryController::class, 'destroyMapping'])
             ->middleware('can:category.manage')->name('marketplaces.destroy');
 
-        // Kategoriye göre değişen ürün özelliği tanımları (Faz 3 — Attribute Engine).
-        Route::post('/{category}/attribute-definitions', [CategoryController::class, 'storeAttributeDefinition'])
-            ->middleware('can:category.manage')->name('attribute-definitions.store');
-        Route::put('/{category}/attribute-definitions/{definition}', [CategoryController::class, 'updateAttributeDefinition'])
-            ->middleware('can:category.manage')->name('attribute-definitions.update');
-        Route::delete('/{category}/attribute-definitions/{definition}', [CategoryController::class, 'destroyAttributeDefinition'])
-            ->middleware('can:category.manage')->name('attribute-definitions.destroy');
+        // Kategorinin kendi global özellik seçimi (Ürün Ayarları → Özellikler'de tanımlanan)
+        Route::put('/{category}/attributes', [ProductAttributeController::class, 'syncCategory'])
+            ->middleware('can:category.manage')->name('attributes.sync');
     });
 
     Route::post('/products/marketplaces/{marketplace}/connect', [CategoryController::class, 'connectMarketplace'])
@@ -116,6 +115,41 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->whereNumber('brand')->middleware('can:brand.manage')->name('update');
         Route::delete('/{brand}', [BrandController::class, 'destroy'])
             ->whereNumber('brand')->middleware('can:brand.manage')->name('destroy');
+    });
+
+    // ─── Product Ayarları (tek sayfa, sekmeler; her sekme kendi yetkisiyle) ──
+    Route::prefix('products/settings')->name('products.settings.')->group(function () {
+        Route::get('/', [ProductSettingsController::class, 'index'])
+            ->middleware('can:product-settings.view')->name('index');
+
+        // Bedenler / Renkler sekmeleri (ürün formu varyant seçim listeleri)
+        Route::post('/{type}/bulk-store', [VariantOptionController::class, 'bulkStore'])
+            ->whereIn('type', ['sizes', 'colors'])->middleware('can:variant-option.create')->name('bulk-store');
+        Route::post('/{type}/bulk-destroy', [VariantOptionController::class, 'bulkDestroy'])
+            ->whereIn('type', ['sizes', 'colors'])->middleware('can:variant-option.delete')->name('bulk-destroy');
+        Route::post('/sizes', [VariantOptionController::class, 'storeSize'])
+            ->middleware('can:variant-option.create')->name('sizes.store');
+        Route::put('/sizes/{size}', [VariantOptionController::class, 'updateSize'])
+            ->whereNumber('size')->middleware('can:variant-option.update')->name('sizes.update');
+        Route::delete('/sizes/{size}', [VariantOptionController::class, 'destroySize'])
+            ->whereNumber('size')->middleware('can:variant-option.delete')->name('sizes.destroy');
+
+        Route::post('/colors', [VariantOptionController::class, 'storeColor'])
+            ->middleware('can:variant-option.create')->name('colors.store');
+        Route::put('/colors/{color}', [VariantOptionController::class, 'updateColor'])
+            ->whereNumber('color')->middleware('can:variant-option.update')->name('colors.update');
+        Route::delete('/colors/{color}', [VariantOptionController::class, 'destroyColor'])
+            ->whereNumber('color')->middleware('can:variant-option.delete')->name('colors.destroy');
+
+        // Özellikler sekmesi (global ürün özellikleri → Bagisto attribute'ları)
+        Route::post('/attributes', [ProductAttributeController::class, 'store'])
+            ->middleware('can:product-attribute.create')->name('attributes.store');
+        Route::post('/attributes/bulk-destroy', [ProductAttributeController::class, 'bulkDestroy'])
+            ->middleware('can:product-attribute.delete')->name('attributes.bulk-destroy');
+        Route::put('/attributes/{attribute}', [ProductAttributeController::class, 'update'])
+            ->whereNumber('attribute')->middleware('can:product-attribute.update')->name('attributes.update');
+        Route::delete('/attributes/{attribute}', [ProductAttributeController::class, 'destroy'])
+            ->whereNumber('attribute')->middleware('can:product-attribute.delete')->name('attributes.destroy');
     });
 
     // ─── Depolar ─────────────────────────────────────────────────────────
@@ -160,6 +194,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->whereNumber('product')->middleware('can:product.add')
         ->group(function () {
             Route::post('/', [ProductImageController::class, 'store'])->name('store');
+            Route::put('/order', [ProductImageController::class, 'reorder'])->name('reorder');
         });
     Route::put('/products/images/{image}', [ProductImageController::class, 'update'])
         ->whereNumber('image')->middleware('can:product.add')->name('products.images.update');

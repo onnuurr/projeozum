@@ -33,12 +33,16 @@ class OrderItem extends Model
         'qty',
         'unit_price',
         'total_price',
+        'vat_rate',
+        'vat_amount',
     ];
 
     protected $casts = [
         'qty'         => 'integer',
         'unit_price'  => 'decimal:2',
         'total_price' => 'decimal:2',
+        'vat_rate'    => 'decimal:2',
+        'vat_amount'  => 'decimal:2',
     ];
 
     /** Frontend, kapak görselini tam URL olarak `product_image_url`'den okur. */

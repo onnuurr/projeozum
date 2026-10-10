@@ -10,14 +10,13 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
-use Modules\Product\Http\Requests\StoreCategoryAttributeDefinitionRequest;
 use Modules\Product\Http\Requests\StoreCategoryRequest;
-use Modules\Product\Http\Requests\UpdateCategoryAttributeDefinitionRequest;
 use Modules\Product\Http\Requests\UpdateCategoryRequest;
 use Modules\Product\Models\Category;
-use Modules\Product\Models\CategoryAttributeDefinition;
 use Modules\Product\Models\CategoryMarketplaceMapping;
 use Modules\Product\Models\Marketplace;
+use Modules\Product\Models\ProductAttribute;
+use Modules\Product\Services\VatRateService;
 
 class CategoryController extends Controller
 {
@@ -29,7 +28,7 @@ class CategoryController extends Controller
             ->get();
 
         $categories = Category::query()
-            ->with(['parent:id,name', 'marketplaceMappings', 'attributeDefinitions'])
+            ->with(['parent:id,name', 'marketplaceMappings', 'productAttributes:id'])
             ->orderBy('sort_order')
             ->orderBy('name')
             ->get()
@@ -55,26 +54,26 @@ class CategoryController extends Controller
                     'parent'       => $c->parent?->name ?? '—',
                     'parent_id'    => $c->parent_id,
                     'icon'         => $c->icon ?? 'package',
+                    'vat_rate'     => $c->vat_rate !== null ? (float) $c->vat_rate : null,
                     'sort_order'   => $c->sort_order,
                     'productCount' => 0,
                     'status'       => $c->status,
                     'manuallyPassive' => $c->manually_passive,
                     'updatedAt'    => optional($c->updated_at)->format('Y-m-d'),
                     'marketplaces' => $mpByKey,
-                    'attributeDefinitions' => $c->attributeDefinitions->map(fn (CategoryAttributeDefinition $d) => [
-                        'id'         => $d->id,
-                        'key'        => $d->key,
-                        'label'      => $d->label,
-                        'type'       => $d->type,
-                        'options'    => $d->options ?? [],
-                        'required'   => $d->required,
-                        'sort_order' => $d->sort_order,
-                    ]),
+                    // Kategorinin kendi özellik seçimi; üst kategoriden gelenler istemcide ağaçtan hesaplanır
+                    'productAttributes' => $c->productAttributes
+                        ->map(fn (ProductAttribute $a) => ['id' => $a->id, 'required' => (bool) $a->pivot->required])
+                        ->values(),
                 ];
             });
 
         return Inertia::render('Product::Categories', [
             'categories'   => $categories,
+            'defaultVatRate' => app(VatRateService::class)->defaultRate(),
+            'productAttributes' => ProductAttribute::query()->orderBy('sort_order')->orderBy('name')
+                ->get(['id', 'code', 'name', 'type'])
+                ->map(fn (ProductAttribute $a) => ['id' => $a->id, 'code' => $a->code, 'name' => $a->name, 'type' => $a->type]),
             'marketplaces' => $marketplaces->map(fn (Marketplace $m) => [
                 'id'        => $m->id,
                 'key'       => $m->key,
@@ -223,41 +222,6 @@ class CategoryController extends Controller
     }
 
     /** Kategoriye yeni bir özellik tanımı ekler (Faz 3 — Attribute Engine). */
-    public function storeAttributeDefinition(StoreCategoryAttributeDefinitionRequest $request, Category $category): RedirectResponse
-    {
-        $category->attributeDefinitions()->create(
-            $this->normalizeAttributeDefinitionData($request->validated(), $category->id),
-        );
-
-        return redirect()->route('products.categories.index');
-    }
-
-    public function updateAttributeDefinition(UpdateCategoryAttributeDefinitionRequest $request, Category $category, CategoryAttributeDefinition $definition): RedirectResponse
-    {
-        $definition->update(
-            $this->normalizeAttributeDefinitionData($request->validated(), $category->id),
-        );
-
-        return redirect()->route('products.categories.index');
-    }
-
-    public function destroyAttributeDefinition(Category $category, CategoryAttributeDefinition $definition): RedirectResponse
-    {
-        $definition->delete();
-
-        return redirect()->route('products.categories.index');
-    }
-
-    /** store/update ortak: category_id enjekte edilir, required/options normalize edilir. */
-    private function normalizeAttributeDefinitionData(array $data, int $categoryId): array
-    {
-        $data['category_id'] = $categoryId;
-        $data['required']    = $data['required'] ?? false;
-        $data['options']     = $data['type'] === 'enum' ? ($data['options'] ?? []) : null;
-
-        return $data;
-    }
-
     /**
      * Formdaki durum seçimi kullanıcının niyetidir: "Pasif" → elle pasif (kalıcı), "Aktif" → otomatik.
      * Gerçek durumu kayıttan sonra CategoryStatusService belirler (yayında ürün yoksa pasif).

@@ -48,18 +48,17 @@ return [
     'specs' => [
         'brand' => 'Marka',
         'category' => 'Kategori',
-        'gender' => 'Cinsiyet',
         'sku' => 'SKU',
         'barcode' => 'Barkod',
         'material' => 'Materyal',
         'composition' => 'Kumaş Bileşimi',
-        'origin' => 'Menşei',
         'weight' => 'Ağırlık',
         'desi' => 'Desi',
         'sizes' => 'Bedenler',
         'colors' => 'Renkler',
-        'care' => 'Bakım',
         'shipping_time' => 'Kargo Süresi',
+        'yes' => 'Evet',
+        'no' => 'Hayır',
     ],
 
 ];

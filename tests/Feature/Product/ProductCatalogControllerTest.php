@@ -8,6 +8,7 @@ use Inertia\Testing\AssertableInertia as Assert;
 use Modules\Product\Models\Brand;
 use Modules\Product\Models\Category;
 use Modules\Product\Models\Product;
+use Modules\Product\Models\ProductAttribute;
 use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
@@ -48,7 +49,7 @@ class ProductCatalogControllerTest extends TestCase
                 'name'        => 'Basic Tişört',
                 'sku'         => 'TS-001',
                 'category_id' => $category->id,
-                'gender'      => 'Unisex',
+                
                 'variants'    => [
                     ['sku' => 'TS-001-S', 'price' => 250, 'stock' => 5, 'size' => 'S'],
                     ['sku' => 'TS-001-M', 'price' => 180, 'stock' => 3, 'size' => 'M', 'old_price' => 300],
@@ -72,7 +73,7 @@ class ProductCatalogControllerTest extends TestCase
         $this->actingAs($this->user(['product.add']))
             ->post(route('products.store'), [
                 'name' => 'Varyantsız', 'sku' => 'NV-1',
-                'category_id' => $category->id, 'gender' => 'Unisex',
+                'category_id' => $category->id, 
                 'variants' => [],
             ])
             ->assertSessionHasErrors('variants');
@@ -85,7 +86,7 @@ class ProductCatalogControllerTest extends TestCase
         $this->actingAs($this->user())
             ->post(route('products.store'), [
                 'name' => 'X', 'sku' => 'X-1',
-                'category_id' => $category->id, 'gender' => 'Unisex',
+                'category_id' => $category->id, 
                 'variants' => [['sku' => 'X-1-S', 'price' => 10, 'stock' => 1]],
             ])
             ->assertForbidden();
@@ -95,18 +96,20 @@ class ProductCatalogControllerTest extends TestCase
     {
         $category = $this->category();
         $brand    = Brand::create(['name' => 'Marka', 'slug' => 'marka-' . uniqid(), 'sort_order' => 0]);
+        // Menşei, migration'ın açtığı `mensei` seçimli özelliğidir (kategoriye atanınca geçerli).
+        $mensei = ProductAttribute::where('code', 'mensei')->firstOrFail();
+        $category->productAttributes()->attach($mensei->id);
 
         $product = Product::create([
             'category_id'        => $category->id,
             'brand_id'           => $brand->id,
             'name'               => 'Detay Ürün',
             'sku'                => 'DET-1',
-            'gender'             => 'Kadın',
+            
             'price'              => 199,
             'material'           => 'Pamuk',
-            'origin_country'     => 'TR',
+            'attributes'         => ['mensei' => $mensei->options()->where('name', 'Türkiye')->value('id')],
             'barcode'            => '8690000000001',
-            'care_instructions'  => '30°C yıkayın',
             'free_shipping'      => true,
             'is_domestic'        => true,
             'is_new'             => true,
@@ -122,9 +125,8 @@ class ProductCatalogControllerTest extends TestCase
                 ->component('Product::ProductDetail', false)
                 ->where('product.description', 'Detaylı B2B açıklaması.')
                 ->where('product.specs.Materyal', 'Pamuk')
-                ->where('product.specs.Menşei', 'TR')
+                ->where('product.specs.Menşei', 'Türkiye')
                 ->where('product.specs.Barkod', '8690000000001')
-                ->where('product.specs.Bakım', '30°C yıkayın')
                 ->where('product.features', fn ($features) => collect($features)->contains('Ücretsiz kargo')
                     && collect($features)->contains('Yerli üretim')
                     && collect($features)->contains('Pamuk'))

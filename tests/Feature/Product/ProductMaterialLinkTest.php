@@ -30,7 +30,7 @@ class ProductMaterialLinkTest extends TestCase
         ]);
         $this->product = Product::create([
             'category_id' => $category->id, 'name' => 'Basic Tee',
-            'sku' => 'BT-' . uniqid(), 'gender' => 'Unisex', 'price' => 100,
+            'sku' => 'BT-' . uniqid(), 'price' => 100,
         ]);
         $this->fabric = Material::create([
             'code' => 'F-01', 'name' => 'Pamuklu Süprem',

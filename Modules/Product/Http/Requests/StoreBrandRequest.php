@@ -25,6 +25,10 @@ class StoreBrandRequest extends FormRequest
                 Rule::unique('brands', 'slug')->ignore($this->ignoredBrandId()),
             ],
             'sort_order' => ['nullable', 'integer', 'min:0'],
+            'icon'        => ['nullable', 'string', 'max:64', 'regex:/^(?:(?:lab|oz):)?[a-z0-9-]+$/'], // ortak ikon kaydındaki ad (resources/js/lucideIcons.js)
+            // SVG bilerek yok: aynı origin'den servis edilen SVG içine script gömülebilir.
+            'logo'        => ['nullable', 'file', 'mimes:jpeg,jpg,png,webp', 'max:2048'],
+            'remove_logo' => ['nullable', 'boolean'],
         ];
     }
 
@@ -32,6 +36,7 @@ class StoreBrandRequest extends FormRequest
     {
         return [
             'slug.regex' => __('product::messages.validation.slug_format'),
+            'icon.regex' => __('product::messages.validation.icon_format'),
         ];
     }
 

@@ -8,6 +8,8 @@ const props = defineProps({
 	parentCategories: { type: Array, default: () => [] },
 	busy: { type: Boolean, default: false },
 	errors: { type: Object, default: () => ({}) },
+	// Kategori zincirinde oran yoksa kullanılan KDV (%), config('product.default_vat_rate')
+	defaultVatRate: { type: Number, default: 10 },
 })
 
 const open = defineModel('open', { type: Boolean, default: false })
@@ -17,6 +19,22 @@ const isEdit = computed(() => !!props.category)
 
 // Durum otomatik (yayında ürünü yoksa pasif); buradaki seçim kullanıcının niyeti — "Pasif" elle pasiftir,
 // ürün gelse de aktifleşmez. Bkz. CategoryStatusService.
+// KDV oranı: boş = üst kategoriden miras (yoksa varsayılan). Fiyatlar KDV hariç; mağazaya KDV dahil gider.
+const VAT_RATES = [0, 1, 10, 20]
+const inheritedVat = computed(() => {
+	const byId = new Map(props.parentCategories.map((c) => [c.id, c]))
+	const seen = new Set()
+	for (let c = byId.get(form.parent_id); c && !seen.has(c.id); c = byId.get(c.parent_id)) {
+		seen.add(c.id)
+		if (c.vat_rate !== null && c.vat_rate !== undefined) return { rate: c.vat_rate, from: c.name }
+	}
+	return { rate: props.defaultVatRate, from: null }
+})
+const vatOptions = computed(() => [
+	{ value: '', label: inheritedVat.value.from ? `Üst kategoriden (%${inheritedVat.value.rate} · ${inheritedVat.value.from})` : `Varsayılan (%${inheritedVat.value.rate})` },
+	...VAT_RATES.map((r) => ({ value: String(r), label: `%${r}` })),
+])
+
 const statusOptions = [
 	{ value: 'active', label: 'Otomatik' },
 	{ value: 'passive', label: 'Pasif (elle)' },
@@ -56,6 +74,7 @@ const defaultForm = () => ({
 	parent_id: null,
 	status: 'active',
 	sort_order: 0,
+	vat_rate: '',
 })
 
 const form = reactive(defaultForm())
@@ -129,6 +148,7 @@ function submit() {
 			parent_id: form.parent_id || null,
 			status: form.status,
 			sort_order: form.sort_order === '' || form.sort_order === null ? null : Number(form.sort_order),
+			vat_rate: form.vat_rate === '' || form.vat_rate === null ? null : Number(form.vat_rate),
 		},
 	})
 }
@@ -146,6 +166,7 @@ watch(open, (isOpen) => {
 				parent_id: props.category.parent_id ?? null,
 				status: props.category.manuallyPassive ? 'passive' : 'active',
 				sort_order: props.category.sort_order ?? 0,
+				vat_rate: props.category.vat_rate === null || props.category.vat_rate === undefined ? '' : String(Number(props.category.vat_rate)),
 			})
 			sortTouched.value = false
 		} else {
@@ -194,6 +215,9 @@ watch(open, (isOpen) => {
 					<OzSelect v-model="form.status" :options="statusOptions" />
 				</OzField>
 			</div>
+			<OzField label="KDV Oranı" :error="errors.vat_rate" hint="Ürün fiyatları KDV hariç girilir; mağazaya (Bagisto) bu oranla KDV dahil gider, bayi siparişinde KDV ayrı hesaplanır.">
+				<OzSelect v-model="form.vat_rate" :options="vatOptions" />
+			</OzField>
 			<OzField label="Sıra" :error="errors.sort_order" :hint="sortTouched ? 'Elle girildi — boşaltırsanız otomatik sıraya döner.' : 'Otomatik: kendi grubunun sonuna eklenir. Değiştirebilirsiniz.'">
 				<OzInput v-model.number="form.sort_order" type="number" min="0" placeholder="Otomatik" @input="onSortInput" />
 			</OzField>

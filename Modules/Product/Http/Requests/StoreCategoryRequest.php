@@ -24,6 +24,8 @@ class StoreCategoryRequest extends FormRequest
                 Rule::unique('product_categories', 'slug'),
             ],
             'icon'       => ['nullable', 'string', 'max:64', 'regex:/^(?:(?:lab|oz):)?[a-z0-9-]+$/'], // ortak ikon kaydındaki ad (resources/js/lucideIcons.js)
+            // KDV %; boş = üst kategoriden miras. Yalnız Bagisto'da vergi kategorisi olan oranlar (kdv-<oran>).
+            'vat_rate'   => ['nullable', 'numeric', 'in:0,1,10,20'],
             'parent_id'  => ['nullable', 'integer', Rule::exists('product_categories', 'id')],
             'status'     => ['required', Rule::in(['active', 'passive'])],
             'sort_order' => ['nullable', 'integer', 'min:0'],

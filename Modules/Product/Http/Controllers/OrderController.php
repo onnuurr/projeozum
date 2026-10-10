@@ -115,6 +115,7 @@ class OrderController extends Controller
                 'order_type'     => $order->order_type,
                 'subtotal'       => (float) $order->subtotal,
                 'shipping_fee'   => (float) $order->shipping_fee,
+                'tax_amount'     => (float) $order->tax_amount,
                 'total'          => (float) $order->total,
                 'shipping_info'  => $order->shipping_info,
                 'carrier'             => $order->carrier?->name,
@@ -134,6 +135,7 @@ class OrderController extends Controller
                     'qty'               => (int) $i->qty,
                     'unit_price'        => (float) $i->unit_price,
                     'total_price'       => (float) $i->total_price,
+                    'vat_rate'          => (float) $i->vat_rate,
                 ])->all(),
                 'histories'      => $order->statusHistories->map(fn ($h) => [
                     'id'          => $h->id,

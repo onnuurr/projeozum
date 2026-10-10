@@ -40,7 +40,7 @@ class GenerateProductDescriptionTest extends TestCase
         ]);
         $this->product = Product::create([
             'category_id' => $category->id, 'name' => 'Basic Tişört',
-            'sku' => 'BT-' . uniqid(), 'gender' => 'Unisex', 'price' => 199.90,
+            'sku' => 'BT-' . uniqid(), 'price' => 199.90,
         ]);
 
         $fabric = Material::create([
@@ -54,17 +54,31 @@ class GenerateProductDescriptionTest extends TestCase
         ]);
     }
 
+    /** Formdaki bilgiler (düzenleme: product_id ile). */
+    private function payload(array $override = []): array
+    {
+        return [
+            'parts' => ['descriptions'],
+            'product_id' => $this->product->id,
+            'name' => $this->product->name,
+            'category_id' => $this->product->category_id,
+            ...$override,
+        ];
+    }
+
     public function test_generate_returns_two_tones_and_stamps_product(): void
     {
         Http::fake([
             '*generativelanguage*' => Http::response(['candidates' => [[
                 'content' => ['parts' => [['text' => json_encode([
+                    'public_name' => 'Basic Pamuklu Tişört',
                     'public_description' => '**Yaz için hafif** ve nefes alan bir tişört.',
                     'tenant_description' => 'Kompozisyon: %100 pamuk. Gramaj: 180 gsm. Jarse örgü.',
                 ])]]],
             ]]], 200),
             '*' => Http::response(['candidates' => [[
                 'content' => ['parts' => [['text' => json_encode([
+                    'public_name' => 'Basic Pamuklu Tişört',
                     'public_description' => '**Yaz için hafif** ve nefes alan bir tişört.',
                     'tenant_description' => 'Kompozisyon: %100 pamuk. Gramaj: 180 gsm. Jarse örgü.',
                 ])]]],
@@ -72,7 +86,7 @@ class GenerateProductDescriptionTest extends TestCase
         ]);
 
         $this->actingAs($this->admin)
-            ->postJson("/products/{$this->product->id}/ai-description")
+            ->postJson('/products/ai-content', $this->payload())
             ->assertOk()
             ->assertJsonPath('data.public_description', '**Yaz için hafif** ve nefes alan bir tişört.')
             ->assertJsonPath('data.tenant_description', 'Kompozisyon: %100 pamuk. Gramaj: 180 gsm. Jarse örgü.');
@@ -87,8 +101,48 @@ class GenerateProductDescriptionTest extends TestCase
         ]);
 
         $this->actingAs($this->admin)
-            ->postJson("/products/{$this->product->id}/ai-description")
+            ->postJson('/products/ai-content', $this->payload())
             ->assertStatus(502);
+    }
+
+    /**
+     * Sağlayıcı hataları kullanıcıya dil dosyasından (creative::messages.ai_provider.*) gösterilir;
+     * Google'ın ham İngilizce mesajı/gövdesi cevaba sızmaz.
+     */
+    public function test_provider_errors_are_shown_from_lang_files_without_raw_body(): void
+    {
+        $cases = [
+            'denied' => [403, ['error' => ['code' => 403, 'message' => 'Your project has been denied access. Please contact support.', 'status' => 'PERMISSION_DENIED']]],
+            'quota' => [429, ['error' => ['code' => 429, 'message' => 'Resource has been exhausted', 'status' => 'RESOURCE_EXHAUSTED']]],
+            'auth' => [400, ['error' => ['code' => 400, 'message' => 'API key not valid. Please pass a valid API key.', 'status' => 'INVALID_ARGUMENT']]],
+            'unavailable' => [503, ['error' => ['code' => 503, 'message' => 'The model is overloaded.', 'status' => 'UNAVAILABLE']]],
+            'blocked' => [200, ['promptFeedback' => ['blockReason' => 'SAFETY'], 'candidates' => []]],
+        ];
+
+        $sequence = Http::fakeSequence();
+        foreach ($cases as [$status, $body]) {
+            $sequence->push($body, $status);
+        }
+
+        foreach ($cases as $reason => [$status, $body]) {
+
+            $message = $this->actingAs($this->admin)
+                ->postJson('/products/ai-content', $this->payload())
+                ->assertStatus(502)
+                ->json('message');
+
+            $this->assertSame(
+                __('product::messages.ai.call_failed', ['error' => __("creative::messages.ai_provider.{$reason}")]),
+                $message,
+                $reason,
+            );
+            $this->assertStringNotContainsString((string) ($body['error']['message'] ?? 'SAFETY'), $message);
+        }
+
+        config()->set('creative.ai.gemini.api_key', '');
+        $this->actingAs($this->admin)->postJson('/products/ai-content', $this->payload())
+            ->assertStatus(502)
+            ->assertJsonPath('message', __('product::messages.ai.call_failed', ['error' => __('creative::messages.ai_provider.missing_key')]));
     }
 
     public function test_generate_requires_permission(): void
@@ -97,7 +151,7 @@ class GenerateProductDescriptionTest extends TestCase
         $viewer->givePermissionTo('product.view');
 
         $this->actingAs($viewer)
-            ->postJson("/products/{$this->product->id}/ai-description")
+            ->postJson('/products/ai-content', $this->payload())
             ->assertForbidden();
     }
 

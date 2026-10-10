@@ -4,6 +4,7 @@ namespace Modules\Product\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\Media;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -17,11 +18,15 @@ use Modules\Product\Http\Requests\UpdateProductRequest;
 use Modules\Product\Http\Requests\UpdateProductStatusRequest;
 use Modules\Product\Models\Brand;
 use Modules\Product\Models\Category;
-use Modules\Product\Models\CategoryAttributeDefinition;
 use Modules\Product\Models\Marketplace;
 use Modules\Product\Models\Product;
+use Modules\Product\Models\ProductAttribute;
+use Modules\Product\Models\ProductColor;
+use Modules\Product\Models\ProductSize;
+use Modules\Product\Services\ProductAttributeService;
 use Modules\Product\Services\ProductCatalogPresenter;
 use Modules\Product\Services\ProductService;
+use Modules\Product\Services\VatRateService;
 use Modules\Tenant\Models\Tenant;
 
 class ProductController extends Controller
@@ -95,7 +100,10 @@ class ProductController extends Controller
             'product'              => null,
             'categories'           => $categories,
             'brands'               => $brands,
-            'attributeDefinitions' => $this->attributeDefinitionsByCategory(),
+            'attributeDefinitions' => app(ProductAttributeService::class)->formDefinitions(),
+            'sizeOptions'          => ProductSize::query()->orderBy('sort_order')->orderBy('name')->pluck('name'),
+            'colorOptions'         => ProductColor::query()->orderBy('sort_order')->orderBy('name')->get(['name', 'hex']),
+            ...$this->vatFormData(),
         ]);
     }
 
@@ -116,13 +124,18 @@ class ProductController extends Controller
             'product'              => $this->shapeProductForForm($product),
             'categories'           => $categories,
             'brands'               => $brands,
-            'attributeDefinitions' => $this->attributeDefinitionsByCategory(),
+            'attributeDefinitions' => app(ProductAttributeService::class)->formDefinitions(),
+            'sizeOptions'          => ProductSize::query()->orderBy('sort_order')->orderBy('name')->pluck('name'),
+            'colorOptions'         => ProductColor::query()->orderBy('sort_order')->orderBy('name')->get(['name', 'hex']),
+            ...$this->vatFormData(),
         ]);
     }
 
     public function store(StoreProductRequest $request): RedirectResponse
     {
-        $this->products->create($request->validated(), $request->file('images') ?? []);
+        // Yeni ürün pasif (Taslak) başlar: işlemleri bitince Ürün Kartı'ndan yayınlanır; Bagisto'ya
+        // ilk yayında gider (bkz. PushProductToBagisto, Product::hasBeenPublished).
+        $this->products->create($request->validated(), $request->file('images') ?? [], Product::STATUS_DRAFT);
 
         // Flash basılmıyor — ProductForm.vue onSuccess'te kendi toast'unu gösteriyor.
         return redirect()->route('products.index');
@@ -242,18 +255,32 @@ class ProductController extends Controller
      */
     private function formReferenceData(): array
     {
-        $categories = Category::query()
-            ->where('status', 'active')
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->get(['id', 'slug', 'name', 'icon'])
+        // Durum otomatik (yayında ürünü olmayan kategori pasif, CategoryStatusService) — "aktif" filtresi
+        // boş kategoriye ilk ürünün eklenmesini engellerdi. Yalnız bilerek kapatılanlar (elle pasif) gizlenir.
+        // Etiket tam yol: iki ana kategoride aynı adlı alt kategoriler var (Kız Çocuk › Tişört).
+        $all = Category::query()->get(['id', 'parent_id', 'slug', 'name', 'icon', 'sort_order', 'manually_passive'])->keyBy('id');
+        $path = function (Category $c) use ($all): string {
+            $names = [$c->name];
+            $seen = [$c->id => true];
+            for ($p = $all->get($c->parent_id); $p && ! isset($seen[$p->id]); $p = $all->get($p->parent_id)) {
+                $seen[$p->id] = true;
+                array_unshift($names, $p->name);
+            }
+
+            return implode(' › ', $names);
+        };
+
+        $categories = $all
+            ->reject(fn (Category $c) => $c->manually_passive)
             ->map(fn (Category $c) => [
                 'id'    => $c->id,
                 'slug'  => $c->slug,
-                'label' => $c->name,
-                'name'  => $c->name,
+                'label' => $path($c),
+                'name'  => $path($c),
                 'icon'  => $c->icon ?? '📦',
-            ]);
+            ])
+            ->sortBy('label', SORT_NATURAL | SORT_FLAG_CASE)
+            ->values();
 
         $brands = Brand::query()
             ->orderBy('sort_order')
@@ -270,26 +297,21 @@ class ProductController extends Controller
     }
 
     /**
-     * Kategori id'sine göre gruplanmış özellik tanımları (Faz 3). Tümü tek
-     * seferde önden yüklenir — `Products.vue`'nun "hepsini yükle, client-side
-     * filtrele" tercihiyle tutarlı, kategori seçildikçe ayrı istek atılmaz.
+     * Fiyat sekmesindeki KDV seçimi: `kdv_orani` sistem özelliğinin seçenekleri ve boş bırakılınca
+     * geçerli olacak kategori oranları (miras çözülmüş).
      *
-     * @return array<int, array<int, array<string, mixed>>>
+     * @return array{vatOptions: list<array{value: int, label: string, rate: float}>, categoryVatRates: array<int, float>}
      */
-    private function attributeDefinitionsByCategory(): array
+    private function vatFormData(): array
     {
-        return CategoryAttributeDefinition::query()
-            ->orderBy('sort_order')
-            ->get()
-            ->groupBy('category_id')
-            ->map(fn ($defs) => $defs->map(fn (CategoryAttributeDefinition $d) => [
-                'key'      => $d->key,
-                'label'    => $d->label,
-                'type'     => $d->type,
-                'options'  => $d->options ?? [],
-                'required' => $d->required,
-            ])->values())
-            ->all();
+        $vat = app(VatRateService::class);
+
+        return [
+            'vatOptions'       => $vat->options(),
+            'categoryVatRates' => Category::query()->pluck('id')
+                ->mapWithKeys(fn (int $id) => [$id => $vat->rateForCategory($id)])
+                ->all(),
+        ];
     }
 
     /**
@@ -304,15 +326,19 @@ class ProductController extends Controller
             'sku'              => $product->sku,
             'category_id'      => $product->category_id,
             'brand_id'         => $product->brand_id,
-            'gender'           => $product->gender,
             'marketPrice'      => $product->market_price !== null ? (float) $product->market_price : null,
             'purchasePrice'    => $product->purchase_price !== null ? (float) $product->purchase_price : null,
+            'maxOrderQty'      => $product->max_order_qty,
             'isNew'            => (bool) $product->is_new,
+            'isFeatured'       => (bool) $product->is_featured,
             'freeShipping'     => (bool) $product->free_shipping,
-            'careInstructions' => $product->care_instructions,
             'material'         => $product->material,
-            'originCountry'    => $product->origin_country,
             'attributes'       => $product->attributes ?? [],
+            // Özellik görsel/dosya değerlerinin önizleme adresleri (değerin kendisi relative path)
+            'attributeUrls'    => collect($product->attributes ?? [])
+                ->filter(fn ($v) => is_string($v) && str_starts_with($v, ProductAttribute::UPLOAD_DIR.'/'))
+                ->map(fn (string $v) => Media::url($v))
+                ->all(),
             'publicName'        => $product->public_name,
             'publicDescription' => $product->public_description,
             'tenantDescription' => $product->tenant_description,
@@ -324,6 +350,9 @@ class ProductController extends Controller
             // Kargo
             'weight'           => $product->weight !== null ? (float) $product->weight : null,
             'desi'             => $product->desi !== null ? (float) $product->desi : null,
+            'length_cm'        => $product->length_cm !== null ? (float) $product->length_cm : null,
+            'width_cm'         => $product->width_cm !== null ? (float) $product->width_cm : null,
+            'height_cm'        => $product->height_cm !== null ? (float) $product->height_cm : null,
             'shippingTime'     => $product->shipping_time,
             'shippingFee'      => $product->shipping_fee !== null ? (float) $product->shipping_fee : null,
             // Diğer

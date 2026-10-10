@@ -3,8 +3,8 @@ import { ref, computed, inject, watch, onBeforeUnmount } from 'vue'
 import { Head, router } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import {
-	OzPageHeader, OzModuleTabs, OzStatStrip, OzCard, OzInput, OzSelect, OzPill, OzDropdown,
-	OzPagination, OzEmptyState, OzButton, OzModal, OzIcon, useOzConfirm,
+	OzPageHeader, OzModuleTabs, OzStatStrip, OzCard, OzTable, OzPill, OzDropdown,
+	OzButton, OzModal, OzIcon, useOzConfirm,
 } from '@/Components/Oz'
 import MarketplaceConnectDrawer from '@/Components/MarketplaceConnectDrawer.vue'
 import MarketplaceCategoryPickerModal from '@/Components/MarketplaceCategoryPickerModal.vue'
@@ -18,6 +18,8 @@ defineOptions({ layout: AppLayout })
 const props = defineProps({
 	categories: { type: Array, default: () => [] },
 	marketplaces: { type: Array, default: () => [] },
+	productAttributes: { type: Array, default: () => [] },
+	defaultVatRate: { type: Number, default: 10 },
 })
 
 const showToast = inject('showToast')
@@ -65,7 +67,7 @@ const connectDrawerOpen = ref(false)
 const connectingMarketplace = ref(null)
 const connectingCategory = ref(null)
 
-/* ── Özellik tanımları modal state (Faz 3) ── */
+/* ── Özellik seçimi modal state (global özellikler, Ürün Ayarları → Özellikler) ── */
 const attributesModalOpen = ref(false)
 const attributesCategoryId = ref(null)
 const attributesCategory = computed(() => categories.value.find((c) => c.id === attributesCategoryId.value) ?? null)
@@ -109,28 +111,9 @@ const summaryItems = computed(() => [
 	{ key: 'map', label: 'eşleştirme', value: `%${stats.value.mappingRate}`, icon: 'link', tone: 'warning' },
 ])
 
-/* ── Toplu seçim ── */
-const selected = ref(new Set())
+/* ── Toplu seçim (OzTable selectable; toplu işlem çubuğu tablonun #bulk slot'unda) ── */
+const selected = ref([])
 const bulkBusy = ref(false)
-const selectedCount = computed(() => selected.value.size)
-
-function isSelected(id) { return selected.value.has(id) }
-function toggleRow(id) {
-	const next = new Set(selected.value)
-	next.has(id) ? next.delete(id) : next.add(id)
-	selected.value = next
-}
-const allVisibleSelected = computed(() =>
-	paginated.value.length > 0 && paginated.value.every((c) => selected.value.has(c.id)),
-)
-function toggleSelectAllVisible() {
-	const ids = paginated.value.map((c) => c.id)
-	const next = new Set(selected.value)
-	if (allVisibleSelected.value) ids.forEach((id) => next.delete(id))
-	else ids.forEach((id) => next.add(id))
-	selected.value = next
-}
-function clearSelection() { selected.value = new Set() }
 
 async function bulkDelete() {
 	const ids = [...selected.value]
@@ -144,7 +127,7 @@ async function bulkDelete() {
 		preserveState: false,
 		onSuccess: () => {
 			showToast?.({ type: 'warning', title: 'Kategoriler Silindi', message: `${ids.length} kategori kaldırıldı.` })
-			clearSelection()
+			selected.value = []
 		},
 		onError: (errs) => {
 			showToast?.({ type: 'error', title: 'Silme Başarısız', message: Object.values(errs)[0] || 'Sunucu hatası.' })
@@ -153,121 +136,78 @@ async function bulkDelete() {
 	})
 }
 
-/* ── Ağaç ── */
-// Düz listeden ağaç satırları: ebeveyn → çocuklar, kardeşler backend sırasında (sort_order, name).
-// Ebeveyni listede olmayan (silinmiş) kategori köke düşer; bozuk veride döngüye karşı `seen` kümesi.
-const tree = computed(() => {
+/* ── Tablo (OzTable tree: ağaç, arama, filtre, kök grubuyla sayfalama) ── */
+// Her kategorinin ana (kök) kategorisi — "Ana kategori" filtresi bununla eşleşir (seçilen ağacın tamamı)
+const rootNameOf = computed(() => {
 	const byId = new Map(categories.value.map((c) => [c.id, c]))
-	const children = new Map()
-	const roots = []
+	const out = new Map()
 	for (const c of categories.value) {
-		const pid = c.parent_id && c.parent_id !== c.id && byId.has(c.parent_id) ? c.parent_id : null
-		if (pid === null) roots.push(c)
-		else {
-			if (!children.has(pid)) children.set(pid, [])
-			children.get(pid).push(c)
+		let node = c
+		const seen = new Set()
+		while (node.parent_id && byId.has(node.parent_id) && !seen.has(node.id)) {
+			seen.add(node.id)
+			node = byId.get(node.parent_id)
 		}
+		out.set(c.id, node.name)
 	}
-	const rows = []
-	const seen = new Set()
-	const walk = (c, depth, ancestors, rootId) => {
-		if (seen.has(c.id)) return
-		seen.add(c.id)
-		const kids = children.get(c.id) ?? []
-		rows.push({ cat: c, depth, ancestors, rootId, childCount: kids.length })
-		kids.forEach((k) => walk(k, depth + 1, [...ancestors, c.id], rootId))
-	}
-	roots.forEach((r) => walk(r, 0, [], r.id))
-	categories.value.filter((c) => !seen.has(c.id)).forEach((c) => walk(c, 0, [], c.id))
-	return rows
+	return out
 })
 
-// Daraltılmış düğümler (varsayılan: hepsi açık)
-const collapsed = ref(new Set())
-const hasNested = computed(() => tree.value.some((r) => r.childCount > 0))
-const isCollapsed = (id) => collapsed.value.has(id)
-function toggleNode(id) {
-	const next = new Set(collapsed.value)
-	next.has(id) ? next.delete(id) : next.add(id)
-	collapsed.value = next
-}
-const allCollapsed = computed(() => tree.value.filter((r) => r.childCount > 0).every((r) => collapsed.value.has(r.cat.id)))
-function toggleAll() {
-	collapsed.value = allCollapsed.value
-		? new Set()
-		: new Set(tree.value.filter((r) => r.childCount > 0).map((r) => r.cat.id))
-}
-
-/* ── Filtreler ── */
-const searchQuery = ref('')
-const parentFilter = ref('all')
-const statusFilter = ref('all')
-const currentPage = ref(1)
-const itemsPerPage = 8 // sayfa başına ana kategori grubu (alt kategoriler grubuyla birlikte gelir)
-
-// "Şunun altındakiler": alt kategorisi olan kategoriler, tam yoluyla
-const parentFilterOptions = computed(() => {
+// Özellik sayısı: kategorinin kendi seçimi + üst kategorilerinden miras (tekrarsız)
+const attributeCounts = computed(() => {
 	const byId = new Map(categories.value.map((c) => [c.id, c]))
-	return [
-		{ value: 'all', label: 'Tüm Kategoriler' },
-		...tree.value
-			.filter((r) => r.childCount > 0)
-			.map((r) => ({
-				value: String(r.cat.id),
-				label: [...r.ancestors.map((id) => byId.get(id)?.name), r.cat.name].join(' › '),
-			})),
-	]
-})
-
-const statusFilterOptions = [
-	{ value: 'all', label: 'Tüm Durumlar' },
-	{ value: 'active', label: 'Aktif' },
-	{ value: 'passive', label: 'Pasif' },
-]
-
-const isFiltering = computed(() => !!searchQuery.value.trim() || statusFilter.value !== 'all')
-
-// Görünen satırlar. Arama/durum filtresinde eşleşenler üst kategorileriyle birlikte gösterilir
-// (üstler soluk "bağlam" satırı); bu modda daraltma yok sayılır.
-const visibleRows = computed(() => {
-	let rows = tree.value
-	if (parentFilter.value !== 'all') {
-		const id = Number(parentFilter.value)
-		const base = rows.find((r) => r.cat.id === id)?.depth ?? 0
-		rows = rows
-			.filter((r) => r.cat.id === id || r.ancestors.includes(id))
-			.map((r) => ({ ...r, depth: r.depth - base, rootId: id }))
+	const out = new Map()
+	for (const c of categories.value) {
+		const own = new Set((c.productAttributes ?? []).map((a) => a.id))
+		const inherited = new Set()
+		const seen = new Set([c.id])
+		for (let p = byId.get(c.parent_id); p && !seen.has(p.id); p = byId.get(p.parent_id)) {
+			seen.add(p.id)
+			for (const a of p.productAttributes ?? []) if (!own.has(a.id)) inherited.add(a.id)
+		}
+		out.set(c.id, { own: own.size, inherited: inherited.size, total: own.size + inherited.size })
 	}
-	if (isFiltering.value) {
-		const q = searchQuery.value.trim().toLocaleLowerCase('tr')
-		const hit = new Set(rows
-			.filter(({ cat }) => (!q || cat.name.toLocaleLowerCase('tr').includes(q) || cat.slug?.includes(q))
-				&& (statusFilter.value === 'all' || cat.status === statusFilter.value))
-			.map((r) => r.cat.id))
-		const keep = new Set(hit)
-		rows.forEach((r) => { if (hit.has(r.cat.id)) r.ancestors.forEach((a) => keep.add(a)) })
-		return rows.filter((r) => keep.has(r.cat.id)).map((r) => ({ ...r, context: !hit.has(r.cat.id) }))
-	}
-	return rows.filter((r) => !r.ancestors.some((a) => collapsed.value.has(a)))
+	return out
 })
 
-// Sayfalama ana kategori gruplarıyla — bir ağaç iki sayfaya bölünmez
-const groups = computed(() => {
-	const list = []
-	for (const r of visibleRows.value) {
-		if (!list.length || list.at(-1).key !== r.rootId) list.push({ key: r.rootId, rows: [] })
-		list.at(-1).rows.push(r)
+// Geçerli KDV oranı: kendi oranı, yoksa en yakın üst kategorinin, o da yoksa varsayılan
+const vatOf = computed(() => {
+	const byId = new Map(categories.value.map((c) => [c.id, c]))
+	const out = new Map()
+	for (const c of categories.value) {
+		let rate = null
+		let inherited = false
+		const seen = new Set()
+		for (let n = c; n && !seen.has(n.id); n = byId.get(n.parent_id)) {
+			seen.add(n.id)
+			if (n.vat_rate !== null && n.vat_rate !== undefined) { rate = n.vat_rate; inherited = n.id !== c.id; break }
+		}
+		out.set(c.id, rate === null ? { rate: props.defaultVatRate, inherited: true, isDefault: true } : { rate, inherited, isDefault: false })
 	}
-	return list
+	return out
 })
-watch([searchQuery, parentFilter, statusFilter], () => { currentPage.value = 1 })
 
-const paginatedRows = computed(() => {
-	const start = (currentPage.value - 1) * itemsPerPage
-	return groups.value.slice(start, start + itemsPerPage).flatMap((g) => g.rows)
-})
-// Seçim / toplu işlem için: bağlam satırları hariç kategoriler
-const paginated = computed(() => paginatedRows.value.filter((r) => !r.context).map((r) => r.cat))
+const statusLabel = (c) => (c.status === 'active' ? 'Aktif' : c.manuallyPassive ? 'Pasif (elle)' : 'Pasif · ürün yok')
+
+const columns = computed(() => [
+	{
+		key: 'name', label: 'Kategori', sortable: true,
+		searchValue: (c) => `${c.name} ${c.slug}`,
+		filterValue: (c) => rootNameOf.value.get(c.id),
+		filter: { type: 'select', label: 'Ana kategori', placeholder: 'Tüm ana kategoriler' },
+	},
+	{ key: 'productCount', label: 'Ürün', sortable: true, searchable: false, width: '90px' },
+	{ key: 'vat', label: 'KDV', sortable: true, searchable: false, width: '90px', sortValue: (c) => vatOf.value.get(c.id)?.rate ?? 0 },
+	{ key: 'attrs', label: 'Özellikler', sortable: true, searchable: false, width: '130px', sortValue: (c) => attributeCounts.value.get(c.id)?.total ?? 0 },
+	{ key: 'marketplaces', label: 'Pazaryeri Entegrasyonları', searchable: false },
+	{
+		key: 'status', label: 'Durum', sortable: true, searchable: false, width: '150px',
+		sortValue: statusLabel, filterValue: statusLabel,
+		filter: { type: 'select', label: 'Durum', options: ['Aktif', 'Pasif · ürün yok', 'Pasif (elle)'] },
+	},
+	{ key: 'updatedAt', label: 'Güncelleme', sortable: true, searchable: false, width: '120px' },
+	...(hasRowActions.value ? [{ key: 'actions', label: '', align: 'right', width: '48px', searchable: false }] : []),
+])
 
 const rowActions = () => [
 	...(canEdit.value ? [{ key: 'edit', label: 'Düzenle', icon: 'edit' }] : []),
@@ -513,113 +453,77 @@ async function confirmDelete(cat) {
 	<OzStatStrip :items="summaryItems" label="Kategori özeti" />
 
 	<OzCard title="Kategori Listesi">
-		<template #actions>
-			<div class="toolbar">
-				<OzInput v-model="searchQuery" icon="search" placeholder="Kategori ara…" class="tb-search" />
-				<OzSelect v-model="parentFilter" :options="parentFilterOptions" class="tb-select" />
-				<OzSelect v-model="statusFilter" :options="statusFilterOptions" class="tb-select-sm" />
-				<OzButton v-if="hasNested && !isFiltering" size="sm" :icon="allCollapsed ? 'chevron-right' : 'chevron-down'" @click="toggleAll">
-					{{ allCollapsed ? 'Tümünü Aç' : 'Tümünü Kapat' }}
-				</OzButton>
-			</div>
-		</template>
+		<OzTable
+			v-model:selected="selected"
+			:columns="columns"
+			:rows="categories"
+			tree
+			parent-key="parent_id"
+			:page-size="8"
+			:selectable="canManage"
+			item-label="kategori"
+			searchable
+			search-placeholder="Kategori adı ya da slug ara…"
+			min-width="900px"
+			empty-title="Henüz kategori yok"
+		>
+			<template #bulk>
+				<OzButton variant="danger" size="sm" icon="trash" :loading="bulkBusy" @click="bulkDelete">Seçilenleri Sil ({{ selected.length }})</OzButton>
+			</template>
 
-		<div class="table-scroll">
-			<table class="cat-table">
-				<thead>
-					<tr>
-						<th v-if="canManage" class="col-check">
-							<input type="checkbox" :checked="allVisibleSelected" aria-label="Tümünü seç" @change="toggleSelectAllVisible">
-						</th>
-						<th style="width: 26%">Kategori</th>
-						<th style="width: 10%">Ürün</th>
-						<th style="width: 28%">Pazaryeri Entegrasyonları</th>
-						<th style="width: 10%">Durum</th>
-						<th style="width: 12%">Güncelleme</th>
-						<th v-if="hasRowActions" style="width: 48px"></th>
-					</tr>
-				</thead>
-				<tbody>
-					<tr
-						v-for="{ cat, depth, childCount, context } in paginatedRows"
-						:key="cat.id"
-						:class="{ 'row-selected': isSelected(cat.id), 'row-context': context, 'row-child': depth > 0 }"
-					>
-						<td v-if="canManage" class="col-check">
-							<input v-if="!context" type="checkbox" :checked="isSelected(cat.id)" :aria-label="`${cat.name} seç`" @change="toggleRow(cat.id)">
-						</td>
-						<td>
-							<div class="cat-cell" :style="{ paddingLeft: `${depth * 26}px` }">
-								<button
-									v-if="childCount && !isFiltering"
-									type="button"
-									class="tree-toggle"
-									:aria-expanded="!isCollapsed(cat.id)"
-									:aria-label="`${cat.name} alt kategorilerini ${isCollapsed(cat.id) ? 'göster' : 'gizle'}`"
-									@click="toggleNode(cat.id)"
-								>
-									<OzIcon :name="isCollapsed(cat.id) ? 'chevron-right' : 'chevron-down'" :size="14" />
-								</button>
-								<span v-else-if="hasNested" class="tree-spacer" :class="{ 'is-leaf': depth > 0 }" aria-hidden="true" />
-								<div class="cat-icon" :class="{ 'is-sub': depth > 0 }"><OzIcon :name="ozIconForCategory(cat.icon)" :size="depth > 0 ? 15 : 17" /></div>
-								<div class="cat-info">
-									<span class="cat-name">{{ cat.name }}</span>
-									<span v-if="childCount" class="cat-parent">{{ childCount }} alt kategori</span>
-								</div>
-							</div>
-						</td>
-						<td><span class="product-count">{{ cat.productCount }}</span></td>
-						<td>
-							<div class="mp-logos">
-								<button
-									v-for="mp in marketplaces"
-									:key="mp.key"
-									class="mp-chip"
-									:class="mpChipClass(cat, mp)"
-									:style="mpChipStyle(cat, mp)"
-									:disabled="!canManage"
-									:title="canManage ? mpTooltip(cat, mp) : `${mp.name} — görüntüleme yetkiniz var, düzenlemek için yetkiniz yok`"
-									@click="canManage && openMarketplaceCheck(cat, mp)"
-								>
-									{{ mp.logoText }}
-									<span v-if="cat.marketplaces[mp.key]?.mapped && mp.connected" class="mp-dot mp-dot-success"></span>
-									<span v-else-if="!mp.connected" class="mp-dot mp-dot-error"></span>
-								</button>
-							</div>
-						</td>
-						<td>
-							<OzPill
-								:tone="cat.status === 'active' ? 'success' : 'neutral'"
-								:title="cat.status === 'active' ? null : cat.manuallyPassive ? 'Elle pasife alındı — ürün gelse de pasif kalır' : 'Kendisinde ve alt kategorilerinde yayında ürün yok — ürün yayına alınınca otomatik aktif olur'"
-							>{{ cat.status === 'active' ? 'Aktif' : cat.manuallyPassive ? 'Pasif (elle)' : 'Pasif · ürün yok' }}</OzPill>
-						</td>
-						<td class="dim">{{ cat.updatedAt }}</td>
-						<td v-if="hasRowActions" @click.stop>
-							<OzDropdown :items="rowActions()" :label="`${cat.name} işlemleri`" @select="(k) => onRowAction(k, cat)" />
-						</td>
-					</tr>
-				</tbody>
-			</table>
-			<OzEmptyState v-if="!paginatedRows.length" icon="layers" title="Kayıt bulunamadı" compact />
-		</div>
-
-		<div v-if="groups.length > itemsPerPage" class="pagination-wrap">
-			<OzPagination v-model="currentPage" :total="groups.length" :page-size="itemsPerPage" />
-		</div>
-	</OzCard>
-
-	<!-- Toplu seçim çubuğu (yüzen) -->
-	<div class="bulk-dock" :class="{ 'is-active': canManage && selectedCount > 0 }">
-		<Transition name="bulk">
-			<div v-if="canManage && selectedCount > 0" class="bulk-bar" role="toolbar" aria-label="Toplu işlemler">
-				<span class="bulk-info"><b>{{ selectedCount }}</b> kategori seçildi</span>
-				<div class="bulk-actions">
-					<OzButton size="sm" @click="clearSelection">Vazgeç</OzButton>
-					<OzButton variant="danger" size="sm" icon="trash" :loading="bulkBusy" @click="bulkDelete">Seçilenleri Sil</OzButton>
+			<template #cell-name="{ row: cat, depth, childCount }">
+				<div class="cat-cell">
+					<div class="cat-icon" :class="{ 'is-sub': depth > 0 }"><OzIcon :name="ozIconForCategory(cat.icon)" :size="depth > 0 ? 15 : 17" /></div>
+					<div class="cat-info">
+						<span class="cat-name" :class="{ 'is-sub': depth > 0 }">{{ cat.name }}</span>
+						<span v-if="childCount" class="cat-parent">{{ childCount }} alt kategori</span>
+					</div>
 				</div>
-			</div>
-		</Transition>
-	</div>
+			</template>
+			<template #cell-productCount="{ value }"><span class="product-count" :class="{ 'is-zero': !value }">{{ value }}</span></template>
+			<template #cell-marketplaces="{ row: cat }">
+				<div class="mp-logos">
+					<button
+						v-for="mp in marketplaces"
+						:key="mp.key"
+						class="mp-chip"
+						:class="mpChipClass(cat, mp)"
+						:style="mpChipStyle(cat, mp)"
+						:disabled="!canManage"
+						:title="canManage ? mpTooltip(cat, mp) : `${mp.name} — görüntüleme yetkiniz var, düzenlemek için yetkiniz yok`"
+						@click="canManage && openMarketplaceCheck(cat, mp)"
+					>
+						{{ mp.logoText }}
+						<span v-if="cat.marketplaces[mp.key]?.mapped && mp.connected" class="mp-dot mp-dot-success"></span>
+						<span v-else-if="!mp.connected" class="mp-dot mp-dot-error"></span>
+					</button>
+				</div>
+			</template>
+			<template #cell-status="{ row: cat }">
+				<OzPill
+					:tone="cat.status === 'active' ? 'success' : 'neutral'"
+					:title="cat.status === 'active' ? null : cat.manuallyPassive ? 'Elle pasife alındı — ürün gelse de pasif kalır' : 'Kendisinde ve alt kategorilerinde yayında ürün yok — ürün yayına alınınca otomatik aktif olur'"
+				>{{ statusLabel(cat) }}</OzPill>
+			</template>
+			<template #cell-vat="{ row: cat }">
+				<span :class="{ dim: vatOf.get(cat.id)?.inherited }" :title="vatOf.get(cat.id)?.isDefault ? 'Varsayılan oran' : vatOf.get(cat.id)?.inherited ? 'Üst kategoriden' : 'Bu kategoride tanımlı'">%{{ vatOf.get(cat.id)?.rate }}</span>
+			</template>
+			<template #cell-attrs="{ row: cat }">
+				<button v-if="canManage" type="button" class="attr-count" :title="`${cat.name} özelliklerini düzenle`" @click.stop="openAttributesModal(cat)">
+					<OzIcon name="sliders" :size="13" />
+					<span v-if="attributeCounts.get(cat.id)?.total">{{ attributeCounts.get(cat.id).total }}</span>
+					<span v-else class="dim">Ekle</span>
+					<span v-if="attributeCounts.get(cat.id)?.inherited" class="dim">({{ attributeCounts.get(cat.id).inherited }} miras)</span>
+				</button>
+				<span v-else-if="attributeCounts.get(cat.id)?.total">{{ attributeCounts.get(cat.id).total }}</span>
+				<span v-else class="dim">—</span>
+			</template>
+			<template #cell-updatedAt="{ value }"><span class="dim">{{ value }}</span></template>
+			<template #cell-actions="{ row: cat }">
+				<OzDropdown :items="rowActions()" :label="`${cat.name} işlemleri`" @select="(k) => onRowAction(k, cat)" />
+			</template>
+		</OzTable>
+	</OzCard>
 
 	<MarketplaceConnectDrawer
 		v-model:open="connectDrawerOpen"
@@ -639,6 +543,7 @@ async function confirmDelete(cat) {
 
 	<CategoryFormDrawer
 		v-model:open="formDrawerOpen"
+		:default-vat-rate="defaultVatRate"
 		:category="editingCategory"
 		:parent-categories="categories"
 		:busy="formBusy"
@@ -649,7 +554,9 @@ async function confirmDelete(cat) {
 	<CategoryAttributesModal
 		v-model:open="attributesModalOpen"
 		:category="attributesCategory"
-		@changed="() => router.reload({ only: ['categories'], preserveScroll: true })"
+		:categories="categories"
+		:product-attributes="productAttributes"
+		@changed="() => showToast?.({ type: 'success', title: 'Özellikler kaydedildi', message: attributesCategory?.name })"
 	/>
 
 	<OzModal v-model:open="mpStatusOpen" :title="mpStatusCategory && mpStatusMarketplace ? `${mpStatusCategory.name} ↔ ${mpStatusMarketplace.name}` : ''" icon="success" tone="success" size="sm">
@@ -668,39 +575,11 @@ async function confirmDelete(cat) {
 </template>
 
 <style scoped>
-.toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.tb-search { width: 220px; }
-.tb-select { width: 170px; }
-.tb-select-sm { width: 140px; }
+.attr-count { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border: 1px solid var(--oz-border); border-radius: 7px; background: none; font: inherit; font-size: 11.5px; font-weight: 600; color: var(--oz-ink-soft); cursor: pointer; white-space: nowrap; }
+.attr-count:hover { border-color: var(--oz-accent); color: var(--oz-accent); }
 
-/* Toplu seçim çubuğu: akışta yer kaplamaz (tabloyu itmez), kaydırma alanının altında yüzer.
-   Dock, .oz-shell-content içinde sticky; seçim varken sona boşluk açar ki son satırları örtmesin. */
-.bulk-dock { position: sticky; bottom: 0; height: 0; z-index: 5; pointer-events: none; transition: height .2s ease; }
-.bulk-dock.is-active { height: 76px; }
-.bulk-bar {
-	position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%);
-	display: flex; align-items: center; gap: 14px; width: max-content; max-width: calc(100% - 24px);
-	padding: 8px 8px 8px 16px; border-radius: 999px; pointer-events: auto;
-	background: var(--oz-surface); border: 1px solid var(--oz-border); box-shadow: var(--oz-shadow);
-}
-.bulk-info { font-size: 12.5px; color: var(--oz-ink-soft); white-space: nowrap; }
-.bulk-info b { color: var(--oz-accent); }
-.bulk-actions { display: flex; gap: 8px; }
-.bulk-enter-active, .bulk-leave-active { transition: opacity .18s ease, transform .22s cubic-bezier(.2, .8, .2, 1); }
-.bulk-enter-from, .bulk-leave-to { opacity: 0; transform: translate(-50%, 14px); }
-@media (max-width: 768px) {
-	.bulk-bar { bottom: 10px; gap: 10px; padding-left: 14px; }
-}
 
-.col-check { width: 40px; text-align: center; padding-left: 16px !important; padding-right: 0 !important; }
-.col-check input { width: 15px; height: 15px; accent-color: var(--oz-accent); cursor: pointer; }
 
-.table-scroll { overflow-x: auto; padding: 0 4px; }
-.cat-table { width: 100%; border-collapse: collapse; }
-.cat-table th { text-align: left; padding: 10px 14px; font-size: 10.5px; font-weight: 700; color: var(--oz-muted); text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid var(--oz-border); background: var(--oz-th-bg); }
-.cat-table td { padding: 12px 14px; font-size: 12.5px; border-top: 1px solid var(--oz-border-soft); vertical-align: middle; }
-.cat-table tr:hover td { background: var(--oz-surface-2); }
-.cat-table tr.row-selected td { background: var(--oz-accent-soft); }
 
 .dim { font-size: 12px; color: var(--oz-muted); }
 
@@ -708,20 +587,13 @@ async function confirmDelete(cat) {
 .cat-icon { width: 34px; height: 34px; border-radius: 10px; background: var(--oz-accent-soft); color: var(--oz-accent); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .cat-info { display: flex; flex-direction: column; gap: 2px; }
 .cat-name { font-weight: 700; color: var(--oz-ink-soft); font-size: 12.5px; }
+.cat-name.is-sub { font-weight: 600; }
 .cat-parent { font-size: 10.5px; color: var(--oz-muted); font-weight: 500; }
 
-/* Ağaç */
-.tree-toggle { width: 22px; height: 22px; margin-right: -6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: none; border-radius: 6px; background: none; color: var(--oz-muted); cursor: pointer; }
-.tree-toggle:hover { background: var(--oz-surface-2); color: var(--oz-ink); }
-.tree-toggle:focus-visible { outline: 2px solid var(--oz-accent); outline-offset: 1px; }
-.tree-spacer { width: 22px; margin-right: -6px; flex-shrink: 0; align-self: stretch; position: relative; }
-/* alt kategori: üst kategoriye bağlayan "└" çizgisi */
-.tree-spacer.is-leaf::before { content: ''; position: absolute; left: 10px; top: -12px; height: calc(50% + 12px); width: 9px; border-left: 1.5px solid var(--oz-border); border-bottom: 1.5px solid var(--oz-border); border-bottom-left-radius: 6px; }
 .cat-icon.is-sub { width: 30px; height: 30px; border-radius: 9px; }
-.row-child .cat-name { font-weight: 600; }
-.row-context td { opacity: .55; }
 
-.product-count { display: inline-block; padding: 2px 9px; background: var(--oz-surface-2); color: var(--oz-muted); border-radius: 6px; font-size: 11.5px; font-weight: 700; font-family: ui-monospace, monospace; }
+.product-count { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--oz-ink-soft); }
+.product-count.is-zero { color: var(--oz-muted-2); font-weight: 500; }
 
 .mp-logos { display: flex; gap: 5px; flex-wrap: wrap; }
 .mp-chip {
@@ -742,7 +614,6 @@ async function confirmDelete(cat) {
 .mp-dot-success { background: var(--oz-success); }
 .mp-dot-error { background: var(--oz-danger); }
 
-.pagination-wrap { padding: 14px 18px 16px; border-top: 1px solid var(--oz-border-soft); }
 
 .mono { font-family: ui-monospace, monospace; font-size: 11.5px; }
 .mp-info { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; background: var(--oz-surface-2); border: 1px solid var(--oz-border); border-radius: 10px; }

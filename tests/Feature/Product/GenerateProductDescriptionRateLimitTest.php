@@ -11,7 +11,7 @@ use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
 /**
- * /products/{product}/ai-description her çağrıda ücretli bir Gemini isteği tetikliyordu
+ * /products/ai-content her çağrıda ücretli bir Gemini isteği tetikliyordu
  * ve hiç hız sınırı yoktu — script/ele geçirilmiş hesap sınırsız fatura şişirebilirdi.
  * routes/Product/web.php'ye throttle:15,1 eklendi; bu test korumayı doğrular.
  */
@@ -35,12 +35,13 @@ class GenerateProductDescriptionRateLimitTest extends TestCase
         ]);
         $product = Product::create([
             'category_id' => $category->id, 'name' => 'Basic Tişört',
-            'sku' => 'BT-' . uniqid(), 'gender' => 'Unisex', 'price' => 199.90,
+            'sku' => 'BT-' . uniqid(), 'price' => 199.90,
         ]);
 
         Http::fake([
             '*' => Http::response(['candidates' => [[
                 'content' => ['parts' => [['text' => json_encode([
+                    'public_name' => 'Basic Pamuklu Tişört',
                     'public_description' => 'x',
                     'tenant_description' => 'y',
                 ])]]],
@@ -49,9 +50,9 @@ class GenerateProductDescriptionRateLimitTest extends TestCase
 
         $this->actingAs($admin);
         for ($i = 0; $i < 15; $i++) {
-            $this->postJson("/products/{$product->id}/ai-description")->assertOk();
+            $this->postJson('/products/ai-content', ['parts' => ['descriptions'], 'name' => $product->name, 'category_id' => $category->id])->assertOk();
         }
 
-        $this->postJson("/products/{$product->id}/ai-description")->assertStatus(429);
+        $this->postJson('/products/ai-content', ['parts' => ['descriptions'], 'name' => $product->name, 'category_id' => $category->id])->assertStatus(429);
     }
 }

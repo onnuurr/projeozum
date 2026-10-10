@@ -125,7 +125,7 @@ const columns = [
 .oz-link-btn { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 600; color: var(--oz-ink-soft); text-decoration: none; padding: 6px 10px; border-radius: 8px; }
 .oz-link-btn:hover { background: var(--oz-surface-2); }
 .ops-card { margin-bottom: 16px; }
-.ops { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; }
+.ops { display: flex; gap: 10px; overflow-x: auto; padding: 4px 18px 18px; }
 .op { flex: 0 0 240px; display: flex; flex-direction: column; gap: 3px; text-align: left; padding: 9px 12px; border: 1px solid var(--oz-border); border-radius: 10px; background: var(--oz-surface); cursor: pointer; font-family: inherit; }
 .op:hover, .op.active { border-color: var(--oz-accent); }
 .op-head { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; color: var(--oz-ink-soft); }
@@ -143,5 +143,5 @@ const columns = [
 .down { color: var(--oz-danger); }
 .op-link { margin-left: 6px; border: none; background: none; color: var(--oz-accent); font-family: inherit; font-size: 11.5px; font-weight: 700; cursor: pointer; padding: 0; }
 .note { display: block; max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; color: var(--oz-muted); }
-.pager { margin-top: 12px; }
+.pager { padding: 12px 18px; border-top: 1px solid var(--oz-border); }
 </style>

@@ -109,6 +109,12 @@ function submitTransition() {
 function formatMoney(v) {
 	return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 2 }).format(Number(v ?? 0))
 }
+
+// Siparişteki farklı KDV oranları (ör. " (%10)" ya da " (%10, %20)")
+const vatRatesLabel = computed(() => {
+	const rates = [...new Set((props.order.items ?? []).map((i) => i.vat_rate).filter((r) => r > 0))]
+	return rates.length ? ` (${rates.map((r) => `%${r}`).join(', ')})` : ''
+})
 </script>
 
 <template>
@@ -150,8 +156,9 @@ function formatMoney(v) {
 					<template #cell-total_price="{ value }"><span class="mono">{{ formatMoney(value) }}</span></template>
 				</OzTable>
 				<div class="totals">
-					<div class="total-row"><span>Ara Toplam</span><span class="mono">{{ formatMoney(order.subtotal) }}</span></div>
+					<div class="total-row"><span>Ara Toplam{{ order.tax_amount ? ' (KDV hariç)' : '' }}</span><span class="mono">{{ formatMoney(order.subtotal) }}</span></div>
 					<div class="total-row"><span>Kargo</span><span class="mono">{{ formatMoney(order.shipping_fee) }}</span></div>
+					<div v-if="order.tax_amount" class="total-row"><span>KDV{{ vatRatesLabel }}</span><span class="mono">{{ formatMoney(order.tax_amount) }}</span></div>
 					<div class="total-row grand"><span>Genel Toplam</span><span class="mono">{{ formatMoney(order.total) }}</span></div>
 				</div>
 			</OzCard>

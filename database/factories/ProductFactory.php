@@ -21,7 +21,6 @@ class ProductFactory extends Factory
             'name'          => $name,
             'slug'          => Str::slug($name) . '-' . Str::random(5),
             'sku'           => 'PRD-' . strtoupper(Str::random(8)),
-            'gender'        => 'Unisex',
             'price'         => $this->faker->randomFloat(2, 50, 2000),
             'review_count'  => 0,
             'is_new'        => false,

@@ -83,6 +83,7 @@ class Order extends Model
         'total',
         'discount_rate',
         'discount_amount',
+        'tax_amount',
         'due_date',
         'status',
         'order_type',
@@ -96,6 +97,7 @@ class Order extends Model
         'total'           => 'decimal:2',
         'discount_rate'   => 'decimal:2',
         'discount_amount' => 'decimal:2',
+        'tax_amount'      => 'decimal:2',
         'due_date'        => 'date',
     ];
 

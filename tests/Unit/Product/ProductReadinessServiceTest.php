@@ -33,7 +33,7 @@ class ProductReadinessServiceTest extends TestCase
     {
         return Product::create([
             'category_id' => $category->id, 'name' => 'Ürün', 'sku' => 'RDY-' . uniqid(),
-            'gender' => 'Unisex', 'price' => 100,
+            'price' => 100,
         ]);
     }
 

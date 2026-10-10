@@ -63,6 +63,29 @@ function editProduct() {
 	router.visit(`/products/${props.product.id}/edit`)
 }
 
+/* ── Yayın durumu (Taslak/Arşiv ↔ Yayında) — durum değişikliği Bagisto'ya da gider ── */
+const statusBusy = ref(false)
+const canPublish = computed(() => canEdit.value && ['draft', 'archived'].includes(props.product.status))
+const canUnpublish = computed(() => canEdit.value && props.product.status === 'published')
+
+async function changeStatus(to) {
+	if (to === 'draft') {
+		const ok = await confirm.warning('Yayından Kaldır', 'Ürün Taslak durumuna alınacak ve mağazada pasif olacak.', { confirmText: 'Yayından Kaldır' })
+		if (!ok) return
+	}
+	statusBusy.value = true
+	router.put(`/products/${props.product.id}/status`, { status: to }, {
+		preserveScroll: true,
+		onSuccess: () => {
+			showToast?.({ type: 'success', title: to === 'published' ? 'Ürün yayına alındı' : 'Ürün yayından kaldırıldı', message: 'Mağaza birkaç saniye içinde güncellenir.' })
+		},
+		onError: (errs) => {
+			showToast?.({ type: 'error', title: 'Durum değiştirilemedi', message: errs.status ?? 'Bilinmeyen hata' })
+		},
+		onFinish: () => { statusBusy.value = false },
+	})
+}
+
 /* ── Son hareketler tablosu (salt-okuma → OzTable) ── */
 const movementColumns = [
 	{ key: 'createdAt', label: 'Tarih' },
@@ -266,6 +289,8 @@ function openListing(mp) {
 		</template>
 		<template #actions>
 			<OzButton v-if="canEdit" variant="ghost" icon="edit" @click="editProduct">Ürünü Düzenle</OzButton>
+			<OzButton v-if="canPublish" variant="primary" icon="send" :loading="statusBusy" @click="changeStatus('published')">Yayına Al</OzButton>
+			<OzButton v-if="canUnpublish" variant="ghost" icon="eye-off" :loading="statusBusy" @click="changeStatus('draft')">Yayından Kaldır</OzButton>
 			<Link v-if="productionOrderUrl" :href="productionOrderUrl">
 				<OzButton :variant="product.status === 'development' ? 'primary' : 'ghost'" icon="workflow">İş Emri Ver</OzButton>
 			</Link>
@@ -322,6 +347,7 @@ function openListing(mp) {
 				<dl class="field-grid">
 					<div class="field"><dt>Ağırlık</dt><dd>{{ product.weight ? `${product.weight} kg` : '—' }}</dd></div>
 					<div class="field"><dt>Desi</dt><dd>{{ product.desi ?? '—' }}</dd></div>
+					<div class="field"><dt>Ölçüler (E × B × Y)</dt><dd>{{ product.lengthCm || product.widthCm || product.heightCm ? `${product.lengthCm ?? '—'} × ${product.widthCm ?? '—'} × ${product.heightCm ?? '—'} cm` : '—' }}</dd></div>
 					<div class="field"><dt>Kargo Süresi</dt><dd>{{ product.shippingTime ? `${product.shippingTime} gün` : '—' }}</dd></div>
 					<div class="field"><dt>Kargo Ücreti</dt><dd>{{ product.freeShipping ? 'Ücretsiz' : (product.shippingFee ? money(product.shippingFee) : '—') }}</dd></div>
 					<div class="field"><dt>Min. Sipariş</dt><dd>{{ product.minOrderQty ?? '—' }} adet</dd></div>
@@ -332,10 +358,9 @@ function openListing(mp) {
 				</dl>
 			</OzCard>
 
-			<OzCard v-if="product.material || product.careInstructions" title="İçerik" class="block">
+			<OzCard v-if="product.material" title="İçerik" class="block">
 				<dl class="field-grid">
 					<div class="field"><dt>Materyal</dt><dd>{{ product.material || '—' }}</dd></div>
-					<div class="field"><dt>Bakım Talimatları</dt><dd>{{ product.careInstructions || '—' }}</dd></div>
 				</dl>
 			</OzCard>
 		</template>

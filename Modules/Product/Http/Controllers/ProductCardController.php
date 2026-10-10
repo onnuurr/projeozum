@@ -12,6 +12,7 @@ use Modules\Product\Models\ProductVariant;
 use Modules\Product\Models\Stock;
 use Modules\Product\Models\StockMovement;
 use Modules\Product\Models\Warehouse;
+use Modules\Product\Services\ProductAttributeService;
 
 /**
  * SAP MM03 (malzeme görüntüleme) benzeri "Ürün Kartı": ürüne ait TÜM bilgiyi
@@ -26,7 +27,7 @@ use Modules\Product\Models\Warehouse;
  */
 class ProductCardController extends Controller
 {
-    public function show(Request $request, Product $product): Response
+    public function show(Request $request, Product $product, ProductAttributeService $attributes): Response
     {
         $product->load([
             'category:id,name',
@@ -55,30 +56,30 @@ class ProductCardController extends Controller
             $byWarehouse = $v->stocks->keyBy('warehouse_id');
 
             return [
-                'id'         => $v->id,
-                'size'       => $v->size,
-                'colorName'  => $v->color_name,
-                'colorHex'   => $v->color_hex,
-                'sku'        => $v->sku,
+                'id' => $v->id,
+                'size' => $v->size,
+                'colorName' => $v->color_name,
+                'colorHex' => $v->color_hex,
+                'sku' => $v->sku,
                 'totalStock' => $v->stock,
-                'basePrice'  => (float) $v->price,
-                'oldPrice'   => $v->old_price !== null ? (float) $v->old_price : null,
+                'basePrice' => (float) $v->price,
+                'oldPrice' => $v->old_price !== null ? (float) $v->old_price : null,
                 'warehouses' => $warehouses->map(function (Warehouse $w) use ($byWarehouse) {
                     $s = $byWarehouse->get($w->id);
 
                     return [
                         'warehouseId' => $w->id,
-                        'quantity'    => $s?->quantity ?? 0,
-                        'reserved'    => $s?->reserved_quantity ?? 0,
-                        'available'   => $s?->available_quantity ?? 0,
+                        'quantity' => $s?->quantity ?? 0,
+                        'reserved' => $s?->reserved_quantity ?? 0,
+                        'available' => $s?->available_quantity ?? 0,
                         'minQuantity' => $s?->min_quantity ?? 0,
-                        'isCritical'  => $s ? $s->quantity <= $s->min_quantity : false,
+                        'isCritical' => $s ? $s->quantity <= $s->min_quantity : false,
                     ];
                 })->values(),
                 'priceLists' => $v->priceLists->map(fn ($pl) => [
-                    'id'       => $pl->id,
-                    'type'     => $pl->type,
-                    'price'    => (float) $pl->price,
+                    'id' => $pl->id,
+                    'type' => $pl->type,
+                    'price' => (float) $pl->price,
                     'currency' => $pl->currency,
                     'isActive' => $pl->is_active,
                 ])->values(),
@@ -88,9 +89,9 @@ class ProductCardController extends Controller
         $stockRows = Stock::query()->whereIn('product_variant_id', $variantIds)->get(['quantity', 'reserved_quantity']);
 
         $totals = [
-            'stock'            => (int) $variants->sum('stock'),
-            'reserved'         => (int) $stockRows->sum('reserved_quantity'),
-            'available'        => (int) $stockRows->sum(fn (Stock $s) => max(0, $s->quantity - $s->reserved_quantity)),
+            'stock' => (int) $variants->sum('stock'),
+            'reserved' => (int) $stockRows->sum('reserved_quantity'),
+            'available' => (int) $stockRows->sum(fn (Stock $s) => max(0, $s->quantity - $s->reserved_quantity)),
             'criticalVariants' => $variantRows->filter(
                 fn (array $v) => collect($v['warehouses'])->contains('isCritical', true)
             )->count(),
@@ -107,75 +108,78 @@ class ProductCardController extends Controller
             ->limit(30)
             ->get()
             ->map(fn (StockMovement $m) => [
-                'id'             => $m->id,
-                'type'           => $m->type,
-                'quantity'       => $m->quantity,
+                'id' => $m->id,
+                'type' => $m->type,
+                'quantity' => $m->quantity,
                 'beforeQuantity' => $m->before_quantity,
-                'afterQuantity'  => $m->after_quantity,
-                'note'           => $m->note,
-                'size'           => $m->variant?->size,
-                'colorName'      => $m->variant?->color_name,
-                'sku'            => $m->variant?->sku,
-                'warehouseName'  => $m->warehouse?->name,
-                'warehouseCode'  => $m->warehouse?->code,
-                'userName'       => $m->user?->name,
-                'createdAt'      => optional($m->created_at)->format('Y-m-d H:i'),
+                'afterQuantity' => $m->after_quantity,
+                'note' => $m->note,
+                'size' => $m->variant?->size,
+                'colorName' => $m->variant?->color_name,
+                'sku' => $m->variant?->sku,
+                'warehouseName' => $m->warehouse?->name,
+                'warehouseCode' => $m->warehouse?->code,
+                'userName' => $m->user?->name,
+                'createdAt' => optional($m->created_at)->format('Y-m-d H:i'),
             ]);
 
         // Kategorinin bağlı olduğu pazaryerleri (eşleşmesi olmayanı da göster ki
         // kullanıcı yeni bir listeleme başlatabilsin) + üründe var olan listeleme özeti.
         $marketplaces = optional($product->category)->marketplaceMappings
             ?->map(fn ($m) => [
-                'key'      => $m->marketplace?->key,
-                'name'     => $m->marketplace?->name,
-                'color'    => $m->marketplace?->color,
+                'key' => $m->marketplace?->key,
+                'name' => $m->marketplace?->name,
+                'color' => $m->marketplace?->color,
                 'logoText' => $m->marketplace?->logo_text,
             ])->filter(fn ($x) => $x['key'])->values()->all() ?? [];
 
         $listings = $product->listings->mapWithKeys(fn ($l) => [
             $l->marketplace->key => [
-                'price'  => $l->price !== null ? (float) $l->price : null,
+                'price' => $l->price !== null ? (float) $l->price : null,
                 'isSent' => (bool) $l->is_sent,
             ],
         ])->all();
 
         return Inertia::render('Product::ProductCard', [
             'initialTab' => $request->string('tab')->toString() ?: 'genel',
-            'product'    => [
-                'id'               => $product->id,
-                'name'             => $product->name,
-                'slug'             => $product->slug,
-                'status'           => $product->status,
-                'sku'              => $product->sku,
-                'barcode'          => $product->barcode,
-                'gender'           => $product->gender,
-                'category'         => $product->category?->name,
-                'brand'            => $product->brand?->name,
-                'price'            => (float) $product->price,
-                'oldPrice'         => $product->old_price !== null ? (float) $product->old_price : null,
-                'marketPrice'      => $product->market_price !== null ? (float) $product->market_price : null,
-                'purchasePrice'    => $product->purchase_price !== null ? (float) $product->purchase_price : null,
+            'product' => [
+                'id' => $product->id,
+                'name' => $product->name,
+                'slug' => $product->slug,
+                'status' => $product->status,
+                'sku' => $product->sku,
+                'barcode' => $product->barcode,
+                'gender' => $product->gender,
+                'category' => $product->category?->name,
+                'brand' => $product->brand?->name,
+                'price' => (float) $product->price,
+                'oldPrice' => $product->old_price !== null ? (float) $product->old_price : null,
+                'marketPrice' => $product->market_price !== null ? (float) $product->market_price : null,
+                'purchasePrice' => $product->purchase_price !== null ? (float) $product->purchase_price : null,
                 'manufacturerCode' => $product->manufacturer_code,
-                'gtipCode'         => $product->gtip_code,
-                'originCountry'    => $product->origin_country,
-                'isDomestic'       => $product->is_domestic,
-                'weight'           => $product->weight !== null ? (float) $product->weight : null,
-                'desi'             => $product->desi !== null ? (float) $product->desi : null,
-                'shippingTime'     => $product->shipping_time,
-                'shippingFee'      => $product->shipping_fee !== null ? (float) $product->shipping_fee : null,
-                'freeShipping'     => $product->free_shipping,
-                'minOrderQty'      => $product->min_order_qty,
-                'orderMultiple'    => $product->order_multiple,
-                'material'         => $product->material,
-                'careInstructions' => $product->care_instructions,
-                'images'           => $images,
+                'gtipCode' => $product->gtip_code,
+                // Menşei Ürün Ayarları → Özellikler'deki `mensei` seçimli özelliğidir.
+                'originCountry' => $attributes->labelledValues($product)['mensei'] ?? null,
+                'isDomestic' => $product->is_domestic,
+                'weight' => $product->weight !== null ? (float) $product->weight : null,
+                'desi' => $product->desi !== null ? (float) $product->desi : null,
+                'lengthCm' => $product->length_cm !== null ? (float) $product->length_cm : null,
+                'widthCm' => $product->width_cm !== null ? (float) $product->width_cm : null,
+                'heightCm' => $product->height_cm !== null ? (float) $product->height_cm : null,
+                'shippingTime' => $product->shipping_time,
+                'shippingFee' => $product->shipping_fee !== null ? (float) $product->shipping_fee : null,
+                'freeShipping' => $product->free_shipping,
+                'minOrderQty' => $product->min_order_qty,
+                'orderMultiple' => $product->order_multiple,
+                'material' => $product->material,
+                'images' => $images,
             ],
             'warehouses' => $warehouses,
-            'variants'   => $variantRows,
-            'movements'  => $movements,
-            'totals'     => $totals,
+            'variants' => $variantRows,
+            'movements' => $movements,
+            'totals' => $totals,
             'marketplaces' => $marketplaces,
-            'listings'     => $listings,
+            'listings' => $listings,
             // Üretilecek ürünün iş emri Atölye'de verilir (Product → Atelier bağımlılığı yasak);
             // yalnız route adı + yetkiyle bağlanır, kod bağımlılığı kurulmaz.
             'productionOrderUrl' => $product->sourcing === Product::SOURCING_MANUFACTURED

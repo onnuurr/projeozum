@@ -2,6 +2,7 @@
 
 namespace Modules\Product\Providers;
 
+use App\Support\ModuleSettingsRegistry;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 use Illuminate\Console\Scheduling\Schedule;
 use Modules\Product\Console\RenumberCategoriesCommand;
@@ -43,6 +44,15 @@ class ProductServiceProvider extends ModuleServiceProvider
         parent::boot();
 
         $this->registerCategoryStatusSync();
+
+        // Tek Product ayar sayfası (beden, renk, …): Katalog/Stok/Siparişler sekme satırında çark.
+        $this->app->make(ModuleSettingsRegistry::class)->register(
+            key: 'product',
+            url: '/products/settings',
+            permission: 'product-settings.view',
+            menuRoots: ['/products', '/products/stocks', '/orders'],
+            tabPermissions: ['variant-option.view', 'product-attribute.view'],
+        );
     }
 
     /**

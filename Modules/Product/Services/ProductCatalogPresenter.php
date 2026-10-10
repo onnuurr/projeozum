@@ -6,6 +6,7 @@ use App\Support\Media;
 use Illuminate\Support\Collection;
 use Modules\Product\Enums\Capability;
 use Modules\Product\Models\PriceList;
+use Modules\Product\Models\ProductAttribute;
 use Modules\Product\Models\Product;
 use Modules\Tenant\Models\Tenant;
 use Modules\Tenant\Models\TenantProductAccess;
@@ -23,6 +24,7 @@ class ProductCatalogPresenter
         private ProductDisplayResolver $display,
         private ProductMaterialLinkService $materialLinks,
         private ProductReadinessService $readiness,
+        private ProductAttributeService $attributes,
     ) {}
 
     /**
@@ -79,56 +81,53 @@ class ProductCatalogPresenter
         $customPrice = $customPriceByProduct[$p->id] ?? null;
 
         return [
-            'id'                => $p->id,
-            'name'              => $p->name,
-            'slug'              => $p->slug,
-            'sku'               => $p->sku,
-            'status'            => $p->status,
-            'sourcing'          => $p->sourcing,
-            'image'             => optional($p->images->first())->url,
-            'images'            => $p->images->map(fn ($img) => [
-                'id'       => $img->id,
-                'url'      => $img->url,
+            'id' => $p->id,
+            'name' => $p->name,
+            'slug' => $p->slug,
+            'sku' => $p->sku,
+            'status' => $p->status,
+            'sourcing' => $p->sourcing,
+            'image' => optional($p->images->first())->url,
+            'images' => $p->images->map(fn ($img) => [
+                'id' => $img->id,
+                'url' => $img->url,
                 'is_cover' => (bool) $img->is_cover,
             ])->values()->all(),
-            'category_id'       => $p->category_id,
-            'brand_id'          => $p->brand_id,
-            'brand'             => $p->brand?->slug,
-            'brandLabel'        => $p->brand?->name,
-            'category'          => $p->category?->name,
-            'categorySlug'      => $p->category?->slug,
-            'gender'            => $p->gender,
-            'price'             => $this->displayPrice($variantsArr, $customPrice, $p),
-            'oldPrice'          => $p->old_price !== null ? (float) $p->old_price : null,
-            'marketPrice'       => $p->market_price !== null ? (float) $p->market_price : null,
-            'purchasePrice'     => $p->purchase_price !== null ? (float) $p->purchase_price : null,
-            'barcode'           => $p->barcode,
-            'desi'              => $p->desi !== null ? (float) $p->desi : null,
-            'marketplaces'      => optional($p->category)->marketplaceMappings
+            'category_id' => $p->category_id,
+            'brand_id' => $p->brand_id,
+            'brand' => $p->brand?->slug,
+            'brandLabel' => $p->brand?->name,
+            'category' => $p->category?->name,
+            'categorySlug' => $p->category?->slug,
+            'price' => $this->displayPrice($variantsArr, $customPrice, $p),
+            'oldPrice' => $p->old_price !== null ? (float) $p->old_price : null,
+            'marketPrice' => $p->market_price !== null ? (float) $p->market_price : null,
+            'purchasePrice' => $p->purchase_price !== null ? (float) $p->purchase_price : null,
+            'barcode' => $p->barcode,
+            'desi' => $p->desi !== null ? (float) $p->desi : null,
+            'marketplaces' => optional($p->category)->marketplaceMappings
                 ?->map(fn ($m) => [
-                    'key'      => $m->marketplace?->key,
-                    'name'     => $m->marketplace?->name,
-                    'color'    => $m->marketplace?->color,
+                    'key' => $m->marketplace?->key,
+                    'name' => $m->marketplace?->name,
+                    'color' => $m->marketplace?->color,
                     'logoText' => $m->marketplace?->logo_text,
                 ])->filter(fn ($x) => $x['key'])->values()->all() ?? [],
-            'listings'          => $p->listings->mapWithKeys(fn ($l) => [
+            'listings' => $p->listings->mapWithKeys(fn ($l) => [
                 $l->marketplace->key => [
-                    'price'  => $l->price !== null ? (float) $l->price : null,
+                    'price' => $l->price !== null ? (float) $l->price : null,
                     'isSent' => (bool) $l->is_sent,
                 ],
             ])->all(),
-            'stock'             => (int) ($p->variants_total_stock ?? 0),
-            'rating'            => (float) $p->rating,
-            'reviewCount'       => $p->review_count,
-            'isNew'             => $p->is_new,
-            'freeShipping'      => $p->free_shipping,
-            'careInstructions'  => $p->care_instructions,
-            'material'          => $p->material,
-            'originCountry'     => $p->origin_country,
-            'sizes'             => $this->sizes($p),
-            'colors'            => $this->colors($p),
-            'variants'          => $variantsArr,
-            'readiness'         => $this->readinessByCapability($p),
+            'stock' => (int) ($p->variants_total_stock ?? 0),
+            'rating' => (float) $p->rating,
+            'reviewCount' => $p->review_count,
+            'isNew' => $p->is_new,
+            'freeShipping' => $p->free_shipping,
+            'material' => $p->material,
+            'sizes' => $this->sizes($p),
+            'colors' => $this->colors($p),
+            'variants' => $variantsArr,
+            'readiness' => $this->readinessByCapability($p),
         ];
     }
 
@@ -150,25 +149,24 @@ class ProductCatalogPresenter
             : (float) min($variantPrices);
 
         return [
-            'id'           => $p->id,
-            'name'         => $p->name,
-            'slug'         => $p->slug,
-            'sku'          => $p->sku,
-            'image'        => $p->relationLoaded('images') ? optional($p->images->first())->url : null,
-            'brand'        => $p->brand?->name,
-            'brandSlug'    => $p->brand?->slug,
-            'category'     => $p->category?->name,
+            'id' => $p->id,
+            'name' => $p->name,
+            'slug' => $p->slug,
+            'sku' => $p->sku,
+            'image' => $p->relationLoaded('images') ? optional($p->images->first())->url : null,
+            'brand' => $p->brand?->name,
+            'brandSlug' => $p->brand?->slug,
+            'category' => $p->category?->name,
             'categorySlug' => $p->category?->slug,
-            'gender'       => $p->gender,
-            'price'        => $displayPrice,
-            'oldPrice'     => $p->old_price !== null ? (float) $p->old_price : null,
-            'stock'        => (int) ($p->variants_total_stock ?? 0),
-            'rating'       => (float) $p->rating,
-            'reviewCount'  => $p->review_count,
-            'isNew'        => (bool) $p->is_new,
+            'price' => $displayPrice,
+            'oldPrice' => $p->old_price !== null ? (float) $p->old_price : null,
+            'stock' => (int) ($p->variants_total_stock ?? 0),
+            'rating' => (float) $p->rating,
+            'reviewCount' => $p->review_count,
+            'isNew' => (bool) $p->is_new,
             'freeShipping' => (bool) $p->free_shipping,
-            'sizes'        => $this->sizes($p),
-            'colors'       => $this->colors($p),
+            'sizes' => $this->sizes($p),
+            'colors' => $this->colors($p),
         ];
     }
 
@@ -188,33 +186,33 @@ class ProductCatalogPresenter
         $composition = $this->composition($p);
 
         return [
-            'id'           => $p->id,
-            'name'         => $p->name,
-            'slug'         => $p->slug,
-            'sku'          => $p->sku,
-            'images'       => $p->images()
+            'id' => $p->id,
+            'name' => $p->name,
+            'slug' => $p->slug,
+            'sku' => $p->sku,
+            'images' => $p->images()
                 ->reorder()->orderByDesc('is_cover')->orderBy('sort_order')
                 ->pluck('path')->map(fn ($path) => Media::url($path))->filter()->values()->all(),
-            'brand'        => $p->brand?->name ?? '',
-            'brandSlug'    => $p->brand?->slug,
-            'category'     => $p->category?->name ?? '',
+            'brand' => $p->brand?->name ?? '',
+            'brandSlug' => $p->brand?->slug,
+            'category' => $p->category?->name ?? '',
             'categorySlug' => $p->category?->slug,
-            'gender'       => $p->gender,
-            'price'        => $this->displayPrice($variantsArr, $customPrice, $p),
-            'oldPrice'     => $p->old_price !== null ? (float) $p->old_price : null,
-            'stock'        => (int) ($p->variants_total_stock ?? 0),
-            'rating'       => (float) $p->rating,
-            'reviewCount'  => $p->review_count,
-            'isNew'        => (bool) $p->is_new,
+            'gender' => $p->gender,
+            'price' => $this->displayPrice($variantsArr, $customPrice, $p),
+            'oldPrice' => $p->old_price !== null ? (float) $p->old_price : null,
+            'stock' => (int) ($p->variants_total_stock ?? 0),
+            'rating' => (float) $p->rating,
+            'reviewCount' => $p->review_count,
+            'isNew' => (bool) $p->is_new,
             'isBestSeller' => $p->review_count >= 200,
             'freeShipping' => (bool) $p->free_shipping,
-            'sizes'        => $this->sizes($p),
-            'colors'       => $this->colors($p),
-            'variants'     => $variantsArr,
-            'description'  => $this->display->for($p, $tenant)->description ?? '',
-            'features'     => $this->features($p, $composition),
-            'specs'        => $this->specs($p, $composition),
-            'reviews'            => [],
+            'sizes' => $this->sizes($p),
+            'colors' => $this->colors($p),
+            'variants' => $variantsArr,
+            'description' => $this->display->for($p, $tenant)->description ?? '',
+            'features' => $this->features($p, $composition),
+            'specs' => $this->specs($p, $composition),
+            'reviews' => [],
             'ratingDistribution' => [],
         ];
     }
@@ -234,14 +232,14 @@ class ProductCatalogPresenter
                 ?? (float) $v->price;
 
             return [
-                'id'         => $v->id,
-                'size'       => $v->size,
+                'id' => $v->id,
+                'size' => $v->size,
                 'color_name' => $v->color_name,
-                'color_hex'  => $v->color_hex,
-                'sku'        => $v->sku,
-                'price'      => (float) $resolved,
-                'old_price'  => $v->old_price !== null ? (float) $v->old_price : null,
-                'stock'      => (int) $v->stock,
+                'color_hex' => $v->color_hex,
+                'sku' => $v->sku,
+                'price' => (float) $resolved,
+                'old_price' => $v->old_price !== null ? (float) $v->old_price : null,
+                'stock' => (int) $v->stock,
             ];
         })->values()->all();
     }
@@ -346,24 +344,49 @@ class ProductCatalogPresenter
      */
     private function specs(Product $p, ?string $composition): array
     {
-        $sizes  = $this->sizes($p);
+        $sizes = $this->sizes($p);
         $colors = $this->colors($p);
 
         return array_filter([
             __('product::labels.specs.brand') => $p->brand?->name,
             __('product::labels.specs.category') => $p->category?->name,
-            __('product::labels.specs.gender') => $p->gender,
             __('product::labels.specs.sku') => $p->sku,
             __('product::labels.specs.barcode') => $p->barcode,
             __('product::labels.specs.material') => $p->material,
             __('product::labels.specs.composition') => $composition,
-            __('product::labels.specs.origin') => $p->origin_country,
-            __('product::labels.specs.weight') => $p->weight !== null ? rtrim(rtrim(number_format((float) $p->weight, 3, ',', ''), '0'), ',') . ' kg' : null,
+            ...$this->attributeSpecs($p),
+            __('product::labels.specs.weight') => $p->weight !== null ? rtrim(rtrim(number_format((float) $p->weight, 3, ',', ''), '0'), ',').' kg' : null,
             __('product::labels.specs.desi') => $p->desi !== null ? rtrim(rtrim(number_format((float) $p->desi, 2, ',', ''), '0'), ',') : null,
             __('product::labels.specs.sizes') => $sizes ? implode(', ', $sizes) : null,
             __('product::labels.specs.colors') => $colors ? collect($colors)->pluck('name')->implode(', ') : null,
-            __('product::labels.specs.care') => $p->care_instructions,
             __('product::labels.specs.shipping_time') => $p->shipping_time,
         ], fn ($v) => filled($v));
+    }
+
+    /**
+     * Kategorinin Ürün Ayarları → Özellikler'den gelen değerleri (Sezon, Kalıp, Menşei…),
+     * Bagisto ürün sayfasındaki özellik listesiyle aynı kaynak. Görsel/dosya tablo dışında kalır.
+     *
+     * @return array<string, string|null>
+     */
+    private function attributeSpecs(Product $p): array
+    {
+        $values = $this->attributes->labelledValues($p);
+        $specs = [];
+
+        foreach ($this->attributes->definitionsFor($p->category_id) as ['attribute' => $attribute]) {
+            $value = $values[$attribute->code] ?? null;
+            if ($value === null || in_array($attribute->type, [ProductAttribute::TYPE_IMAGE, ProductAttribute::TYPE_FILE], true)) {
+                continue;
+            }
+
+            $specs[$attribute->name] = match (true) {
+                is_array($value) => implode(', ', $value),
+                is_bool($value) => __($value ? 'product::labels.specs.yes' : 'product::labels.specs.no'),
+                default => (string) $value,
+            };
+        }
+
+        return $specs;
     }
 }
