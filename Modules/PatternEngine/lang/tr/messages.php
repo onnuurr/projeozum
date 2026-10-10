@@ -28,6 +28,18 @@ return [
         'vector_extraction_failed' => 'Vektör kalıp çıkarılamadı (taranmış/desteklenmeyen format olabilir).',
         'pdf_missing_on_disk' => 'Kalıp PDF dosyası diskte bulunamadı: :path',
         'photo_missing_on_disk' => 'Kalıp fotoğrafı diskte bulunamadı: :path',
+        'measurements_saved' => 'Ölçü tabloları kaydedildi.',
+        'production_saved' => 'Kalıp kartı kaydedildi.',
+    ],
+
+    // Kalıp Ayarları (tipler + ölçü noktaları)
+    'pattern_settings' => [
+        'type_saved' => 'Kalıp tipi kaydedildi.',
+        'type_deleted' => 'Kalıp tipi silindi.',
+        'type_deactivated' => 'Bu tipe bağlı kalıplar olduğu için silinmedi, pasife alındı.',
+        'point_saved' => 'Ölçü noktası kaydedildi.',
+        'point_deleted' => 'Ölçü noktası silindi.',
+        'point_deactivated' => 'Bu noktaya girilmiş ölçüler olduğu için silinmedi, pasife alındı.',
     ],
 
     // Linkten içe aktarma

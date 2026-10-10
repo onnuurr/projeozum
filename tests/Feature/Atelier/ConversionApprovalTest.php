@@ -24,7 +24,7 @@ class ConversionApprovalTest extends TestCase
                 'product_type' => 'tulum',
                 'size_range'   => '50/56-170/176',
                 'size_layers'  => ['BEDEN_YESIL', 'BEDEN_CYAN'],
-                'measurements' => ['labels' => ['OW'], 'matrix' => ['OW' => [22.5]]],
+                'measurements' => ['labels' => ['OW'], 'sizes' => ['50/56'], 'matrix' => ['OW' => [22.5]]],
                 'fabric_usage' => null,
                 'parts'        => [
                     ['part_name' => 'Arka', 'quantity' => 1],
@@ -37,7 +37,8 @@ class ConversionApprovalTest extends TestCase
 
         $this->assertSame('nipnaps', $pattern->vendor);
         $this->assertSame(['BEDEN_YESIL', 'BEDEN_CYAN'], $pattern->size_layers);
-        $this->assertSame([22.5], $pattern->measurements['matrix']['OW']);
+        // Nipnaps OW → chest_circ satırı (pattern_measurements, source=pdf; 2026-10-07).
+        $this->assertSame(22.5, $pattern->measurements()->whereHas('point', fn ($q) => $q->where('key', 'chest_circ'))->first()->value);
         $this->assertCount(2, $pattern->parts);
         $this->assertSame(2, $pattern->parts->firstWhere('part_name', 'Askı')->quantity);
         $this->assertSame(ConversionJob::STATUS_APPROVED, $job->fresh()->status);

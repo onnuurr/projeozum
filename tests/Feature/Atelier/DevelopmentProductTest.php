@@ -14,6 +14,8 @@ use Modules\Bagisto\Jobs\PushProductToBagisto;
 use Modules\Product\Exceptions\InvalidProductTransitionException;
 use Modules\Product\Models\Category;
 use Modules\Product\Models\Product;
+use Modules\Product\Models\ProductAttribute;
+use Modules\Product\Models\ProductAttributeOption;
 use Modules\Product\Models\Warehouse;
 use Modules\Product\Services\ProductService;
 use Spatie\Permission\Models\Permission;
@@ -44,6 +46,8 @@ class DevelopmentProductTest extends TestCase
         $this->admin->givePermissionTo(['product.add', 'atelier.bom.manage']);
 
         $this->category = Category::create(['name' => 'C', 'slug' => 'c-' . uniqid(), 'status' => 'active', 'sort_order' => 0]);
+        // Cinsiyet `cinsiyet` özelliğidir; migration kök kategorilere atar, testte kategori sonradan açıldığı için elle
+        $this->category->productAttributes()->attach(ProductAttribute::where('code', Product::GENDER_ATTRIBUTE)->value('id'), ['required' => true]);
         $this->kumas = Material::create(['code' => 'K-' . uniqid(), 'name' => 'Kumaş', 'type' => 'kumas', 'unit' => 'metre', 'unit_cost' => 100, 'current_stock' => 1000]);
     }
 
@@ -53,7 +57,7 @@ class DevelopmentProductTest extends TestCase
             'name'        => 'Keten Gömlek',
             'sku'         => 'KTN-01',
             'category_id' => $this->category->id,
-            'gender'      => 'Kadın',
+            'gender'      => $this->genderId('Kız'),
             'variants'    => [
                 ['size' => 'M', 'color_name' => 'Ekru', 'sku' => 'KTN-01-M-EKRU'],
             ],
@@ -64,6 +68,11 @@ class DevelopmentProductTest extends TestCase
             'margin_pct'          => 50,
             'price'               => 300,
         ], $overrides);
+    }
+
+    private function genderId(string $name): int
+    {
+        return ProductAttributeOption::whereHas('attribute', fn ($q) => $q->where('code', Product::GENDER_ATTRIBUTE))->where('name', $name)->value('id');
     }
 
     private function jobProperty(object $job, string $name): mixed
@@ -83,6 +92,7 @@ class DevelopmentProductTest extends TestCase
 
         $this->assertSame(Product::STATUS_DEVELOPMENT, $product->status);
         $this->assertSame(Product::SOURCING_MANUFACTURED, $product->sourcing);
+        $this->assertSame('Kız', $product->gender); // cinsiyet özellikten okunur
         // 1.5m × 1.10 fire × 100₺ = 165 + 35 işçilik = 200
         $this->assertEquals(200, (float) $product->purchase_price);
         $this->assertEquals(300, (float) $product->price);

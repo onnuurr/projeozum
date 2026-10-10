@@ -1,6 +1,6 @@
 <script setup>
 import { ref, reactive, computed, inject, watch, onUnmounted } from 'vue'
-import { Head, router, useForm } from '@inertiajs/vue3'
+import { Head, Link, router, useForm } from '@inertiajs/vue3'
 import { useDebounceFn } from '@vueuse/core'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import {
@@ -126,7 +126,11 @@ function openEdit(p) {
 		name: p.name, code: p.code || '', product_type: p.productType, size_range: p.sizeRange || '',
 		vendor: p.vendor || '', collection: p.collection || '', status: p.status,
 		scale_verified: !!p.scaleVerified, scale_deviation_mm: p.scaleDeviation, notes: p.notes || '',
-		parts: p.parts.map((pt) => ({ part_name: pt.partName, quantity: pt.quantity, size_range: pt.sizeRange || '' })),
+		// Kalıp Kartı alanları (no/varyant/kumaş/not) çekmecede düzenlenmez ama kayıtta korunur.
+		parts: p.parts.map((pt) => ({
+			part_name: pt.partName, quantity: pt.quantity, size_range: pt.sizeRange || '',
+			part_no: pt.partNo || '', variants: pt.variants || '', fabric_code: pt.fabricCode || '', notes: pt.notes || '',
+		})),
 		tags: [...p.tags],
 	})
 	formOpen.value = true
@@ -273,7 +277,7 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer) })
 				</button>
 				<div class="body">
 					<div class="title-row">
-						<h3 class="name">{{ p.name }}</h3>
+						<h3 class="name"><Link :href="`/atelier/patterns/${p.id}`" class="name-link">{{ p.name }}</Link></h3>
 						<span v-if="p.code" class="code">{{ p.code }}</span>
 					</div>
 					<div class="tags">
@@ -291,6 +295,7 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer) })
 					</div>
 					<footer class="foot">
 						<div class="files">
+							<Link :href="`/atelier/patterns/${p.id}`" class="file-link is-card" title="Ölçü tablosu, parçalar, kumaş sarfiyatı">Kart</Link>
 							<a v-if="p.dxfUrl" :href="p.dxfUrl" class="file-link is-dxf" download>DXF</a>
 							<a v-if="p.pdfUrl" :href="p.pdfUrl" class="file-link is-pdf" target="_blank" rel="noopener">PDF</a>
 						</div>
@@ -474,6 +479,9 @@ onUnmounted(() => { if (pollTimer) clearInterval(pollTimer) })
 .file-link { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 6px; text-decoration: none; }
 .file-link.is-dxf { background: var(--oz-accent-soft); color: var(--oz-accent); }
 .file-link.is-pdf { background: var(--oz-danger-soft); color: var(--oz-danger); }
+.file-link.is-card { background: var(--oz-info-soft); color: var(--oz-info); }
+.name-link { color: inherit; text-decoration: none; }
+.name-link:hover { color: var(--oz-accent); }
 
 .form { display: flex; flex-direction: column; gap: 14px; }
 .row-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }

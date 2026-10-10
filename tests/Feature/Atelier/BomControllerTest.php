@@ -27,7 +27,7 @@ class BomControllerTest extends TestCase
     public function test_save_creates_bom_with_lines(): void
     {
         $cat = Category::create(['name' => 'C', 'slug' => 'c-' . uniqid(), 'status' => 'active', 'sort_order' => 0]);
-        $product = Product::create(['category_id' => $cat->id, 'name' => 'P', 'sku' => 'S-' . uniqid(), 'gender' => 'Unisex', 'price' => 10]);
+        $product = Product::create(['category_id' => $cat->id, 'name' => 'P', 'sku' => 'S-' . uniqid(), 'price' => 10]);
         $material = Material::create(['code' => 'K', 'name' => 'Kumaş', 'type' => 'kumas', 'unit' => 'metre', 'unit_cost' => 10]);
 
         $this->actingAs($this->admin)

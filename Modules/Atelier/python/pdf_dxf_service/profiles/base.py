@@ -118,6 +118,13 @@ class ExtractionProfile:
     def parse_measurements(self, doc):
         return None
 
+    def parse_production(self, doc) -> dict:
+        """Kalıp Kartı üretim bilgisi (en-iyi-çaba): sizes, size_range, variants,
+        parts[{part_no,part_name,quantity,variants}], fabric_usage, seam_allowance_cm,
+        body_measurements[{basis,group,point_key,values}]. Okunamayan anahtar HİÇ
+        döndürülmez — PHP tarafı mevcut/elle girilmiş değeri korur."""
+        return {}
+
     def own_tile_label(self, page) -> str | None:
         """Karonun KENDİ sayfasında taşıdığı ham etiket (ör. Burda'nın dev
         soluk '01' numarası) — henüz (row,col) değil, build_grid_map()'teki

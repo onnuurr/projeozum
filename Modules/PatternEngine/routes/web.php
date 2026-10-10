@@ -4,7 +4,9 @@ use Illuminate\Support\Facades\Route;
 use Modules\PatternEngine\Http\Controllers\AssignmentController;
 use Modules\PatternEngine\Http\Controllers\ConceptStudioController;
 use Modules\PatternEngine\Http\Controllers\ConversionController;
+use Modules\PatternEngine\Http\Controllers\PatternCardController;
 use Modules\PatternEngine\Http\Controllers\PatternController;
+use Modules\PatternEngine\Http\Controllers\PatternSettingsController;
 use Modules\PatternEngine\Http\Controllers\PatternEngineController;
 use Modules\PatternEngine\Http\Controllers\PatternProfileController;
 
@@ -88,6 +90,26 @@ Route::middleware(['auth', 'verified'])
             ->middleware('can:atelier.pattern.manage')->name('patterns.tracer-image');
         Route::post('patterns/{pattern}/traced', [PatternController::class, 'saveTraced'])
             ->middleware('can:atelier.pattern.manage')->name('patterns.traced');
+        // Kalıp Ayarları (çark): kalıp tipleri + ölçü noktaları — {pattern}'dan ÖNCE tanımlı olmalı.
+        Route::get('patterns/settings', [PatternSettingsController::class, 'index'])
+            ->middleware('can:atelier.pattern.settings')->name('patterns.settings.index');
+        Route::prefix('patterns/settings')->name('patterns.settings.')->middleware('can:atelier.pattern.settings')->group(function () {
+            Route::post('types', [PatternSettingsController::class, 'storeType'])->name('types.store');
+            Route::put('types/{type}', [PatternSettingsController::class, 'updateType'])->name('types.update');
+            Route::delete('types/{type}', [PatternSettingsController::class, 'destroyType'])->name('types.destroy');
+            Route::post('points', [PatternSettingsController::class, 'storePoint'])->name('points.store');
+            Route::put('points/{point}', [PatternSettingsController::class, 'updatePoint'])->name('points.update');
+            Route::delete('points/{point}', [PatternSettingsController::class, 'destroyPoint'])->name('points.destroy');
+        });
+
+        // Kalıp Kartı: ölçü tabloları, parçalar, kumaş sarfiyatı, malzeme
+        Route::get('patterns/{pattern}', [PatternCardController::class, 'show'])
+            ->middleware('can:atelier.pattern.view')->whereNumber('pattern')->name('patterns.show');
+        Route::put('patterns/{pattern}/measurements', [PatternCardController::class, 'saveMeasurements'])
+            ->middleware('can:atelier.pattern.manage')->name('patterns.measurements.update');
+        Route::put('patterns/{pattern}/production', [PatternCardController::class, 'saveProduction'])
+            ->middleware('can:atelier.pattern.manage')->name('patterns.production.update');
+
         Route::put('patterns/{pattern}', [PatternController::class, 'update'])
             ->middleware('can:atelier.pattern.manage')->name('patterns.update');
         Route::delete('patterns/{pattern}', [PatternController::class, 'destroy'])

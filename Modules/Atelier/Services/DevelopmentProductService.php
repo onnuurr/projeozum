@@ -38,7 +38,7 @@ class DevelopmentProductService
                     'sku'            => $data['sku'],
                     'category_id'    => $data['category_id'],
                     'brand_id'       => $data['brand_id'] ?? null,
-                    'gender'         => $data['gender'],
+                    'attributes'     => [Product::GENDER_ATTRIBUTE => (int) $data['gender']],
                     // Ön maliyet; üretim tamamlanınca gerçek birim maliyetle ezilir.
                     'purchase_price' => $cost['unit_cost'],
                     'variants'       => array_map(fn (array $v) => [

@@ -26,10 +26,15 @@ OVERVIEW_LABEL_SIZE_RANGE = (14.0, 40.0)  # genel bakış sayfasındaki küçük
 OVERVIEW_MIN_LABELS = 6        # bir sayfayı "genel bakış" saymak için asgari etiket
 
 TILE_NUM_RE = re.compile(r'^\d{1,2}$')
+EDGE_LABEL_RE = re.compile(r'(\d{1,2})([a-z])')  # Download-Schnitt kenar etiketi ("1a", "4i")
 
 SIZE_RE = re.compile(r'(?:str|stl|size|größe|gr)\.?\s*:?\s*(\d{2,3})\s*[-–]\s*(\d{2,3})', re.IGNORECASE)
 
 PRODUCT_LEXICON = {
+    # scan_lexicon alt-dizi eşler ve SIRAYLA döner — 'shirt'ten ÖNCE gelmeli,
+    # yoksa "sweatshirt" gömlek sanılır (gerçek vaka: Mod.9301 Tolstovka).
+    'sweatshirt': 'sweatshirt', 'sweater': 'sweatshirt', 'hoodie': 'kapüşonlu',
+    'kapuze': 'kapüşonlu', 'anorak': 'anorak',
     'solkjole': 'elbise', 'solklänning': 'elbise', 'kjole': 'elbise',
     'klänning': 'elbise', 'kleid': 'elbise', 'dress': 'elbise',
     'bukser': 'pantolon', 'byxor': 'pantolon', 'hose': 'pantolon',
@@ -60,7 +65,7 @@ class BurdaProfile(ExtractionProfile):
         return 'ortak'
 
     def parse_grid(self, text: str):
-        # Burda karoları (satır,sütun) TAŞIMAZ — her zaman None; motor
+        # Burda karoları sayfa metninde (satır,sütun) TAŞIMAZ — her zaman None; motor
         # own_tile_label()/build_grid_map() ikilisine düşer (bkz. converter.py).
         return None
 
@@ -73,9 +78,98 @@ class BurdaProfile(ExtractionProfile):
                     if TILE_NUM_RE.fullmatch(t) and span['size'] >= TILE_LABEL_MIN_SIZE:
                         if best is None or span['size'] > best[1]:
                             best = (t, span['size'])
-        return best[0] if best else None
+        if best:
+            return best[0]
+        # Download-Schnitt: karonun kimliği kendi kenar etiketlerinin kümesidir.
+        labels = self._edge_labels(page)
+        if labels and self._edge_cell(labels) is not None:
+            return 'edge:' + ','.join(sorted(f'{n}{chr(96 + c)}' for n, c, _x, _y in labels))
+        return None
+
+    @staticmethod
+    def _edge_labels(page) -> list:
+        """[(sayı, harf-sütunu, x/genişlik, y/yükseklik), ...] — "1a"/"4i" kenar etiketleri."""
+        w, h = page.rect.width or 1.0, page.rect.height or 1.0
+        out = []
+        for block in page.get_text('dict')['blocks']:
+            for line in block.get('lines', []):
+                for span in line['spans']:
+                    m = EDGE_LABEL_RE.fullmatch(span['text'].strip())
+                    if not m:
+                        continue
+                    x0, y0, x1, y1 = span['bbox']
+                    out.append((int(m.group(1)), ord(m.group(2)) - 96,
+                                (x0 + x1) / 2 / w, (y0 + y1) / 2 / h))
+        return out
+
+    @staticmethod
+    def _edge_cell(labels: list):
+        """Almanca "burda Download-Schnitt" kenar-eşleştirme etiketlerinden (satır,sütun).
+
+        TEK sayı = satır İÇİ dikey ek ("1a" = 1. satırda a ile b sütunu arası →
+        satır=(n+1)/2); ÇİFT sayı = satırlar ARASI yatay ek, harfi doğrudan
+        sütundur ("2a" = 1. ve 2. satırın a sütunu). Bu numaralar MANTIKSAL
+        sıradır — kâğıttaki yön (1. satır üstte mi altta mı) build_grid_map'te
+        etiket konumlarından çıkarılır (gerçek vaka Mod.9301: 1. satır EN ALTTA)."""
+        odd = {(n, c) for n, c, _x, _y in labels if n % 2}
+        even = {(n, c) for n, c, _x, _y in labels if not n % 2}
+        if not odd:
+            return None  # tek sütunlu ızgarada satır belirsiz — desteklenmiyor
+        if len({n for n, _ in odd}) > 1 or len({c for _, c in even}) > 1:
+            return None  # tutarsız etiketler → karo değil (ör. açıklama metni)
+        row = (next(iter(odd))[0] + 1) // 2
+        if even:
+            col = next(iter(even))[1]
+        elif len(odd) == 2:
+            col = max(c for _, c in odd)
+        else:
+            return None
+        return (row, col)
+
+    def _edge_grid_map(self, doc) -> dict | None:
+        """Download-Schnitt ızgarası: {own_tile_label: (satır,sütun)} — fiziksel yönde.
+
+        Her karoda bir ekin sayfanın hangi kenarında durduğuna bakıp oy toplanır:
+        çift ek n, (n/2). satırla (n/2+1). satır arasındadır; bu karo (n/2). satırdaysa
+        ve ek ÜSTTE duruyorsa mantıksal satırlar kâğıtta YUKARI doğru artıyordur.
+        Sütunlar için aynı mantık tek eklerle (sol/sağ kenar) uygulanır."""
+        cells: dict = {}
+        up_votes = down_votes = left_votes = right_votes = 0
+        for i in range(doc.page_count):
+            page = doc[i]
+            labels = self._edge_labels(page)
+            cell = self._edge_cell(labels) if labels else None
+            if cell is None:
+                continue
+            row, col = cell
+            cells[self.own_tile_label(page)] = cell
+            for n, c, x, y in labels:
+                if n % 2 == 0:
+                    if (row == n // 2) == (y < 0.5):
+                        up_votes += 1
+                    else:
+                        down_votes += 1
+                elif c in (col - 1, col):
+                    # tek ek c, c. ile (c+1). sütun arasında; bu karo c. sütundaysa ek SAĞDA olmalı
+                    if (col == c) == (x > 0.5):
+                        right_votes += 1
+                    else:
+                        left_votes += 1
+        if len(cells) < 2:
+            return None
+        rows = max(r for r, _ in cells.values())
+        cols = max(c for _, c in cells.values())
+        return {
+            label: (rows - r + 1 if up_votes > down_votes else r,
+                    cols - c + 1 if left_votes > right_votes else c)
+            for label, (r, c) in cells.items()
+        }
 
     def build_grid_map(self, doc) -> dict | None:
+        edge_map = self._edge_grid_map(doc)
+        if edge_map is not None:
+            return edge_map
+
         best_page = None
         best_labels: list = []
         for i in range(doc.page_count):
@@ -118,6 +212,10 @@ class BurdaProfile(ExtractionProfile):
 
     def parse_parts(self, text: str) -> list:
         return []  # Burda parça adlarını karo üstü küçük ok/etiketlerle verir — güvenilir ayrıştırma yok, operatöre bırakılır.
+
+    def parse_production(self, doc) -> dict:
+        from .burda_production import parse_production
+        return parse_production(doc, self)
 
     def parse_size(self, text: str):
         m = SIZE_RE.search(text)

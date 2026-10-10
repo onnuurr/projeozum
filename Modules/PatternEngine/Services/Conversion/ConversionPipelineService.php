@@ -9,7 +9,9 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Modules\PatternEngine\Models\ConversionJob;
 use Modules\PatternEngine\Models\Pattern;
+use Modules\PatternEngine\Models\PatternType;
 use Modules\PatternEngine\Services\Conversion\Contracts\PdfDxfConverterContract;
+use Modules\PatternEngine\Services\PatternMeasurementService;
 use Throwable;
 
 /**
@@ -20,7 +22,10 @@ use Throwable;
  */
 class ConversionPipelineService
 {
-    public function __construct(private PdfDxfConverterContract $converter) {}
+    public function __construct(
+        private PdfDxfConverterContract $converter,
+        private PatternMeasurementService $measurements,
+    ) {}
 
     private function disk(): string
     {
@@ -98,8 +103,12 @@ class ConversionPipelineService
                 'vendor'             => $meta['profile'] ?? null,
                 'size_layers'        => $meta['size_layers'] ?? null,
                 'color_size_map'     => $meta['color_size_map'] ?? null,
-                'measurements'       => $meta['measurements'] ?? null,
+                'sizes'              => $meta['sizes'] ?? null,
+                'variants'           => $meta['variants'] ?? null,
                 'fabric_usage'       => $meta['fabric_usage'] ?? null,
+                'materials'          => $meta['materials'] ?? null,
+                'seam_allowance_cm'  => $meta['seam_allowance_cm'] ?? null,
+                'hem_allowance_cm'   => $meta['hem_allowance_cm'] ?? null,
                 'scale_verified'     => (bool) ($meta['scale_verified'] ?? false),
                 'scale_deviation_mm' => $meta['scale_deviation_mm'] ?? null,
                 'dxf_path'           => $job->output_dxf_path,
@@ -114,10 +123,17 @@ class ConversionPipelineService
                     continue;
                 }
                 $pattern->parts()->create([
+                    'part_no'    => $part['part_no'] ?? null,
                     'part_name'  => $name,
                     'quantity'   => max(1, (int) ($part['quantity'] ?? 1)),
                     'size_range' => $part['size_range'] ?? null,
+                    'variants'   => $part['variants'] ?? null,
                 ]);
+            }
+            $this->measurements->importFromPdf($pattern, $meta);
+
+            if ($pattern->product_type !== 'belirsiz') {
+                $pattern->update(['pattern_type_id' => PatternType::firstOrCreate(['name' => $pattern->product_type])->id]);
             }
 
             $job->update([

@@ -37,7 +37,7 @@ class PatternController extends Controller
         $tag     = trim((string) $request->input('tag', ''));
 
         $patterns = Pattern::query()
-            ->with(['parts:id,pattern_id,part_name,quantity', 'tags:id,pattern_id,tag'])
+            ->with(['parts:id,pattern_id,part_no,part_name,quantity,size_range,variants,fabric_code,notes', 'tags:id,pattern_id,tag'])
             ->when($search !== '', fn ($q) => $q->where(fn ($w) => $w
                 ->where('name', 'ilike', "%{$search}%")
                 ->orWhere('code', 'ilike', "%{$search}%")
@@ -65,8 +65,11 @@ class PatternController extends Controller
                 'previewUrl'   => $p->preview_image_path ? Storage::disk($disk)->url($p->preview_image_path) : null,
                 'dxfUrl'       => $p->dxf_path ? Storage::disk($disk)->url($p->dxf_path) : null,
                 'pdfUrl'       => $p->pdf_path ? Storage::disk($disk)->url($p->pdf_path) : null,
+                // partNo/variants/fabricCode/notes Kalıp Kartı'nda düzenlenir; çekmece kaydında
+                // kaybolmasınlar diye burada da taşınır (syncParts tüm listeyi yeniden yazar).
                 'parts'        => $p->parts->map(fn ($pt) => [
                     'partName' => $pt->part_name, 'quantity' => $pt->quantity, 'sizeRange' => $pt->size_range,
+                    'partNo' => $pt->part_no, 'variants' => $pt->variants, 'fabricCode' => $pt->fabric_code, 'notes' => $pt->notes,
                 ]),
                 'tags'         => $p->tags->pluck('tag'),
                 'createdAt'    => $p->created_at?->format('Y-m-d'),
@@ -320,6 +323,10 @@ class PatternController extends Controller
             'parts.*.part_name'    => ['nullable', 'string', 'max:100'],
             'parts.*.quantity'     => ['nullable', 'integer', 'min:1'],
             'parts.*.size_range'   => ['nullable', 'string', 'max:100'],
+            'parts.*.part_no'      => ['nullable', 'string', 'max:16'],
+            'parts.*.variants'     => ['nullable', 'string', 'max:50'],
+            'parts.*.fabric_code'  => ['nullable', 'string', 'max:16'],
+            'parts.*.notes'        => ['nullable', 'string', 'max:191'],
             'tags'         => ['array'],
             'tags.*'       => ['string', 'max:50'],
             'preview_image'=> ['nullable', 'image', 'max:5120'],

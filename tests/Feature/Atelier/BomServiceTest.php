@@ -20,7 +20,7 @@ class BomServiceTest extends TestCase
 
         return Product::create([
             'category_id' => $cat->id, 'name' => 'Bebek Tişört',
-            'sku' => 'SKU-' . uniqid(), 'gender' => 'Unisex', 'price' => 50,
+            'sku' => 'SKU-' . uniqid(), 'price' => 50,
         ]);
     }
 

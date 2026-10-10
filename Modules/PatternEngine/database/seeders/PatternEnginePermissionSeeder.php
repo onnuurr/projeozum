@@ -16,6 +16,9 @@ class PatternEnginePermissionSeeder extends Seeder
             // kalıp üretme yetkisi vermeden bu izni tek başına verebilmek için
             // (Atelier'in atelier.view + atelier.material.manage hibrit deseniyle aynı).
             'patternengine.profile.manage' => 'Kalıp Motoru Profil Yönet',
+            // Kalıp Ayarları (çark): kalıp tipleri + ölçü noktası sözlüğü. Kalıp düzenleyen
+            // (atelier.pattern.manage) herkes ölçü şablonlarını değiştiremesin diye ayrı (2026-10-07).
+            'atelier.pattern.settings'     => 'Kalıp Ayarları Yönet',
         ];
 
         $created = [];

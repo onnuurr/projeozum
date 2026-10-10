@@ -477,9 +477,19 @@ def convert_pdf(data: bytes, filename: str = "") -> ConvertOutput:
     size_range = profile.parse_size(full_text)
     parts = profile.parse_parts(full_text)
     measurements = profile.parse_measurements(doc)
+    # Kalıp Kartı üretim bilgisi (sarfiyat, parça listesi, vücut tablosu…) — opsiyonel
+    # zenginleştirme; ayrıştırma hatası DXF çıkarımını ASLA bozmaz.
+    try:
+        production = profile.parse_production(doc) or {}
+    except Exception as exc:  # noqa: BLE001
+        production = {}
+        errors.append(f"Üretim bilgisi (ölçü/sarfiyat/parça) okunamadı: {exc}")
+    if not parts and production.get("parts"):
+        parts = production["parts"]
+    size_range = size_range or production.get("size_range")
     if not parts:
         errors.append("Parça etiketi okunamadı (operatör doldurmalı).")
-    if measurements is None:
+    if measurements is None and not production.get("body_measurements"):
         errors.append("Ölçü tablosu güvenle okunamadı (operatör doğrulamalı).")
 
     size_layers = sorted({_layer_for(role)[0] for role, *_ in lines
@@ -505,7 +515,8 @@ def convert_pdf(data: bytes, filename: str = "") -> ConvertOutput:
         "segment_count": len(lines),
         "parts": parts,
         "measurements": measurements,
-        "fabric_usage": None,
+        "fabric_usage": production.get("fabric_usage"),
+        **{k: production[k] for k in ("sizes", "variants", "seam_allowance_cm", "body_measurements") if k in production},
         **ameta,
     }
     return ConvertOutput(classification, round(min(conf, 99.0), 1), dxf, metadata, errors)

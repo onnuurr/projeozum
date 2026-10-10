@@ -77,7 +77,10 @@ class PatternPdfImportTest extends TestCase
         // Zengin çıkarım alanları taslak akışında da saklanır (approve() ile paralel).
         $this->assertSame('nipnaps', $pattern->vendor);
         $this->assertSame(['BEDEN_YESIL', 'BEDEN_CYAN'], $pattern->size_layers);
-        $this->assertEquals([22.5, 46.0], $pattern->measurements['matrix']['OW']);
+        // Ölçüler 2026-10-07'den beri pattern_measurements tablosunda (OW → chest_circ, source=pdf).
+        $ow = $pattern->measurements()->whereHas('point', fn ($q) => $q->where('key', 'chest_circ'))
+            ->orderBy('size_label')->pluck('value', 'size_label')->all();
+        $this->assertEquals(['176' => 46.0, '56' => 22.5], $ow);
     }
 
     public function test_no_dxf_result_marks_failed_not_done(): void

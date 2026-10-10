@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Modules\PatternEngine\Models\Pattern;
+use Modules\PatternEngine\Models\PatternType;
 use Modules\PatternEngine\Services\Conversion\ConversionResult;
 
 /**
@@ -20,6 +21,8 @@ use Modules\PatternEngine\Services\Conversion\ConversionResult;
 class PatternLibraryService
 {
     private const DIR = 'atelier/patterns';
+
+    public function __construct(private PatternMeasurementService $measurements) {}
 
     /** @var array<string,string> alan → kabul edilen uzantı doğrulaması üst katmanda */
     private const FILE_FIELDS = [
@@ -39,6 +42,7 @@ class PatternLibraryService
     {
         return DB::transaction(function () use ($data, $files, $parts, $tags, $createdBy) {
             $pattern = new Pattern($data);
+            $pattern->pattern_type_id = $this->typeIdFor($pattern->product_type);
             $pattern->created_by = $createdBy;
             $this->applyFiles($pattern, $files);
             $pattern->save();
@@ -60,6 +64,9 @@ class PatternLibraryService
     {
         return DB::transaction(function () use ($pattern, $data, $files, $parts, $tags) {
             $pattern->fill($data);
+            if ($pattern->isDirty('product_type')) {
+                $pattern->pattern_type_id = $this->typeIdFor($pattern->product_type);
+            }
             $this->applyFiles($pattern, $files);
             $pattern->save();
 
@@ -142,15 +149,25 @@ class PatternLibraryService
                 Storage::disk(Media::disk())->put($dxfPath, $result->dxf);
             }
 
+            $productType = $meta['product_type'] ?? $pattern->product_type;
+
             $pattern->update([
-                'name'               => $meta['name'] ?? $pattern->name,
-                'product_type'       => $meta['product_type'] ?? $pattern->product_type,
-                'size_range'         => $meta['size_range'] ?? null,
+                // Dönüştürücüye PDF diskteki (hash) adıyla gider — dönen 'name' o hash'tir;
+                // taslak oluşturulurken yüklenen dosya adından verilen ad korunur.
+                'name'               => $pattern->name ?: ($meta['name'] ?? null),
+                'product_type'       => $productType,
+                'pattern_type_id'    => $this->typeIdFor($productType) ?? $pattern->pattern_type_id,
+                // Önceki çıkarım/AI pilotu/operatör doldurduysa boş sonuç onu silmesin.
+                'size_range'         => $meta['size_range'] ?? $pattern->size_range,
+                'sizes'              => $meta['sizes'] ?? $pattern->sizes,
+                'variants'           => $meta['variants'] ?? $pattern->variants,
                 'vendor'             => $meta['profile'] ?? $pattern->vendor,
                 'size_layers'        => $meta['size_layers'] ?? null,
                 'color_size_map'     => $meta['color_size_map'] ?? null,
-                'measurements'       => $meta['measurements'] ?? null,
-                'fabric_usage'       => $meta['fabric_usage'] ?? null,
+                'fabric_usage'       => $meta['fabric_usage'] ?? $pattern->fabric_usage,
+                'materials'          => $meta['materials'] ?? $pattern->materials,
+                'seam_allowance_cm'  => $meta['seam_allowance_cm'] ?? $pattern->seam_allowance_cm,
+                'hem_allowance_cm'   => $meta['hem_allowance_cm'] ?? $pattern->hem_allowance_cm,
                 'scale_verified'     => (bool) ($meta['scale_verified'] ?? false),
                 'scale_deviation_mm' => $meta['scale_deviation_mm'] ?? null,
                 'dxf_path'           => $dxfPath,
@@ -158,10 +175,46 @@ class PatternLibraryService
                 'extraction_error'   => null,
             ]);
 
-            $this->syncParts($pattern, $meta['parts'] ?? []);
+            // PDF parça okuyamadıysa operatörün girdiği parçalar korunur.
+            if (! empty($meta['parts'])) {
+                $this->syncParts($pattern, $meta['parts']);
+            }
+            $this->measurements->importFromPdf($pattern, $meta);
 
             return $pattern->fresh('parts');
         });
+    }
+
+    /**
+     * Kalıp Kartı › Genel / Parçalar / Kumaş & Malzeme kaydı.
+     *
+     * @param  array<string,mixed>             $data   pattern_type_id, sizes, variants, fabric_usage, materials, seam/hem_allowance_cm
+     * @param  array<int,array<string,mixed>>  $parts
+     */
+    public function saveProductionData(Pattern $pattern, array $data, array $parts): Pattern
+    {
+        return DB::transaction(function () use ($pattern, $data, $parts) {
+            if (array_key_exists('pattern_type_id', $data)) {
+                $type = $data['pattern_type_id'] ? PatternType::find($data['pattern_type_id']) : null;
+                // product_type metni AI rule engine/filtreler için tip adıyla senkron tutulur.
+                $data['product_type'] = $type?->name ?? $pattern->product_type;
+            }
+            $pattern->update($data);
+            $this->syncParts($pattern, $parts);
+
+            return $pattern->fresh(['parts', 'type']);
+        });
+    }
+
+    /** Serbest metin ürün tipini tip listesine bağlar (yoksa ekler); 'belirsiz' bağlanmaz. */
+    private function typeIdFor(?string $productType): ?int
+    {
+        $name = trim((string) $productType);
+        if ($name === '' || $name === 'belirsiz') {
+            return null;
+        }
+
+        return PatternType::firstOrCreate(['name' => $name])->id;
     }
 
     /**
@@ -281,9 +334,13 @@ class PatternLibraryService
                 continue;
             }
             $pattern->parts()->create([
-                'part_name'  => $name,
-                'quantity'   => max(1, (int) ($part['quantity'] ?? 1)),
-                'size_range' => $part['size_range'] ?? null,
+                'part_no'     => $this->blankToNull($part['part_no'] ?? null),
+                'part_name'   => $name,
+                'quantity'    => max(1, (int) ($part['quantity'] ?? 1)),
+                'size_range'  => $this->blankToNull($part['size_range'] ?? null),
+                'variants'    => $this->blankToNull($part['variants'] ?? null),
+                'fabric_code' => $this->blankToNull($part['fabric_code'] ?? null),
+                'notes'       => $this->blankToNull($part['notes'] ?? null),
             ]);
         }
     }
@@ -303,6 +360,13 @@ class PatternLibraryService
             $seen[$tag] = true;
             $pattern->tags()->create(['tag' => $tag]);
         }
+    }
+
+    private function blankToNull(mixed $value): ?string
+    {
+        $value = is_string($value) ? trim($value) : $value;
+
+        return $value === null || $value === '' ? null : (string) $value;
     }
 
     /** Dosya adından uzantısız, okunabilir bir ad türetir. */

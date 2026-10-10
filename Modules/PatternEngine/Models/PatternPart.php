@@ -10,7 +10,8 @@ class PatternPart extends Model
     protected $table = 'pattern_parts';
 
     protected $fillable = [
-        'pattern_id', 'part_name', 'quantity', 'size_range',
+        'pattern_id', 'part_no', 'part_name', 'quantity', 'size_range',
+        'variants', 'fabric_code', 'notes',
     ];
 
     protected $casts = [

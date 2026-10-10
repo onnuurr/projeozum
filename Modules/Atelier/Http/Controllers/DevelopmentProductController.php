@@ -12,6 +12,8 @@ use Modules\Atelier\Models\Material;
 use Modules\Atelier\Models\Operation;
 use Modules\Atelier\Services\DevelopmentProductService;
 use Modules\Product\Models\Brand;
+use Modules\Product\Models\Product;
+use Modules\Product\Models\ProductAttributeOption;
 use Modules\Product\Models\Category;
 
 /**
@@ -29,6 +31,12 @@ class DevelopmentProductController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'brands'     => Brand::query()->orderBy('sort_order')->orderBy('name')->get(['id', 'name']),
+            // Cinsiyet seçenekleri Ürün Ayarları → Özellikler'deki `cinsiyet` özelliğinden
+            'genderOptions' => ProductAttributeOption::query()
+                ->whereHas('attribute', fn ($q) => $q->where('code', Product::GENDER_ATTRIBUTE))
+                ->orderBy('sort_order')
+                ->get(['id', 'name'])
+                ->map(fn (ProductAttributeOption $o) => ['value' => $o->id, 'label' => $o->name]),
             // Ön maliyet istemcide canlı hesaplanır; sunucu kayıtta BomService::unitCostFor ile yeniden hesaplar.
             'materials'  => Material::query()
                 ->where('is_active', true)

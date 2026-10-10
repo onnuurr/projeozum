@@ -18,6 +18,8 @@ const props = defineProps({
 	materials: { type: Array, default: () => [] },
 	operations: { type: Array, default: () => [] },
 	fasonSuppliers: { type: Array, default: () => [] },
+	// Ürün Ayarları → Özellikler › Cinsiyet seçenekleri [{ value: id, label }]
+	genderOptions: { type: Array, default: () => [] },
 })
 
 const showToast = inject('showToast', null)
@@ -46,7 +48,6 @@ function quickCreate(url, list, noun) {
 }
 const createCategory = can('category.create') ? quickCreate('/products/categories/quick-create', localCategories, 'Kategori') : null
 const createBrand = can('brand.manage') ? quickCreate('/products/brands/quick-create', localBrands, 'Marka') : null
-const genderOptions = [{ value: 'Kadın', label: 'Kadın' }, { value: 'Erkek', label: 'Erkek' }, { value: 'Unisex', label: 'Unisex' }]
 const materialOptions = computed(() => props.materials.map((m) => ({ value: m.id, label: m.name, description: `${m.code} · ${formatMoney(m.unitCost)} / ${m.unit}` })))
 const materialById = computed(() => Object.fromEntries(props.materials.map((m) => [m.id, m])))
 
@@ -54,7 +55,7 @@ const emptyVariant = () => ({ size: '', color_name: '', sku: '', skuTouched: fal
 const emptyLine = () => ({ material_id: '', quantity_per_unit: 1, waste_pct: 0 })
 
 const form = useForm({
-	name: '', sku: '', category_id: '', brand_id: '', gender: 'Kadın',
+	name: '', sku: '', category_id: '', brand_id: '', gender: '',
 	variants: [emptyVariant()],
 	bom_name: 'Varsayılan Reçete',
 	lines: [emptyLine()],
@@ -149,7 +150,7 @@ function submit() {
 						<OzInput v-model="form.sku" placeholder="Örn. KTN-GML-01" />
 					</OzField>
 					<OzField label="Cinsiyet" required :error="err('gender')">
-						<OzSelect v-model="form.gender" :options="genderOptions" />
+						<OzSelect v-model="form.gender" :options="genderOptions" placeholder="Seçin" />
 					</OzField>
 					<OzField label="Kategori" required :error="err('category_id')">
 						<OzCombobox v-model="form.category_id" :options="categoryOptions" placeholder="Kategori seçin" search-placeholder="Kategori ara ya da yeni ekle…" :create="createCategory" create-text="kategorisini ekle" />

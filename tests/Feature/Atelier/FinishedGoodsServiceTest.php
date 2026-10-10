@@ -20,7 +20,7 @@ class FinishedGoodsServiceTest extends TestCase
     public function test_receiving_writes_stock_movement_and_fires_stock_changed(): void
     {
         $cat = Category::create(['name' => 'C', 'slug' => 'c-' . uniqid(), 'status' => 'active', 'sort_order' => 0]);
-        $product = Product::create(['category_id' => $cat->id, 'name' => 'P', 'sku' => 'S-' . uniqid(), 'gender' => 'Unisex', 'price' => 10]);
+        $product = Product::create(['category_id' => $cat->id, 'name' => 'P', 'sku' => 'S-' . uniqid(), 'price' => 10]);
         $variant = $product->variants()->create(['sku' => 'V-' . uniqid(), 'size' => '2', 'color_name' => 'Mavi', 'price' => 10, 'stock' => 0, 'sort_order' => 0]);
         $warehouse = Warehouse::create(['name' => 'Ana', 'code' => 'W-' . uniqid()]);
 

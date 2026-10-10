@@ -4,6 +4,8 @@ namespace Modules\Atelier\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Modules\Product\Models\Product;
+use Modules\Product\Models\ProductAttribute;
 
 /**
  * "Üretilecek Ürün Ekle": reçete + maliyetten geçici stok kartı açma. Hem ürün açma
@@ -26,7 +28,8 @@ class StoreDevelopmentProductRequest extends FormRequest
             'sku'         => ['required', 'string', 'max:64', Rule::unique('products', 'sku')],
             'category_id' => ['required', 'integer', Rule::exists('product_categories', 'id')],
             'brand_id'    => ['nullable', 'integer', Rule::exists('brands', 'id')],
-            'gender'      => ['required', Rule::in(['Erkek', 'Kadın', 'Unisex'])],
+            // Ürün Ayarları → Özellikler'deki `cinsiyet` seçeneğinin id'si
+            'gender'      => ['required', 'integer', Rule::exists('product_attribute_options', 'id')->where('product_attribute_id', ProductAttribute::where('code', Product::GENDER_ATTRIBUTE)->value('id'))],
 
             // Varyantlar (stok 0 açılır — stok iş emri tamamlanınca girer)
             'variants'              => ['required', 'array', 'min:1'],

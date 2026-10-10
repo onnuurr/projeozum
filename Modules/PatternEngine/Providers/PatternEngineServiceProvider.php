@@ -2,6 +2,7 @@
 
 namespace Modules\PatternEngine\Providers;
 
+use App\Support\ModuleSettingsRegistry;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 use Modules\PatternEngine\Contracts\PatternEngineClient;
 use Modules\PatternEngine\Services\AiExtraction\Contracts\PatternMetadataExtractorContract;
@@ -67,5 +68,18 @@ class PatternEngineServiceProvider extends ModuleServiceProvider
 
             return $app->make($useGemini ? GeminiPatternMetadataExtractor::class : MockPatternMetadataExtractor::class);
         });
+    }
+
+    public function boot(): void
+    {
+        parent::boot();
+
+        // Kalıp Ayarları (kalıp tipleri + ölçü noktaları): Atölye sekme satırında çark.
+        $this->app->make(ModuleSettingsRegistry::class)->register(
+            key: 'pattern',
+            url: '/atelier/patterns/settings',
+            permission: 'atelier.pattern.settings',
+            menuRoots: ['/atelier/patterns'],
+        );
     }
 }
